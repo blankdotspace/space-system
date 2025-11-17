@@ -1,6 +1,10 @@
 import { NavigationConfig } from "../systemConfig";
 
 export const nounsNavigation: NavigationConfig = {
+  logoTooltip: {
+    text: "wtf is nouns?",
+    href: "https://nouns.wtf",
+  },
   items: [
     { id: 'home', label: 'Home', href: '/home', icon: 'home' },
     { id: 'explore', label: 'Explore', href: '/explore', icon: 'explore' },

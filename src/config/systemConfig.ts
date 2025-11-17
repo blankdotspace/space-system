@@ -130,6 +130,12 @@ export interface HomePageConfig {
 
 export interface NavigationConfig {
   items: NavigationItem[];
+  logoTooltip?: LogoTooltipConfig;
+}
+
+export interface LogoTooltipConfig {
+  text: string;
+  href?: string;
 }
 
 export interface NavigationItem {

@@ -14,45 +14,66 @@ import { loadSystemConfig } from "@/config";
 const Londrina = Londrina_Solid({ subsets: ["latin"], weight: "400" });
 
 const BrandHeader = () => {
-  const { assets, brand } = loadSystemConfig();
+  const { assets, brand, navigation } = loadSystemConfig();
+  const logoTooltip = navigation?.logoTooltip;
   const logoSrc = assets.logos.icon || assets.logos.main;
+
+  const logoImage = (
+    <div className="w-12 h-8 sm:w-16 sm:h-10 me-3 flex items-center justify-center">
+      <Image
+        src={logoSrc}
+        alt={`${brand.displayName} Logo`}
+        width={60}
+        height={40}
+        priority
+        className="w-full h-full object-contain"
+      />
+    </div>
+  );
+
   return (
     <>
-      <TooltipProvider>
-        <Tooltip>
-          <Link
-            href="/home"
-            className="flex items-center ps-2.5"
-            rel="noopener noreferrer"
-          >
-            <TooltipTrigger asChild>
-              <div className="w-12 h-8 sm:w-16 sm:h-10 me-3 flex items-center justify-center">
-                <Image
-                  src={logoSrc}
-                  alt={`${brand.displayName} Logo`}
-                  width={60}
-                  height={40}
-                  priority
-                  className="w-full h-full object-contain"
-                />
+      {logoTooltip ? (
+        <TooltipProvider>
+          <Tooltip>
+            <Link
+              href="/home"
+              className="flex items-center ps-2.5"
+              rel="noopener noreferrer"
+            >
+              <TooltipTrigger asChild>{logoImage}</TooltipTrigger>
+            </Link>
+            <TooltipContent className="bg-gray-200 font-black" side="left">
+              <TooltipArrow className="fill-gray-200" />
+              <div className="flex flex-col gap-1">
+                {logoTooltip.href ? (
+                  <a
+                    className={`text-black text-base ${Londrina.className}`}
+                    href={logoTooltip.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {logoTooltip.text}
+                    <FaExternalLinkAlt className="inline ml-1 mb-1" />
+                  </a>
+                ) : (
+                  <span className={`text-black text-base ${Londrina.className}`}>
+                    {logoTooltip.text}
+                  </span>
+                )}
               </div>
-            </TooltipTrigger>
-          </Link>
-          <TooltipContent className="bg-gray-200 font-black" side="left">
-            <TooltipArrow className="fill-gray-200" />
-            <div className="flex flex-col gap-1">
-              <a
-                className={`text-black text-base ${Londrina.className}`}
-                href="https://nouns.wtf"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                wtf is nouns? <FaExternalLinkAlt className="inline ml-1 mb-1" />
-              </a>
-            </div>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ) : (
+        <Link
+          href="/home"
+          className="flex items-center ps-2.5"
+          rel="noopener noreferrer"
+        >
+          {logoImage}
+        </Link>
+      )}
 
       {false && (
         <span className="self-center text-xl font-semibold whitespace-nowrap dark:text-white">
