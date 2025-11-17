@@ -1,4 +1,9 @@
 import { Address } from "viem";
+import type {
+  CommunityConfig,
+  CommunityErc20Token,
+  CommunityNftToken,
+} from "../systemConfig";
 
 export const clankerCommunity = {
   type: "token_platform",
@@ -10,7 +15,7 @@ export const clankerCommunity = {
     forum: "https://forum.clanker.world" // Placeholder - would need actual forum
   },
   social: {
-    farcaster: "clanker", // Placeholder - would need actual Farcaster handle
+    farcaster: "clanker",
     discord: "clanker", // Placeholder - would need actual Discord
     twitter: "clankerworld" // Placeholder - would need actual Twitter handle
   },
@@ -20,19 +25,18 @@ export const clankerCommunity = {
     treasury: "https://treasury.clanker.world" // Placeholder
   },
   tokens: {
-    clanker: {
-      address: "0x0000000000000000000000000000000000000000", // Placeholder - would need actual token address
-      symbol: "CLANKER",
-      decimals: 18
-    },
-    clankerToken: {
-      address: "0x0000000000000000000000000000000000000000", // Placeholder - would need actual token address
-      symbol: "CLANKER",
-      decimals: 18
-    }
+    erc20Tokens: [
+      {
+        address: "0x1bc0c42215582d5a085795f4badbac3ff36d1bcb",
+        symbol: "$CLANKER",
+        decimals: 18,
+        network: "base",
+      },
+    ] satisfies CommunityErc20Token[],
+    nftTokens: [] satisfies CommunityNftToken[],
   },
   contracts: {
-    clanker: "0x0000000000000000000000000000000000000000" as Address, // Placeholder - would need actual contract
+    clanker: "0x1bc0c42215582d5a085795f4badbac3ff36d1bcb" as Address, // Placeholder - would need actual contract
     tokenFactory: "0x0000000000000000000000000000000000000000" as Address, // Placeholder - would need actual contract
     space: "0x0000000000000000000000000000000000000000" as Address, // Placeholder - would need actual contract
     trading: "0x0000000000000000000000000000000000000000" as Address, // Placeholder - would need actual contract
@@ -41,4 +45,4 @@ export const clankerCommunity = {
     auctionHouse: "0x0000000000000000000000000000000000000000" as Address,
     nogs: "0x0000000000000000000000000000000000000000" as Address,
   }
-};
+} satisfies CommunityConfig;

@@ -4,6 +4,7 @@ import { exampleTheme } from './example.theme';
 import { exampleCommunity } from './example.community';
 import { exampleFidgets } from './example.fidgets';
 import { exampleHomePage } from './example.home';
+import { exampleExplorePage } from './example.explore';
 
 export const exampleSystemConfig = {
   brand: exampleBrand,
@@ -12,6 +13,7 @@ export const exampleSystemConfig = {
   community: exampleCommunity,
   fidgets: exampleFidgets,
   homePage: exampleHomePage,
+  explorePage: exampleExplorePage,
 };
 
 export { exampleBrand } from './example.brand';
@@ -20,3 +22,4 @@ export { exampleTheme } from './example.theme';
 export { exampleCommunity } from './example.community';
 export { exampleFidgets } from './example.fidgets';
 export { exampleHomePage } from './example.home';
+export { exampleExplorePage } from './example.explore';

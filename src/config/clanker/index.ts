@@ -5,6 +5,7 @@ import { clankerCommunity } from './clanker.community';
 import { clankerFidgets } from './clanker.fidgets';
 import { clankerHomePage } from './clanker.home';
 import { clankerNavigation } from './clanker.navigation';
+import { clankerExplorePage } from './clanker.explore';
 
 export const clankerSystemConfig = {
   brand: clankerBrand,
@@ -13,6 +14,7 @@ export const clankerSystemConfig = {
   community: clankerCommunity,
   fidgets: clankerFidgets,
   homePage: clankerHomePage,
+  explorePage: clankerExplorePage,
   navigation: clankerNavigation,
 };
 
@@ -22,6 +24,7 @@ export { clankerTheme } from './clanker.theme';
 export { clankerCommunity } from './clanker.community';
 export { clankerFidgets } from './clanker.fidgets';
 export { clankerHomePage } from './clanker.home';
+export { clankerExplorePage } from './clanker.explore';
 
 // Export the initial space creators from config
 export { default as createInitialProfileSpaceConfigForFid } from './initialSpaces/initialProfileSpace';

@@ -5,6 +5,7 @@ import { nounsCommunity } from './nouns.community';
 import { nounsFidgets } from './nouns.fidgets';
 import { nounsHomePage } from './nouns.home';
 import { nounsNavigation } from './nouns.navigation';
+import { nounsExplorePage } from './nouns.explore';
 
 export const nounsSystemConfig = {
   brand: nounsBrand,
@@ -13,6 +14,7 @@ export const nounsSystemConfig = {
   community: nounsCommunity,
   fidgets: nounsFidgets,
   homePage: nounsHomePage,
+  explorePage: nounsExplorePage,
   navigation: nounsNavigation,
 };
 
@@ -22,6 +24,7 @@ export { nounsTheme } from './nouns.theme';
 export { nounsCommunity } from './nouns.community';
 export { nounsFidgets } from './nouns.fidgets';
 export { nounsHomePage } from './nouns.home';
+export { nounsExplorePage } from './nouns.explore';
 
 // Export the initial space creators from config
 export { default as createInitialProfileSpaceConfigForFid } from './initialSpaces/initialProfileSpace';

@@ -13887,17 +13887,6 @@ remark-github-blockquote-alert@^1.0.0:
   dependencies:
     unist-util-visit "^5.0.0"
 
-remark-html@^16.0.1:
-  version "16.0.1"
-  resolved "https://registry.npmjs.org/remark-html/-/remark-html-16.0.1.tgz"
-  integrity sha512-B9JqA5i0qZe0Nsf49q3OXyGvyXuZFDzAP2iOFLEumymuYJITVpiH1IgsTEwTpdptDmZlMDMWeDmSawdaJIGCXQ==
-  dependencies:
-    "@types/mdast" "^4.0.0"
-    hast-util-sanitize "^5.0.0"
-    hast-util-to-html "^9.0.0"
-    mdast-util-to-hast "^13.0.0"
-    unified "^11.0.0"
-
 remark-parse@^11.0.0:
   version "11.0.0"
   resolved "https://registry.npmjs.org/remark-parse/-/remark-parse-11.0.0.tgz"
@@ -13926,16 +13915,6 @@ remark-stringify@^11.0.0:
   dependencies:
     "@types/mdast" "^4.0.0"
     mdast-util-to-markdown "^2.0.0"
-    unified "^11.0.0"
-
-remark@^15.0.1:
-  version "15.0.1"
-  resolved "https://registry.npmjs.org/remark/-/remark-15.0.1.tgz"
-  integrity sha512-Eht5w30ruCXgFmxVUSlNWQ9iiimq07URKeFS3hNc8cUWy1llX4KDWfyEDZRycMc+znsN9Ux5/tJ/BFdgdOwA3A==
-  dependencies:
-    "@types/mdast" "^4.0.0"
-    remark-parse "^11.0.0"
-    remark-stringify "^11.0.0"
     unified "^11.0.0"
 
 require-directory@^2.1.1:
