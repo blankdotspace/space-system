@@ -193,7 +193,7 @@ export const createExplorePageConfig = ({
 
   const normalizedChannel = channel?.trim().replace(/^\/+/, "");
   if (normalizedChannel) {
-    const tabName = `/${normalizedChannel}`;
+    const tabName = "channel";
     const idSuffix = slugify(`channel-${normalizedChannel}`, `channel-${tabEntries.length + 1}`);
     const settings = buildChannelDirectorySettings(normalizedChannel, channelNetwork);
     tabEntries.push({ key: tabName, config: buildTabConfig(tabName, idSuffix, settings) });
