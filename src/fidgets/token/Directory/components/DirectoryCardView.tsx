@@ -5,7 +5,12 @@ import {
   AvatarImage,
 } from "@/common/components/atoms/avatar";
 import BoringAvatar from "boring-avatars";
-import type { DirectoryMemberData, DirectoryFidgetSettings, DirectoryNetwork, DirectoryIncludeOption } from "../types";
+import type {
+  DirectoryMemberData,
+  DirectoryFidgetSettings,
+  DirectoryNetwork,
+  DirectoryIncludeOption,
+} from "../types";
 import { ProfileLink } from "./ProfileLink";
 import { BadgeIcons } from "./BadgeIcons";
 import {
@@ -17,6 +22,10 @@ import {
   formatTokenBalance,
 } from "../utils";
 import { buildEtherscanUrl, getBlockExplorerLink } from "@/common/data/api/token/utils";
+import {
+  DirectoryFollowButton,
+  type DirectoryFollowButtonProps,
+} from "./DirectoryFollowButton";
 
 export type DirectoryCardViewProps = {
   members: DirectoryMemberData[];
@@ -26,6 +35,8 @@ export type DirectoryCardViewProps = {
   headingFontFamilyStyle: React.CSSProperties;
   network: DirectoryNetwork;
   includeFilter: DirectoryIncludeOption;
+  viewerFid: number;
+  signer: DirectoryFollowButtonProps["signer"];
 };
 
 export const DirectoryCardView: React.FC<DirectoryCardViewProps> = ({
@@ -36,6 +47,8 @@ export const DirectoryCardView: React.FC<DirectoryCardViewProps> = ({
   headingFontFamilyStyle,
   network,
   includeFilter,
+  viewerFid,
+  signer,
 }) => {
   return (
     <div className="grid grid-cols-1 gap-4 py-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -136,6 +149,14 @@ export const DirectoryCardView: React.FC<DirectoryCardViewProps> = ({
                 githubHandle={member.githubHandle}
                 githubUrl={member.githubUrl}
                 size={18}
+              />
+            </div>
+            <div className="pointer-events-none absolute bottom-3 right-3 z-10">
+              <DirectoryFollowButton
+                member={member}
+                viewerFid={viewerFid}
+                signer={signer}
+                className="pointer-events-auto px-3 py-1 text-xs font-semibold"
               />
             </div>
           </div>

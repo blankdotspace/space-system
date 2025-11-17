@@ -14,7 +14,6 @@ import {
 } from "@/common/fidgets";
 import {
   buildEtherscanUrl,
-  getBlockExplorerLink,
   normalizeAddress as normalizeAddressUtil,
   parseSocialRecord,
 } from "@/common/data/api/token/utils";
@@ -28,7 +27,6 @@ import {
 } from "./components";
 import {
   resolveFontFamily,
-  getLastActivityLabel,
   sortMembers,
   sanitizeSortOption,
   parseCsv,
@@ -36,6 +34,7 @@ import {
   getNestedUser,
   mapNeynarUserToMember,
   createDefaultMemberForCsv,
+  extractViewerContext,
   type NeynarUser,
 } from "./utils";
 import {
@@ -54,6 +53,7 @@ import type {
   CsvTypeOption,
   CsvSortOption,
   DirectoryMemberData,
+  DirectoryMemberViewerContext,
   DirectoryFidgetData,
   DirectoryFidgetSettings,
 } from "./types";
@@ -75,6 +75,7 @@ export type {
 };
 
 import { directoryProperties } from "./properties";
+import { useFarcasterSigner } from "@/fidgets/farcaster";
 
 const Directory: React.FC<
   FidgetArgs<DirectoryFidgetSettings, DirectoryFidgetData>
@@ -159,6 +160,8 @@ const Directory: React.FC<
     [primaryFontFamily],
   );
 
+  const { fid: viewerFid, signer } = useFarcasterSigner("Directory");
+
   const [directoryData, setDirectoryData] = useState<DirectoryFidgetData>(() => ({
     members: data?.members ?? [],
     lastUpdatedTimestamp: data?.lastUpdatedTimestamp ?? null,
@@ -166,6 +169,7 @@ const Directory: React.FC<
     tokenDecimals: data?.tokenDecimals ?? null,
     lastFetchSettings: data?.lastFetchSettings,
   }));
+  const [lastViewerContextFid, setLastViewerContextFid] = useState<number | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -202,6 +206,34 @@ const Directory: React.FC<
   }, [data]);
 
   useEffect(() => {
+    if (viewerFid > 0) {
+      return;
+    }
+
+    setLastViewerContextFid(null);
+    setDirectoryData((prev) => {
+      const members = prev.members ?? [];
+      let updated = false;
+      const clearedMembers = members.map((member) => {
+        if (member.viewerContext != null) {
+          updated = true;
+          return { ...member, viewerContext: null } as DirectoryMemberData;
+        }
+        return member;
+      });
+
+      if (!updated) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        members: clearedMembers,
+      };
+    });
+  }, [viewerFid]);
+
+  useEffect(() => {
     return () => {
       abortControllerRef.current?.abort();
     };
@@ -235,6 +267,117 @@ const Directory: React.FC<
     setCurrentPage(1);
   }, [includeFilter, currentSort]);
 
+  useEffect(() => {
+    if (viewerFid <= 0) {
+      return;
+    }
+
+    const members = directoryData.members ?? [];
+    const pendingFids = members
+      .filter(
+        (member): member is DirectoryMemberData & { fid: number } =>
+          typeof member.fid === "number" &&
+          member.fid > 0 &&
+          (member.viewerContext == null || typeof member.viewerContext.following === "undefined"),
+      )
+      .map((member) => member.fid);
+
+    if (pendingFids.length === 0) {
+      return;
+    }
+
+    const uniqueFids = Array.from(new Set(pendingFids));
+    const controller = new AbortController();
+    let cancelled = false;
+
+    const hydrateViewerContext = async () => {
+      try {
+        const updates = new Map<number, DirectoryMemberViewerContext | null>();
+        const batches = chunkArray(uniqueFids, 100);
+        for (const batch of batches) {
+          if (batch.length === 0) {
+            continue;
+          }
+
+          const params = new URLSearchParams();
+          params.set("fids", batch.join(","));
+          params.set("viewer_fid", String(viewerFid));
+
+          const response = await fetch(`/api/farcaster/neynar/users?${params.toString()}`, {
+            signal: controller.signal,
+          });
+
+          if (!response.ok) {
+            console.error(
+              "[Directory] Failed to load viewer follow context",
+              response.status,
+              await response.text(),
+            );
+            continue;
+          }
+
+          const payload = await response.json();
+          const users: any[] = Array.isArray(payload?.users) ? payload.users : [];
+          users.forEach((entry) => {
+            const user = getNestedUser(entry);
+            if (!user || typeof user.fid !== "number" || user.fid <= 0) {
+              return;
+            }
+
+            updates.set(user.fid, extractViewerContext(user));
+          });
+        }
+
+        if (updates.size === 0 || cancelled) {
+          return;
+        }
+
+        setDirectoryData((prev) => {
+          const prevMembers = prev.members ?? [];
+          let mutated = false;
+          const nextMembers = prevMembers.map((member) => {
+            if (typeof member.fid === "number" && member.fid > 0 && updates.has(member.fid)) {
+              const nextContext = updates.get(member.fid) ?? null;
+              const currentFollowing = member.viewerContext?.following ?? null;
+              const nextFollowing = nextContext?.following ?? null;
+              if (currentFollowing !== nextFollowing) {
+                mutated = true;
+                return {
+                  ...member,
+                  viewerContext: nextContext,
+                };
+              }
+            }
+            return member;
+          });
+
+          if (!mutated) {
+            return prev;
+          }
+
+          return {
+            ...prev,
+            members: nextMembers,
+          };
+        });
+
+        setLastViewerContextFid(viewerFid);
+      } catch (error) {
+        if ((error as Error).name === "AbortError") {
+          return;
+        }
+        console.error("[Directory] Failed to hydrate viewer follow context", error);
+      }
+    };
+
+    void hydrateViewerContext();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [directoryData.members, viewerFid]);
+
   const shouldRefresh = useMemo(() => {
     if (!isConfigured) {
       return false;
@@ -251,6 +394,14 @@ const Directory: React.FC<
 
     // If no previous fetch, need to fetch
     if (!lastFetch || !lastUpdated) {
+      return true;
+    }
+
+    if (viewerFid > 0) {
+      if (lastViewerContextFid !== viewerFid) {
+        return true;
+      }
+    } else if (lastViewerContextFid !== null) {
       return true;
     }
 
@@ -285,30 +436,47 @@ const Directory: React.FC<
     assetType,
     debouncedChannelName,
     settings.channelFilter,
+    viewerFid,
+    lastViewerContextFid,
   ]);
+
+  const stripViewerContext = useCallback(
+    (members: DirectoryMemberData[] | undefined): DirectoryMemberData[] =>
+      ((members ?? []).map(({ viewerContext: _viewerContext, ...rest }) => ({
+        ...rest,
+      })) as DirectoryMemberData[]),
+    [],
+  );
 
   const persistDataIfChanged = useCallback(
     async (payload: DirectoryFidgetData) => {
+      const nextMembersStripped = stripViewerContext(payload.members);
+      const currentMembersStripped = stripViewerContext(directoryData.members);
       const hasChanged =
-        !isEqual(directoryData.members, payload.members) ||
+        !isEqual(currentMembersStripped, nextMembersStripped) ||
         directoryData.lastUpdatedTimestamp !== payload.lastUpdatedTimestamp ||
         directoryData.tokenSymbol !== payload.tokenSymbol ||
         directoryData.tokenDecimals !== payload.tokenDecimals ||
         !isEqual(directoryData.lastFetchSettings, payload.lastFetchSettings);
 
       setDirectoryData(payload);
+      setLastViewerContextFid(viewerFid > 0 ? viewerFid : null);
 
       if (hasChanged) {
-        await saveData(payload);
+        await saveData({
+          ...payload,
+          members: nextMembersStripped,
+        });
       }
     },
-    [directoryData, saveData],
+    [directoryData, saveData, stripViewerContext, viewerFid],
   );
 
   const fetchTokenDirectory = useCallback(
     async (controller: AbortController) => {
+      const viewerParam = viewerFid > 0 ? `&viewerFid=${viewerFid}` : "";
       const response = await fetch(
-        `/api/token/directory?network=${network}&contractAddress=${normalizedAddress}&assetType=${assetType}&pageSize=1000`,
+        `/api/token/directory?network=${network}&contractAddress=${normalizedAddress}&assetType=${assetType}&pageSize=1000${viewerParam}`,
         { signal: controller.signal },
       );
 
@@ -346,16 +514,17 @@ const Directory: React.FC<
         },
       });
     },
-    [assetType, network, normalizedAddress, persistDataIfChanged, settings.sortBy],
+    [assetType, network, normalizedAddress, persistDataIfChanged, settings.sortBy, viewerFid],
   );
 
   const fetchChannelDirectory = useCallback(
     async (controller: AbortController) => {
       const fetchMembers = async () => {
+        const viewerQuery = viewerFid > 0 ? `&viewer_fid=${viewerFid}` : "";
         const res = await fetch(
           `/api/farcaster/neynar/channel/members?id=${encodeURIComponent(
             (settings.channelName ?? "").trim(),
-          )}&limit=100`,
+          )}&limit=100${viewerQuery}`,
           { signal: controller.signal },
         );
         if (!res.ok) throw new Error(await res.text());
@@ -367,10 +536,11 @@ const Directory: React.FC<
       };
 
       const fetchFollowers = async () => {
+        const viewerQuery = viewerFid > 0 ? `&viewer_fid=${viewerFid}` : "";
         const res = await fetch(
           `/api/farcaster/neynar/channel/followers?id=${encodeURIComponent(
             (settings.channelName ?? "").trim(),
-          )}&limit=1000`,
+          )}&limit=1000${viewerQuery}`,
           { signal: controller.signal },
         );
         if (!res.ok) throw new Error(await res.text());
@@ -414,7 +584,7 @@ const Directory: React.FC<
         },
       });
     },
-    [persistDataIfChanged, settings.channelName, settings.channelFilter],
+    [persistDataIfChanged, settings.channelName, settings.channelFilter, viewerFid],
   );
 
 
@@ -474,6 +644,9 @@ const Directory: React.FC<
 
           const query = new URLSearchParams();
           query.set("fids", fids.join(","));
+          if (viewerFid > 0) {
+            query.set("viewer_fid", String(viewerFid));
+          }
           const res = await fetch(`/api/farcaster/neynar/users?${query.toString()}`, {
             signal: controller.signal,
           });
@@ -502,6 +675,9 @@ const Directory: React.FC<
           console.log("[Directory] CSV fids batch", chunk.length);
           const query = new URLSearchParams();
           query.set("fids", chunk.join(","));
+          if (viewerFid > 0) {
+            query.set("viewer_fid", String(viewerFid));
+          }
           const res = await fetch(`/api/farcaster/neynar/users?${query.toString()}`, {
             signal: controller.signal,
           });
@@ -524,6 +700,9 @@ const Directory: React.FC<
           try {
             const params = new URLSearchParams();
             ch.forEach((a) => params.append("addresses[]", a));
+            if (viewerFid > 0) {
+              params.set("viewer_fid", String(viewerFid));
+            }
             console.log("[Directory] CSV address batch (Farcaster)", ch.length);
             const resp = await fetch(`/api/farcaster/neynar/bulk-address?${params.toString()}`,
               { signal: controller.signal });
@@ -664,6 +843,7 @@ const Directory: React.FC<
       settings.csvUploadedAt,
       settings.csvType,
       settings.csvSortBy,
+      viewerFid,
     ],
   );
 
@@ -731,6 +911,7 @@ const Directory: React.FC<
     settings.csvType,
     settings.csvSortBy,
     settings.refreshToken,
+    viewerFid,
   ]);
 
   // Trigger fetch when CSV upload or manual refresh changes
@@ -879,6 +1060,8 @@ const Directory: React.FC<
             headingTextStyle={headingTextStyle}
             network={network}
             includeFilter={includeFilter}
+            viewerFid={viewerFid}
+            signer={signer}
           />
         ) : (
           <DirectoryCardView
@@ -889,6 +1072,8 @@ const Directory: React.FC<
             headingFontFamilyStyle={headingFontFamilyStyle}
             network={network}
             includeFilter={includeFilter}
+            viewerFid={viewerFid}
+            signer={signer}
           />
         )}
         {/* Bottom pagination */}

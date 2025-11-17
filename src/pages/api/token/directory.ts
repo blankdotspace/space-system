@@ -26,6 +26,7 @@ const DIRECTORY_QUERY_SCHEMA = z.object({
   pageSize: z.coerce.number().int().positive().max(1000).default(1000),
   // Whether to fetch ERC20 token holders or NFT owners
   assetType: z.enum(["token", "nft"]).default("token"),
+  viewerFid: z.coerce.number().int().positive().optional(),
 });
 
 const NEYNAR_LOOKUP_BATCH_SIZE = 25;
@@ -81,6 +82,10 @@ type NeynarUser = NeynarBulkUsersResponse extends Record<string, infer V>
     : never
   : never;
 
+type DirectoryMemberViewerContext = {
+  following?: boolean | null;
+} | null;
+
 type DirectoryMember = {
   address: string;
   balanceRaw: string;
@@ -99,6 +104,7 @@ type DirectoryMember = {
   xUrl?: string | null;
   githubHandle?: string | null;
   githubUrl?: string | null;
+  viewerContext?: DirectoryMemberViewerContext;
 };
 
 type DirectoryApiResponse = {
@@ -725,11 +731,26 @@ function mapNeynarUsersByAddress(
   );
 }
 
+function extractViewerContext(
+  profile: NeynarUser | undefined,
+): DirectoryMemberViewerContext {
+  if (!profile || typeof profile !== "object") {
+    return null;
+  }
+  const viewerContext = (profile as { viewer_context?: { following?: boolean | null } | null }).viewer_context;
+  if (viewerContext && typeof viewerContext === "object") {
+    const following = (viewerContext as { following?: boolean | null }).following;
+    if (typeof following === "boolean" || following === null) {
+      return { following };
+    }
+  }
+  return null;
+}
+
 export async function fetchDirectoryData(
   params: DirectoryQuery,
   deps: DirectoryDependencies = defaultDependencies,
 ): Promise<DirectoryApiResponse> {
-  const normalizedAddress = normalizeAddress(params.contractAddress);
   let holdersResult:
     | Awaited<ReturnType<typeof fetchMoralisTokenHolders>>
     | Awaited<ReturnType<typeof fetchAlchemyNftOwners>>;
@@ -757,6 +778,7 @@ export async function fetchDirectoryData(
       try {
         const response = await deps.neynarClient.fetchBulkUsersByEthOrSolAddress({
           addresses: batch,
+          ...(params.viewerFid ? { viewerFid: params.viewerFid } : {}),
         });
         neynarProfiles = {
           ...neynarProfiles,
@@ -807,6 +829,7 @@ export async function fetchDirectoryData(
     xUrl?: string | null;
     githubHandle?: string | null;
     githubUrl?: string | null;
+    viewerContext?: DirectoryMemberViewerContext;
   };
   const byFid = new Map<number, Agg>();
 
@@ -847,6 +870,7 @@ export async function fetchDirectoryData(
         : profile && typeof profile === "object" && profile !== null && "profile" in profile
           ? ((profile as { profile?: { pfp_url?: string | null } }).profile?.pfp_url ?? null)
           : null;
+    const viewerContext = extractViewerContext(profile);
 
     let xHandleFromProfile: string | null = null;
     let xUrlFromProfile: string | null = null;
@@ -991,6 +1015,7 @@ export async function fetchDirectoryData(
       current.xUrl = current.xUrl ?? combinedXUrl ?? null;
       current.githubHandle = current.githubHandle ?? combinedGithubHandle ?? null;
       current.githubUrl = current.githubUrl ?? combinedGithubUrl ?? null;
+      current.viewerContext = current.viewerContext ?? viewerContext ?? null;
       byFid.set(fid, current);
     } else {
       const fallbackAddress = normalizedPrimaryAddress ?? key;
@@ -1014,6 +1039,7 @@ export async function fetchDirectoryData(
         xUrl: combinedXUrl ?? null,
         githubHandle: combinedGithubHandle ?? null,
         githubUrl: combinedGithubUrl ?? null,
+        viewerContext: viewerContext ?? null,
       });
     }
   }
@@ -1051,6 +1077,7 @@ export async function fetchDirectoryData(
       xUrl: agg.xUrl ?? null,
       githubHandle: agg.githubHandle ?? null,
       githubUrl: agg.githubUrl ?? null,
+      viewerContext: agg.viewerContext ?? null,
     });
   }
 
