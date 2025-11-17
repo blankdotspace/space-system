@@ -16,6 +16,7 @@ import {
 } from "wagmi";
 import { mainnet } from "wagmi/chains";
 import { simulateContract, waitForTransactionReceipt } from "wagmi/actions";
+import { ContractFunctionExecutionError } from "viem";
 import AuctionHero from "./components/AuctionHero";
 import BidModal from "./components/BidModal";
 import StatsRow from "./components/StatsRow";
@@ -180,6 +181,13 @@ const useSettlements = (auction?: Auction) => {
         setHasMore(startId > 0);
         setPage(pageToLoad);
       } catch (error) {
+        if (error instanceof ContractFunctionExecutionError) {
+          // The contract reverts with "Internal error" when a requested range has
+          // no settlements yet. This is expected during gaps and does not impact
+          // the user experience, so we treat it as "no more data".
+          setHasMore(false);
+          return;
+        }
         console.error("Failed to load settlements", error);
       } finally {
         setIsLoading(false);
