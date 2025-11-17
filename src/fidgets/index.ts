@@ -19,6 +19,7 @@ import rss from "./ui/rss";
 import VideoFidget from "./ui/Video";
 import marketData from "./token/marketData";
 import Portfolio from "./token/Portfolio";
+import ClankerManager from "./token/ClankerManager";
 import Directory from "./token/Directory/Directory";
 import chat from "./ui/chat";
 import BuilderScore from "./farcaster/BuilderScore";
@@ -57,6 +58,7 @@ export const CompleteFidgets = {
   Video: VideoFidget,
   Market: marketData,
   Portfolio: Portfolio,
+  ClankerManager: ClankerManager,
   Directory: Directory,
   Chat: chat,
   Top8: Top8,
