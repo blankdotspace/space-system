@@ -146,6 +146,8 @@ export type ExplorePageConfig = HomePageConfig;
 export interface NavigationConfig {
   items: NavigationItem[];
   logoTooltip?: LogoTooltipConfig;
+  showMusicPlayer?: boolean;
+  showSocials?: boolean;
 }
 
 export interface LogoTooltipConfig {

@@ -10,7 +10,9 @@ export const nounsNavigation: NavigationConfig = {
     { id: 'explore', label: 'Explore', href: '/explore', icon: 'explore' },
     { id: 'notifications', label: 'Notifications', href: '/notifications', icon: 'notifications', requiresAuth: true },
     { id: 'space-token', label: '$SPACE', href: '/t/base/0x48C6740BcF807d6C47C864FaEEA15Ed4dA3910Ab/Profile', icon: 'space' },
-  ]
+  ],
+  showMusicPlayer: true,
+  showSocials: true,
 };
 
 export default nounsNavigation;

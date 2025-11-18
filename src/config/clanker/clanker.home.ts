@@ -1,9 +1,9 @@
 export const clankerHomePage = {
-  defaultTab: "clank",
-  tabOrder: ["clank", "social", "docs"],
+  defaultTab: "Clank",
+  tabOrder: ["Clank", "Socials", "Docs"],
   tabs: {
-    clank: {
-      name: "clank",
+    Clank: {
+      name: "lank",
       displayName: "Clank",
       layoutID: "d99e0194-d32e-42da-94b9-d110097e7b05",
       layoutDetails: {
@@ -72,7 +72,7 @@ export const clankerHomePage = {
       isEditable: false,
       timestamp: "2025-11-06T20:36:32.148Z"
     },
-    social: {
+    Socials: {
       name: "social",
       displayName: "Social",
       layoutID: "e83d3c76-dcda-48e1-9537-8313403d38cc",
@@ -305,7 +305,7 @@ export const clankerHomePage = {
       isEditable: false,
       timestamp: "2025-11-06T20:36:45.381Z"
     },
-    docs: {
+    Docs: {
       name: "docs",
       displayName: "Docs",
       layoutID: "60a345e4-6c97-4ce8-8bd8-daa3965a576a",

@@ -469,14 +469,16 @@ const Navigation = React.memo(
             </div>
           </div>
           <div className="flex flex-col flex-auto justify-between border-t px-4">
-            <div
-              className={mergeClasses("mt-8 px-2", shrunk ? "px-0" : "px-2")}
-            >
-              <Player
-                url={userTheme?.properties?.musicURL || NOUNISH_LOWFI_URL}
-                shrunk={shrunk}
-              />
-            </div>
+            {navigation?.showMusicPlayer !== false && (
+              <div
+                className={mergeClasses("mt-8 px-2", shrunk ? "px-0" : "px-2")}
+              >
+                <Player
+                  url={userTheme?.properties?.musicURL || NOUNISH_LOWFI_URL}
+                  shrunk={shrunk}
+                />
+              </div>
+            )}
             {isLoggedIn && (
               <div
                 className={mergeClasses(
@@ -501,18 +503,20 @@ const Navigation = React.memo(
             )}
             {!isLoggedIn && (
               <div className="flex flex-col items-center gap-2">
-                <Link
-                href={discordUrl}
-                  className={mergeClasses(
-                    "flex items-center p-2 text-gray-900 rounded-lg dark:text-white group w-full gap-2 text-lg font-medium",
-                    shrunk ? "justify-center gap-0" : ""
-                  )}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                >
-                  <FaDiscord className="text-[#5865f2] w-6 h-6" />
-                  {!shrunk && "Join"}
-                </Link>
+                {navigation?.showSocials !== false && (
+                  <Link
+                    href={discordUrl}
+                    className={mergeClasses(
+                      "flex items-center p-2 text-gray-900 rounded-lg dark:text-white group w-full gap-2 text-lg font-medium",
+                      shrunk ? "justify-center gap-0" : ""
+                    )}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    <FaDiscord className="text-[#5865f2] w-6 h-6" />
+                    {!shrunk && "Join"}
+                  </Link>
+                )}
                 <div
                   className="flex flex-col items-center text-xs text-gray-500 mt-5"
                 >
