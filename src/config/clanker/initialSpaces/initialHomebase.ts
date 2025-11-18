@@ -54,26 +54,6 @@ Tag [@nounspacetom](https://nounspace.com/s/nounspacetom) in a cast or join our 
 
 ### Happy customizing!
 `;
-const onboardingFidgetID = "text:onboarding";
-const onboardingFidgetConfig = {
-  config: {
-    editable: true,
-    settings: {
-      title: "",
-      text: tutorialText,
-      urlColor: "blue",
-      fontFamily: "Londrina Solid",
-      fontColor: "#073b4c",
-      headingsFontFamily: "Londrina Solid",
-      headingsFontColor: "#2563ea",
-      backgroundColor: "#06d6a0",
-      borderColor: "#ffd166",
-    },
-    data: {},
-  },
-  fidgetType: "text",
-  id: onboardingFidgetID,
-};
 
 const clankerManagerFidgetID = "ClankerManager:clanker-manager";
 
@@ -84,20 +64,10 @@ const createInitialHomebaseConfig = (userAddress?: string): SpaceConfig => {
     layoutDetails: {
       layoutConfig: {
         layout: [
-          // Existing layouts can go here, e.g., feed, profile, etc.
-          {
-            w: 6,
-            h: 7,
-            x: 0,
-            y: 0,
-            i: onboardingFidgetID,
-            moved: false,
-            static: false,
-          },
           {
             w: 6,
             h: 8,
-            x: 6,
+            x: 0,
             y: 0,
             i: clankerManagerFidgetID,
             moved: false,
@@ -109,7 +79,6 @@ const createInitialHomebaseConfig = (userAddress?: string): SpaceConfig => {
     },
     theme: DEFAULT_THEME,
     fidgetInstanceDatums: {
-      [onboardingFidgetID]: onboardingFidgetConfig,
       [clankerManagerFidgetID]: {
         config: {
           editable: true,
