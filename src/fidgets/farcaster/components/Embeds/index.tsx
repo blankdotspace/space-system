@@ -33,6 +33,16 @@ export const renderEmbedForUrl = (
   }
   if (!url) return null;
 
+  // Embed customizado para base.app
+  if (url.startsWith("https://base.app")) {
+    const BaseAppEmbed = React.lazy(() => import("./BaseAppEmbed"));
+    return (
+      <React.Suspense fallback={null}>
+        <BaseAppEmbed url={url} key={key} />
+      </React.Suspense>
+    );
+  }
+
   if (isImageUrl(url)) {
     return !isCreateCast ? (
       <ImageEmbed url={url} key={key} />
