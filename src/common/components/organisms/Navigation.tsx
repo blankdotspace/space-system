@@ -680,10 +680,7 @@ const Navigation = React.memo(
               )}
             </div>
           </div>
-          <div
-            className="flex flex-col flex-auto justify-between border-t px-4"
-            style={{ borderColor: NAV_BORDER_COLOR }}
-          >
+          <div className="flex flex-col flex-auto justify-between border-t px-4">
             {navigation?.showMusicPlayer !== false && (
               <div
                 className={mergeClasses("mt-8 px-2", shrunk ? "px-0" : "px-2")}
@@ -691,9 +688,6 @@ const Navigation = React.memo(
                 <Player
                   url={userTheme?.properties?.musicURL || NOUNISH_LOWFI_URL}
                   shrunk={shrunk}
-                  fontColor={uiColors.fontColor}
-                  fontFamily={uiColors.fontFamily}
-                  borderColor={NAV_BORDER_COLOR}
                 />
               </div>
             )}
@@ -808,7 +802,6 @@ const Navigation = React.memo(
                       "flex items-center p-2 text-gray-900 rounded-lg dark:text-white group w-full gap-2 text-lg font-medium",
                       shrunk ? "justify-center gap-0" : ""
                     )}
-                    style={navTextStyle}
                     rel="noopener noreferrer"
                     target="_blank"
                   >
