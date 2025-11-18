@@ -3,7 +3,7 @@ export const clankerHomePage = {
   tabOrder: ["Clank", "Socials", "Docs"],
   tabs: {
     Clank: {
-      name: "lank",
+      name: "Clank",
       displayName: "Clank",
       layoutID: "d99e0194-d32e-42da-94b9-d110097e7b05",
       layoutDetails: {
