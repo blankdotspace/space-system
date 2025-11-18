@@ -11,7 +11,7 @@ import {
   SpaceConfig,
   SpaceConfigSaveDetails,
 } from "@/app/(spaces)/Space";
-import { INITIAL_HOMEBASE_CONFIG } from "@/config";
+import { INITIAL_HOMEBASE_CONFIG, createInitialHomebaseConfig } from "@/config";
 import {
   HomeBaseTabStore,
   createHomeBaseTabStoreFunc,
@@ -98,25 +98,30 @@ export const createHomeBaseStoreFunc = (
       }
       
       // Only use initial config as last resort
+      // Get user's wallet address for user-specific config (e.g., ClankerManager deployerAddress)
+      // Use the primary wallet from Privy (same wallet used for identity creation)
+      const userAddress = get().account.privyUser?.wallet?.address;
+      const initialConfig = createInitialHomebaseConfig(userAddress);
+      
       set((draft) => {
         draft.homebase.homebaseConfig = {
-          ...cloneDeep(INITIAL_HOMEBASE_CONFIG),
+          ...cloneDeep(initialConfig),
           theme: {
-            ...cloneDeep(INITIAL_HOMEBASE_CONFIG.theme),
+            ...cloneDeep(initialConfig.theme),
             id: `Homebase-Feed-Theme`,
             name: `Homebase-Feed-Theme`,
           },
         };
         draft.homebase.remoteHomebaseConfig = {
-          ...cloneDeep(INITIAL_HOMEBASE_CONFIG),
+          ...cloneDeep(initialConfig),
           theme: {
-            ...cloneDeep(INITIAL_HOMEBASE_CONFIG.theme),
+            ...cloneDeep(initialConfig.theme),
             id: `Homebase-Feed-Theme`,
             name: `Homebase-Feed-Theme`,
           },
         };
       }, "loadHomebase-default");
-      return cloneDeep(INITIAL_HOMEBASE_CONFIG);
+      return cloneDeep(initialConfig);
     }
   },
   commitHomebaseToDatabase: debounce(async () => {
@@ -143,7 +148,14 @@ export const createHomeBaseStoreFunc = (
     if (!localCopy) {
       // First try to load the remote configuration if it exists
       const remoteConfig = get().homebase.remoteHomebaseConfig;
-      localCopy = remoteConfig ? cloneDeep(remoteConfig) : cloneDeep(INITIAL_HOMEBASE_CONFIG) as SpaceConfig;
+      if (remoteConfig) {
+        localCopy = cloneDeep(remoteConfig) as SpaceConfig;
+      } else {
+        // Create initial config with user's wallet address
+        // Use the primary wallet from Privy (same wallet used for identity creation)
+        const userAddress = get().account.privyUser?.wallet?.address;
+        localCopy = cloneDeep(createInitialHomebaseConfig(userAddress)) as SpaceConfig;
+      }
     }
     mergeWith(localCopy, config, (objValue, srcValue) => {
       if (isArray(srcValue)) return srcValue;

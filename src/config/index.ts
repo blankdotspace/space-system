@@ -76,7 +76,7 @@ import { default as clankerCreateInitialProfileSpaceConfigForFid } from './clank
 import { default as clankerCreateInitialChannelSpaceConfig } from './clanker/initialSpaces/initialChannelSpace';
 import { default as clankerCreateInitialTokenSpaceConfigForAddress } from './clanker/initialSpaces/initialTokenSpace';
 import { default as clankerCreateInitialProposalSpaceConfigForProposalId } from './clanker/initialSpaces/initialProposalSpace';
-import { default as clankerINITIAL_HOMEBASE_CONFIG } from './clanker/initialSpaces/initialHomebase';
+import { default as clankerINITIAL_HOMEBASE_CONFIG, createInitialHomebaseConfig as clankerCreateInitialHomebaseConfig } from './clanker/initialSpaces/initialHomebase';
 
 function resolveCommunity(): CommunityConfig {
   const c = (process.env.NEXT_PUBLIC_COMMUNITY || 'nouns').toLowerCase();
@@ -149,6 +149,19 @@ export const INITIAL_HOMEBASE_CONFIG = (() => {
       return nounsINITIAL_HOMEBASE_CONFIG;
   }
 })();
+
+// Function to create initial homebase config with user-specific data (e.g., wallet address)
+export const createInitialHomebaseConfig = (userAddress?: string) => {
+  switch (resolveCommunity()) {
+    case 'clanker':
+      return clankerCreateInitialHomebaseConfig(userAddress);
+    case 'example':
+      return exampleINITIAL_HOMEBASE_CONFIG;
+    case 'nouns':
+    default:
+      return nounsINITIAL_HOMEBASE_CONFIG;
+  }
+};
 
 // Export initial space config
 export { INITIAL_SPACE_CONFIG_EMPTY } from './initialSpaceConfig';

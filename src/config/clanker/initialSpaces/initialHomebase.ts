@@ -75,32 +75,69 @@ const onboardingFidgetConfig = {
   id: onboardingFidgetID,
 };
 
+const clankerManagerFidgetID = "ClankerManager:clanker-manager";
+
 const layoutID = "";
-const INITIAL_HOMEBASE_CONFIG: SpaceConfig = {
-  layoutID,
-  layoutDetails: {
-    layoutConfig: {
-      layout: [
-        // Existing layouts can go here, e.g., feed, profile, etc.
-        {
-          w: 6,
-          h: 7,
-          x: 0,
-          y: 0,
-          i: onboardingFidgetID,
-          moved: false,
-          static: false,
-        },
-      ],
+const createInitialHomebaseConfig = (userAddress?: string): SpaceConfig => {
+  return {
+    layoutID,
+    layoutDetails: {
+      layoutConfig: {
+        layout: [
+          // Existing layouts can go here, e.g., feed, profile, etc.
+          {
+            w: 6,
+            h: 7,
+            x: 0,
+            y: 0,
+            i: onboardingFidgetID,
+            moved: false,
+            static: false,
+          },
+          {
+            w: 6,
+            h: 8,
+            x: 6,
+            y: 0,
+            i: clankerManagerFidgetID,
+            moved: false,
+            static: false,
+          },
+        ],
+      },
+      layoutFidget: "grid",
     },
-    layoutFidget: "grid",
-  },
-  theme: DEFAULT_THEME,
-  fidgetInstanceDatums: {
-    [onboardingFidgetID]: onboardingFidgetConfig,
-  },
-  isEditable: false,
-  fidgetTrayContents: [],
+    theme: DEFAULT_THEME,
+    fidgetInstanceDatums: {
+      [onboardingFidgetID]: onboardingFidgetConfig,
+      [clankerManagerFidgetID]: {
+        config: {
+          editable: true,
+          settings: {
+            deployerAddress: userAddress || "",
+            rewardRecipientAddress: "",
+            accentColor: "#2563eb",
+            primaryFontFamily: "var(--user-theme-font)",
+            primaryFontColor: "var(--user-theme-font-color)",
+            secondaryFontFamily: "var(--user-theme-headings-font)",
+            secondaryFontColor: "var(--user-theme-headings-font-color)",
+            background: "var(--user-theme-fidget-background)",
+            fidgetBorderColor: "var(--user-theme-fidget-border-color)",
+            fidgetBorderWidth: "var(--user-theme-fidget-border-width)",
+            fidgetShadow: "var(--user-theme-fidget-shadow)",
+          },
+          data: {},
+        },
+        fidgetType: "ClankerManager",
+        id: clankerManagerFidgetID,
+      },
+    },
+    isEditable: false,
+    fidgetTrayContents: [],
+  };
 };
 
+// Export both function and default constant for backward compatibility
+const INITIAL_HOMEBASE_CONFIG = createInitialHomebaseConfig();
 export default INITIAL_HOMEBASE_CONFIG;
+export { createInitialHomebaseConfig };
