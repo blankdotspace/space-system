@@ -779,8 +779,19 @@ const EnhancedLinkify: React.FC<{ children: string; style?: React.CSSProperties 
       .filter(Boolean);
   };
 
-  const linked = linkifyText(children);
-  return <span style={style}>{linked}</span>;
+  // Remove links from Spotify in the rendered text
+  const SPOTIFY_TRACK_URL_REGEX = /https?:\/\/open\.spotify\.com\/track\/[A-Za-z0-9]+/;
+  function hasSpotifyHref(element: unknown): boolean {
+    if (!React.isValidElement(element)) return false;
+    const href = (element.props as { href?: string })?.href;
+    return typeof href === "string" && SPOTIFY_TRACK_URL_REGEX.test(href);
+  }
+  const filtered = linkifyText(children).filter((part) => {
+  if (typeof part === "string" && SPOTIFY_TRACK_URL_REGEX.test(part)) return false;
+  if (hasSpotifyHref(part) === true) return false;
+  return true;
+  });
+  return <span style={style}>{filtered}</span>;
 };
 
 const CastBodyComponent = ({

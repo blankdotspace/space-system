@@ -427,29 +427,6 @@ export class FidgetOptionsService {
         }
         
         // Check for duplicate URL (for curated sites and mini-apps)
-<<<<<<< HEAD
-        if (option.type === 'curated') {
-          const curatedOption = option as CuratedFidgetOption;
-          if (curatedOption.url) {
-            const normalizedUrl = curatedOption.url.toLowerCase().trim();
-            if (seenUrls.has(normalizedUrl)) {
-              return false;
-            }
-            seenUrls.add(normalizedUrl);
-          }
-        }
-        
-        // Also check frameUrl for mini-apps
-        if (option.type === 'miniapp') {
-          const miniAppOption = option as MiniAppFidgetOption;
-          if (miniAppOption.frameUrl) {
-            const normalizedFrameUrl = miniAppOption.frameUrl.toLowerCase().trim();
-            if (seenUrls.has(normalizedFrameUrl)) {
-              return false;
-            }
-            seenUrls.add(normalizedFrameUrl);
-          }
-=======
         if ('url' in option && option.url && typeof option.url === 'string') {
           const normalizedUrl = option.url.toLowerCase().trim();
           if (seenUrls.has(normalizedUrl)) {
@@ -465,7 +442,6 @@ export class FidgetOptionsService {
             return false;
           }
           seenUrls.add(normalizedFrameUrl);
->>>>>>> 3656019e (initial profile space for clanker)
         }
         
         seenNames.add(normalizedName);
