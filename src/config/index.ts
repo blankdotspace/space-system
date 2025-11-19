@@ -153,10 +153,10 @@ function resolveCommunity(): CommunityType {
   return isValidCommunityConfig(c) ? c : 'nouns';
 }
 
-export const createInitialProfileSpaceConfigForFid = (fid: number, username?: string) => {
+export const createInitialProfileSpaceConfigForFid = (fid: number, username?: string, walletAddress?: string) => {
   switch (resolveCommunity()) {
     case 'clanker':
-      return clankerCreateInitialProfileSpaceConfigForFid(fid, username);
+      return clankerCreateInitialProfileSpaceConfigForFid(fid, username, walletAddress);
     case 'example':
       return exampleCreateInitialProfileSpaceConfigForFid(fid, username);
     case 'nouns':

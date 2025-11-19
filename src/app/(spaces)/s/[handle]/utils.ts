@@ -120,7 +120,7 @@ export const createProfileSpaceData = (
   walletAddress?: string
 ): Omit<ProfileSpacePageData, 'isEditable' | 'spacePageUrl'> => {
   const config = {
-    ...createInitialProfileSpaceConfigForFid(fid, spaceName),
+    ...createInitialProfileSpaceConfigForFid(fid, spaceName, walletAddress),
     timestamp: new Date().toISOString(),
   };
 
