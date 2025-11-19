@@ -43,6 +43,7 @@ import {
 import SearchModal, { SearchModalHandle } from "./SearchModal";
 import { toFarcasterCdnUrl } from "@/common/lib/utils/farcasterCdn";
 import { loadSystemConfig } from "@/config";
+import { useUIColors } from "@/common/lib/hooks/useUIColors";
 
 type NavItemProps = {
   label: string;
@@ -64,11 +65,12 @@ type NavProps = {
   onNavigate?: () => void;
 };
 
-const NavIconBadge = ({ children }) => {
+const NavIconBadge: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const uiColors = useUIColors();
   return (
     <Badge
-      variant="primary"
-      className="justify-center text-[11px]/[12px] min-w-[18px] min-h-[18px] font-medium shadow-md px-[3px] rounded-full absolute left-[19px] top-[4px]"
+      className="justify-center text-[11px]/[12px] min-w-[18px] min-h-[18px] font-medium shadow-md px-[3px] rounded-full absolute left-[19px] top-[4px] border-white text-white"
+      style={{ backgroundColor: uiColors.primaryColor }}
     >
       {children}
     </Badge>
@@ -95,8 +97,15 @@ const Navigation = React.memo(
   const logout = useLogout();
   const notificationBadgeText = useNotificationBadgeText();
   const pathname = usePathname();
-  const { community, navigation } = loadSystemConfig();
+  const { community, navigation, ui } = loadSystemConfig();
   const discordUrl = community?.urls?.discord || "https://discord.gg/eYQeXU2WuH";
+  
+  // Get cast button colors from config, with fallback to blue
+  const castButtonColors = ui?.castButton || {
+    backgroundColor: "rgb(37, 99, 235)",
+    hoverColor: "rgb(29, 78, 216)",
+    activeColor: "rgb(30, 64, 175)",
+  };
 
   const [shrunk, setShrunk] = useState(mobile ? false : true);
 
@@ -488,9 +497,24 @@ const Navigation = React.memo(
               >
                 <Button
                   onClick={openCastModal}
-                  variant="primary"
+                  id="open-cast-modal-button"
                   width="auto"
-                  className="flex items-center justify-center w-12 h-12"
+                  className="flex items-center justify-center w-12 h-12 text-white font-medium rounded-md transition-colors"
+                  style={{
+                    backgroundColor: castButtonColors.backgroundColor,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = castButtonColors.backgroundColor;
+                  }}
+                  onMouseDown={(e) => {
+                    e.currentTarget.style.backgroundColor = castButtonColors.activeColor;
+                  }}
+                  onMouseUp={(e) => {
+                    e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
+                  }}
                 >
                   {shrunk ? <span className="sr-only">Cast</span> : "Cast"}
                   {shrunk && (

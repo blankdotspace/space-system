@@ -6,6 +6,7 @@ import { nounsFidgets } from './nouns.fidgets';
 import { nounsHomePage } from './nouns.home';
 import { nounsNavigation } from './nouns.navigation';
 import { nounsExplorePage } from './nouns.explore';
+import { nounsUI } from './nouns.ui';
 
 export const nounsSystemConfig = {
   brand: nounsBrand,
@@ -16,6 +17,7 @@ export const nounsSystemConfig = {
   homePage: nounsHomePage,
   explorePage: nounsExplorePage,
   navigation: nounsNavigation,
+  ui: nounsUI,
 };
 
 export { nounsBrand } from './nouns.brand';

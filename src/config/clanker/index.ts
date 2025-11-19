@@ -6,6 +6,7 @@ import { clankerFidgets } from './clanker.fidgets';
 import { clankerHomePage } from './clanker.home';
 import { clankerNavigation } from './clanker.navigation';
 import { clankerExplorePage } from './clanker.explore';
+import { clankerUI } from './clanker.ui';
 
 export const clankerSystemConfig = {
   brand: clankerBrand,
@@ -16,6 +17,7 @@ export const clankerSystemConfig = {
   homePage: clankerHomePage,
   explorePage: clankerExplorePage,
   navigation: clankerNavigation,
+  ui: clankerUI,
 };
 
 export { clankerBrand } from './clanker.brand';

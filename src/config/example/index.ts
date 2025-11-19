@@ -5,6 +5,7 @@ import { exampleCommunity } from './example.community';
 import { exampleFidgets } from './example.fidgets';
 import { exampleHomePage } from './example.home';
 import { exampleExplorePage } from './example.explore';
+import { exampleUI } from './example.ui';
 
 export const exampleSystemConfig = {
   brand: exampleBrand,
@@ -14,6 +15,7 @@ export const exampleSystemConfig = {
   fidgets: exampleFidgets,
   homePage: exampleHomePage,
   explorePage: exampleExplorePage,
+  ui: exampleUI,
 };
 
 export { exampleBrand } from './example.brand';

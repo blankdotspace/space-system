@@ -22,12 +22,15 @@ import {
   CastDiscardPrompt,
 } from "../molecules/CastModalHelpers";
 import { toFarcasterCdnUrl } from "@/common/lib/utils/farcasterCdn";
+import { useUIColors } from "@/common/lib/hooks/useUIColors";
 
 
 const MobileHeader = () => {
   const setModalOpen = useAppStore((state) => state.setup.setModalOpen);
   const isLoggedIn = useAppStore((state) => state.getIsAccountReady());
   const isInitializing = useAppStore((state) => state.getIsInitializing());
+  
+  const uiColors = useUIColors();
 
   const { setEditMode, sidebarEditable } = useSidebarContext();
 
@@ -123,25 +126,66 @@ const MobileHeader = () => {
     if (isInitializing && !timedOut) {
       // Shows a loading while initializing
       return (
-        <Button variant="primary" size="icon" disabled>
+        <Button 
+          size="icon" 
+          disabled
+          className="text-white font-medium rounded-md"
+          style={{ backgroundColor: uiColors.primaryColor }}
+        >
           <span className="animate-spin">⏳</span>
         </Button>
       );
     }
     if (isLoggedIn) {
       return (
-        <Button variant="primary" size="icon" onClick={() => setCastOpen(true)} aria-label="Cast">
+        <Button 
+          size="icon" 
+          onClick={() => setCastOpen(true)} 
+          aria-label="Cast"
+          className="text-white font-medium rounded-md transition-colors"
+          style={{ backgroundColor: uiColors.castButton.backgroundColor }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = uiColors.castButton.hoverColor;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = uiColors.castButton.backgroundColor;
+          }}
+          onMouseDown={(e) => {
+            e.currentTarget.style.backgroundColor = uiColors.castButton.activeColor;
+          }}
+          onMouseUp={(e) => {
+            e.currentTarget.style.backgroundColor = uiColors.castButton.hoverColor;
+          }}
+        >
           <RiQuillPenLine className="w-5 h-5 text-white" />
         </Button>
       );
     }
     return (
-      <Button variant="primary" size="sm" onClick={openLogin} withIcon>
+      <Button 
+        size="sm" 
+        onClick={openLogin} 
+        withIcon
+        className="text-white font-medium rounded-md transition-colors"
+        style={{ backgroundColor: uiColors.primaryColor }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = uiColors.primaryHoverColor;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = uiColors.primaryColor;
+        }}
+        onMouseDown={(e) => {
+          e.currentTarget.style.backgroundColor = uiColors.primaryActiveColor;
+        }}
+        onMouseUp={(e) => {
+          e.currentTarget.style.backgroundColor = uiColors.primaryHoverColor;
+        }}
+      >
         <LogIn size={16} />
         Sign In
       </Button>
     );
-  }, [isLoggedIn, isInitializing, timedOut, openLogin]);
+  }, [isLoggedIn, isInitializing, timedOut, openLogin, uiColors]);
 
   // Memoize drawer change handler
   const handleDrawerOpenChange = useCallback((open: boolean) => {

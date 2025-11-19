@@ -33,6 +33,18 @@ export interface SystemConfig {
   homePage: HomePageConfig;
   explorePage: ExplorePageConfig;
   navigation?: NavigationConfig;
+  ui?: UIConfig;
+}
+
+export interface UIConfig {
+  primaryColor: string;
+  primaryHoverColor: string;
+  primaryActiveColor: string;
+  castButton: {
+    backgroundColor: string;
+    hoverColor: string;
+    activeColor: string;
+  };
 }
 
 export interface BrandConfig {

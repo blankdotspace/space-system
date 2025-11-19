@@ -6,6 +6,7 @@ import * as FaIcons from 'react-icons/fa6'
 import * as BsIcons from 'react-icons/bs'
 import * as GiIcons from 'react-icons/gi'
 import type { IconType } from 'react-icons'
+import { useUIColors } from '@/common/lib/hooks/useUIColors'
 
 const ICON_PACK: Record<string, IconType> = {
   ...FaIcons,
@@ -34,6 +35,7 @@ interface MiniAppSettingsProps {
 export function MiniAppSettings({ miniApp, onUpdateMiniApp, dragControls, orderNumber }: MiniAppSettingsProps) {
   const [isIconSelectorOpen, setIsIconSelectorOpen] = useState(false)
   const iconButtonRef = useRef<HTMLButtonElement>(null)
+  const uiColors = useUIColors()
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onUpdateMiniApp({ ...miniApp, mobileDisplayName: e.target.value })
@@ -101,13 +103,34 @@ export function MiniAppSettings({ miniApp, onUpdateMiniApp, dragControls, orderN
           <button
             onClick={toggleVisibility}
             disabled={miniApp.isImmutable}
-            className={`p-1.5 rounded-md transition-colors shrink-0 ${
-              miniApp.isImmutable 
-                ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+            className="p-1.5 rounded-md transition-colors shrink-0"
+            style={{
+              backgroundColor: miniApp.isImmutable 
+                ? '#F3F4F6' 
                 : miniApp.displayOnMobile 
-                  ? 'bg-blue-100 text-blue-600 hover:bg-blue-200' 
-                  : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-            }`}
+                  ? `${uiColors.primaryColor}20` 
+                  : '#F3F4F6',
+              color: miniApp.isImmutable 
+                ? '#D1D5DB' 
+                : miniApp.displayOnMobile 
+                  ? uiColors.primaryColor 
+                  : '#9CA3AF',
+              cursor: miniApp.isImmutable ? 'not-allowed' : 'pointer',
+            }}
+            onMouseEnter={(e) => {
+              if (!miniApp.isImmutable) {
+                e.currentTarget.style.backgroundColor = miniApp.displayOnMobile 
+                  ? `${uiColors.primaryColor}40` 
+                  : '#E5E7EB';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!miniApp.isImmutable) {
+                e.currentTarget.style.backgroundColor = miniApp.displayOnMobile 
+                  ? `${uiColors.primaryColor}20` 
+                  : '#F3F4F6';
+              }
+            }}
           >
             {miniApp.displayOnMobile ? (
               <EyeIcon className="h-4 w-4" />
@@ -123,7 +146,10 @@ export function MiniAppSettings({ miniApp, onUpdateMiniApp, dragControls, orderN
               type="text"
               value={miniApp.mobileDisplayName}
               onChange={handleNameChange}
-              className="w-full h-10 px-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full h-10 px-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2"
+              style={{
+                '--tw-ring-color': uiColors.primaryColor,
+              } as React.CSSProperties}
               placeholder="Display name"
             />
           </div>
@@ -133,7 +159,10 @@ export function MiniAppSettings({ miniApp, onUpdateMiniApp, dragControls, orderN
               type="button"
               ref={iconButtonRef}
               onClick={() => setIsIconSelectorOpen(!isIconSelectorOpen)}
-              className="h-10 w-10 flex items-center justify-center border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="h-10 w-10 flex items-center justify-center border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2"
+              style={{
+                '--tw-ring-color': uiColors.primaryColor,
+              } as React.CSSProperties}
             >
               {getIconComponent(miniApp.icon)}
             </button>

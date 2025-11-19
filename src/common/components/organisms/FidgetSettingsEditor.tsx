@@ -22,6 +22,7 @@ import { FaCircleInfo, FaTrashCan } from "react-icons/fa6";
 import BackArrowIcon from "../atoms/icons/BackArrow";
 import { AnalyticsEvent } from "@/common/constants/analyticsEvents";
 import { analytics } from "@/common/providers/AnalyticsProvider";
+import { useUIColors } from "@/common/lib/hooks/useUIColors";
 
 export type FidgetSettingsEditorProps = {
   fidgetId: string;
@@ -175,6 +176,7 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
   removeFidget,
 }) => {
   const [state, setState] = useState<FidgetSettings>(settings);
+  const uiColors = useUIColors();
 
   useEffect(() => {
     setState(settings);
@@ -271,7 +273,15 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
             <FaTrashCan className="h-8l shrink-0" aria-hidden="true" />
           </Button>
 
-          <Button type="submit" variant="primary" width="auto">
+          <Button type="submit" width="auto" className="text-white font-medium transition-colors"
+            style={{ backgroundColor: uiColors.primaryColor }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = uiColors.primaryHoverColor;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = uiColors.primaryColor;
+            }}
+          >
             <div className="flex items-center">Done</div>
           </Button>
         </div>

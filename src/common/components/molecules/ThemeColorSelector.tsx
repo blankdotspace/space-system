@@ -3,6 +3,7 @@ import ColorSelector from "@/common/components/molecules/ColorSelector";
 import { Color } from "@/common/lib/theme";
 import React from 'react';
 import { FaPaintbrush } from "react-icons/fa6";
+import { useUIColors } from "@/common/lib/hooks/useUIColors";
 
 interface ThemeColorSelectorProps {
     value: Color;
@@ -20,6 +21,7 @@ const ThemeColorSelector: React.FC<ThemeColorSelectorProps> = ({
     colorType,
 }) => {
     const isUsingTheme = value?.startsWith?.('var(--');
+    const uiColors = useUIColors();
 
     if (!onChange) {
         console.error('Missing onChange handler');
@@ -37,8 +39,16 @@ const ThemeColorSelector: React.FC<ThemeColorSelectorProps> = ({
                             onClick={() => onChange(isUsingTheme ? defaultColor : themeVariable as Color)}
                         >
                             <FaPaintbrush
-                                className={`w-4 h-4 transition-colors ${isUsingTheme ? 'text-blue-500' : 'text-gray-400'
-                                    } hover:text-blue-600`}
+                                className="w-4 h-4 transition-colors"
+                                style={{
+                                    color: isUsingTheme ? uiColors.primaryColor : '#9CA3AF',
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.color = uiColors.primaryHoverColor;
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.color = isUsingTheme ? uiColors.primaryColor : '#9CA3AF';
+                                }}
                             />
                         </div>
                     </TooltipTrigger>
