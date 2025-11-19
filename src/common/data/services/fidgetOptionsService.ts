@@ -60,6 +60,14 @@ const DEFAULT_CATEGORIES: FidgetCategory[] = [
     description: 'Mini apps from Farcaster',
 
     order: 99
+  },
+  {
+    id: 'clanker',
+    name: 'Clanker',
+    icon: '',
+    description: 'Clanker ecosystem tools and integrations',
+
+    order: 0
   }
 ];
 
@@ -107,12 +115,18 @@ export class FidgetOptionsService {
             }
             break;
             
+          // Clanker
+          case 'ClankerManager':
+          case 'EmpireBuilder':
+          case 'Levr':
+            primaryCategory = 'clanker';
+            specificTags.push('token');
+            break;
+            
           // DeFi
           case 'swap':
           case 'market':
           case 'portfolio':
-          case 'Levr':
-          case 'EmpireBuilder':
             primaryCategory = 'defi';
             specificTags.push('token');
             break;
@@ -301,23 +315,29 @@ export class FidgetOptionsService {
       }
       
       // Check for duplicate URL (for curated sites and mini-apps)
-      if ('url' in option && option.url && typeof option.url === 'string') {
-        const normalizedUrl = option.url.toLowerCase().trim();
-        if (seenUrls.has(normalizedUrl)) {
-          duplicates.push(option.name);
-          return false;
+      if (option.type === 'curated') {
+        const curatedOption = option as CuratedFidgetOption;
+        if (curatedOption.url) {
+          const normalizedUrl = curatedOption.url.toLowerCase().trim();
+          if (seenUrls.has(normalizedUrl)) {
+            duplicates.push(option.name);
+            return false;
+          }
+          seenUrls.add(normalizedUrl);
         }
-        seenUrls.add(normalizedUrl);
       }
       
       // Also check frameUrl for mini-apps
-      if ('frameUrl' in option && option.frameUrl && typeof option.frameUrl === 'string') {
-        const normalizedFrameUrl = option.frameUrl.toLowerCase().trim();
-        if (seenUrls.has(normalizedFrameUrl)) {
-          duplicates.push(option.name);
-          return false;
+      if (option.type === 'miniapp') {
+        const miniAppOption = option as MiniAppFidgetOption;
+        if (miniAppOption.frameUrl) {
+          const normalizedFrameUrl = miniAppOption.frameUrl.toLowerCase().trim();
+          if (seenUrls.has(normalizedFrameUrl)) {
+            duplicates.push(option.name);
+            return false;
+          }
+          seenUrls.add(normalizedFrameUrl);
         }
-        seenUrls.add(normalizedFrameUrl);
       }
       
       seenNames.add(normalizedName);
@@ -396,21 +416,27 @@ export class FidgetOptionsService {
         }
         
         // Check for duplicate URL (for curated sites and mini-apps)
-        if ('url' in option && option.url && typeof option.url === 'string') {
-          const normalizedUrl = option.url.toLowerCase().trim();
-          if (seenUrls.has(normalizedUrl)) {
-            return false;
+        if (option.type === 'curated') {
+          const curatedOption = option as CuratedFidgetOption;
+          if (curatedOption.url) {
+            const normalizedUrl = curatedOption.url.toLowerCase().trim();
+            if (seenUrls.has(normalizedUrl)) {
+              return false;
+            }
+            seenUrls.add(normalizedUrl);
           }
-          seenUrls.add(normalizedUrl);
         }
         
         // Also check frameUrl for mini-apps
-        if ('frameUrl' in option && option.frameUrl && typeof option.frameUrl === 'string') {
-          const normalizedFrameUrl = option.frameUrl.toLowerCase().trim();
-          if (seenUrls.has(normalizedFrameUrl)) {
-            return false;
+        if (option.type === 'miniapp') {
+          const miniAppOption = option as MiniAppFidgetOption;
+          if (miniAppOption.frameUrl) {
+            const normalizedFrameUrl = miniAppOption.frameUrl.toLowerCase().trim();
+            if (seenUrls.has(normalizedFrameUrl)) {
+              return false;
+            }
+            seenUrls.add(normalizedFrameUrl);
           }
-          seenUrls.add(normalizedFrameUrl);
         }
         
         seenNames.add(normalizedName);

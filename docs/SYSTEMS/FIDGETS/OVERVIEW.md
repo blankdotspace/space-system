@@ -119,6 +119,10 @@ const generateFidgetInstance = (
 };
 ```
 
+## Fidget Discovery and Selection
+
+Users discover and add fidgets through the fidget picker system, which provides search, filtering, and multiple data sources. For detailed information about how the fidget picker works, see [Fidget Picker System](./FIDGET_PICKER.md).
+
 ## Fidget Lifecycle
 
 ### 1. Creation
