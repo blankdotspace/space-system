@@ -8,6 +8,7 @@ import type {
   DirectoryNetwork,
   DirectoryChannelFilterOption,
   DirectoryAssetType,
+  DirectoryFidgetData,
 } from "@/fidgets/token/Directory/types";
 
 const FULL_WIDTH = 12;
@@ -38,6 +39,7 @@ type CreateExplorePageConfigOptions = {
   channel?: string | null;
   defaultTokenNetwork?: DirectoryNetwork;
   channelNetwork?: DirectoryNetwork;
+  preloadedDirectoryData?: Record<string, DirectoryFidgetData | undefined>;
 };
 
 const sanitizeTabKey = (value: string, fallback: string) => {
@@ -74,10 +76,18 @@ const BASE_DIRECTORY_SETTINGS: Pick<
   secondaryFontColor: undefined,
 };
 
+const getPreloadedDirectoryData = (
+  tabKey: string,
+  idSuffix: string,
+  preloadedDirectoryData?: Record<string, DirectoryFidgetData | undefined>,
+): DirectoryFidgetData | undefined =>
+  preloadedDirectoryData?.[tabKey] ?? preloadedDirectoryData?.[idSuffix];
+
 const buildTabConfig = (
   name: string,
   idSuffix: string,
   settings: DirectoryFidgetSettings,
+  preloadedData?: DirectoryFidgetData,
 ): TabConfig => {
   const fidgetId = createDirectoryFidgetId(idSuffix);
 
@@ -111,7 +121,7 @@ const buildTabConfig = (
     fidgetInstanceDatums: {
       [fidgetId]: {
         config: {
-          data: {},
+          data: preloadedData ?? {},
           editable: false,
           settings,
         },
@@ -171,6 +181,7 @@ export const createExplorePageConfig = ({
   channel,
   defaultTokenNetwork = "mainnet",
   channelNetwork = "base",
+  preloadedDirectoryData,
 }: CreateExplorePageConfigOptions): ExplorePageConfig => {
   const tabEntries: Array<{ key: string; config: TabConfig }> = [];
   const seenTabNames = new Set<string>();
@@ -188,7 +199,11 @@ export const createExplorePageConfig = ({
     seenTabNames.add(tabName);
     const idSuffix = slugify(tabName, `token-${index + 1}`);
     const settings = buildTokenDirectorySettings(token, defaultTokenNetwork);
-    tabEntries.push({ key: tabName, config: buildTabConfig(tabName, idSuffix, settings) });
+    const preloadedData = getPreloadedDirectoryData(tabName, idSuffix, preloadedDirectoryData);
+    tabEntries.push({
+      key: tabName,
+      config: buildTabConfig(tabName, idSuffix, settings, preloadedData),
+    });
   });
 
   const normalizedChannel = channel?.trim().replace(/^\/+/, "");
@@ -196,7 +211,11 @@ export const createExplorePageConfig = ({
     const tabName = "channel";
     const idSuffix = slugify(`channel-${normalizedChannel}`, `channel-${tabEntries.length + 1}`);
     const settings = buildChannelDirectorySettings(normalizedChannel, channelNetwork);
-    tabEntries.push({ key: tabName, config: buildTabConfig(tabName, idSuffix, settings) });
+    const preloadedData = getPreloadedDirectoryData(tabName, idSuffix, preloadedDirectoryData);
+    tabEntries.push({
+      key: tabName,
+      config: buildTabConfig(tabName, idSuffix, settings, preloadedData),
+    });
   }
 
   if (tabEntries.length === 0) {
