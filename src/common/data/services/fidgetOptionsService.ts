@@ -111,6 +111,7 @@ export class FidgetOptionsService {
           case 'swap':
           case 'market':
           case 'portfolio':
+          case 'EmpireBuilder':
             primaryCategory = 'defi';
             break;
             
