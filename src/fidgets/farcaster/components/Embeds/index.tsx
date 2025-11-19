@@ -1,4 +1,5 @@
 import React from "react";
+import SpotifyEmbed from "./SpotifyEmbed";
 import EmbededCast from "./EmbededCast";
 import OnchainEmbed from "./OnchainEmbed";
 import TweetEmbed from "./TweetEmbed";
@@ -64,6 +65,8 @@ export const renderEmbedForUrl = (
     return <ZoraEmbed url={url} key={key} />;
   } else if (url.includes("paragraph.xyz") || url.includes("pgrph.xyz")) {
     return <ParagraphXyzEmbed url={url} key={key} />;
+  } else if (url.startsWith("https://open.spotify.com/track")) {
+    return <SpotifyEmbed url={url} key={key} />;
   } else if (!isImageUrl(url)) {
     // Use smart frame detection to render Frame v2 when possible
     // Falls back to legacy frame system if Frame v2 metadata is not detected
