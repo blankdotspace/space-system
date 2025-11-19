@@ -11,6 +11,7 @@ INITIAL_PROFILE_SPACE_CONFIG.tabNames = ["Profile"];
 const createInitialProfileSpaceConfigForFid = (
   fid: number,
   username?: string,
+  walletAddress?: string,
 ): Omit<SpaceConfig, "isEditable"> => {
   const config = cloneDeep(INITIAL_PROFILE_SPACE_CONFIG);
   config.fidgetInstanceDatums = {
@@ -40,6 +41,39 @@ const createInitialProfileSpaceConfigForFid = (
       fidgetType: "Portfolio",
       id: "Portfolio:cd627e89-d661-4255-8c4c-2242a950e93e",
     },
+    "BuilderScore:builder-score": {
+      config: {
+        editable: false,
+        settings: {
+          fid: fid.toString(),
+          darkMode: false,
+        },
+        data: {},
+      },
+      fidgetType: "BuilderScore",
+      id: "BuilderScore:builder-score",
+    },
+    "ClankerManager:clanker-manager": {
+      config: {
+        editable: false,
+        settings: {
+          deployerAddress: walletAddress || "",
+          rewardRecipientAddress: "",
+          accentColor: "#2563eb",
+          primaryFontFamily: "var(--user-theme-font)",
+          primaryFontColor: "var(--user-theme-font-color)",
+          secondaryFontFamily: "var(--user-theme-headings-font)",
+          secondaryFontColor: "var(--user-theme-headings-font-color)",
+          background: "var(--user-theme-fidget-background)",
+          fidgetBorderColor: "var(--user-theme-fidget-border-color)",
+          fidgetBorderWidth: "var(--user-theme-fidget-border-width)",
+          fidgetShadow: "var(--user-theme-fidget-shadow)",
+        },
+        data: {},
+      },
+      fidgetType: "ClankerManager",
+      id: "ClankerManager:clanker-manager",
+    },
   };
   const layoutItems = [
     {
@@ -57,8 +91,8 @@ const createInitialProfileSpaceConfigForFid = (
     },
     {
       w: 6,
-      h: 8,
-      x: 7,
+      h: 4,
+      x: 6,
       y: 0,
       i: "Portfolio:cd627e89-d661-4255-8c4c-2242a950e93e",
       minW: 3,
@@ -67,7 +101,33 @@ const createInitialProfileSpaceConfigForFid = (
       maxH: 36,
       moved: false,
       static: false,
-      }
+    },
+    {
+      w: 6,
+      h: 2,
+      x: 6,
+      y: 4,
+      i: "BuilderScore:builder-score",
+      minW: 3,
+      maxW: 36,
+      minH: 2,
+      maxH: 36,
+      moved: false,
+      static: false,
+    },
+    {
+      w: 6,
+      h: 4,
+      x: 6,
+      y: 6,
+      i: "ClankerManager:clanker-manager",
+      minW: 3,
+      maxW: 36,
+      minH: 3,
+      maxH: 36,
+      moved: false,
+      static: false,
+    },
   ];
 
   // Set the layout configuration

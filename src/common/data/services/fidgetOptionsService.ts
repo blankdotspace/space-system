@@ -287,15 +287,40 @@ export class FidgetOptionsService {
       ...miniApps
     ];
 
-    // Deduplicate by name (keep the first occurrence)
+    // Deduplicate by name (case-insensitive) and URL
     const seenNames = new Set<string>();
+    const seenUrls = new Set<string>();
     const duplicates: string[] = [];
     const deduplicatedOptions = allOptions.filter(option => {
-      if (seenNames.has(option.name)) {
+      const normalizedName = option.name.toLowerCase().trim();
+      
+      // Check for duplicate name (case-insensitive)
+      if (seenNames.has(normalizedName)) {
         duplicates.push(option.name);
         return false;
       }
-      seenNames.add(option.name);
+      
+      // Check for duplicate URL (for curated sites and mini-apps)
+      if ('url' in option && option.url && typeof option.url === 'string') {
+        const normalizedUrl = option.url.toLowerCase().trim();
+        if (seenUrls.has(normalizedUrl)) {
+          duplicates.push(option.name);
+          return false;
+        }
+        seenUrls.add(normalizedUrl);
+      }
+      
+      // Also check frameUrl for mini-apps
+      if ('frameUrl' in option && option.frameUrl && typeof option.frameUrl === 'string') {
+        const normalizedFrameUrl = option.frameUrl.toLowerCase().trim();
+        if (seenUrls.has(normalizedFrameUrl)) {
+          duplicates.push(option.name);
+          return false;
+        }
+        seenUrls.add(normalizedFrameUrl);
+      }
+      
+      seenNames.add(normalizedName);
       return true;
     });
 
@@ -359,13 +384,36 @@ export class FidgetOptionsService {
         ...miniAppOptions
       ];
 
-      // Deduplicate by name (keep the first occurrence)
+      // Deduplicate by name (case-insensitive) and URL
       const seenNames = new Set<string>();
+      const seenUrls = new Set<string>();
       const deduplicatedOptions = allOptions.filter(option => {
-        if (seenNames.has(option.name)) {
+        const normalizedName = option.name.toLowerCase().trim();
+        
+        // Check for duplicate name (case-insensitive)
+        if (seenNames.has(normalizedName)) {
           return false;
         }
-        seenNames.add(option.name);
+        
+        // Check for duplicate URL (for curated sites and mini-apps)
+        if ('url' in option && option.url && typeof option.url === 'string') {
+          const normalizedUrl = option.url.toLowerCase().trim();
+          if (seenUrls.has(normalizedUrl)) {
+            return false;
+          }
+          seenUrls.add(normalizedUrl);
+        }
+        
+        // Also check frameUrl for mini-apps
+        if ('frameUrl' in option && option.frameUrl && typeof option.frameUrl === 'string') {
+          const normalizedFrameUrl = option.frameUrl.toLowerCase().trim();
+          if (seenUrls.has(normalizedFrameUrl)) {
+            return false;
+          }
+          seenUrls.add(normalizedFrameUrl);
+        }
+        
+        seenNames.add(normalizedName);
         return true;
       });
 

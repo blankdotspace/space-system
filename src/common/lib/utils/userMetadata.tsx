@@ -8,6 +8,7 @@ export type UserMetadata = {
   displayName?: string;
   pfpUrl?: string;
   bio?: string;
+  walletAddress?: string;
 };
 
 export const getUserMetadataStructure = (

@@ -31,12 +31,23 @@ export const getUserMetadata = async (
     
     const { user } = response;
     
+    // Extract primary wallet address from user's verified addresses
+    let walletAddress: string | undefined = undefined;
+    if (user.verified_addresses?.primary?.eth_address) {
+      walletAddress = user.verified_addresses.primary.eth_address;
+    } else if (user.verified_addresses?.eth_addresses && user.verified_addresses.eth_addresses.length > 0) {
+      walletAddress = user.verified_addresses.eth_addresses[0];
+    } else if (user.verifications && user.verifications.length > 0) {
+      walletAddress = user.verifications[0];
+    }
+    
     return {
       fid: user.fid,
       username: user.username,
       displayName: user.display_name,
       pfpUrl: user.pfp_url,
       bio: user.profile?.bio?.text || "",
+      walletAddress,
     };
   } catch (e) {
     console.error('Error fetching user metadata:', e);
@@ -105,10 +116,11 @@ export const createProfileSpaceData = (
   spaceName: string,
   fid: number,
   tabName: string,
-  identityPublicKey?: string
+  identityPublicKey?: string,
+  walletAddress?: string
 ): Omit<ProfileSpacePageData, 'isEditable' | 'spacePageUrl'> => {
   const config = {
-    ...createInitialProfileSpaceConfigForFid(fid, spaceName),
+    ...createInitialProfileSpaceConfigForFid(fid, spaceName, walletAddress),
     timestamp: new Date().toISOString(),
   };
 
@@ -158,6 +170,7 @@ export const loadUserSpaceData = async (
   const userMetadata = await getUserMetadata(handle);
   const spaceOwnerFid = userMetadata?.fid || undefined;
   const spaceOwnerUsername = userMetadata?.username || undefined;
+  const walletAddress = userMetadata?.walletAddress || undefined;
 
   if (!spaceOwnerFid) {
     return null;
@@ -175,6 +188,7 @@ export const loadUserSpaceData = async (
     spaceOwnerUsername || "Profile",
     spaceOwnerFid,
     tabName,
-    identityPublicKey
+    identityPublicKey,
+    walletAddress
   );
 };
