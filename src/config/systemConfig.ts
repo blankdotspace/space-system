@@ -180,6 +180,9 @@ export interface NavPageConfig {
   };
 }
 
+// Alias for explore pages (same structure as NavPageConfig)
+export type ExplorePageConfig = NavPageConfig;
+
 export interface NavigationConfig {
   items: NavigationItem[];
   logoTooltip?: LogoTooltipConfig;

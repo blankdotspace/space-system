@@ -1,5 +1,8 @@
 import { createExplorePageConfig } from "../createExplorePageConfig";
 import { clankerCommunity } from "./clanker.community";
+import clankerChannelTab from "./initialSpaces/exploreTabs/channel.json";
+import clankerTokenTab from "./initialSpaces/exploreTabs/clanker.json";
+import { getDirectoryDataFromTabJson } from "../utils/exploreTabDirectoryData";
 
 const clankerTokens = [
   ...(clankerCommunity.tokens?.erc20Tokens ?? []).map(({ address, symbol, network }) => ({
@@ -16,9 +19,12 @@ const clankerTokens = [
   })),
 ];
 
-// Note: Preloaded directory data JSON files were removed as explore pages are now stored as Spaces
-// The explore page will use default/empty preloaded data
-const clankerPreloadedDirectoryData = {};
+const clankerPreloadedDirectoryData = {
+  "$CLANKER": getDirectoryDataFromTabJson(clankerTokenTab),
+  clanker: getDirectoryDataFromTabJson(clankerTokenTab),
+  "/clanker": getDirectoryDataFromTabJson(clankerChannelTab),
+  "channel-clanker": getDirectoryDataFromTabJson(clankerChannelTab),
+};
 
 export const clankerExplorePage = createExplorePageConfig({
   tokens: clankerTokens,
