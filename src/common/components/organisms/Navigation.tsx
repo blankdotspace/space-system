@@ -699,6 +699,7 @@ const Navigation = React.memo(
                   shrunk ? "flex-col gap-1" : ""
                 )}
               >
+<<<<<<< HEAD
                 {navEditMode && isNavigationEditable ? (
                   showConfirmCancel ? (
                     // Confirmation state - Back and Exit buttons

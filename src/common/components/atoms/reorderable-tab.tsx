@@ -36,7 +36,6 @@ export const Tab = ({
   const activeTabColor = uiColors.castButton.backgroundColor;
   const tabTextColor = isSelected ? activeTabColor : uiColors.fontColor;
   const underlineColor = isSelected ? activeTabColor : uiColors.primaryColor;
-
   return (
     <Reorder.Item
       value={tabName}
