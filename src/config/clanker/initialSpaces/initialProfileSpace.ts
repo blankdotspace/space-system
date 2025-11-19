@@ -41,18 +41,6 @@ const createInitialProfileSpaceConfigForFid = (
       fidgetType: "Portfolio",
       id: "Portfolio:cd627e89-d661-4255-8c4c-2242a950e93e",
     },
-    "BuilderScore:builder-score": {
-      config: {
-        editable: false,
-        settings: {
-          fid: fid.toString(),
-          darkMode: false,
-        },
-        data: {},
-      },
-      fidgetType: "BuilderScore",
-      id: "BuilderScore:builder-score",
-    },
     "ClankerManager:clanker-manager": {
       config: {
         editable: false,
@@ -77,7 +65,7 @@ const createInitialProfileSpaceConfigForFid = (
   };
   const layoutItems = [
     {
-      w: 6,
+      w: 4,
       h: 8,
       x: 0,
       y: 0,
@@ -90,9 +78,9 @@ const createInitialProfileSpaceConfigForFid = (
       static: false,
     },
     {
-      w: 6,
-      h: 4,
-      x: 6,
+      w: 4,
+      h: 8,
+      x: 4,
       y: 0,
       i: "Portfolio:cd627e89-d661-4255-8c4c-2242a950e93e",
       minW: 3,
@@ -103,23 +91,10 @@ const createInitialProfileSpaceConfigForFid = (
       static: false,
     },
     {
-      w: 6,
-      h: 2,
-      x: 6,
-      y: 4,
-      i: "BuilderScore:builder-score",
-      minW: 3,
-      maxW: 36,
-      minH: 2,
-      maxH: 36,
-      moved: false,
-      static: false,
-    },
-    {
-      w: 6,
-      h: 4,
-      x: 6,
-      y: 6,
+      w: 4,
+      h: 8,
+      x: 8,
+      y: 0,
       i: "ClankerManager:clanker-manager",
       minW: 3,
       maxW: 36,
