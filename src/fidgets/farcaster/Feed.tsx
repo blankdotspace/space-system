@@ -417,6 +417,23 @@ const Feed: React.FC<FidgetArgs<FeedFidgetSettings, FeedFidgetData>> = ({
 
   const { push, pop, clear, last } = threadStack;
 
+  // Banner visibility: show when feed loads, hide when user scrolls down
+  const [showBanner, setShowBanner] = useState(true);
+
+  // Reset banner when settings that affect the summary change
+  useEffect(() => {
+    setShowBanner(true);
+  }, [feedType, filterType, users, username, channel, keyword, selectPlatform?.name]);
+
+  const onScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    try {
+      const s = (e.currentTarget as HTMLDivElement).scrollTop;
+      setShowBanner(s <= 20);
+    } catch (err) {
+      // ignore
+    }
+  }, []);
+
   useEffect(() => {
     if (prevFeedType !== feedType) {
       setIsTransitioning(true);
@@ -607,6 +624,7 @@ const Feed: React.FC<FidgetArgs<FeedFidgetSettings, FeedFidgetData>> = ({
   return (
     <div
       className="h-full overflow-y-auto"
+      onScroll={onScroll}
       style={{
         fontFamily: settings.useDefaultColors
           ? "var(--user-theme-font)"
@@ -619,6 +637,47 @@ const Feed: React.FC<FidgetArgs<FeedFidgetSettings, FeedFidgetData>> = ({
           : settings.background,
       }}
     >
+      {/* Feed settings banner: shows a short summary of active filter/feed and hides on scroll */}
+      {!isThreadView && !isTransitioning && (
+        (() => {
+          // Build short human-readable summary
+          let text = "";
+          if (selectPlatform?.name === "X") {
+            if (Xhandle) text = `Showing X feed: ${Xhandle}`;
+            else text = `Showing X feed`;
+          } else if (feedType === FeedType.Filter) {
+            if (filterType === FilterType.Channel && channel)
+              text = `Showing channel: ${channel}`;
+            else if (filterType === FilterType.Users) {
+              if (username) text = `Showing user: ${username}`;
+              else if (users) text = `Showing FID: ${users}`;
+            } else if (filterType === FilterType.Keyword && keyword)
+              text = `Filtering by: ${keyword}`;
+          } else if (feedType === FeedType.Following) {
+            text = `Following feed`;
+          } else if (feedType === ("for_you" as any)) {
+            text = `For you`;
+          } else if (feedType === ("trending" as any)) {
+            text = `Trending`;
+          }
+
+          if (!text) return null;
+
+          return (
+            <div
+              role="status"
+              aria-live="polite"
+              className={`sticky top-0 z-10 transform transition-transform duration-200 ease-in-out ${
+                showBanner ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
+              }`}
+            >
+              <div className="w-full px-4 py-2 bg-white/90 dark:bg-black/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 text-sm text-gray-700 dark:text-gray-200">
+                {text}
+              </div>
+            </div>
+          );
+        })()
+      )}
       {isTransitioning ? (
         <div className="h-full w-full flex justify-center items-center">
           <Loading />
