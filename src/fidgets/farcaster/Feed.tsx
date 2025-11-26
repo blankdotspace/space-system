@@ -24,8 +24,8 @@ import {
 import useLifoQueue from "@/common/lib/hooks/useLifoQueue";
 import { FeedType } from "@neynar/nodejs-sdk/build/api";
 import { isNil } from "lodash";
-import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import React, { useCallback, useEffect, useState } from "react";
 import { BsChatRightHeart, BsChatRightHeartFill } from "react-icons/bs";
 import { useInView } from "react-intersection-observer";
 import { useFarcasterSigner } from ".";
@@ -420,19 +420,52 @@ const Feed: React.FC<FidgetArgs<FeedFidgetSettings, FeedFidgetData>> = ({
   // Banner visibility: show when feed loads, hide when user scrolls down
   const [showBanner, setShowBanner] = useState(true);
 
+  // Threshold (in pixels) for showing/hiding the banner
+  const BANNER_HIDE_THRESHOLD = 20;
+
   // Reset banner when settings that affect the summary change
   useEffect(() => {
     setShowBanner(true);
   }, [feedType, filterType, users, username, channel, keyword, selectPlatform?.name]);
 
   const onScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    try {
-      const s = (e.currentTarget as HTMLDivElement).scrollTop;
-      setShowBanner(s <= 20);
-    } catch (err) {
-      // ignore
-    }
+    const scrollTop = e.currentTarget.scrollTop;
+    setShowBanner(scrollTop <= BANNER_HIDE_THRESHOLD);
   }, []);
+
+  // Helper for banner text
+  const getBannerText = (
+    selectPlatform: Platform,
+    feedType: FeedType | "for_you" | "trending",
+    filterType: FilterType,
+    settings: {
+      Xhandle?: string;
+      channel?: string;
+      username?: string;
+      users?: string;
+      keyword?: string;
+    }
+  ): string => {
+    if (selectPlatform?.name === "X") {
+      return settings.Xhandle ? `Showing X feed: ${settings.Xhandle}` : `Showing X feed`;
+    }
+    if (feedType === FeedType.Filter) {
+      if (filterType === FilterType.Channel && settings.channel) {
+        return `Showing channel: ${settings.channel}`;
+      }
+      if (filterType === FilterType.Users) {
+        if (settings.username) return `Showing user: ${settings.username}`;
+        if (settings.users) return `Showing FID: ${settings.users}`;
+      }
+      if (filterType === FilterType.Keyword && settings.keyword) {
+        return `Filtering by: ${settings.keyword}`;
+      }
+    }
+    if (feedType === FeedType.Following) return `Following feed`;
+    if (feedType === "for_you") return `For you`;
+    if (feedType === "trending") return `Trending`;
+    return "";
+  };
 
   useEffect(() => {
     if (prevFeedType !== feedType) {
@@ -640,29 +673,14 @@ const Feed: React.FC<FidgetArgs<FeedFidgetSettings, FeedFidgetData>> = ({
       {/* Feed settings banner: shows a short summary of active filter/feed and hides on scroll */}
       {!isThreadView && !isTransitioning && (
         (() => {
-          // Build short human-readable summary
-          let text = "";
-          if (selectPlatform?.name === "X") {
-            if (Xhandle) text = `Showing X feed: ${Xhandle}`;
-            else text = `Showing X feed`;
-          } else if (feedType === FeedType.Filter) {
-            if (filterType === FilterType.Channel && channel)
-              text = `Showing channel: ${channel}`;
-            else if (filterType === FilterType.Users) {
-              if (username) text = `Showing user: ${username}`;
-              else if (users) text = `Showing FID: ${users}`;
-            } else if (filterType === FilterType.Keyword && keyword)
-              text = `Filtering by: ${keyword}`;
-          } else if (feedType === FeedType.Following) {
-            text = `Following feed`;
-          } else if (feedType === ("for_you" as any)) {
-            text = `For you`;
-          } else if (feedType === ("trending" as any)) {
-            text = `Trending`;
-          }
-
+          const text = getBannerText(selectPlatform, feedType as FeedType | "for_you" | "trending", filterType, {
+            Xhandle,
+            channel,
+            username,
+            users,
+            keyword,
+          });
           if (!text) return null;
-
           return (
             <div
               role="status"
