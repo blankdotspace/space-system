@@ -79,7 +79,7 @@
     "@react-stately/datepicker": "^3.9.4",
     "@segment/analytics-next": "^1.81.0",
     "@sentry/react": "^10.0.0",
-    "@snapshot-labs/snapshot.js": "^0.14.9",
+    "@snapshot-labs/snapshot.js": "^0.14.17",
     "@supabase/ssr": "^0.3.0",
     "@supabase/supabase-js": "^2.44.1",
     "@tailwindcss/typography": "^0.5.10",
