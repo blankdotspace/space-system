@@ -4850,10 +4850,10 @@
   resolved "https://registry.npmjs.org/@simplewebauthn/types/-/types-9.0.1.tgz"
   integrity sha512-tGSRP1QvsAvsJmnOlRQyw/mvK9gnPtjEc5fg2+m8n+QUa+D7rvrKkOYyfpy42GTs90X3RDOnqJgfHt+qO67/+w==
 
-"@snapshot-labs/snapshot.js@^0.14.9":
-  version "0.14.9"
-  resolved "https://registry.npmjs.org/@snapshot-labs/snapshot.js/-/snapshot.js-0.14.9.tgz"
-  integrity sha512-u3Wuc186T+ds1b3hhG2mNi4zADwBr3WX/r+rXbIslMd7W0vDLCvOX9+Q8yH0EeLlGgA3uOjY1qUVZ9KshGGRZA==
+"@snapshot-labs/snapshot.js@^0.14.17":
+  version "0.14.17"
+  resolved "https://registry.yarnpkg.com/@snapshot-labs/snapshot.js/-/snapshot.js-0.14.17.tgz#c315f4ffc4d8e34234fab3df9edc2514e858e3ec"
+  integrity sha512-IKdG/gazp/OetUdriojA8mPRURAGo9BtJasJUmBv4SaqZz99eeQwgHrzpHzmAhOOwm5D0TJhkCMz7KUWomD9og==
   dependencies:
     "@ensdomains/eth-ens-namehash" "^2.0.15"
     "@ethersproject/abi" "^5.6.4"
