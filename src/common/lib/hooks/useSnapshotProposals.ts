@@ -1,11 +1,12 @@
 // src/hooks/useSnapshotProposals.ts
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 interface FetchProposalsParams {
   ens: string;
   skip: number;
   first: number;
+  apiUrl?: string;
 }
 
 const proposalsQuery = (ens: string, skip: number, first: number) => `
@@ -30,7 +31,6 @@ const proposalsQuery = (ens: string, skip: number, first: number) => `
             author
             created 
             scores
-            scores_total
             space {
                 id
                 name
@@ -44,6 +44,7 @@ export const useSnapshotProposals = ({
   ens,
   skip,
   first,
+  apiUrl = "https://hub.snapshot.org/graphql",
 }: FetchProposalsParams) => {
   const [proposals, setProposals] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -51,10 +52,10 @@ export const useSnapshotProposals = ({
   useEffect(() => {
     const fetchProposals = async () => {
       try {
-        const response = await fetch("https://hub.snapshot.org/graphql", {
+        const response = await fetch(apiUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: proposalsQuery(ens, skip, first) }),
+          body: JSON.stringify({ query: proposalsQuery(ens?.toLowerCase(), skip, first) }),
         });
         if (response.ok) {
           const data = await response.json();
@@ -63,7 +64,15 @@ export const useSnapshotProposals = ({
             console.error("GraphQL Proposals Error:", data.errors);
             return;
           }
-          setProposals(data.data.proposals);
+          const processedProposals = data.data?.proposals?.map((proposal: any) => {
+            const safeScores = Array.isArray(proposal.scores) ? proposal.scores : [];
+            return {
+              ...proposal,
+              scores: safeScores,
+              scores_total: safeScores.reduce((a: number, b: number) => a + b, 0),
+            };
+          }) || [];
+          setProposals(processedProposals);
         }
       } catch (error) {
         setError("GraphQL Proposals Error");

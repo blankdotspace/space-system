@@ -358,10 +358,10 @@ export const clankerHomePage = {
             settings: {
               background: "var(--user-theme-fidget-background)",
               cropOffsetX: 0,
-              cropOffsetY: 0,
+              cropOffsetY: -5,
               embedScript: `<iframe src="https://clanker.gitbook.io/clanker-documentation"
         width="100%"
-        height="100%"
+        height="105vh"
         allowfullscreen>
 </iframe>`,
               fidgetBorderColor: "var(--user-theme-fidget-border-color)",
