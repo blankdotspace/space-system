@@ -38,7 +38,7 @@ export const renderEmbedForUrl = (
   if (url.includes("base.app")) {
     return (
       <React.Suspense fallback={null}>
-        <BaseAppEmbed url={url} />
+        <BaseAppEmbed url={url} key={key} />
       </React.Suspense>
     );
   }
