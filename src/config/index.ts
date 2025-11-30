@@ -12,6 +12,26 @@ export const loadSystemConfig = (): SystemConfig => {
   // Get the community configuration from environment variable
   const communityConfig = process.env.NEXT_PUBLIC_COMMUNITY || 'nouns';
   
+  // Try build-time config from database (stored in env var at build time)
+  const buildTimeConfig = process.env.NEXT_PUBLIC_BUILD_TIME_CONFIG;
+  if (buildTimeConfig) {
+    try {
+      const dbConfig = JSON.parse(buildTimeConfig) as SystemConfig;
+      // Validate config structure
+      if (dbConfig && dbConfig.brand && dbConfig.assets) {
+        console.log('✅ Using config from database');
+        return dbConfig;
+      } else {
+        console.warn('⚠️  Invalid config structure from DB, falling back to static');
+      }
+    } catch (error) {
+      console.warn('⚠️  Failed to parse build-time config, falling back to static:', error);
+    }
+  }
+  
+  // Fall back to static configs
+  console.log('ℹ️  Using static configs');
+  
   // Validate the configuration
   if (!isValidCommunityConfig(communityConfig)) {
     console.warn(

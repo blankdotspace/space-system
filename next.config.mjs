@@ -1,8 +1,47 @@
 import bundlerAnalyzer from "@next/bundle-analyzer";
 import packageInfo from "./package.json" with { type: "json" };
 import { createRequire } from "node:module";
+import { createClient } from '@supabase/supabase-js';
 
 const require = createRequire(import.meta.url);
+
+// Load config from database at build time and set as environment variable
+// Config is now ~2.8 KB (down from ~29 KB), so env var approach works fine
+async function loadConfigFromDB() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    console.log('ℹ️  Using static configs (no DB credentials)');
+    return;
+  }
+  
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  const community = process.env.NEXT_PUBLIC_COMMUNITY || 'nouns';
+  
+  try {
+    const { data, error } = await supabase
+      .rpc('get_active_community_config', { p_community_id: community })
+      .single();
+    
+    if (error || !data) {
+      console.log('ℹ️  Using static configs (no DB config found)');
+      if (error) {
+        console.log(`   Error: ${error.message}`);
+      }
+      return;
+    }
+    
+    // Store config in environment variable (now small enough at ~2.8 KB)
+    process.env.NEXT_PUBLIC_BUILD_TIME_CONFIG = JSON.stringify(data);
+    console.log('✅ Loaded config from database');
+  } catch (error) {
+    console.warn('⚠️  Error loading config from DB:', error.message);
+  }
+}
+
+// Load config before Next.js config is created
+await loadConfigFromDB();
 
 const withBundleAnalyzer = bundlerAnalyzer({
   enabled: process.env.ANALYZE === "true",
