@@ -1,29 +1,34 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { useParams } from "next/navigation";
 import { useAppStore } from "@/common/data/stores/app";
 import SpacePage, { SpacePageArgs } from "@/app/(spaces)/SpacePage";
 import { SpaceConfig } from "@/app/(spaces)/Space";
 import TabBar from "@/common/components/organisms/TabBar";
 import { useMiniKit } from "@coinbase/onchainkit/minikit";
+import type { HomePageConfig, ExplorePageConfig } from "@/config/systemConfig";
 
-import { useSystemConfig } from "@/common/lib/hooks/useSystemConfig";
+type PageConfig = HomePageConfig | ExplorePageConfig;
 
-const getTabConfig = (tabName: string, config: any): SpaceConfig => {
-  return config.homePage.tabs[tabName] || config.homePage.tabs[config.homePage.defaultTab];
+type NavPageClientProps = {
+  pageConfig: PageConfig;
+  activeTabName: string;
+  navSlug: string;
 };
 
-const Home = () => {
-  const params = useParams();
-  const config = useSystemConfig();
+const getTabConfig = (tabName: string, config: PageConfig): SpaceConfig => {
+  return (config.tabs[tabName] || config.tabs[config.defaultTab]) as SpaceConfig;
+};
+
+const NavPageClient: React.FC<NavPageClientProps> = ({
+  pageConfig,
+  activeTabName,
+  navSlug,
+}) => {
   const { setCurrentTabName, currentTabName } = useAppStore((state) => ({
     setCurrentTabName: state.currentSpace.setCurrentTabName,
     currentTabName: state.currentSpace.currentTabName,
   }));
-
-  // Tab ordering for homepage from configuration
-  const tabOrdering = config.homePage.tabOrder;
 
   const { setFrameReady, isFrameReady } = useMiniKit();
 
@@ -32,25 +37,20 @@ const Home = () => {
   }, [isFrameReady, setFrameReady]);
 
   useEffect(() => {
-    const newTabName = params?.tabname
-      ? decodeURIComponent(params.tabname as string)
-      : config.homePage.defaultTab;
-
-    setCurrentTabName(newTabName);
-  }, [params?.tabname, setCurrentTabName, config.homePage.defaultTab]);
-
+    setCurrentTabName(activeTabName);
+  }, [activeTabName, setCurrentTabName]);
 
   const tabBar = (
     <TabBar
-      getSpacePageUrl={(tab) => `/home/${tab}`}
+      getSpacePageUrl={(tab) => `/${navSlug}/${encodeURIComponent(tab)}`}
       inHomebase={false}
-      currentTab={currentTabName ?? config.homePage.defaultTab}
-      tabList={tabOrdering}
-      defaultTab={config.homePage.defaultTab}
+      currentTab={currentTabName ?? activeTabName}
+      tabList={pageConfig.tabOrder}
+      defaultTab={pageConfig.defaultTab}
       inEditMode={false}
       updateTabOrder={async () => Promise.resolve()}
       deleteTab={async () => Promise.resolve()}
-      createTab={async () => Promise.resolve({ tabName: currentTabName ?? config.homePage.defaultTab })}
+      createTab={async () => Promise.resolve({ tabName: currentTabName ?? activeTabName })}
       renameTab={async () => Promise.resolve(void 0)}
       commitTab={async () => Promise.resolve()}
       commitTabOrder={async () => Promise.resolve()}
@@ -59,7 +59,7 @@ const Home = () => {
   );
 
   const args: SpacePageArgs = {
-    config: getTabConfig(currentTabName ?? config.homePage.defaultTab, config) as SpaceConfig,
+    config: getTabConfig(currentTabName ?? activeTabName, pageConfig) as SpaceConfig,
     saveConfig: async () => {},
     commitConfig: async () => {},
     resetConfig: async () => {},
@@ -67,7 +67,8 @@ const Home = () => {
     showFeedOnMobile: false,
   };
 
-  return <SpacePage key={currentTabName} {...args} />;
+  return <SpacePage key={currentTabName ?? activeTabName} {...args} />;
 };
 
-export default Home;
+export default NavPageClient;
+

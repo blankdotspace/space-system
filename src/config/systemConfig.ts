@@ -30,10 +30,13 @@ export interface SystemConfig {
   theme: ThemeConfig;
   community: CommunityConfig;
   fidgets: FidgetConfig;
-  homePage: HomePageConfig;
-  explorePage: ExplorePageConfig;
+  homePage: HomePageConfig | null; // Nullable for navigation-space approach
+  explorePage: ExplorePageConfig | null; // Nullable for navigation-space approach
   navigation?: NavigationConfig;
   ui?: UIConfig;
+  pages?: {
+    [key: string]: HomePageConfig | ExplorePageConfig;
+  }; // For database config structure
 }
 
 export interface UIConfig {
@@ -174,6 +177,7 @@ export interface NavigationItem {
   icon?: 'home' | 'explore' | 'notifications' | 'search' | 'space' | 'robot' | 'custom';
   openInNewTab?: boolean;
   requiresAuth?: boolean;
+  spaceId?: string; // Optional reference to Space for page content (navPage type)
 }
 
 export interface TabConfig {

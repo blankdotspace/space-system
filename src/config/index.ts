@@ -16,11 +16,17 @@ export const loadSystemConfig = (): SystemConfig => {
   const buildTimeConfig = process.env.NEXT_PUBLIC_BUILD_TIME_CONFIG;
   if (buildTimeConfig) {
     try {
-      const dbConfig = JSON.parse(buildTimeConfig) as SystemConfig;
+      const dbConfig = JSON.parse(buildTimeConfig) as any;
       // Validate config structure
       if (dbConfig && dbConfig.brand && dbConfig.assets) {
         console.log('✅ Using config from database');
-        return dbConfig;
+        // Map pages object to homePage/explorePage for backward compatibility
+        const mappedConfig: SystemConfig = {
+          ...dbConfig,
+          homePage: dbConfig.pages?.['home'] || dbConfig.homePage || null,
+          explorePage: dbConfig.pages?.['explore'] || dbConfig.explorePage || null,
+        };
+        return mappedConfig as SystemConfig;
       } else {
         console.warn('⚠️  Invalid config structure from DB, falling back to static');
       }
