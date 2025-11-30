@@ -2,6 +2,7 @@ import { nounsSystemConfig } from './nouns/index';
 import { exampleSystemConfig } from './example/index';
 import { clankerSystemConfig } from './clanker/index';
 import { SystemConfig } from './systemConfig';
+import { themes } from './shared/themes';
 
 // Available community configurations
 const AVAILABLE_CONFIGURATIONS = ['nouns', 'example', 'clanker'] as const;
@@ -21,8 +22,10 @@ export const loadSystemConfig = (): SystemConfig => {
       if (dbConfig && dbConfig.brand && dbConfig.assets) {
         console.log('✅ Using config from database');
         // Map pages object to homePage/explorePage for backward compatibility
+        // Add themes from shared file (themes are not in database)
         const mappedConfig: SystemConfig = {
           ...dbConfig,
+          theme: themes, // Themes come from shared file
           homePage: dbConfig.pages?.['home'] || dbConfig.homePage || null,
           explorePage: dbConfig.pages?.['explore'] || dbConfig.explorePage || null,
         };

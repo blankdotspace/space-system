@@ -9,74 +9,72 @@ import {
   retro,
   nounish,
 } from "./animatedBackgroundsHtml";
-import { loadSystemConfig } from "@/config";
+import { themes } from "@/config/shared/themes";
 
-// Load system configuration
-const config = loadSystemConfig();
-
+// Use themes from shared file (not from config, since themes are shared across communities)
 // Convert configuration themes to the expected format
 export const THEMES = [
-  config.theme.default,
+  themes.default,
   {
-    ...config.theme.gradientAndWave,
+    ...themes.gradientAndWave,
     properties: {
-      ...config.theme.gradientAndWave.properties,
+      ...themes.gradientAndWave.properties,
       backgroundHTML: gradientAndWave,
     },
   },
   {
-    ...config.theme.colorBlobs,
+    ...themes.colorBlobs,
     properties: {
-      ...config.theme.colorBlobs.properties,
+      ...themes.colorBlobs.properties,
       backgroundHTML: colorBlobs,
     },
   },
   {
-    ...config.theme.floatingShapes,
+    ...themes.floatingShapes,
     properties: {
-      ...config.theme.floatingShapes.properties,
+      ...themes.floatingShapes.properties,
       backgroundHTML: floatingShapes,
     },
   },
   {
-    ...config.theme.imageParallax,
+    ...themes.imageParallax,
     properties: {
-      ...config.theme.imageParallax.properties,
+      ...themes.imageParallax.properties,
       backgroundHTML: imageParallax,
     },
   },
   {
-    ...config.theme.shootingStar,
+    ...themes.shootingStar,
     properties: {
-      ...config.theme.shootingStar.properties,
+      ...themes.shootingStar.properties,
       backgroundHTML: shootingStar,
     },
   },
   {
-    ...config.theme.squareGrid,
+    ...themes.squareGrid,
     properties: {
-      ...config.theme.squareGrid.properties,
+      ...themes.squareGrid.properties,
       backgroundHTML: squareGrid,
     },
   },
   {
-    ...config.theme.tesseractPattern,
+    ...themes.tesseractPattern,
     properties: {
-      ...config.theme.tesseractPattern.properties,
+      ...themes.tesseractPattern.properties,
       backgroundHTML: tesseractPattern,
     },
   },
   {
-    ...config.theme.retro,
+    ...themes.retro,
     properties: {
-      ...config.theme.retro.properties,
+      ...themes.retro.properties,
       backgroundHTML: retro,
     },
   },
   {
-    ...config.theme.nounish,
+    ...themes.nounish,
     properties: {
-      ...config.theme.nounish.properties,
+      ...themes.nounish.properties,
       backgroundHTML: nounish,
     },
   },
