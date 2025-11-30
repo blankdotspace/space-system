@@ -1,8 +1,10 @@
 # Community Configuration System
 
+> **Note:** This document describes the static configuration system structure. For information about the current database-backed configuration system, see [Configuration System Overview](SYSTEMS/CONFIGURATION/OVERVIEW.md).
+
 ## Overview
 
-The Community Configuration System is a comprehensive whitelabeling solution that allows Nounspace to be customized for different communities (Nouns, Clanker, Example, etc.) through a build-time configuration system. Each community can have its own branding, assets, themes, fidgets, navigation, and initial space configurations.
+The Community Configuration System is a comprehensive whitelabeling solution that allows Nounspace to be customized for different communities (Nouns, Clanker, Example, etc.). Configurations are stored in Supabase and loaded at build time, with fallback to static TypeScript configs.
 
 ## Architecture
 
@@ -433,9 +435,11 @@ interface UIConfig {
 
 ## Configuration Loading
 
+The system uses **database-backed configuration** with build-time loading. Configs are fetched from Supabase during build and stored in an environment variable. If the database is unavailable, the system falls back to static TypeScript configs.
+
 ### Build-Time Configuration
 
-The system uses **build-time configuration** - the community is determined at build time via the `NEXT_PUBLIC_COMMUNITY` environment variable:
+The community is determined at build time via the `NEXT_PUBLIC_COMMUNITY` environment variable:
 
 ```bash
 # Set community at build time

@@ -14,6 +14,31 @@ Supabase integration provides:
 
 ### 1. Core Tables
 ```sql
+-- Community configurations
+CREATE TABLE community_configs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  community_id VARCHAR(50) NOT NULL UNIQUE,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  brand_config JSONB NOT NULL,
+  assets_config JSONB NOT NULL,
+  community_config JSONB NOT NULL,
+  fidgets_config JSONB NOT NULL,
+  navigation_config JSONB,
+  ui_config JSONB,
+  is_published BOOLEAN DEFAULT true
+);
+
+-- Space registrations (includes navPage type)
+CREATE TABLE spaceRegistrations (
+  spaceId UUID PRIMARY KEY,
+  fid INTEGER,
+  spaceName TEXT NOT NULL,
+  spaceType TEXT NOT NULL CHECK (spaceType IN ('profile', 'token', 'proposal', 'channel', 'navPage')),
+  identityPublicKey TEXT,
+  signature TEXT,
+  timestamp TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
 -- Users table
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -56,9 +81,44 @@ ALTER TABLE fidgets ADD CONSTRAINT fk_fidgets_space
   FOREIGN KEY (space_id) REFERENCES spaces(id) ON DELETE CASCADE;
 
 -- Indexes for performance
+CREATE INDEX idx_community_configs_community_id ON community_configs(community_id);
+CREATE INDEX idx_community_configs_published ON community_configs(is_published) WHERE is_published = true;
 CREATE INDEX idx_spaces_owner_id ON spaces(owner_id);
 CREATE INDEX idx_fidgets_space_id ON fidgets(space_id);
 CREATE INDEX idx_spaces_public ON spaces(is_public) WHERE is_public = TRUE;
+```
+
+### 2. Database Functions
+
+```sql
+-- Get active community configuration
+CREATE OR REPLACE FUNCTION get_active_community_config(
+    p_community_id VARCHAR(50)
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_config JSONB;
+BEGIN
+    SELECT jsonb_build_object(
+        'brand', "brand_config",
+        'assets', "assets_config",
+        'community', "community_config",
+        'fidgets', "fidgets_config",
+        'navigation', "navigation_config",
+        'ui', "ui_config"
+    )
+    INTO v_config
+    FROM "public"."community_configs"
+    WHERE "community_id" = p_community_id
+    AND "is_published" = true
+    LIMIT 1;
+    
+    RETURN v_config;
+END;
+$$;
 ```
 
 ## File Storage
@@ -66,10 +126,11 @@ CREATE INDEX idx_spaces_public ON spaces(is_public) WHERE is_public = TRUE;
 ### 1. Storage Structure
 ```
 supabase/storage/
-├── spaces/           # Public space files
+├── spaces/           # Public space files (including navPage spaces)
 │   ├── {spaceId}/
+│   │   ├── tabOrder  # Tab order for navigation pages
 │   │   ├── tabs/
-│   │   │   ├── {tabName}
+│   │   │   ├── {tabName}  # Individual tab configs (SignedFile format)
 │   │   │   └── ...
 │   │   └── assets/
 │   └── ...

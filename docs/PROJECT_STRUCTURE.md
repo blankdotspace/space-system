@@ -131,30 +131,36 @@ src/constants/
 
 ### 5. System Configuration (`src/config/`)
 
-Whitelabeling and system configuration for community customization:
+Whitelabeling and system configuration for community customization. Configurations are stored in Supabase and loaded at build time. See [Configuration System](SYSTEMS/CONFIGURATION/OVERVIEW.md) for details.
 
 ```
 src/config/                  # System configuration
-├── brand/                   # Brand identity configuration
-│   └── nouns.brand.ts      # Nouns brand config (name, tagline, etc.)
-├── assets/                  # Asset configuration
-│   └── nouns.assets.ts     # Nouns asset config (logos, icons)
-├── theme/                   # Theme configuration
-│   └── nouns.theme.ts      # Nouns theme config (colors, fonts)
-├── community/               # Community-specific configuration
-│   └── nouns.community.ts  # Community URLs, contracts, tokens
-├── fidgets/                 # Fidget configuration
-│   └── nouns.fidgets.ts    # Enabled/disabled fidgets
-├── spaces/                  # Initial space configurations
-│   ├── nouns.home.ts       # Home page configuration
-│   └── initial*.ts         # Initial space templates
-└── systemConfig.ts          # Main system configuration interface
+├── nouns/                   # Nouns community configuration
+│   ├── nouns.brand.ts      # Brand identity
+│   ├── nouns.assets.ts     # Visual assets
+│   ├── nouns.community.ts  # Community integration
+│   ├── nouns.fidgets.ts    # Enabled/disabled fidgets
+│   ├── nouns.home.ts      # Home page config (legacy)
+│   ├── nouns.explore.ts   # Explore page config (legacy)
+│   ├── nouns.navigation.ts # Navigation config
+│   ├── nouns.theme.ts      # Theme config (references shared)
+│   ├── nouns.ui.ts         # UI colors
+│   └── initialSpaces/      # Initial space templates
+├── clanker/                 # Clanker community configuration
+├── example/                 # Example community configuration
+├── shared/                  # Shared configuration
+│   └── themes.ts           # Shared theme definitions
+├── systemConfig.ts          # System configuration interface
+├── index.ts                 # Configuration loader (reads from DB or static)
+└── initialSpaceConfig.ts    # Base space configuration
 ```
 
 **Key Features:**
+- **Database-Backed**: Configs stored in Supabase, loaded at build time
 - **Whitelabeling Support**: Complete brand customization through configuration
 - **Community Integration**: URLs, social handles, governance links, contract addresses
-- **Theme System**: Customizable colors, fonts, and visual styling
+- **Shared Themes**: Themes stored in shared file, not per-community
+- **Pages as Spaces**: Navigation pages stored as Spaces in Storage
 - **Fidget Management**: Enable/disable specific fidgets per community
 - **Space Templates**: Configurable initial space configurations
 
