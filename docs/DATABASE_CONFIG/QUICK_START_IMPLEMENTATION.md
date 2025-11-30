@@ -1,11 +1,18 @@
 # Quick Start: Incremental Implementation Guide
 
+> **See also:** 
+> - `DATABASE_CONFIG_GUIDE.md` - Architecture and overview
+> - `DATABASE_CONFIG_IMPLEMENTATION.md` - Detailed implementation plan
+> - `QUICK_START_TESTING.md` - Testing guide
+> - `README.md` - Documentation index
+
 ## 🎯 Goal
 
 Implement database-backed configs incrementally, testing each piece before moving forward.
 
-**Updated Architecture:**
-- ✅ Configs stored in DB (without themes/pages)
+**Current Architecture:**
+- ✅ Configs stored in DB (without themes/pages) - ~2.8 KB
+- ✅ Configs loaded at build time, stored in `NEXT_PUBLIC_BUILD_TIME_CONFIG` env var
 - ✅ Themes in shared file (`src/config/shared/themes.ts`)
 - ✅ Pages stored as Spaces (referenced by navigation `spaceId`)
 - ✅ Config size reduced by ~90% (from ~29 KB to ~2.8 KB)
@@ -39,7 +46,10 @@ supabase db reset
 This will:
 1. ✅ Apply migration: `create_community_configs.sql` (creates table without themes/pages)
 2. ✅ Apply migration: `add_navpage_space_type.sql` (adds navPage spaceType)
-3. ✅ Run `seed.sql` (seeds configs for nouns, example, clanker)
+3. ✅ Run `seed.sql`:
+   - Seeds configs for nouns, example, clanker
+   - Creates navPage space registrations (nouns-home, nouns-explore, clanker-home)
+   - Links navigation items to spaces via spaceId
 
 **Verify:**
 ```sql
@@ -57,6 +67,18 @@ SELECT get_active_community_config('nouns');
 -- Verify navPage spaceType exists
 SELECT DISTINCT "spaceType" FROM "spaceRegistrations";
 -- Should include: 'navPage'
+
+-- Verify navPage spaces were created
+SELECT "spaceId", "spaceName", "spaceType" 
+FROM "spaceRegistrations" 
+WHERE "spaceType" = 'navPage';
+-- Should see: nouns-home, nouns-explore, clanker-home
+
+-- Verify navigation configs reference spaces
+SELECT "community_id", "navigation_config"->'items' as nav_items 
+FROM "community_configs" 
+WHERE "community_id" = 'nouns';
+-- Should see spaceId references in navigation items
 ```
 
 **Expected output:**
@@ -64,6 +86,8 @@ SELECT DISTINCT "spaceType" FROM "spaceRegistrations";
 - ✅ Function returns config (without themes/pages)
 - ✅ Seed data inserted for all 3 communities
 - ✅ navPage spaceType available
+- ✅ navPage space registrations created
+- ✅ Navigation items reference spaceIds
 
 ### Step 2: Build-Time Loading (1 hour)
 
@@ -79,47 +103,61 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 async function fetchSpaceBySpaceId(supabase, spaceId) {
-  // Fetch Space from spaceRegistrations + Storage
-  const { data: registration } = await supabase
-    .from('spaceRegistrations')
-    .select('*')
-    .eq('spaceId', spaceId)
-    .eq('spaceType', 'navPage')
-    .single();
-  
-  if (!registration) return null;
-  
-  // Fetch Space config from Storage
-  const { data } = await supabase.storage
+  // Fetch tab order first
+  const { data: tabOrderData } = await supabase.storage
     .from('spaces')
-    .download(`${spaceId}/tabs/default`);
+    .download(`${spaceId}/tabOrder`);
   
-  if (!data) return null;
+  if (!tabOrderData) return null;
   
-  const fileData = JSON.parse(await data.text());
-  return fileData;
-}
-
-function convertSpaceToPageConfig(space) {
-  // Convert Space config to HomePageConfig/ExplorePageConfig format
+  const tabOrderFile = JSON.parse(await tabOrderData.text());
+  const tabOrder = tabOrderFile.tabOrder || [];
+  
+  // Fetch each tab config
+  const tabs = {};
+  for (const tabName of tabOrder) {
+    try {
+      const { data: tabData } = await supabase.storage
+        .from('spaces')
+        .download(`${spaceId}/tabs/${tabName}`);
+      
+      if (tabData) {
+        const tabFile = JSON.parse(await tabData.text());
+        const tabConfig = JSON.parse(tabFile.fileData); // Unencrypted SignedFile
+        tabs[tabName] = tabConfig;
+      }
+    } catch (error) {
+      console.warn(`Failed to fetch tab ${tabName}:`, error.message);
+    }
+  }
+  
+  if (Object.keys(tabs).length === 0) return null;
+  
+  // Reconstruct HomePageConfig/ExplorePageConfig format
   return {
-    defaultTab: space.defaultTab || 'Home',
-    tabOrder: Object.keys(space.tabs || {}),
-    tabs: space.tabs || {},
+    defaultTab: tabOrder[0] || 'Home',
+    tabOrder,
+    tabs,
     layout: {
-      defaultLayoutFidget: space.layout?.defaultLayoutFidget || 'grid',
-      gridSpacing: space.layout?.gridSpacing || 16,
-      theme: space.theme || {},
+      defaultLayoutFidget: 'grid',
+      gridSpacing: 16,
+      theme: {},
     },
   };
 }
 
-async function generateConfigFile() {
+function convertSpaceToPageConfig(spacePageConfig) {
+  // Space is already in HomePageConfig/ExplorePageConfig format
+  // (reconstructed from tabs in fetchSpaceBySpaceId)
+  return spacePageConfig;
+}
+
+async function loadConfigFromDB() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   
-  if (!supabaseUrl || !supabaseKey) {
-    console.log('ℹ️  Using static configs (no DB credentials for config generation)');
+    if (!supabaseUrl || !supabaseKey) {
+    console.log('ℹ️  Using static configs (no DB credentials)');
     return;
   }
   
@@ -133,7 +171,7 @@ async function generateConfigFile() {
       .single();
     
     if (error || !data) {
-      console.log('ℹ️  No DB config found, skipping db-config.ts generation');
+      console.log('ℹ️  No DB config found, using static configs');
       if (error) {
         console.log(`   Error: ${error.message}`);
       }
@@ -174,12 +212,12 @@ async function generateConfigFile() {
     process.env.NEXT_PUBLIC_BUILD_TIME_CONFIG = JSON.stringify(fullConfig);
     console.log('✅ Loaded config from database');
   } catch (error) {
-    console.warn('⚠️  Error generating db-config.ts:', error.message);
+    console.warn('⚠️  Error loading config from DB:', error.message);
   }
 }
 
-// Run config generation before Next.js config is created
-await generateConfigFile();
+// Load config before Next.js config is created
+await loadConfigFromDB();
 
 // Continue with existing Next.js config...
 ```
@@ -256,6 +294,8 @@ npm run dev
 # App should load correctly
 ```
 
+**Note:** Build-time loading requires space configs to be uploaded (Step 1.5). Without them, page configs won't be available.
+
 ### Step 3: Create Shared Themes (30 min)
 
 ```typescript
@@ -280,7 +320,7 @@ export { themes as exampleTheme } from '../shared/themes';
 
 **Update next.config.mjs to import themes:**
 ```javascript
-// In generateConfigFile function, replace themesPlaceholder:
+// In loadConfigFromDB function, replace themesPlaceholder:
 import { themes } from './src/config/shared/themes';
 
 // Then use:
@@ -289,6 +329,9 @@ const fullConfig = {
   theme: themes,  // From shared file
   pages: pageConfigs,  // From Spaces
 };
+
+// Store in env var
+process.env.NEXT_PUBLIC_BUILD_TIME_CONFIG = JSON.stringify(fullConfig);
 ```
 
 **Update src/config/index.ts to use shared themes:**
@@ -315,9 +358,11 @@ npm run build
 
 If this works, you've validated:
 - ✅ Database storage works (without themes/pages)
+- ✅ Space registrations created in database
+- ✅ Space configs uploaded to storage
 - ✅ Build-time loading works
 - ✅ Shared themes work
-- ✅ Space-based pages work (when Spaces are created)
+- ✅ Space-based pages work (loaded from storage)
 - ✅ Fallback works
 - ✅ Config size reduced by ~90%
 
@@ -332,7 +377,8 @@ If this works, you've validated:
 **Files:**
 - `supabase/migrations/20251129172847_create_community_configs.sql` - Creates table (no themes/pages)
 - `supabase/migrations/20251129172848_add_navpage_space_type.sql` - Adds navPage spaceType
-- `supabase/seed.sql` - Seeds configs for nouns, example, clanker
+- `supabase/seed.sql` - Seeds configs and creates navPage space registrations
+- `scripts/seed-navpage-spaces.ts` - Uploads space config files to storage
 
 **Test:**
 - ✅ Can query configs from DB
@@ -340,6 +386,8 @@ If this works, you've validated:
 - ✅ Config excludes themes/pages
 - ✅ navPage spaceType exists
 - ✅ Seed data loaded
+- ✅ navPage space registrations created
+- ✅ Space config files uploaded to storage
 
 **Rollback:** `supabase db reset` (resets to clean state)
 
@@ -358,11 +406,13 @@ If this works, you've validated:
 - ✅ Build succeeds with/without DB
 - ✅ App uses DB config when available
 - ✅ Themes loaded from shared file
-- ✅ Pages loaded from Spaces (when available)
+- ✅ Pages loaded from Spaces (when space configs uploaded)
 - ✅ App falls back to static
 - ✅ Config size ~2.8 KB
 
-**Rollback:** Remove generated file reading
+**Note:** Pages require space configs to be uploaded (via `scripts/seed-navpage-spaces.ts`) before they can be loaded at build time.
+
+**Rollback:** Remove env var reading
 
 ---
 
@@ -466,6 +516,8 @@ If this works, you've validated:
 - [ ] Functions work (exclude themes/pages)
 - [ ] Seed data loaded
 - [ ] navPage spaceType exists
+- [ ] navPage space registrations created
+- [ ] Space config files uploaded to storage
 - [ ] RLS policies work
 
 ### Phase 2: Config Loading
@@ -550,7 +602,7 @@ If this works, you've validated:
 ### High Risk Phases
 - **Phase 2** - Could break builds
   - **Mitigation:** Extensive fallback testing
-  - **Rollback:** Remove generated file reading
+  - **Rollback:** Remove env var reading
 
 - **Phase 6** - Could break asset loading
   - **Mitigation:** Fallback to static assets
@@ -594,7 +646,14 @@ supabase db reset
 This will:
 1. Drop all tables
 2. Apply all migrations (including community_configs)
-3. Run seed.sql (seeds configs for nouns, example, clanker)
+3. Run seed.sql (seeds configs and creates navPage space registrations)
+
+**After reset, upload space configs:**
+```bash
+tsx scripts/seed-navpage-spaces.ts
+```
+
+This uploads the actual space config files (tabs and tabOrder) to Supabase Storage.
 
 ### Git Workflow
 

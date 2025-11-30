@@ -1,8 +1,19 @@
 # Incremental Implementation Plan
 
+> **Note:** This is a detailed phase-by-phase plan. For a quick overview, see:
+> - `DATABASE_CONFIG_GUIDE.md` - Architecture and overview
+> - `DATABASE_CONFIG_IMPLEMENTATION.md` - Consolidated implementation plan
+> - `QUICK_START_IMPLEMENTATION.md` - Quick start guide
+> - `README.md` - Documentation index
+
 ## Overview
 
 This plan breaks down the database-backed configuration system into testable phases, allowing you to validate each piece before moving to the next.
+
+**Current Approach:**
+- Configs stored in DB (~2.8 KB), loaded at build time into `NEXT_PUBLIC_BUILD_TIME_CONFIG` env var
+- Themes in shared file (`src/config/shared/themes.ts`)
+- Pages as Spaces (referenced by navigation items)
 
 ## Phase 0: Preparation & Setup
 
@@ -31,19 +42,25 @@ This plan breaks down the database-backed configuration system into testable pha
 
 **Tasks:**
 1. Create migration: `community_configs` table (without homePage/explorePage columns)
-2. Create migration: `community_config_history` table
-3. Create migration: `community_config_admins` table
-4. Add `navPage` spaceType to `spaceRegistrations`
-5. Create database function: `get_active_community_config` (excludes page configs)
-6. Create database function: `create_config_version`
-7. Set up RLS policies
-8. Seed initial data (copy from static configs, excluding themes/pages)
+2. Create migration: `community_config_admins` table
+3. Add `navPage` spaceType to `spaceRegistrations`
+4. Create database function: `get_active_community_config` (excludes page configs)
+5. Set up RLS policies
+6. Seed initial data via `supabase/seed.sql`:
+   - Seeds configs (copy from static configs, excluding themes/pages)
+   - Creates navPage space registrations (nouns-home, nouns-explore, clanker-home)
+   - Links navigation items to spaces via spaceId
+7. Create space seeding script: `scripts/seed-navpage-spaces.ts`
+8. Upload space config files to Supabase Storage
 
 **Files to Create:**
 ```
 supabase/migrations/
   └── YYYYMMDDHHMMSS_create_community_configs.sql
   └── YYYYMMDDHHMMSS_add_navpage_space_type.sql
+supabase/seed.sql              # Seeds configs and creates space registrations
+scripts/
+  └── seed-navpage-spaces.ts   # NEW: Uploads space config files
 ```
 
 **Files to Create/Update:**
@@ -55,30 +72,42 @@ src/config/shared/
 **Testing:**
 ```sql
 -- Test 1: Can fetch config (should not include homePage/explorePage)
-SELECT * FROM get_active_community_config('nouns');
+SELECT get_active_community_config('nouns');
 
 -- Test 2: Verify navPage spaceType exists
-SELECT * FROM spaceRegistrations WHERE "spaceType" = 'navPage';
+SELECT DISTINCT "spaceType" FROM "spaceRegistrations";
+-- Should include: 'navPage'
 
--- Test 3: Can create version
-SELECT create_config_version(
-  'nouns',
-  '{"brand": {...}, "assets": {...}}'::jsonb,
-  'Initial seed'
-);
+-- Test 3: Verify seed data loaded
+SELECT community_id FROM community_configs;
+-- Should see: nouns, example, clanker
 
--- Test 4: Can query history
-SELECT * FROM community_config_history 
-WHERE community_config_id = (SELECT id FROM community_configs WHERE community_id = 'nouns');
+-- Test 4: Verify navPage spaces created
+SELECT "spaceId", "spaceName", "spaceType" 
+FROM "spaceRegistrations" 
+WHERE "spaceType" = 'navPage';
+-- Should see: nouns-home, nouns-explore, clanker-home
+
+-- Test 5: Verify navigation references spaces
+SELECT "navigation_config"->'items' as nav_items 
+FROM "community_configs" 
+WHERE "community_id" = 'nouns';
+-- Should see spaceId references
+```
+
+**After seed.sql, upload space configs:**
+```bash
+tsx scripts/seed-navpage-spaces.ts
 ```
 
 **Validation:**
 - ✅ Database functions work
 - ✅ RLS policies enforce access
 - ✅ Can seed existing configs (without themes/pages)
-- ✅ History tracking works
 - ✅ navPage spaceType added
 - ✅ Config excludes homePage/explorePage columns
+- ✅ navPage space registrations created
+- ✅ Space config files uploaded to storage
 
 **Rollback:** Drop migrations, system unchanged
 
@@ -98,8 +127,8 @@ WHERE community_config_id = (SELECT id FROM community_configs WHERE community_id
    - Extract spaceIds from navigation items
    - Fetch Spaces for nav items with spaceId
    - Convert Spaces to page configs
-4. Generate TypeScript file (not env var - avoids E2BIG)
-5. Update `src/config/index.ts` to use generated file
+4. Store config in `NEXT_PUBLIC_BUILD_TIME_CONFIG` env var (now small enough at ~2.8 KB)
+5. Update `src/config/index.ts` to read from env var
 6. Keep static configs as fallback
 
 **Files to Create:**
@@ -110,8 +139,8 @@ src/config/shared/
 
 **Files to Modify:**
 ```
-next.config.mjs          # Add config fetch + Space fetching
-src/config/index.ts      # Add generated file reading
+next.config.mjs          # Add config fetch + Space fetching, set env var
+src/config/index.ts      # Read from env var
 src/config/nouns/nouns.theme.ts    # Import from shared
 src/config/clanker/clanker.theme.ts  # Import from shared
 src/config/example/example.theme.ts   # Import from shared
@@ -163,30 +192,30 @@ await loadConfigFromDB();
 ```typescript
 // src/config/index.ts (modify loadSystemConfig)
 
-// Try to import DB config (generated at build time)
-let dbConfig: SystemConfig | null = null;
-try {
-  const dbModule = require('./db-config');
-  dbConfig = dbModule.dbConfig || null;
-} catch {
-  // File doesn't exist, will use static
-}
-
 export const loadSystemConfig = (): SystemConfig => {
   const communityConfig = process.env.NEXT_PUBLIC_COMMUNITY || 'nouns';
   
-  // Try build-time config from generated file
-  if (dbConfig) {
-    // Map page configs from pages object to homePage/explorePage
-    const homePage = dbConfig.pages?.['home'] || staticConfig.homePage;
-    const explorePage = dbConfig.pages?.['explore'] || staticConfig.explorePage;
-    
-    console.log('✅ Using config from database');
-    return {
-      ...dbConfig,
-      homePage,
-      explorePage,
-    };
+  // Try build-time config from database (stored in env var at build time)
+  const buildTimeConfig = process.env.NEXT_PUBLIC_BUILD_TIME_CONFIG;
+  if (buildTimeConfig) {
+    try {
+      const dbConfig = JSON.parse(buildTimeConfig) as SystemConfig;
+      // Map page configs from pages object to homePage/explorePage
+      const homePage = dbConfig.pages?.['home'] || null;
+      const explorePage = dbConfig.pages?.['explore'] || null;
+      
+      // Validate config structure
+      if (dbConfig && dbConfig.brand && dbConfig.assets) {
+        console.log('✅ Using config from database');
+        return {
+          ...dbConfig,
+          homePage,
+          explorePage,
+        };
+      }
+    } catch (error) {
+      console.warn('⚠️  Failed to parse build-time config, falling back to static:', error);
+    }
   }
   
   // Fall back to static configs (existing behavior)
@@ -208,8 +237,7 @@ export const loadSystemConfig = (): SystemConfig => {
 1. **Test with DB available:**
    ```bash
    NEXT_PUBLIC_SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run build
-   # Should see: "✅ Generated config file from database"
-   # Should see: src/config/db-config.ts created
+   # Should see: "✅ Loaded config from database"
    ```
 
 2. **Test without DB:**
@@ -228,11 +256,10 @@ export const loadSystemConfig = (): SystemConfig => {
    - Pages loaded from Spaces (if nav items have spaceId)
    - No runtime errors
 
-4. **Verify config size:**
+4. **Verify config loaded:**
    ```bash
-   # Check generated file size
-   wc -c src/config/db-config.ts
-   # Should be ~2-3 KB (much smaller than before!)
+   # Config is stored in NEXT_PUBLIC_BUILD_TIME_CONFIG env var (~2.8 KB)
+   # Check build logs for "✅ Loaded config from database"
    ```
 
 **Validation:**
@@ -241,12 +268,12 @@ export const loadSystemConfig = (): SystemConfig => {
 - ✅ App falls back to static when DB unavailable
 - ✅ Themes loaded from shared file
 - ✅ Pages loaded from Spaces (via nav items)
-- ✅ Config file generated (not env var - avoids E2BIG)
+- ✅ Config stored in env var (`NEXT_PUBLIC_BUILD_TIME_CONFIG`)
 - ✅ Config size reduced (~2.8 KB vs ~29 KB)
 - ✅ All existing functionality works
 - ✅ No breaking changes
 
-**Rollback:** Remove generated file reading, system back to static-only
+**Rollback:** Remove env var reading, system back to static-only
 
 **Estimated Time:** 2-3 hours
 
@@ -258,16 +285,14 @@ export const loadSystemConfig = (): SystemConfig => {
 
 **Tasks:**
 1. Create `/api/admin/config/[communityId]` - GET/PUT
-2. Create `/api/admin/config/[communityId]/history` - GET
-3. Create `/api/admin/spaces/[spaceId]` - GET/PUT (for nav page Spaces)
-4. Add admin permission checks
-5. Add request validation
-6. Note: Themes are in shared file (not editable via API for now)
+2. Create `/api/admin/spaces/[spaceId]` - GET/PUT (for nav page Spaces)
+3. Add admin permission checks
+4. Add request validation
+5. Note: Themes are in shared file (not editable via API for now)
 
 **Files to Create:**
 ```
 src/app/api/admin/config/[communityId]/route.ts
-src/app/api/admin/config/[communityId]/history/route.ts
 src/app/api/admin/spaces/[spaceId]/route.ts  # NEW: For nav page Spaces
 src/common/data/services/adminConfigService.ts
 ```
@@ -302,7 +327,6 @@ export async function GET(
     .select('id')
     .eq('community_id', params.communityId)
     .eq('admin_identity_public_key', adminIdentity)
-    .eq('is_active', true)
     .single();
   
   if (!admin) {
@@ -331,7 +355,7 @@ export async function PUT(
   }
   
   const body = await request.json();
-  const { config, changeNotes } = body;
+  const { config } = body;
   
   // Validate config structure (basic)
   if (!config || typeof config !== 'object') {
@@ -349,26 +373,36 @@ export async function PUT(
     .select('id')
     .eq('community_id', params.communityId)
     .eq('admin_identity_public_key', adminIdentity)
-    .eq('is_active', true)
     .single();
   
   if (!admin) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   
-  // Create new version
-  const { data, error } = await supabase.rpc('create_config_version', {
-    p_community_id: params.communityId,
-    p_config_data: config,
-    p_change_notes: changeNotes || 'Updated via admin API',
-    p_admin_identity: adminIdentity
-  });
+  // Update config directly (using ON CONFLICT to update existing row)
+  const { data, error } = await supabase
+    .from('community_configs')
+    .upsert({
+      community_id: params.communityId,
+      brand_config: config.brand,
+      assets_config: config.assets,
+      community_config: config.community,
+      fidgets_config: config.fidgets,
+      navigation_config: config.navigation,
+      ui_config: config.ui,
+      is_published: config.is_published ?? true,
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'community_id',
+    })
+    .select()
+    .single();
   
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
   
-  return NextResponse.json({ success: true, versionId: data });
+  return NextResponse.json({ success: true, config: data });
 }
 ```
 
@@ -382,15 +416,14 @@ curl -H "x-admin-identity: test-admin" \
 curl -X PUT \
   -H "x-admin-identity: test-admin" \
   -H "Content-Type: application/json" \
-  -d '{"config": {...}, "changeNotes": "Test update"}' \
+  -d '{"config": {...}}' \
   http://localhost:3000/api/admin/config/nouns
 ```
 
 **Validation:**
 - ✅ GET returns config
-- ✅ PUT creates new version
+- ✅ PUT updates config directly
 - ✅ Permission checks work
-- ✅ History is tracked
 - ✅ Invalid requests are rejected
 
 **Rollback:** Remove API routes, no impact on main app
@@ -1665,7 +1698,6 @@ Each phase can be rolled back independently:
 - ✅ Can update config
 - ✅ Can fetch/update nav page Spaces
 - ✅ Permission checks work
-- ✅ History tracked
 
 ### Phase 4: Admin UI
 - ✅ Can view config (without themes/pages)

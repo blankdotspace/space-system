@@ -142,18 +142,16 @@ async function seedConfig(communityId: string, config: any) {
   console.log(`\n📦 Seeding config for: ${communityId}`);
   
   // Transform config to match database schema
+  // Note: Schema excludes theme_config, home_page_config, explore_page_config
+  // - Themes are in src/config/shared/themes.ts
+  // - Pages are stored as Spaces (navPage type)
   const dbConfig = {
     community_id: communityId,
-    version: 1,
-    is_active: true,
     is_published: true,
     brand_config: config.brand,
     assets_config: config.assets,
-    theme_config: config.theme,
     community_config: config.community,
     fidgets_config: config.fidgets,
-    home_page_config: config.homePage,
-    explore_page_config: config.explorePage,
     navigation_config: config.navigation || null,
     ui_config: config.ui || null,
   };
@@ -209,8 +207,20 @@ async function main() {
     process.exit(1);
   }
 
-  if (testConfig && testConfig.brand) {
-    console.log(`✅ Function works! Retrieved config for: ${testConfig.brand.displayName}`);
+  // Type assertion: function returns JSONB with brand, assets, community, etc.
+  type ConfigFromDB = {
+    brand?: { displayName?: string };
+    assets?: unknown;
+    community?: unknown;
+    fidgets?: unknown;
+    navigation?: unknown;
+    ui?: unknown;
+  };
+
+  const config = testConfig as ConfigFromDB | null;
+
+  if (config && config.brand && config.brand.displayName) {
+    console.log(`✅ Function works! Retrieved config for: ${config.brand.displayName}`);
   } else {
     console.error('❌ Function returned invalid config');
     process.exit(1);

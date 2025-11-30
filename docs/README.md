@@ -52,6 +52,14 @@ Nounspace is a highly customizable Farcaster client funded by Nouns DAO. This do
 - [Supabase](INTEGRATIONS/SUPABASE.md) - Supabase integration
 - [Neynar](INTEGRATIONS/NEYNAR.md) - Neynar API integration
 
+## Database-Backed Configuration
+
+- [Database Config Guide](DATABASE_CONFIG/DATABASE_CONFIG_GUIDE.md) - Architecture and overview
+- [Quick Start](DATABASE_CONFIG/QUICK_START_IMPLEMENTATION.md) - 4-hour proof of concept guide
+- [Testing Guide](DATABASE_CONFIG/QUICK_START_TESTING.md) - Step-by-step testing
+- [Implementation Plan](DATABASE_CONFIG/DATABASE_CONFIG_IMPLEMENTATION.md) - Detailed implementation (Phases 0-4)
+- [Complete Plan](DATABASE_CONFIG/INCREMENTAL_IMPLEMENTATION_PLAN.md) - Full phase-by-phase plan (all 10 phases)
+
 ## Development
 
 - [Development Guide](DEVELOPMENT/DEVELOPMENT_GUIDE.md) - Comprehensive development guide

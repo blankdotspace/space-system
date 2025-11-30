@@ -2,9 +2,6 @@
 CREATE TABLE IF NOT EXISTS "public"."community_configs" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "community_id" VARCHAR(50) NOT NULL UNIQUE,
-    "is_active" BOOLEAN DEFAULT true,
-    "version" INTEGER DEFAULT 1,
-    "created_at" TIMESTAMP WITH TIME ZONE DEFAULT now(),
     "updated_at" TIMESTAMP WITH TIME ZONE DEFAULT now(),
     "brand_config" JSONB NOT NULL,
     "assets_config" JSONB NOT NULL,
@@ -17,7 +14,7 @@ CREATE TABLE IF NOT EXISTS "public"."community_configs" (
 
 -- Create indexes
 CREATE INDEX IF NOT EXISTS "idx_community_configs_community_id" ON "public"."community_configs"("community_id");
-CREATE INDEX IF NOT EXISTS "idx_community_configs_active" ON "public"."community_configs"("is_active") WHERE "is_active" = true;
+CREATE INDEX IF NOT EXISTS "idx_community_configs_published" ON "public"."community_configs"("is_published") WHERE "is_published" = true;
 
 -- Create function to get active community config (excludes themes/pages)
 CREATE OR REPLACE FUNCTION "public"."get_active_community_config"(
@@ -41,9 +38,7 @@ BEGIN
     INTO v_config
     FROM "public"."community_configs"
     WHERE "community_id" = p_community_id
-    AND "is_active" = true
     AND "is_published" = true
-    ORDER BY "version" DESC
     LIMIT 1;
     
     RETURN v_config;

@@ -1,5 +1,11 @@
 # Quick Start Testing Guide
 
+> **See also:**
+> - `DATABASE_CONFIG_GUIDE.md` - Architecture and overview
+> - `DATABASE_CONFIG_IMPLEMENTATION.md` - Detailed implementation plan
+> - `QUICK_START_IMPLEMENTATION.md` - Quick start guide
+> - `README.md` - Documentation index
+
 ## Overview
 
 This guide walks you through testing the database-backed configuration system.
@@ -22,7 +28,10 @@ supabase db reset
 This will:
 1. ✅ Apply migration: `create_community_configs.sql` (creates table without themes/pages)
 2. ✅ Apply migration: `add_navpage_space_type.sql` (adds navPage spaceType)
-3. ✅ Run `seed.sql` (seeds configs for nouns, example, clanker)
+3. ✅ Run `seed.sql`:
+   - Seeds configs for nouns, example, clanker
+   - Creates navPage space registrations (nouns-home, nouns-explore, clanker-home)
+   - Links navigation items to spaces via spaceId
 
 **Verify:**
 ```sql
@@ -43,7 +52,19 @@ SELECT community_id FROM community_configs;
 
 -- Verify navPage spaceType exists
 SELECT DISTINCT "spaceType" FROM "spaceRegistrations";
--- Should include: 'navPage' (if constraint updated)
+-- Should include: 'navPage'
+
+-- Verify navPage spaces were created
+SELECT "spaceId", "spaceName", "spaceType" 
+FROM "spaceRegistrations" 
+WHERE "spaceType" = 'navPage';
+-- Should see: nouns-home, nouns-explore, clanker-home
+
+-- Verify navigation configs reference spaces
+SELECT "community_id", "navigation_config"->'items' as nav_items 
+FROM "community_configs" 
+WHERE "community_id" = 'nouns';
+-- Should see spaceId references in navigation items
 ```
 
 **Expected output:**
@@ -51,8 +72,57 @@ SELECT DISTINCT "spaceType" FROM "spaceRegistrations";
 - ✅ Function returns config (without themes/pages)
 - ✅ Seed data inserted for all 3 communities
 - ✅ navPage spaceType available
+- ✅ navPage space registrations created
+- ✅ Navigation items reference spaceIds
 
-## Step 2: Optional - Manual Seed Script
+## Step 2: Upload Space Configs to Storage
+
+**After database reset, upload the actual space config files:**
+
+```bash
+# Set environment variables
+export NEXT_PUBLIC_SUPABASE_URL="your-supabase-url"
+export SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+
+# Upload space configs to Supabase Storage
+tsx scripts/seed-navpage-spaces.ts
+```
+
+This script will:
+1. ✅ Read space registrations from database (created in seed.sql)
+2. ✅ Import page configs from TypeScript (nounsHomePage, nounsExplorePage, etc.)
+3. ✅ Upload each tab as `{spaceId}/tabs/{tabName}` to Supabase Storage as SignedFile
+4. ✅ Upload tab order as `{spaceId}/tabOrder` to Supabase Storage as SignedFile
+
+**Expected output:**
+```
+🚀 Starting navPage space config seeding...
+
+📦 Uploading space: nouns-home
+  📍 Space ID: <uuid>
+  📄 Uploading 6 tabs...
+  ✅ Uploaded tab: Nouns
+  ✅ Uploaded tab: Social
+  ✅ Uploaded tab: Governance
+  ✅ Uploaded tab: Resources
+  ✅ Uploaded tab: Funded Works
+  ✅ Uploaded tab: Places
+  ✅ Uploaded tab order: [Nouns, Social, Governance, Resources, Funded Works, Places]
+  ✅ Successfully uploaded nouns-home
+
+📦 Uploading space: nouns-explore
+  ...
+
+✅ All navPage spaces seeded successfully!
+```
+
+**Verify space configs uploaded:**
+- Check Supabase Storage dashboard: `spaces` bucket should contain files
+- Or verify via API/CLI that files exist at `{spaceId}/tabs/{tabName}` paths
+
+**Note:** Space configs are stored as unencrypted SignedFile objects (`isEncrypted: false`). They can be read by anyone, and the `decryptEncryptedSignedFile` function handles unencrypted files correctly.
+
+## Step 3: Optional - Manual Seed Script
 
 **Note:** The TypeScript seed script (`scripts/seed-community-configs.ts`) is now **OPTIONAL**. 
 Use it only if you need to update configs without resetting the database.
@@ -71,7 +141,7 @@ npx tsx scripts/seed-community-configs.ts
 **Note:** The TypeScript script still includes themes/pages for backward compatibility.
 The new architecture stores themes in shared file and pages as Spaces.
 
-## Step 3: Create Shared Themes (If Not Done)
+## Step 4: Create Shared Themes (If Not Done)
 
 Before testing build-time loading, ensure shared themes file exists:
 
@@ -86,7 +156,7 @@ Update community configs to import from shared:
 - `src/config/clanker/clanker.theme.ts` → `export { themes as clankerTheme } from '../shared/themes';`
 - `src/config/example/example.theme.ts` → `export { themes as exampleTheme } from '../shared/themes';`
 
-## Step 4: Test Build-Time Loading
+## Step 5: Test Build-Time Loading
 
 ### Test with Database Available
 
@@ -132,7 +202,7 @@ npm run build
 - Build should complete successfully
 - App should work with static configs
 
-## Step 4: Test Runtime
+## Step 6: Test Runtime
 
 ### Start Dev Server
 
@@ -163,7 +233,7 @@ npm run build
 npm run dev
 ```
 
-## Step 5: Manual Database Update Test
+## Step 7: Manual Database Update Test
 
 Update config directly in database:
 
@@ -276,9 +346,11 @@ Once testing is successful:
 
 ## Quick Commands Reference
 
-```bash
 # Reset database (applies migrations + seed data)
 supabase db reset
+
+# Upload space configs to storage (required after reset)
+tsx scripts/seed-navpage-spaces.ts
 
 # Optional: Seed configs manually (seed.sql already does this)
 npx tsx scripts/seed-community-configs.ts
