@@ -9,58 +9,60 @@ const AVAILABLE_CONFIGURATIONS = ['nouns', 'example', 'clanker'] as const;
 type CommunityConfig = typeof AVAILABLE_CONFIGURATIONS[number];
 
 // Configuration loader
+// REQUIRES database config - no fallback to static configs
 export const loadSystemConfig = (): SystemConfig => {
   // Get the community configuration from environment variable
   const communityConfig = process.env.NEXT_PUBLIC_COMMUNITY || 'nouns';
   
-  // Try build-time config from database (stored in env var at build time)
+  // REQUIRED: Build-time config from database (stored in env var at build time)
   const buildTimeConfig = process.env.NEXT_PUBLIC_BUILD_TIME_CONFIG;
-  if (buildTimeConfig) {
-    try {
-      const dbConfig = JSON.parse(buildTimeConfig) as any;
-      // Validate config structure
-      if (dbConfig && dbConfig.brand && dbConfig.assets) {
-        console.log('✅ Using config from database');
-        // Map pages object to homePage/explorePage for backward compatibility
-        // Add themes from shared file (themes are not in database)
-        const mappedConfig: SystemConfig = {
-          ...dbConfig,
-          theme: themes, // Themes come from shared file
-          homePage: dbConfig.pages?.['home'] || dbConfig.homePage || null,
-          explorePage: dbConfig.pages?.['explore'] || dbConfig.explorePage || null,
-        };
-        return mappedConfig as SystemConfig;
-      } else {
-        console.warn('⚠️  Invalid config structure from DB, falling back to static');
-      }
-    } catch (error) {
-      console.warn('⚠️  Failed to parse build-time config, falling back to static:', error);
+  
+  if (!buildTimeConfig) {
+    const errorMsg = 
+      `❌ NEXT_PUBLIC_BUILD_TIME_CONFIG is not set. ` +
+      `Database configuration is required. ` +
+      `Ensure Supabase credentials are set and run: npm run build`;
+    console.error(errorMsg);
+    throw new Error(errorMsg);
+  }
+
+  try {
+    const dbConfig = JSON.parse(buildTimeConfig) as any;
+    
+    // Validate config structure
+    if (!dbConfig || !dbConfig.brand || !dbConfig.assets) {
+      const errorMsg = 
+        `❌ Invalid config structure from database. ` +
+        `Missing required fields: brand, assets. ` +
+        `Ensure database is seeded correctly.`;
+      console.error(errorMsg);
+      console.error('Config received:', Object.keys(dbConfig || {}));
+      throw new Error(errorMsg);
     }
-  }
-  
-  // Fall back to static configs
-  console.log('ℹ️  Using static configs');
-  
-  // Validate the configuration
-  if (!isValidCommunityConfig(communityConfig)) {
-    console.warn(
-      `Invalid community configuration: "${communityConfig}". ` +
-      `Available options: ${AVAILABLE_CONFIGURATIONS.join(', ')}. ` +
-      `Falling back to "nouns" configuration.`
-    );
-  }
-  
-  // Switch between available configurations
-  switch (communityConfig.toLowerCase()) {
-    case 'nouns':
-      return nounsSystemConfig;
-    case 'example':
-      return exampleSystemConfig;
-    case 'clanker':
-      return clankerSystemConfig as unknown as SystemConfig;
-    // Add more community configurations here as they are created
-    default:
-      return nounsSystemConfig;
+
+    console.log('✅ Using config from database');
+    
+    // Map pages object to homePage/explorePage for backward compatibility
+    // Add themes from shared file (themes are not in database)
+    const mappedConfig: SystemConfig = {
+      ...dbConfig,
+      theme: themes, // Themes come from shared file
+      homePage: dbConfig.pages?.['home'] || dbConfig.homePage || null,
+      explorePage: dbConfig.pages?.['explore'] || dbConfig.explorePage || null,
+    };
+    
+    return mappedConfig as SystemConfig;
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      const errorMsg = 
+        `❌ Failed to parse build-time config from database. ` +
+        `Invalid JSON in NEXT_PUBLIC_BUILD_TIME_CONFIG. ` +
+        `Error: ${error.message}`;
+      console.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+    // Re-throw validation errors
+    throw error;
   }
 };
 
