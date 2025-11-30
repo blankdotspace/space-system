@@ -2,8 +2,155 @@ import bundlerAnalyzer from "@next/bundle-analyzer";
 import packageInfo from "./package.json" with { type: "json" };
 import { createRequire } from "node:module";
 import { createClient } from '@supabase/supabase-js';
+import { writeFile, mkdir } from 'fs/promises';
+import { existsSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
 const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+/**
+ * Download an asset from external URL and save to public folder
+ * Returns the local path if successful, original URL if failed
+ */
+async function downloadAsset(url, localPath) {
+  try {
+    // Skip if already a local path (starts with /)
+    if (url.startsWith('/')) {
+      return url;
+    }
+
+    // Skip if not an HTTP(S) URL
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      return url;
+    }
+
+    // Skip if file already exists (cache - avoids re-downloading on every build)
+    if (existsSync(localPath)) {
+      const publicPath = localPath.replace(join(__dirname, 'public'), '');
+      console.log(`ℹ️  Using cached asset: ${publicPath}`);
+      return publicPath;
+    }
+
+    // Download the file
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.warn(`⚠️  Failed to download ${url}: ${response.statusText}`);
+      return url; // Return original URL as fallback
+    }
+
+    // Ensure directory exists
+    const dir = dirname(localPath);
+    if (!existsSync(dir)) {
+      await mkdir(dir, { recursive: true });
+    }
+
+    // Get file buffer
+    const buffer = Buffer.from(await response.arrayBuffer());
+
+    // Write to file
+    await writeFile(localPath, buffer);
+
+    // Return local path (relative to public folder)
+    const publicPath = localPath.replace(join(__dirname, 'public'), '');
+    console.log(`✅ Downloaded ${url} → ${publicPath}`);
+    return publicPath;
+
+  } catch (error) {
+    console.warn(`⚠️  Error downloading ${url}:`, error.message);
+    return url; // Return original URL as fallback
+  }
+}
+
+/**
+ * Download all external assets from config and update paths to local files
+ */
+async function downloadAndLocalizeAssets(config, community) {
+  if (!config.assets || !config.assets.logos) {
+    return config;
+  }
+
+  const assetsDir = join(__dirname, 'public', 'images', community);
+  const updatedAssets = { ...config.assets };
+  const logos = { ...config.assets.logos };
+
+  // Download each logo asset
+  const assetTypes = ['main', 'icon', 'favicon', 'appleTouch', 'og', 'splash'];
+  
+  console.log(`\n📥 Downloading assets for community: ${community}`);
+  console.log(`📂 Target directory: public/images/${community}/\n`);
+  
+  let downloadedCount = 0;
+  let cachedCount = 0;
+  let skippedCount = 0;
+  
+  for (const assetType of assetTypes) {
+    const url = logos[assetType];
+    if (!url) continue;
+
+    // Extract filename from URL or use default
+    let filename = url.split('/').pop() || `${assetType}.${getExtensionFromUrl(url)}`;
+    // Remove query params if any
+    filename = filename.split('?')[0];
+    
+    // If no extension, try to infer from content-type or use common default
+    if (!filename.includes('.')) {
+      filename = `${filename}.${getExtensionFromUrl(url) || 'png'}`;
+    }
+
+    const localPath = join(assetsDir, filename);
+    const originalUrl = logos[assetType];
+    const localUrl = await downloadAsset(url, localPath);
+    
+    // Track statistics
+    if (originalUrl.startsWith('http')) {
+      if (localUrl !== originalUrl) {
+        // Successfully downloaded and localized
+        if (existsSync(localPath)) {
+          downloadedCount++;
+        } else {
+          cachedCount++;
+        }
+      } else {
+        skippedCount++;
+      }
+    }
+    
+    logos[assetType] = localUrl;
+  }
+
+  updatedAssets.logos = logos;
+  
+  console.log(`\n📊 Asset download summary:`);
+  console.log(`   ✅ Downloaded: ${downloadedCount}`);
+  console.log(`   📦 Cached: ${cachedCount}`);
+  if (skippedCount > 0) {
+    console.log(`   ⏭️  Skipped: ${skippedCount} (local paths)`);
+  }
+  console.log('');
+  
+  return { ...config, assets: updatedAssets };
+}
+
+/**
+ * Infer file extension from URL or common image types
+ */
+function getExtensionFromUrl(url) {
+  // Try to get from URL path
+  const match = url.match(/\.([a-z0-9]+)(?:[?#]|$)/i);
+  if (match) {
+    return match[1].toLowerCase();
+  }
+  
+  // Default based on common patterns
+  if (url.includes('favicon')) return 'ico';
+  if (url.includes('apple')) return 'png';
+  if (url.includes('og')) return 'png';
+  
+  return null;
+}
 
 // Load config from database at build time and set as environment variable
 // Config is now ~2.8 KB (down from ~29 KB), so env var approach works fine
@@ -32,9 +179,12 @@ async function loadConfigFromDB() {
       return;
     }
     
+    // Download external assets and localize paths
+    const configWithLocalAssets = await downloadAndLocalizeAssets(data, community);
+    
     // Store config in environment variable (now small enough at ~2.8 KB)
-    process.env.NEXT_PUBLIC_BUILD_TIME_CONFIG = JSON.stringify(data);
-    console.log('✅ Loaded config from database');
+    process.env.NEXT_PUBLIC_BUILD_TIME_CONFIG = JSON.stringify(configWithLocalAssets);
+    console.log('✅ Loaded config from database and downloaded assets');
   } catch (error) {
     console.warn('⚠️  Error loading config from DB:', error.message);
   }
@@ -102,7 +252,7 @@ const cspHeader = `
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // output: 'export', // Outputs a Single-Page Application (SPA).
-  // distDir: './dist', // Changes the build output directory to `./dist/`.
+  // distDir: './dist', // Changes the build output directory to `./dist`.
   transpilePackages: [
     "react-tweet", 
     "react-best-gradient-color-picker",
