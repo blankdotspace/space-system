@@ -309,4 +309,5 @@ function Navigation() {
 - **Route Handler**: `src/app/[navSlug]/[[...tabName]]/page.tsx` - Dynamic navigation
 - **Space Seeding**: `scripts/seed-navpage-spaces.ts` - Uploads space configs to Storage
 - **Shared Themes**: `src/config/shared/themes.ts` - Theme definitions
+- **Testing Guide**: [Testing Guide](TESTING.md) - How to test the configuration system
 
