@@ -61,6 +61,24 @@ function getFilenameFromUrl(url: string): string {
 }
 
 /**
+ * Type for config returned from database
+ */
+type DatabaseConfig = {
+  brand?: any;
+  assets?: {
+    logos?: {
+      main?: string;
+      icon?: string;
+      favicon?: string;
+      appleTouch?: string;
+      og?: string;
+      splash?: string;
+    };
+  };
+  [key: string]: any;
+};
+
+/**
  * Main verification function
  */
 async function verifyAssetDownloads() {
@@ -68,14 +86,16 @@ async function verifyAssetDownloads() {
   console.log(`📦 Community: ${community}\n`);
 
   // Fetch config from database
-  const { data: config, error } = await supabase
+  const { data, error } = await supabase
     .rpc('get_active_community_config', { p_community_id: community })
     .single();
 
-  if (error || !config) {
+  if (error || !data) {
     console.error('❌ Failed to fetch config from database:', error?.message);
     process.exit(1);
   }
+
+  const config = data as DatabaseConfig;
 
   if (!config.assets?.logos) {
     console.error('❌ No assets_config.logos found in config');
