@@ -6,8 +6,8 @@ export default function RootRedirect() {
   
   // If homePage exists (legacy config), redirect to its default tab
   if (config.homePage?.defaultTab) {
-    const tab = encodeURIComponent(config.homePage.defaultTab);
-    redirect(`/home/${tab}`);
+  const tab = encodeURIComponent(config.homePage.defaultTab);
+  redirect(`/home/${tab}`);
     return null;
   }
   

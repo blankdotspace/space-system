@@ -41,6 +41,9 @@ Nounspace is a highly customizable Farcaster client funded by Nouns DAO. This do
 - [Theme System](SYSTEMS/THEMES/OVERVIEW.md) - Theme architecture
 - [Customization](SYSTEMS/THEMES/CUSTOMIZATION.md) - Theme customization
 
+### Configuration
+- [Configuration System](SYSTEMS/CONFIGURATION/OVERVIEW.md) - Database-backed configuration system
+
 ### Discovery
 - [Mini App Discovery System](SYSTEMS/DISCOVERY/MINI_APP_DISCOVERY_SYSTEM.md) - Mini-app discovery system
 - [Mini App Discovery](SYSTEMS/DISCOVERY/MINI_APP_DISCOVERY.md) - Mini-app discovery system (to be created)
@@ -51,14 +54,6 @@ Nounspace is a highly customizable Farcaster client funded by Nouns DAO. This do
 - [Blockchain](INTEGRATIONS/BLOCKCHAIN.md) - Blockchain integration
 - [Supabase](INTEGRATIONS/SUPABASE.md) - Supabase integration
 - [Neynar](INTEGRATIONS/NEYNAR.md) - Neynar API integration
-
-## Database-Backed Configuration
-
-- [Database Config Guide](DATABASE_CONFIG/DATABASE_CONFIG_GUIDE.md) - Architecture and overview
-- [Quick Start](DATABASE_CONFIG/QUICK_START_IMPLEMENTATION.md) - 4-hour proof of concept guide
-- [Testing Guide](DATABASE_CONFIG/QUICK_START_TESTING.md) - Step-by-step testing
-- [Implementation Plan](DATABASE_CONFIG/DATABASE_CONFIG_IMPLEMENTATION.md) - Detailed implementation (Phases 0-4)
-- [Complete Plan](DATABASE_CONFIG/INCREMENTAL_IMPLEMENTATION_PLAN.md) - Full phase-by-phase plan (all 10 phases)
 
 ## Development
 

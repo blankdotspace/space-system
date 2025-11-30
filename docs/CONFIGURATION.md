@@ -1,5 +1,12 @@
 # Configuration Guide
 
+Nounspace uses a **database-backed configuration system** that allows community configurations to be stored in Supabase and loaded at build time. This provides admin-editable configs with zero runtime database queries.
+
+## Database-Backed Configuration System
+
+For complete documentation on how the configuration system works, see:
+- **[Configuration System Overview](SYSTEMS/CONFIGURATION/OVERVIEW.md)** - Complete description of the database-backed configuration system
+
 ## Environment Variables
 
 The application uses environment variables to configure community-specific settings and external services.
@@ -43,50 +50,41 @@ NEXT_PUBLIC_WEBSITE_URL=http://localhost:3000
 
 ## Configuration Loading
 
-The application automatically loads the appropriate configuration based on the `NEXT_PUBLIC_COMMUNITY` environment variable:
+The application loads configurations in the following order:
 
-1. **Environment Variable Reading**: The system reads `NEXT_PUBLIC_COMMUNITY` from environment variables
-2. **Validation**: Validates that the configuration exists in the available configurations
-3. **Fallback**: Falls back to the `nouns` configuration if an invalid or missing value is provided
-4. **Loading**: Loads the corresponding community configuration
+1. **Database Config** (if available): Fetched from Supabase during build, stored in `NEXT_PUBLIC_BUILD_TIME_CONFIG` env var
+2. **Static Config Fallback**: Falls back to static TypeScript configs if database is unavailable
+
+See [Configuration System Overview](SYSTEMS/CONFIGURATION/OVERVIEW.md) for details on the build-time loading process.
 
 ## Configuration Structure
 
-The configuration is organized into community-specific folders:
+Configurations are stored in Supabase and loaded at build time. Static TypeScript configs serve as fallback. The structure is organized into community-specific folders:
 
 ```
 src/config/
-├── nouns/                    # Nouns community configuration
+├── nouns/                    # Nouns community configuration (fallback)
 │   ├── nouns.brand.ts        # Brand identity
 │   ├── nouns.assets.ts       # Visual assets
-│   ├── nouns.theme.ts        # Theme definitions
 │   ├── nouns.community.ts    # Community integration
 │   ├── nouns.fidgets.ts      # Fidget management
-│   ├── nouns.home.ts         # Home page configuration
-│   ├── initial*.ts           # Initial space templates
-│   └── index.ts              # Configuration export
-├── example/                  # Example community configuration
-│   ├── example.brand.ts      # Brand identity template
-│   ├── example.assets.ts     # Visual assets template
-│   ├── example.theme.ts      # Theme definitions template
-│   ├── example.community.ts  # Community integration template
-│   ├── example.fidgets.ts    # Fidget management template
-│   ├── example.home.ts       # Home page configuration template
-│   ├── example.initialSpaces.ts # Initial space templates
-│   └── index.ts              # Configuration export
-├── clanker/                  # Clanker community configuration
-│   ├── clanker.brand.ts      # Brand identity
-│   ├── clanker.assets.ts     # Visual assets
-│   ├── clanker.theme.ts      # Theme definitions
-│   ├── clanker.community.ts  # Community integration
-│   ├── clanker.fidgets.ts    # Fidget management
-│   ├── clanker.home.ts       # Home page configuration
+│   ├── nouns.home.ts         # Home page configuration (legacy)
+│   ├── nouns.explore.ts      # Explore page configuration (legacy)
+│   ├── nouns.navigation.ts   # Navigation config
+│   ├── nouns.theme.ts        # Theme config (references shared)
+│   ├── nouns.ui.ts           # UI colors
 │   ├── initialSpaces/        # Initial space templates
 │   └── index.ts              # Configuration export
+├── clanker/                  # Clanker community configuration (fallback)
+├── example/                  # Example community configuration (fallback)
+├── shared/                   # Shared configuration
+│   └── themes.ts            # Shared theme definitions (all communities)
 ├── systemConfig.ts           # System configuration interface
 ├── initialSpaceConfig.ts     # Base space configuration
-└── index.ts                  # Main configuration loader
+└── index.ts                  # Main configuration loader (reads from DB or static)
 ```
+
+**Note:** Themes are stored in `shared/themes.ts` and pages (homePage/explorePage) are stored as Spaces in Supabase Storage. See [Configuration System Overview](SYSTEMS/CONFIGURATION/OVERVIEW.md) for details.
 
 ## Build-Time Configuration
 
@@ -133,21 +131,24 @@ NEXT_PUBLIC_COMMUNITY=example npm run dev
 
 When you set `NEXT_PUBLIC_COMMUNITY=example` (or `clanker`), the system will:
 
-1. **Load that community's system config** (brand, assets, theme, community settings)
-2. **Use that community's fidget configurations**
-3. **Use that community's home page configuration**
+1. **Load that community's system config** from Supabase (brand, assets, community settings, fidgets, navigation, UI)
+2. **Load shared themes** from `src/config/shared/themes.ts`
+3. **Load navigation pages** as Spaces from Supabase Storage (referenced by navigation items)
 4. **Use that community's initial space templates** (profile, channel, token, proposal, homebase)
+
+If the database is unavailable, the system falls back to static TypeScript configs.
 
 ## Adding New Community Configurations
 
 To add a new community configuration:
 
-1. Create a new folder under `src/config/` (e.g., `src/config/mycommunity/`)
-2. Copy the structure from `src/config/example/` as a template
-3. Update all configuration files with your community's specific values
-4. Add the new configuration to the `AVAILABLE_CONFIGURATIONS` array in `src/config/index.ts`
-5. Add a new case to the switch statement in `loadSystemConfig()` and the runtime delegates for space creators
-6. Update this documentation
+1. **Create database entry**: Insert a new row in the `community_configs` table with your community's configuration
+2. **Create static fallback** (optional): Create a new folder under `src/config/` (e.g., `src/config/mycommunity/`) as a fallback
+3. **Add to available configs**: Add the new configuration to the `AVAILABLE_CONFIGURATIONS` array in `src/config/index.ts`
+4. **Create navigation spaces**: If your community has navigation pages, create `navPage` type spaces in `spaceRegistrations` and upload their configs to Storage
+5. **Update seed data**: Add seed data in `supabase/seed.sql` for the new community
+
+See [Configuration System Overview](SYSTEMS/CONFIGURATION/OVERVIEW.md) for detailed instructions.
 
 ## Development vs Production
 
