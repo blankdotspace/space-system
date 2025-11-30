@@ -18,6 +18,7 @@ import {
 // Track domains we've already warned about to avoid spam
 const warnedDomains = new Set<string>();
 
+<<<<<<< HEAD
 /**
  * Load system configuration from database (SERVER-ONLY)
  * 
