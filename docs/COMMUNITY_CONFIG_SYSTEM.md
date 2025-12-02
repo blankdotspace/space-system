@@ -435,9 +435,9 @@ interface UIConfig {
 
 ## Configuration Loading
 
-The system uses **database-backed configuration** with build-time loading. Configs are fetched from Supabase during build and stored in an environment variable. If the database is unavailable, the system falls back to static TypeScript configs.
+The system uses **database-backed configuration** with runtime loading. Configs are fetched from Supabase at runtime based on the request domain. If the database is unavailable, the system falls back to static TypeScript configs.
 
-### Build-Time Configuration
+### Runtime Configuration
 
 The community is determined at build time via the `NEXT_PUBLIC_COMMUNITY` environment variable:
 
@@ -526,7 +526,7 @@ const MyComponent = () => {
 ```typescript
 import { loadSystemConfig } from '@/config';
 
-// In server components or build-time code
+// In server components
 const config = loadSystemConfig();
 const metadata: Metadata = {
   title: config.brand.displayName,
@@ -676,7 +676,7 @@ NEXT_PUBLIC_COMMUNITY=mycommunity npm run build
 
 ## Key Features
 
-### 1. Build-Time Configuration
+### 1. Runtime Configuration
 - Configuration is determined at build time
 - No runtime switching between communities
 - Optimized bundle size (only one community's config included)
@@ -713,7 +713,7 @@ NEXT_PUBLIC_COMMUNITY=mycommunity npm run build
    - Provides caching and memoization
 
 2. **Direct Loading for Server-Side**
-   - Use `loadSystemConfig()` in server components or build-time code
+   - Use `await loadSystemConfig()` in server components
    - No React hooks available in these contexts
 
 3. **Type Safety**
@@ -796,5 +796,5 @@ NEXT_PUBLIC_COMMUNITY=mycommunity npm run build
 
 ## Summary
 
-The Community Configuration System provides a comprehensive whitelabeling solution that allows Nounspace to be customized for different communities. It uses build-time configuration for optimal performance, provides full type safety, and maintains a modular structure for easy maintenance and extension.
+The Community Configuration System provides a comprehensive whitelabeling solution that allows Nounspace to be customized for different communities. It uses runtime configuration from the database, provides full type safety, and maintains a modular structure for easy maintenance and extension.
 

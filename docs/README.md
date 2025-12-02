@@ -43,7 +43,7 @@ Nounspace is a highly customizable Farcaster client funded by Nouns DAO. This do
 
 ### Configuration
 - [Configuration System](SYSTEMS/CONFIGURATION/OVERVIEW.md) - Database-backed configuration system
-- [Testing Guide](SYSTEMS/CONFIGURATION/TESTING.md) - How to test the configuration system
+- [Configuration System Overview](SYSTEMS/CONFIGURATION/OVERVIEW.md) - Complete configuration system documentation
 
 ### Discovery
 - [Mini App Discovery System](SYSTEMS/DISCOVERY/MINI_APP_DISCOVERY_SYSTEM.md) - Mini-app discovery system

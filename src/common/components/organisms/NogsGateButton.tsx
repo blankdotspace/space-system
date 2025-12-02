@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/common/data/stores/app";
 import { RECHECK_BACKOFF_FACTOR } from "@/common/data/stores/app/setup";
-import { NOGS_CONTRACT_ADDR } from "@/constants/nogs";
+import { getNogsContractAddr } from "@/constants/nogs";
 import { ALCHEMY_API } from "@/constants/urls";
 import { AlchemyIsHolderOfContract } from "@/pages/api/signerRequests";
 import { usePrivy } from "@privy-io/react-auth";
@@ -13,7 +13,7 @@ import { isUndefined } from "lodash";
 import { useBalance } from "wagmi";
 import { Address, formatUnits, zeroAddress } from "viem";
 import { base } from "viem/chains";
-import { SPACE_CONTRACT_ADDR } from "@/constants/spaceToken";
+import { getSpaceContractAddr } from "@/constants/spaceToken";
 
 const MIN_SPACE_TOKENS_FOR_UNLOCK = 1111;
 
@@ -51,15 +51,23 @@ const NogsGateButton = (props: ButtonProps) => {
   }));
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [spaceContractAddr, setSpaceContractAddr] = useState<Address | null>(null);
+  const [nogsContractAddr, setNogsContractAddr] = useState<string | null>(null);
+
+  // Load contract addresses (async)
+  useEffect(() => {
+    getSpaceContractAddr().then(addr => setSpaceContractAddr(addr));
+    getNogsContractAddr().then(addr => setNogsContractAddr(addr));
+  }, []);
 
   // ----- SPACE token gating -----
   const walletAddress = user?.wallet?.address as Address | undefined;
 
   const { data: spaceBalanceData } = useBalance({
     address: walletAddress ?? zeroAddress,
-    token: SPACE_CONTRACT_ADDR as Address,
+    token: (spaceContractAddr || zeroAddress) as Address,
     chainId: base.id,
-    query: { enabled: Boolean(walletAddress) },
+    query: { enabled: Boolean(walletAddress) && !!spaceContractAddr },
   });
 
   const userHoldEnoughSpace = spaceBalanceData
@@ -71,15 +79,15 @@ const NogsGateButton = (props: ButtonProps) => {
 
   // Optional debug logs
   useEffect(() => {
-    if (spaceBalanceData) {
+    if (spaceBalanceData && spaceContractAddr) {
       console.log(
         "[DEBUG] SPACE balance:",
         Number(formatUnits(spaceBalanceData.value, spaceBalanceData.decimals)),
       );
-      console.log("[DEBUG] SPACE contract address:", SPACE_CONTRACT_ADDR);
+      console.log("[DEBUG] SPACE contract address:", spaceContractAddr);
       console.log("[DEBUG] Connected wallet:", walletAddress);
     }
-  }, [spaceBalanceData, walletAddress]);
+  }, [spaceBalanceData, spaceContractAddr, walletAddress]);
 
   useEffect(() => {
     console.log("[DEBUG] userHoldEnoughSpace:", userHoldEnoughSpace);
@@ -102,14 +110,19 @@ const NogsGateButton = (props: ButtonProps) => {
         "[DEBUG] Using API:",
         `${ALCHEMY_API("base")}nft/v3/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}/isHolderOfContract`,
       );
-      console.log("[DEBUG] nOGs Contract:", NOGS_CONTRACT_ADDR);
+      if (!nogsContractAddr) {
+        console.error("[DEBUG] nOGs contract address not loaded yet");
+        return false;
+      }
+
+      console.log("[DEBUG] nOGs Contract:", nogsContractAddr);
 
       const { data } = await axios.get<AlchemyIsHolderOfContract>(
         `${ALCHEMY_API("base")}nft/v3/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}/isHolderOfContract`,
         {
           params: {
             wallet: address,
-            contractAddress: NOGS_CONTRACT_ADDR,
+            contractAddress: nogsContractAddr,
           },
         },
       );
@@ -200,7 +213,7 @@ const NogsGateButton = (props: ButtonProps) => {
   // Automatically check nOGs on load
   useEffect(() => {
     async function checkNogsAuto() {
-      if (!walletAddress) return;
+      if (!walletAddress || !nogsContractAddr) return;
 
       try {
         const { data } = await axios.get<AlchemyIsHolderOfContract>(
@@ -208,7 +221,7 @@ const NogsGateButton = (props: ButtonProps) => {
           {
             params: {
               wallet: walletAddress,
-              contractAddress: NOGS_CONTRACT_ADDR,
+              contractAddress: nogsContractAddr,
             },
           },
         );
@@ -223,7 +236,7 @@ const NogsGateButton = (props: ButtonProps) => {
     }
 
     void checkNogsAuto();
-  }, [walletAddress, setHasNogs]);
+  }, [walletAddress, nogsContractAddr, setHasNogs]);
 
   // ----- Button wrapper (this is what ThemeSettingsEditor uses) -----
 

@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 // import neynar from "@/common/data/api/neynar";
 import {
@@ -61,10 +63,10 @@ import { ChannelPicker } from "./channelPicker";
 import { renderEmbedForUrl } from "./Embeds";
 
 
-import { loadSystemConfig } from "@/config";
+import { getSpaceContractAddr } from "@/constants/spaceToken";
 
-const config = loadSystemConfig();
-const SPACE_CONTRACT_ADDR = config.community.contracts.space;
+// SPACE_CONTRACT_ADDR will be loaded when needed (async)
+// For now, we'll use it in a way that handles the Promise
 
 // Fixed missing imports and incorrect object types
 const API_URL = process.env.NEXT_PUBLIC_MOD_PROTOCOL_API_URL!;
@@ -371,10 +373,18 @@ const CreateCast: React.FC<CreateCastProps> = ({
   const sparklesBannerClosed = isBannerClosed(SPARKLES_BANNER_KEY);
 
   const { user } = usePrivy();
+  const [spaceContractAddr, setSpaceContractAddr] = useState<Address | null>(null);
+  
+  // Load space contract address (async)
+  useEffect(() => {
+    getSpaceContractAddr().then(addr => setSpaceContractAddr(addr));
+  }, []);
+  
   const result = useBalance({
     address: (user?.wallet?.address as Address) || zeroAddress,
-    token: SPACE_CONTRACT_ADDR as Address,
+    token: (spaceContractAddr || zeroAddress) as Address,
     chainId: base.id,
+    enabled: !!spaceContractAddr, // Only query when address is loaded
   });
   const spaceHoldAmount = result?.data
     ? parseInt(formatUnits(result.data.value, result.data.decimals))

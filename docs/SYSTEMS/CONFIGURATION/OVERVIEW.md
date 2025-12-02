@@ -2,29 +2,34 @@
 
 ## Overview
 
-Nounspace uses a database-backed configuration system that allows community configurations to be stored in Supabase and loaded at build time. This provides admin-editable configs with zero runtime database queries.
+Nounspace uses a database-backed configuration system with **domain-based multi-tenant support**. Community configurations are stored in Supabase and loaded dynamically at runtime based on the request domain, enabling a single deployment to serve multiple communities.
 
 ## Architecture
 
 ```
 ┌─────────────────┐
-│   Database      │
-│  (Stores Config)│
+│   Browser       │
+│  (Request)      │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Middleware     │
+│  (Edge Runtime) │
+│  - Detects domain│
+│  - Sets headers │
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐      ┌──────────────────┐
-│  Build Process  │─────▶│  Set Env Var     │
-│ (next.config.mjs)│      │  NEXT_PUBLIC_    │
-│                 │      │  BUILD_TIME_      │
-│                 │      │  CONFIG           │
-└─────────────────┘      └─────────┬──────────┘
+│ Server Component│─────▶│  Config Loader  │
+│                 │      │  (Runtime)      │
+└─────────────────┘      └─────────┬────────┘
                                    │
                                    ▼
                           ┌──────────────────┐
-                          │   Runtime App    │
-                          │ (Reads Env Var   │
-                          │  Zero DB Queries)│
+                          │   Database       │
+                          │   (Runtime)      │
                           └──────────────────┘
 ```
 
@@ -63,33 +68,40 @@ CREATE TABLE "public"."community_configs" (
 - **Themes**: Stored in `src/config/shared/themes.ts` (shared across communities)
 - **Pages** (homePage/explorePage): Stored as Spaces in Supabase Storage, referenced by navigation items
 
-## Build-Time Loading
+## Configuration Loading
 
-### Process
+All communities use runtime loading from Supabase:
 
-1. **Fetch Config from Database**
-   ```javascript
-   // next.config.mjs runs during build
-   const { data } = await supabase
-     .rpc('get_active_community_config', { p_community_id: community })
-     .single();
-   ```
-
-2. **Store in Environment Variable**
-   ```javascript
-   process.env.NEXT_PUBLIC_BUILD_TIME_CONFIG = JSON.stringify(data);
-   ```
-
-3. **Runtime Access**
+**Process:**
+1. **Middleware Detects Domain**
    ```typescript
-   // src/config/index.ts
-   const buildTimeConfig = process.env.NEXT_PUBLIC_BUILD_TIME_CONFIG;
-   if (buildTimeConfig) {
-     const dbConfig = JSON.parse(buildTimeConfig) as SystemConfig;
-     return dbConfig;
-   }
-   // Falls back to static configs if unavailable
+   // middleware.ts
+   const domain = request.headers.get('host'); // "example.nounspace.com"
+   const communityId = resolveCommunityFromDomain(domain); // "example"
+   response.headers.set('x-community-id', communityId);
    ```
+
+2. **Server Component Reads Header**
+   ```typescript
+   // Server Component
+   const headersList = await headers();
+   const communityId = headersList.get('x-community-id');
+   ```
+
+3. **Fetch Config from Database** (at request time)
+   ```typescript
+   // src/config/loaders/runtimeLoader.ts
+   const { data } = await supabase
+     .rpc('get_active_community_config', { p_community_id: communityId })
+     .single();
+   return data;
+   ```
+
+**Benefits:**
+- Multi-tenant support (different domains → different communities)
+- Single deployment serves all communities
+- Config can be updated without rebuild
+- Dynamic configuration updates
 
 ### Database Function
 
@@ -237,40 +249,68 @@ The database config is ~2.8 KB (down from ~29 KB) by:
 
 This size reduction makes the environment variable approach viable.
 
-## Runtime Access
+## Request Flow
+
+### Complete Flow Example
+
+**User visits:** `https://example.nounspace.com/home`
+
+1. **Middleware** (Edge Runtime)
+   - Extracts domain: `example.nounspace.com`
+   - Resolves community ID: `example`
+   - Sets headers: `x-community-id: example`, `x-detected-domain: example.nounspace.com`
+
+2. **Server Component**
+   - Reads `x-community-id` header
+   - Calls `await loadSystemConfig()`
+   - Fetches config from database for the detected community
+   - Renders page with correct config
+
+3. **Client Component**
+   - Uses `window.location.hostname` for domain detection
+   - Config loading is always async (from database)
 
 ### Config Loader
 
 ```typescript
 // src/config/index.ts
-export const loadSystemConfig = (): SystemConfig => {
-  const buildTimeConfig = process.env.NEXT_PUBLIC_BUILD_TIME_CONFIG;
-  if (buildTimeConfig) {
-    const dbConfig = JSON.parse(buildTimeConfig) as SystemConfig;
-    // Map pages object to homePage/explorePage for backward compatibility
-    return {
-      ...dbConfig,
-      homePage: dbConfig.pages?.['home'] || dbConfig.homePage || null,
-      explorePage: dbConfig.pages?.['explore'] || dbConfig.explorePage || null,
-    };
-  }
-  // Fall back to static configs
-};
+export async function loadSystemConfig(context?: ConfigLoadContext): Promise<SystemConfig> {
+  // Server-side: reads from middleware-set headers
+  // Client-side: uses window.location.hostname
+  
+  const factory = getConfigLoaderFactory();
+  const loader = factory.getLoader(context);
+  
+  // Always uses runtime loader (fetches from database)
+  return await loader.load(context);
+}
 ```
 
 ### Component Usage
 
+**Server Components** (must await):
 ```typescript
-// In components
+// Server Component
 import { loadSystemConfig } from '@/config';
 
-const config = loadSystemConfig();
-const brandName = config.brand.displayName;
-const navItems = config.navigation?.items || [];
+export default async function Layout() {
+  const config = await loadSystemConfig();
+  return <div>{config.brand.displayName}</div>;
+}
 ```
 
+**Client Components** (always async):
 ```typescript
-// React hook
+// Client Component
+import { loadSystemConfig } from '@/config';
+
+function Navigation() {
+  const config = await loadSystemConfig(); // Always async (from database)
+}
+```
+
+**React Hook**:
+```typescript
 import { useSystemConfig } from '@/common/lib/hooks/useSystemConfig';
 
 function Navigation() {
@@ -281,33 +321,47 @@ function Navigation() {
 
 ## Environment Variables
 
-**Required for Build:**
+**Required:**
 - `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
-- `SUPABASE_SERVICE_ROLE_KEY` - Service role key for build-time access
-- `NEXT_PUBLIC_COMMUNITY` - Community ID (defaults to 'nouns')
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anon key (for runtime loading)
+- `SUPABASE_SERVICE_ROLE_KEY` - Service role key (for seeding)
 
-**Fallback Behavior:**
-- If DB credentials missing → Falls back to static configs
-- If DB config not found → Falls back to static configs
-- App continues to work in all cases
+**Optional:**
+- `NEXT_PUBLIC_COMMUNITY` - Community ID (defaults to 'nouns', used as fallback)
+- `NEXT_PUBLIC_TEST_COMMUNITY` - Override for local testing (development only)
+
+## Domain Resolution
+
+The system automatically resolves community ID from domain:
+
+- `example.nounspace.com` → `example`
+- `clanker.nounspace.com` → `clanker`
+- `example.localhost:3000` → `example` (for local testing)
+
+**Priority order:**
+1. Middleware-set header (`x-community-id`)
+2. Development override (`NEXT_PUBLIC_TEST_COMMUNITY`)
+3. Domain resolution
+4. Environment variable (`NEXT_PUBLIC_COMMUNITY`)
 
 ## Benefits
 
-- **Zero Runtime Overhead** - No database queries in production
+- **Multi-Tenant Support** - Single deployment serves multiple communities
+- **Domain-Based Routing** - Automatic community detection from domain
 - **Admin Updates** - Configs can be updated via database
-- **Fast Runtime** - Config loaded from env var (instant)
-- **Safe Fallback** - Static configs always available
-- **Small Config** - Only ~2.8 KB (fits in env vars)
+- **Dynamic Updates** - Config changes without rebuild
+- **Small Config** - Only ~2.8 KB
 - **Unified Architecture** - Pages are Spaces, consistent with existing system
 - **Shared Themes** - Single source of truth, no duplication
 
 ## Related Files
 
 - **Database**: `supabase/migrations/20251129172847_create_community_configs.sql`
-- **Build Config**: `next.config.mjs` - Loads config at build time
-- **Config Loader**: `src/config/index.ts` - Reads from env var
+- **Middleware**: `middleware.ts` - Domain detection and header setting
+- **Build Config**: `next.config.mjs` - Downloads assets at build time
+- **Config Loaders**: `src/config/loaders/` - Strategy pattern implementation
+- **Config Loader**: `src/config/index.ts` - Main config loading function
 - **Route Handler**: `src/app/[navSlug]/[[...tabName]]/page.tsx` - Dynamic navigation
-- **Space Seeding**: `scripts/seed-navpage-spaces.ts` - Uploads space configs to Storage
+- **Space Seeding**: `scripts/seed-all.ts` - Unified seeding script
 - **Shared Themes**: `src/config/shared/themes.ts` - Theme definitions
-- **Testing Guide**: [Testing Guide](TESTING.md) - How to test the configuration system
 

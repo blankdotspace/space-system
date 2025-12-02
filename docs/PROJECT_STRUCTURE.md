@@ -16,6 +16,7 @@ nounspace.ts/
 ├── supabase/                 # Database configuration
 ├── tests/                    # Test files
 ├── .husky/                   # Git hooks
+├── middleware.ts             # Next.js middleware (domain detection)
 ├── package.json              # Dependencies
 ├── next.config.mjs           # Next.js configuration
 ├── tailwind.config.js        # Tailwind CSS configuration
@@ -131,11 +132,11 @@ src/constants/
 
 ### 5. System Configuration (`src/config/`)
 
-Whitelabeling and system configuration for community customization. Configurations are stored in Supabase and loaded at build time. See [Configuration System](SYSTEMS/CONFIGURATION/OVERVIEW.md) for details.
+Whitelabeling and system configuration with domain-based multi-tenant support. Configurations are stored in Supabase and loaded dynamically based on request domain. See [Configuration System](SYSTEMS/CONFIGURATION/OVERVIEW.md) for details.
 
 ```
 src/config/                  # System configuration
-├── nouns/                   # Nouns community configuration
+├── nouns/                   # Nouns community configuration (fallback)
 │   ├── nouns.brand.ts      # Brand identity
 │   ├── nouns.assets.ts     # Visual assets
 │   ├── nouns.community.ts  # Community integration
@@ -146,17 +147,25 @@ src/config/                  # System configuration
 │   ├── nouns.theme.ts      # Theme config (references shared)
 │   ├── nouns.ui.ts         # UI colors
 │   └── initialSpaces/      # Initial space templates
-├── clanker/                 # Clanker community configuration
-├── example/                 # Example community configuration
+├── clanker/                 # Clanker community configuration (fallback)
+├── example/                 # Example community configuration (fallback)
 ├── shared/                  # Shared configuration
-│   └── themes.ts           # Shared theme definitions
+│   └── themes.ts           # Shared theme definitions (all communities)
+├── loaders/                 # Configuration loading
+│   ├── types.ts            # Loader interfaces
+│   ├── registry.ts         # Domain resolution
+│   ├── runtimeLoader.ts    # Runtime config loader
+│   ├── factory.ts          # Loader factory
+│   └── index.ts            # Public API
 ├── systemConfig.ts          # System configuration interface
-├── index.ts                 # Configuration loader (reads from DB or static)
+├── index.ts                 # Main configuration loader
 └── initialSpaceConfig.ts    # Base space configuration
 ```
 
 **Key Features:**
-- **Database-Backed**: Configs stored in Supabase, loaded at build time
+- **Database-Backed**: Configs stored in Supabase, loaded dynamically
+- **Multi-Tenant**: Domain-based community detection via middleware
+- **Runtime Loading**: All communities load config from database at runtime
 - **Whitelabeling Support**: Complete brand customization through configuration
 - **Community Integration**: URLs, social handles, governance links, contract addresses
 - **Shared Themes**: Themes stored in shared file, not per-community

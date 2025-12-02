@@ -12,7 +12,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { Address, formatUnits, zeroAddress } from "viem";
 import { base } from "viem/chains";
 import { useBalance } from "wagmi";
-import { SPACE_CONTRACT_ADDR } from "@/constants/spaceToken";
+import { getSpaceContractAddr } from "@/constants/spaceToken";
 
 interface BackgroundGeneratorProps {
   backgroundHTML: string;
@@ -49,10 +49,18 @@ export const BackgroundGenerator = ({
   ];
 
   const { user } = usePrivy();
+  const [spaceContractAddr, setSpaceContractAddr] = useState<Address | null>(null);
+  
+  // Load space contract address (async)
+  useEffect(() => {
+    getSpaceContractAddr().then(addr => setSpaceContractAddr(addr));
+  }, []);
+  
   const result = useBalance({
     address: (user?.wallet?.address as Address) || zeroAddress,
-    token: SPACE_CONTRACT_ADDR as Address,
+    token: (spaceContractAddr || zeroAddress) as Address,
     chainId: base.id,
+    enabled: !!spaceContractAddr, // Only query when address is loaded
   });
   const spaceHoldAmount = result?.data
     ? parseInt(formatUnits(result.data.value, result.data.decimals))

@@ -1,6 +1,6 @@
 # Configuration Guide
 
-Nounspace uses a **database-backed configuration system** that allows community configurations to be stored in Supabase and loaded at build time. This provides admin-editable configs with zero runtime database queries.
+Nounspace uses a **database-backed configuration system** with **domain-based multi-tenant support**. Community configurations are stored in Supabase and loaded dynamically based on the request domain, enabling a single deployment to serve multiple communities.
 
 ## Database-Backed Configuration System
 
@@ -13,16 +13,18 @@ The application uses environment variables to configure community-specific setti
 
 ### Community Configuration
 
-The most important environment variable for whitelabeling is:
+The system automatically detects the community from the request domain via middleware. You can also set:
 
 ```bash
 NEXT_PUBLIC_COMMUNITY=nouns
 ```
 
-This determines which community configuration to load. Available options:
-- `nouns` (default) - Uses the Nouns community configuration
-- `example` - Uses the example community configuration template
-- `clanker` - Uses the Clanker community configuration
+**Available communities:**
+- `nouns` (default)
+- `example`
+- `clanker`
+
+**Note:** In production, the community is automatically detected from the domain (e.g., `example.nounspace.com` → `example`). The `NEXT_PUBLIC_COMMUNITY` env var is used as a fallback.
 
 ### Required Environment Variables
 
@@ -50,16 +52,13 @@ NEXT_PUBLIC_WEBSITE_URL=http://localhost:3000
 
 ## Configuration Loading
 
-The application loads configurations in the following order:
+The application uses **runtime loading** from Supabase. Config is fetched from the database at runtime based on the request domain, enabling multi-tenant support.
 
-1. **Database Config** (if available): Fetched from Supabase during build, stored in `NEXT_PUBLIC_BUILD_TIME_CONFIG` env var
-2. **Static Config Fallback**: Falls back to static TypeScript configs if database is unavailable
-
-See [Configuration System Overview](SYSTEMS/CONFIGURATION/OVERVIEW.md) for details on the build-time loading process.
+See [Configuration System Overview](SYSTEMS/CONFIGURATION/OVERVIEW.md) for details.
 
 ## Configuration Structure
 
-Configurations are stored in Supabase and loaded at build time. Static TypeScript configs serve as fallback. The structure is organized into community-specific folders:
+Configurations are stored in Supabase and loaded dynamically. Static TypeScript configs serve as fallback. The structure is organized into community-specific folders:
 
 ```
 src/config/
@@ -79,64 +78,74 @@ src/config/
 ├── example/                  # Example community configuration (fallback)
 ├── shared/                   # Shared configuration
 │   └── themes.ts            # Shared theme definitions (all communities)
+├── loaders/                  # Configuration loading
+│   ├── types.ts             # Loader interfaces
+│   ├── registry.ts          # Domain resolution
+│   ├── runtimeLoader.ts     # Runtime config loader
+│   ├── factory.ts           # Loader factory
+│   └── index.ts             # Public API
 ├── systemConfig.ts           # System configuration interface
 ├── initialSpaceConfig.ts     # Base space configuration
-└── index.ts                  # Main configuration loader (reads from DB or static)
+└── index.ts                  # Main configuration loader
 ```
 
 **Note:** Themes are stored in `shared/themes.ts` and pages (homePage/explorePage) are stored as Spaces in Supabase Storage. See [Configuration System Overview](SYSTEMS/CONFIGURATION/OVERVIEW.md) for details.
 
-## Build-Time Configuration
+## Domain-Based Multi-Tenant Configuration
 
-The system uses build-time configuration to determine which community configuration to use. This means:
+The system uses **middleware-based domain detection** to automatically determine which community configuration to load:
 
-1. **Environment Variable**: Set `NEXT_PUBLIC_COMMUNITY` at build time
-2. **Build Process**: The configuration is baked into the build
-3. **No Runtime Switching**: The configuration cannot be changed after build
+1. **Middleware** detects the domain from request headers (e.g., `example.nounspace.com`)
+2. **Resolves community ID** from domain (e.g., `example.nounspace.com` → `example`)
+3. **Sets headers** for Server Components to read (`x-community-id`, `x-detected-domain`)
+4. **Loads config** from database at runtime
 
-### Building Different Communities
+### How It Works
 
-**For Nouns community (default):**
-```bash
-npm run build
-# or explicitly
-NEXT_PUBLIC_COMMUNITY=nouns npm run build
+**Request Flow:**
+```
+Browser Request (example.nounspace.com)
+  ↓
+Middleware (detects domain, sets x-community-id header)
+  ↓
+Server Component (reads header, loads config)
+  ↓
+Renders with correct community config
 ```
 
-**For Example community:**
-```bash
-NEXT_PUBLIC_COMMUNITY=example npm run build
-```
-
-**For Clanker community:**
-```bash
-NEXT_PUBLIC_COMMUNITY=clanker npm run build
-```
+**For All Communities:**
+- Config loaded from Supabase database at runtime
+- Supports multi-tenant (different domains → different communities)
+- Single deployment serves all communities
 
 ### Development
 
-**For Nouns development:**
-```bash
-npm run dev
-# or explicitly
-NEXT_PUBLIC_COMMUNITY=nouns npm run dev
-```
+**Testing Runtime Communities Locally:**
 
-**For Example development:**
+1. **Use localhost subdomains:**
+   ```bash
+   # Visit: example.localhost:3000
+   # System detects 'example' from subdomain
+   ```
+
+2. **Or use environment variable override:**
+   ```bash
+   NEXT_PUBLIC_TEST_COMMUNITY=example npm run dev
+   ```
+
+**Testing Specific Communities:**
 ```bash
-NEXT_PUBLIC_COMMUNITY=example npm run dev
+NEXT_PUBLIC_COMMUNITY=nouns npm run dev
 ```
 
 ### What Gets Configured
 
-When you set `NEXT_PUBLIC_COMMUNITY=example` (or `clanker`), the system will:
+For each community, the system loads:
 
-1. **Load that community's system config** from Supabase (brand, assets, community settings, fidgets, navigation, UI)
-2. **Load shared themes** from `src/config/shared/themes.ts`
-3. **Load navigation pages** as Spaces from Supabase Storage (referenced by navigation items)
-4. **Use that community's initial space templates** (profile, channel, token, proposal, homebase)
-
-If the database is unavailable, the system falls back to static TypeScript configs.
+1. **System config** from Supabase (brand, assets, community settings, fidgets, navigation, UI)
+2. **Shared themes** from `src/config/shared/themes.ts`
+3. **Navigation pages** as Spaces from Supabase Storage (referenced by navigation items)
+4. **Initial space templates** (profile, channel, token, proposal, homebase)
 
 ## Adding New Community Configurations
 

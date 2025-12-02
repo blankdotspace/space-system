@@ -152,14 +152,14 @@ function getExtensionFromUrl(url) {
   return null;
 }
 
-// Load config from database at build time and set as environment variable
-// Config is now ~2.8 KB (down from ~29 KB), so env var approach works fine
-async function loadConfigFromDB() {
+// Download assets for the community specified in NEXT_PUBLIC_COMMUNITY
+// This runs during build to pre-download and localize external assets
+async function downloadAssetsForBuild() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   
   if (!supabaseUrl || !supabaseKey) {
-    console.log('ℹ️  Using static configs (no DB credentials)');
+    console.log('ℹ️  Skipping asset download (no DB credentials)');
     return;
   }
   
@@ -172,7 +172,7 @@ async function loadConfigFromDB() {
       .single();
     
     if (error || !data) {
-      console.log('ℹ️  Using static configs (no DB config found)');
+      console.log('ℹ️  Skipping asset download (no DB config found)');
       if (error) {
         console.log(`   Error: ${error.message}`);
       }
@@ -180,18 +180,15 @@ async function loadConfigFromDB() {
     }
     
     // Download external assets and localize paths
-    const configWithLocalAssets = await downloadAndLocalizeAssets(data, community);
-    
-    // Store config in environment variable (now small enough at ~2.8 KB)
-    process.env.NEXT_PUBLIC_BUILD_TIME_CONFIG = JSON.stringify(configWithLocalAssets);
-    console.log('✅ Loaded config from database and downloaded assets');
+    await downloadAndLocalizeAssets(data, community);
+    console.log('✅ Downloaded assets for community:', community);
   } catch (error) {
-    console.warn('⚠️  Error loading config from DB:', error.message);
+    console.warn('⚠️  Error downloading assets:', error.message);
   }
 }
 
-// Load config before Next.js config is created
-await loadConfigFromDB();
+// Download assets before Next.js config is created
+await downloadAssetsForBuild();
 
 const withBundleAnalyzer = bundlerAnalyzer({
   enabled: process.env.ANALYZE === "true",
