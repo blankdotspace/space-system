@@ -8,7 +8,7 @@ import React, {
   useMemo,
 } from "react";
 import Navigation from "./Navigation";
-export interface SidebarProps {}
+import { SystemConfig } from "@/config";
 
 export type SidebarContextProviderProps = { children: React.ReactNode };
 
@@ -51,7 +51,11 @@ export const useSidebarContext = (): SidebarContextValue => {
   return useContext(SidebarContext);
 };
 
-export const Sidebar: React.FC<SidebarProps> = () => {
+type SidebarProps = {
+  systemConfig: SystemConfig;
+};
+
+export const Sidebar: React.FC<SidebarProps> = ({ systemConfig }) => {
   const { editMode, setEditMode, sidebarEditable, portalRef } =
     useSidebarContext();
 
@@ -75,6 +79,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
       <div ref={portalRef} className={editMode ? "w-full" : ""}></div>
       <div className={navWrapperClass} style={navStyles}>
         <Navigation
+          systemConfig={systemConfig}
           isEditable={sidebarEditable}
           enterEditMode={enterEditMode}
         />

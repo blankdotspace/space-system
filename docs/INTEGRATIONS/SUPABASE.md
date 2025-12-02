@@ -92,6 +92,7 @@ CREATE INDEX idx_spaces_public ON spaces(is_public) WHERE is_public = TRUE;
 
 ```sql
 -- Get active community configuration
+-- Returns the most recently updated published config for a community
 CREATE OR REPLACE FUNCTION get_active_community_config(
     p_community_id VARCHAR(50)
 )
@@ -114,6 +115,7 @@ BEGIN
     FROM "public"."community_configs"
     WHERE "community_id" = p_community_id
     AND "is_published" = true
+    ORDER BY "updated_at" DESC
     LIMIT 1;
     
     RETURN v_config;

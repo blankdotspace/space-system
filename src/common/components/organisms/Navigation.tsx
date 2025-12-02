@@ -42,7 +42,7 @@ import {
 } from "../molecules/CastModalHelpers";
 import SearchModal, { SearchModalHandle } from "./SearchModal";
 import { toFarcasterCdnUrl } from "@/common/lib/utils/farcasterCdn";
-import { loadSystemConfig } from "@/config";
+import { SystemConfig } from "@/config";
 import { useUIColors } from "@/common/lib/hooks/useUIColors";
 
 type NavItemProps = {
@@ -59,14 +59,18 @@ type NavItemProps = {
 type NavButtonProps = Omit<NavItemProps, "href" | "openInNewTab">;
 
 type NavProps = {
+  systemConfig: SystemConfig;
   isEditable: boolean;
   enterEditMode?: () => void;
   mobile?: boolean;
   onNavigate?: () => void;
 };
 
-const NavIconBadge: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const uiColors = useUIColors();
+const NavIconBadge: React.FC<{
+  children: React.ReactNode;
+  systemConfig: SystemConfig;
+}> = ({ children, systemConfig }) => {
+  const uiColors = useUIColors({ systemConfig });
   return (
     <Badge
       className="justify-center text-[11px]/[12px] min-w-[18px] min-h-[18px] font-medium shadow-md px-[3px] rounded-full absolute left-[19px] top-[4px] border-white text-white"
@@ -79,6 +83,7 @@ const NavIconBadge: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
 const Navigation = React.memo(
 ({
+  systemConfig,
   isEditable,
   enterEditMode,
   mobile = false,
@@ -97,7 +102,7 @@ const Navigation = React.memo(
   const logout = useLogout();
   const notificationBadgeText = useNotificationBadgeText();
   const pathname = usePathname();
-  const { community, navigation, ui } = loadSystemConfig();
+  const { community, navigation, ui } = systemConfig;
   const discordUrl = community?.urls?.discord || "https://discord.gg/eYQeXU2WuH";
   
   // Get cast button colors from config, with fallback to blue
@@ -303,7 +308,7 @@ const Navigation = React.memo(
           rel={openInNewTab ? "noopener noreferrer" : undefined}
           target={openInNewTab ? "_blank" : undefined}
         >
-          {badgeText && <NavIconBadge>{badgeText}</NavIconBadge>}
+          {badgeText && <NavIconBadge systemConfig={systemConfig}>{badgeText}</NavIconBadge>}
           <Icon />
           {!shrunk && <span className="ms-3 relative z-10">{label}</span>}
         </Link>
@@ -329,7 +334,7 @@ const Navigation = React.memo(
           )}
           onClick={onClick}
         >
-          {badgeText && <NavIconBadge>{badgeText}</NavIconBadge>}
+          {badgeText && <NavIconBadge systemConfig={systemConfig}>{badgeText}</NavIconBadge>}
           <Icon aria-hidden="true" />
           {!shrunk && <span className="ms-3 relative z-10">{label}</span>}
         </button>
@@ -411,7 +416,7 @@ const Navigation = React.memo(
           )}
 
           <div className="-mt-6 pb-6">
-            <BrandHeader />
+            <BrandHeader systemConfig={systemConfig} />
           </div>
           <div
             className={mergeClasses(

@@ -5,7 +5,7 @@ Nounspace uses a **database-backed configuration system** with **domain-based mu
 ## Database-Backed Configuration System
 
 For complete documentation on how the configuration system works, see:
-- **[Configuration System Overview](SYSTEMS/CONFIGURATION/OVERVIEW.md)** - Complete description of the database-backed configuration system
+- **[Architecture Overview](SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW.md)** - Complete description of the database-backed configuration system
 
 ## Environment Variables
 
@@ -52,9 +52,30 @@ NEXT_PUBLIC_WEBSITE_URL=http://localhost:3000
 
 ## Configuration Loading
 
-The application uses **runtime loading** from Supabase. Config is fetched from the database at runtime based on the request domain, enabling multi-tenant support.
+The application uses **server-only runtime loading** from Supabase. Config is fetched from the database at runtime based on the request domain, enabling multi-tenant support.
 
-See [Configuration System Overview](SYSTEMS/CONFIGURATION/OVERVIEW.md) for details.
+### Server-Only Architecture
+
+**Important:** `loadSystemConfig()` is **server-only** and can only be called from Server Components. Client components receive config via the `systemConfig` prop.
+
+**Pattern:**
+```typescript
+// ✅ Server Component
+export default async function MyServerComponent() {
+  const systemConfig = await loadSystemConfig();
+  return <ClientComponent systemConfig={systemConfig} />;
+}
+
+// ✅ Client Component
+"use client";
+type Props = { systemConfig: SystemConfig };
+export function MyClientComponent({ systemConfig }: Props) {
+  const { brand, assets } = systemConfig;
+  // Use config...
+}
+```
+
+See [Architecture Overview](SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW.md) for complete details.
 
 ## Configuration Structure
 
@@ -89,7 +110,7 @@ src/config/
 └── index.ts                  # Main configuration loader
 ```
 
-**Note:** Themes are stored in `shared/themes.ts` and pages (homePage/explorePage) are stored as Spaces in Supabase Storage. See [Configuration System Overview](SYSTEMS/CONFIGURATION/OVERVIEW.md) for details.
+**Note:** Themes are stored in `shared/themes.ts` and pages (homePage/explorePage) are stored as Spaces in Supabase Storage. See [Architecture Overview](SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW.md) for details.
 
 ## Domain-Based Multi-Tenant Configuration
 
@@ -109,6 +130,10 @@ Browser Request (example.nounspace.com)
 Middleware (detects domain, sets x-community-id header)
   ↓
 Server Component (reads header, loads config)
+  ├─ Calls: await loadSystemConfig() ← SERVER-ONLY
+  └─ Passes systemConfig as prop to Client Components
+  ↓
+Client Components receive systemConfig prop
   ↓
 Renders with correct community config
 ```
@@ -157,7 +182,7 @@ To add a new community configuration:
 4. **Create navigation spaces**: If your community has navigation pages, create `navPage` type spaces in `spaceRegistrations` and upload their configs to Storage
 5. **Update seed data**: Add seed data in `supabase/seed.sql` for the new community
 
-See [Configuration System Overview](SYSTEMS/CONFIGURATION/OVERVIEW.md) for detailed instructions.
+See [Architecture Overview](SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW.md) for detailed instructions.
 
 ## Development vs Production
 

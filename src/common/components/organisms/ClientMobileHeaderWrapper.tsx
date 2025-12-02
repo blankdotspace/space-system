@@ -2,10 +2,15 @@
 
 import React from "react";
 import MobileHeader from "./MobileHeader";
+import { SystemConfig } from "@/config";
 
-export const ClientMobileHeaderWrapper: React.FC = React.memo(
-  function ClientMobileHeaderWrapper() {
-    return <MobileHeader />;
+type ClientMobileHeaderWrapperProps = {
+  systemConfig: SystemConfig;
+};
+
+export const ClientMobileHeaderWrapper: React.FC<ClientMobileHeaderWrapperProps> = React.memo(
+  function ClientMobileHeaderWrapper({ systemConfig }) {
+    return <MobileHeader systemConfig={systemConfig} />;
   }
 );
 
