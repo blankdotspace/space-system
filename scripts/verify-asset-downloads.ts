@@ -13,7 +13,10 @@
  * Requires:
  *   - NEXT_PUBLIC_SUPABASE_URL
  *   - SUPABASE_SERVICE_ROLE_KEY
- *   - NEXT_PUBLIC_COMMUNITY (optional, defaults to 'nouns')
+ *   - NEXT_PUBLIC_TEST_COMMUNITY (required, specify which community to verify)
+ * 
+ * Usage:
+ *   NEXT_PUBLIC_TEST_COMMUNITY=example tsx scripts/verify-asset-downloads.ts
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -26,7 +29,14 @@ const __dirname = dirname(__filename);
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const community = process.env.NEXT_PUBLIC_COMMUNITY || 'nouns';
+const community = process.env.NEXT_PUBLIC_TEST_COMMUNITY;
+
+if (!community) {
+  console.error('❌ Missing required environment variable:');
+  console.error('   NEXT_PUBLIC_TEST_COMMUNITY');
+  console.error('   Example: NEXT_PUBLIC_TEST_COMMUNITY=example tsx scripts/verify-asset-downloads.ts');
+  process.exit(1);
+}
 
 if (!supabaseUrl || !supabaseKey) {
   console.error('❌ Missing required environment variables:');

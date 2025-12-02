@@ -4,14 +4,18 @@ import { createInitialProfileSpaceConfigForFid } from "@/config";
 const PORTFOLIO_FIDGET_ID = "Portfolio:cd627e89-d661-4255-8c4c-2242a950e93e";
 
 describe("clanker initial profile space config", () => {
-  const originalCommunity = process.env.NEXT_PUBLIC_COMMUNITY;
+  const originalCommunity = process.env.NEXT_PUBLIC_TEST_COMMUNITY;
 
   beforeAll(() => {
-    process.env.NEXT_PUBLIC_COMMUNITY = "clanker";
+    process.env.NEXT_PUBLIC_TEST_COMMUNITY = "clanker";
   });
 
   afterAll(() => {
-    process.env.NEXT_PUBLIC_COMMUNITY = originalCommunity;
+    if (originalCommunity) {
+      process.env.NEXT_PUBLIC_TEST_COMMUNITY = originalCommunity;
+    } else {
+      delete process.env.NEXT_PUBLIC_TEST_COMMUNITY;
+    }
   });
 
   it("passes the farcaster username to the Portfolio fidget settings", () => {

@@ -52,7 +52,7 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
     const domain = await getDomainFromContext();
     
     return {
-      communityId: process.env.NEXT_PUBLIC_COMMUNITY,
+      communityId: undefined, // Will be resolved via resolveCommunityId()
       domain,
       isServer: true,
     };

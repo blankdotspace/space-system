@@ -37,7 +37,8 @@ NEXT_PUBLIC_TEST_COMMUNITY=nouns npm run dev
 **Priority order:**
 1. `NEXT_PUBLIC_TEST_COMMUNITY` (development only)
 2. Domain resolution
-3. `NEXT_PUBLIC_COMMUNITY` (fallback)
+
+**Note:** If neither is set, the system will error when attempting to load config. Always set `NEXT_PUBLIC_TEST_COMMUNITY` in development or use localhost subdomains.
 
 ### Method 2: Localhost Subdomains (Most Realistic)
 
@@ -62,7 +63,7 @@ npm run dev
 - `http://example.localhost:3000` → loads `example` community
 - `http://clanker.localhost:3000` → loads `clanker` community
 - `http://nouns.localhost:3000` → loads `nouns` community
-- `http://localhost:3000` → falls back to `NEXT_PUBLIC_COMMUNITY` or 'nouns'
+- `http://localhost:3000` → requires `NEXT_PUBLIC_TEST_COMMUNITY` to be set, otherwise will error
 
 **How it works:**
 - Middleware detects the domain from the `Host` header
@@ -183,11 +184,11 @@ npx tsx scripts/test-config-loading.ts
 **Problem:** Loading 'nouns' when expecting 'example'
 
 **Solutions:**
-1. Check if `NEXT_PUBLIC_TEST_COMMUNITY` is set (it takes priority)
-2. Verify domain resolution:
+1. Set `NEXT_PUBLIC_TEST_COMMUNITY` environment variable (required for plain localhost)
+2. Or use localhost subdomains:
    - Visit `http://example.localhost:3000` (not just `localhost:3000`)
    - Check middleware logs for detected domain
-3. Check `NEXT_PUBLIC_COMMUNITY` fallback value
+3. Verify Supabase credentials are configured
 
 ### Subdomain Not Working
 
@@ -209,7 +210,7 @@ npx tsx scripts/test-config-loading.ts
 - [ ] Verify correct community config loads (brand, logo, navigation)
 - [ ] Check console logs show correct community ID
 - [ ] Verify Supabase requests in Network tab
-- [ ] Test fallback to `NEXT_PUBLIC_COMMUNITY`
+- [ ] Test error handling when no community ID can be resolved
 - [ ] Test error handling (invalid community ID)
 - [ ] Test both server-side and client-side loading
 
@@ -219,7 +220,8 @@ npx tsx scripts/test-config-loading.ts
 |----------|---------|----------|---------|
 | `NEXT_PUBLIC_TEST_COMMUNITY` | Development override | 1 (dev only) | `example` |
 | Domain resolution | From request domain | 2 | `example.localhost` → `example` |
-| `NEXT_PUBLIC_COMMUNITY` | Fallback | 3 | `nouns` |
+
+**Note:** If no community ID can be resolved, the system will error when attempting to load config. Always set `NEXT_PUBLIC_TEST_COMMUNITY` in development or use localhost subdomains.
 
 ## Related Documentation
 
