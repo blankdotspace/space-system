@@ -1,7 +1,6 @@
 import { SystemConfig } from './systemConfig';
 import { 
   getDomainFromContext,
-  getCommunityIdFromHeaders,
   resolveCommunityId,
   ConfigLoadContext 
 } from './loaders';

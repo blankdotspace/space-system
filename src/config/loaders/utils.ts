@@ -8,10 +8,10 @@ import { resolveCommunityFromDomain } from './registry';
  * 1. Explicit context.communityId
  * 2. Development override (NEXT_PUBLIC_TEST_COMMUNITY) - for local testing only
  * 3. Domain resolution (production or localhost subdomains)
+ * 4. Build-time fallback (NEXT_PUBLIC_TEST_COMMUNITY or 'nouns') - for static generation
  * 
- * Note: If no community ID can be resolved, the system will error when attempting
- * to load config. Use NEXT_PUBLIC_TEST_COMMUNITY in development or ensure domain
- * resolution works (e.g., use localhost subdomains or production domains).
+ * Note: During build time (static generation), there's no request context, so we use
+ * NEXT_PUBLIC_TEST_COMMUNITY if set, otherwise default to 'nouns' as a fallback.
  */
 export function resolveCommunityId(context: ConfigLoadContext): string | undefined {
   let communityId = context.communityId;
@@ -25,6 +25,12 @@ export function resolveCommunityId(context: ConfigLoadContext): string | undefin
   // Resolve from domain if still no community ID
   if (!communityId && context.domain) {
     communityId = resolveCommunityFromDomain(context.domain) || undefined;
+  }
+
+  // Build-time fallback: when there's no request context (static generation)
+  // Use NEXT_PUBLIC_TEST_COMMUNITY if set, otherwise default to 'nouns'
+  if (!communityId) {
+    communityId = process.env.NEXT_PUBLIC_TEST_COMMUNITY || 'nouns';
   }
 
   return communityId;
