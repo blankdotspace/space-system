@@ -53,13 +53,10 @@ async function testConfigLoading() {
     
     // Show which community was resolved
     const testCommunity = process.env.NEXT_PUBLIC_TEST_COMMUNITY;
-    const envCommunity = process.env.NEXT_PUBLIC_COMMUNITY;
     if (testCommunity) {
       console.log(`   Resolved from: NEXT_PUBLIC_TEST_COMMUNITY=${testCommunity}`);
-    } else if (envCommunity) {
-      console.log(`   Resolved from: NEXT_PUBLIC_COMMUNITY=${envCommunity}`);
     } else {
-      console.log(`   Resolved from: Default fallback`);
+      console.log(`   Resolved from: Domain detection (or explicit context)`);
     }
   } catch (error: any) {
     console.error(`❌ Failed: ${error.message}`);

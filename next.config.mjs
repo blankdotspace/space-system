@@ -152,7 +152,7 @@ function getExtensionFromUrl(url) {
   return null;
 }
 
-// Download assets for the community specified in NEXT_PUBLIC_COMMUNITY
+// Download assets for the community specified in NEXT_PUBLIC_TEST_COMMUNITY
 // This runs during build to pre-download and localize external assets
 async function downloadAssetsForBuild() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -164,7 +164,12 @@ async function downloadAssetsForBuild() {
   }
   
   const supabase = createClient(supabaseUrl, supabaseKey);
-  const community = process.env.NEXT_PUBLIC_COMMUNITY || 'nouns';
+  const community = process.env.NEXT_PUBLIC_TEST_COMMUNITY;
+  
+  if (!community) {
+    console.log('ℹ️  Skipping asset download (NEXT_PUBLIC_TEST_COMMUNITY not set)');
+    return;
+  }
   
   try {
     const { data, error } = await supabase

@@ -13,24 +13,24 @@ The application uses environment variables to configure community-specific setti
 
 ### Community Configuration
 
-The system automatically detects the community from the request domain via middleware. You can also set:
+The system automatically detects the community from the request domain via middleware. For local development, you can set:
 
 ```bash
-NEXT_PUBLIC_COMMUNITY=nouns
+NEXT_PUBLIC_TEST_COMMUNITY=nouns
 ```
 
 **Available communities:**
-- `nouns` (default)
+- `nouns`
 - `example`
 - `clanker`
 
-**Note:** In production, the community is automatically detected from the domain (e.g., `example.nounspace.com` → `example`). The `NEXT_PUBLIC_COMMUNITY` env var is used as a fallback.
+**Note:** In production, the community is automatically detected from the domain (e.g., `example.nounspace.com` → `example`). For local development, use `NEXT_PUBLIC_TEST_COMMUNITY` or localhost subdomains (e.g., `example.localhost:3000`).
 
 ### Required Environment Variables
 
 ```bash
-# Community Configuration
-NEXT_PUBLIC_COMMUNITY=nouns
+# Community Configuration (for local development only)
+# NEXT_PUBLIC_TEST_COMMUNITY=nouns  # Optional: override community for local testing
 
 # Database Configuration (Supabase)
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
@@ -160,7 +160,7 @@ Renders with correct community config
 
 **Testing Specific Communities:**
 ```bash
-NEXT_PUBLIC_COMMUNITY=nouns npm run dev
+NEXT_PUBLIC_TEST_COMMUNITY=nouns npm run dev
 ```
 
 ### What Gets Configured

@@ -67,7 +67,8 @@ resolveCommunityId(context) - Priority order:
   1. Explicit context.communityId
   2. NEXT_PUBLIC_TEST_COMMUNITY (dev only)
   3. Domain resolution (from middleware headers)
-  4. NEXT_PUBLIC_COMMUNITY (fallback)
+  
+  Note: If no community ID can be resolved, the system will error when attempting to load config.
   ↓
 RuntimeConfigLoader.load(context)
   ├─ Fetches from Supabase RPC: get_active_community_config()
@@ -112,9 +113,10 @@ export function MyComponent() {
 #### Community ID Resolution Priority
 
 1. **Explicit Context** (`context.communityId`) - Highest priority
-2. **Development Override** (`NEXT_PUBLIC_TEST_COMMUNITY`) - For local testing
-3. **Domain Resolution** - From middleware headers or window.location
-4. **Environment Variable** (`NEXT_PUBLIC_COMMUNITY`) - Final fallback
+2. **Development Override** (`NEXT_PUBLIC_TEST_COMMUNITY`) - For local testing only
+3. **Domain Resolution** - From middleware headers (production or localhost subdomains)
+
+**Note:** If no community ID can be resolved, the system will error when attempting to load config. In development, always set `NEXT_PUBLIC_TEST_COMMUNITY` or use localhost subdomains (e.g., `example.localhost:3000`).
 
 ### 3. Database Schema
 
@@ -446,7 +448,6 @@ RootLayout (Server Component)
 
 ### Optional
 
-- `NEXT_PUBLIC_COMMUNITY` - Community ID fallback (defaults to 'nouns')
 - `NEXT_PUBLIC_TEST_COMMUNITY` - Override for local testing (development only)
 
 ---
@@ -457,12 +458,13 @@ RootLayout (Server Component)
 
 1. **Localhost Subdomains**: `example.localhost:3000` → detects "example"
 2. **Environment Override**: `NEXT_PUBLIC_TEST_COMMUNITY=example npm run dev`
-3. **Direct Community**: `NEXT_PUBLIC_COMMUNITY=nouns npm run dev`
+
+**Note:** If neither method is used, the system will error when attempting to load config. Always set `NEXT_PUBLIC_TEST_COMMUNITY` or use localhost subdomains in development.
 
 ### Production
 
 - Domain-based detection: `example.nounspace.com` → "example"
-- Falls back to `NEXT_PUBLIC_COMMUNITY` if domain can't be resolved
+- Requires valid domain resolution (no fallback)
 
 ---
 
