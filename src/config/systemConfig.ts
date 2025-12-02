@@ -30,13 +30,8 @@ export interface SystemConfig {
   theme: ThemeConfig;
   community: CommunityConfig;
   fidgets: FidgetConfig;
-  homePage: HomePageConfig | null; // Nullable for navigation-space approach
-  explorePage: ExplorePageConfig | null; // Nullable for navigation-space approach
   navigation?: NavigationConfig;
   ui?: UIConfig;
-  pages?: {
-    [key: string]: HomePageConfig | ExplorePageConfig;
-  }; // For database config structure
 }
 
 export interface UIConfig {
@@ -138,7 +133,7 @@ export interface FidgetConfig {
   disabled: string[];
 }
 
-export interface HomePageConfig {
+export interface NavPageConfig {
   defaultTab: string;
   tabOrder: string[];
   tabs: {
@@ -155,8 +150,6 @@ export interface HomePageConfig {
     };
   };
 }
-
-export type ExplorePageConfig = HomePageConfig;
 
 export interface NavigationConfig {
   items: NavigationItem[];

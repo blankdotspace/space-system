@@ -18,7 +18,8 @@
     "test:unit": "vitest tests/neynarMiniApp.unit.test.ts",
     "test:coverage": "vitest --coverage",
     "test:watch": "vitest --watch",
-    "test:ci": "vitest tests/neynarMiniApp.fast.test.ts tests/miniAppDiscovery.api.fast.test.ts --run --reporter=verbose"
+    "test:ci": "vitest tests/neynarMiniApp.fast.test.ts tests/miniAppDiscovery.api.fast.test.ts --run --reporter=verbose",
+    "test:config": "tsx scripts/test-config-loading.ts"
   },
   "lint-staged": {
     "src/**/*": "prettier --write --ignore-unknown"
