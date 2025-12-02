@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { loadSystemConfig } from "@/config";
+import type { SignedFile } from "@/common/lib/signedFiles";
 
 export default async function RootRedirect() {
   const config = await loadSystemConfig();
@@ -23,7 +24,6 @@ export default async function RootRedirect() {
           .download(`${homeNavItem.spaceId}/tabOrder`);
         
         if (tabOrderData) {
-          const { SignedFile } = await import('@/common/lib/signedFiles');
           const tabOrderFile = JSON.parse(await tabOrderData.text()) as SignedFile;
           const tabOrderObj = JSON.parse(tabOrderFile.fileData) as { tabOrder: string[] };
           const defaultTab = tabOrderObj.tabOrder?.[0];
