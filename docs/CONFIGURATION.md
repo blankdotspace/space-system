@@ -199,10 +199,9 @@ For each community, the system loads:
 To add a new community configuration:
 
 1. **Create database entry**: Insert a new row in the `community_configs` table with your community's configuration
-2. **Create static fallback** (optional): Create a new folder under `src/config/` (e.g., `src/config/mycommunity/`) as a fallback
-3. **Add to available configs**: Add the new configuration to the `AVAILABLE_CONFIGURATIONS` array in `src/config/index.ts`
-4. **Create navigation spaces**: If your community has navigation pages, create `navPage` type spaces in `spaceRegistrations` and upload their configs to Storage
-5. **Update seed data**: Add seed data in `supabase/seed.sql` for the new community
+2. **Create static config files** (for seeding): Create a new folder under `src/config/` (e.g., `src/config/mycommunity/`) with your community's configuration files
+3. **Create navigation spaces**: If your community has navigation pages, create `navPage` type spaces in `spaceRegistrations` and upload their configs to Storage
+4. **Update seed data**: Add seed data in `supabase/seed.sql` for the new community, or use `scripts/seed-all.ts` to seed the database
 
 See [Architecture Overview](SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW.md) for detailed instructions.
 
