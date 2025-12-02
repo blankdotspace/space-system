@@ -384,7 +384,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
     address: (user?.wallet?.address as Address) || zeroAddress,
     token: (spaceContractAddr || zeroAddress) as Address,
     chainId: base.id,
-    enabled: !!spaceContractAddr, // Only query when address is loaded
+    query: { enabled: !!spaceContractAddr }, // Only query when address is loaded
   });
   const spaceHoldAmount = result?.data
     ? parseInt(formatUnits(result.data.value, result.data.decimals))
