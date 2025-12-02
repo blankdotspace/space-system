@@ -1,70 +1,62 @@
-import { nounsSystemConfig } from './nouns/index';
-import { exampleSystemConfig } from './example/index';
-import { clankerSystemConfig } from './clanker/index';
 import { SystemConfig } from './systemConfig';
-import { themes } from './shared/themes';
+import { 
+  getConfigLoaderFactory, 
+  getDomainFromContext,
+  getCommunityIdFromHeaders,
+  ConfigLoadContext 
+} from './loaders';
+import { resolveCommunityFromDomain } from './loaders/registry';
 
 // Available community configurations
 const AVAILABLE_CONFIGURATIONS = ['nouns', 'example', 'clanker'] as const;
 type CommunityConfig = typeof AVAILABLE_CONFIGURATIONS[number];
 
-// Configuration loader
-// REQUIRES database config - no fallback to static configs
-export const loadSystemConfig = (): SystemConfig => {
-  // Get the community configuration from environment variable
-  const communityConfig = process.env.NEXT_PUBLIC_COMMUNITY || 'nouns';
+/**
+ * Load system configuration from database
+ * 
+ * All communities use runtime loading from Supabase.
+ * 
+ * @param context Optional context (communityId, domain) - if not provided, 
+ *                will be inferred from environment/domain
+ * @returns The loaded system configuration (always async)
+ */
+export async function loadSystemConfig(context?: ConfigLoadContext): Promise<SystemConfig> {
+  const factory = getConfigLoaderFactory();
   
-  // REQUIRED: Build-time config from database (stored in env var at build time)
-  const buildTimeConfig = process.env.NEXT_PUBLIC_BUILD_TIME_CONFIG;
-  
-  if (!buildTimeConfig) {
-    const errorMsg = 
-      `❌ NEXT_PUBLIC_BUILD_TIME_CONFIG is not set. ` +
-      `Database configuration is required. ` +
-      `Ensure Supabase credentials are set and run: npm run build`;
-    console.error(errorMsg);
-    throw new Error(errorMsg);
-  }
-
-  try {
-    const dbConfig = JSON.parse(buildTimeConfig) as any;
-    
-    // Validate config structure
-    if (!dbConfig || !dbConfig.brand || !dbConfig.assets) {
-      const errorMsg = 
-        `❌ Invalid config structure from database. ` +
-        `Missing required fields: brand, assets. ` +
-        `Ensure database is seeded correctly.`;
-      console.error(errorMsg);
-      console.error('Config received:', Object.keys(dbConfig || {}));
-      throw new Error(errorMsg);
+  // Build context if not provided
+  // Server-side: uses headers() to detect domain
+  // Client-side: uses window.location.hostname
+  const buildContext = async (): Promise<ConfigLoadContext> => {
+    if (context) {
+      return context;
     }
-
-    console.log('✅ Using config from database');
     
-    // Map pages object to homePage/explorePage for backward compatibility
-    // Add themes from shared file (themes are not in database)
-    const mappedConfig: SystemConfig = {
-      ...dbConfig,
-      theme: themes, // Themes come from shared file
-      homePage: dbConfig.pages?.['home'] || dbConfig.homePage || null,
-      explorePage: dbConfig.pages?.['explore'] || dbConfig.explorePage || null,
+    // Get domain (async on server, sync on client)
+    const domain = typeof window === 'undefined'
+      ? await getDomainFromContext() // Server: uses headers()
+      : getDomainFromContext();      // Client: uses window.location
+    
+    return {
+      communityId: process.env.NEXT_PUBLIC_COMMUNITY,
+      domain,
+      isServer: typeof window === 'undefined',
     };
-    
-    return mappedConfig as SystemConfig;
-  } catch (error) {
-    if (error instanceof SyntaxError) {
-      const errorMsg = 
-        `❌ Failed to parse build-time config from database. ` +
-        `Invalid JSON in NEXT_PUBLIC_BUILD_TIME_CONFIG. ` +
-        `Error: ${error.message}`;
-      console.error(errorMsg);
-      throw new Error(errorMsg);
-    }
-    // Re-throw validation errors
-    throw error;
+  };
+  
+  const loadContext = await buildContext();
+  const loader = factory.getLoader(loadContext);
+  
+  // Log which community is being loaded (in development)
+  if (process.env.NODE_ENV === 'development') {
+    const communityId = loadContext.communityId || 
+                       (loadContext.domain ? resolveCommunityFromDomain(loadContext.domain) : null) ||
+                       'unknown';
+    console.log(`✅ Loading config for community: ${communityId} (domain: ${loadContext.domain || 'none'})`);
   }
-};
+  
+  // Always use runtime loader (async)
+  return loader.load(loadContext) as Promise<SystemConfig>;
+}
 
 // Helper function to validate community configuration
 function isValidCommunityConfig(config: string): config is CommunityConfig {
@@ -74,40 +66,28 @@ function isValidCommunityConfig(config: string): config is CommunityConfig {
 // Export available configurations for reference
 export { AVAILABLE_CONFIGURATIONS };
 
-// Export the configurations
-export { nounsSystemConfig } from './nouns/index';
-export { exampleSystemConfig } from './example/index';
-export { clankerSystemConfig } from './clanker/index';
+// Export SystemConfig type (configs are now database-backed, no static exports)
 export type { SystemConfig };
-
-// Export individual configuration modules from nouns
-export * from './nouns/index';
-
-// Export individual configuration modules from example
-export * from './example/index';
-
-// Export individual configuration modules from clanker
-export * from './clanker/index';
 
 // Space creators - delegate to the active community at runtime
 // Import creators for all communities under unique aliases
-import { default as nounsCreateInitialProfileSpaceConfigForFid } from './nouns/initialSpaces/initialProfileSpace';
-import { default as nounsCreateInitialChannelSpaceConfig } from './nouns/initialSpaces/initialChannelSpace';
-import { default as nounsCreateInitialTokenSpaceConfigForAddress } from './nouns/initialSpaces/initialTokenSpace';
-import { default as nounsCreateInitalProposalSpaceConfigForProposalId } from './nouns/initialSpaces/initialProposalSpace';
-import { default as nounsINITIAL_HOMEBASE_CONFIG } from './nouns/initialSpaces/initialHomebase';
+import { createInitialProfileSpaceConfigForFid as nounsCreateInitialProfileSpaceConfigForFid } from './nouns/index';
+import { createInitialChannelSpaceConfig as nounsCreateInitialChannelSpaceConfig } from './nouns/index';
+import { createInitialTokenSpaceConfigForAddress as nounsCreateInitialTokenSpaceConfigForAddress } from './nouns/index';
+import { createInitalProposalSpaceConfigForProposalId as nounsCreateInitalProposalSpaceConfigForProposalId } from './nouns/index';
+import { INITIAL_HOMEBASE_CONFIG as nounsINITIAL_HOMEBASE_CONFIG } from './nouns/index';
 
-import { default as exampleCreateInitialProfileSpaceConfigForFid } from './example/initialSpaces/profile';
-import { default as exampleCreateInitialChannelSpaceConfig } from './example/initialSpaces/channel';
-import { default as exampleCreateInitialTokenSpaceConfigForAddress } from './example/initialSpaces/token';
-import { default as exampleCreateInitalProposalSpaceConfigForProposalId } from './example/initialSpaces/proposal';
-import { default as exampleINITIAL_HOMEBASE_CONFIG } from './example/initialSpaces/homebase';
+import { createInitialProfileSpaceConfigForFid as exampleCreateInitialProfileSpaceConfigForFid } from './example/index';
+import { createInitialChannelSpaceConfig as exampleCreateInitialChannelSpaceConfig } from './example/index';
+import { createInitialTokenSpaceConfigForAddress as exampleCreateInitialTokenSpaceConfigForAddress } from './example/index';
+import { createInitalProposalSpaceConfigForProposalId as exampleCreateInitalProposalSpaceConfigForProposalId } from './example/index';
+import { INITIAL_HOMEBASE_CONFIG as exampleINITIAL_HOMEBASE_CONFIG } from './example/index';
 
-import { default as clankerCreateInitialProfileSpaceConfigForFid } from './clanker/initialSpaces/initialProfileSpace';
-import { default as clankerCreateInitialChannelSpaceConfig } from './clanker/initialSpaces/initialChannelSpace';
-import { default as clankerCreateInitialTokenSpaceConfigForAddress } from './clanker/initialSpaces/initialTokenSpace';
-import { default as clankerCreateInitialProposalSpaceConfigForProposalId } from './clanker/initialSpaces/initialProposalSpace';
-import { default as clankerINITIAL_HOMEBASE_CONFIG, createInitialHomebaseConfig as clankerCreateInitialHomebaseConfig } from './clanker/initialSpaces/initialHomebase';
+import { createInitialProfileSpaceConfigForFid as clankerCreateInitialProfileSpaceConfigForFid } from './clanker/index';
+import { createInitialChannelSpaceConfig as clankerCreateInitialChannelSpaceConfig } from './clanker/index';
+import { createInitialTokenSpaceConfigForAddress as clankerCreateInitialTokenSpaceConfigForAddress } from './clanker/index';
+import { createInitialProposalSpaceConfigForProposalId as clankerCreateInitialProposalSpaceConfigForProposalId } from './clanker/index';
+import { INITIAL_HOMEBASE_CONFIG as clankerINITIAL_HOMEBASE_CONFIG, createInitialHomebaseConfig as clankerCreateInitialHomebaseConfig } from './clanker/index';
 
 function resolveCommunity(): CommunityConfig {
   const c = (process.env.NEXT_PUBLIC_COMMUNITY || 'nouns').toLowerCase();

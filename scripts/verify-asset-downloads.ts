@@ -195,35 +195,9 @@ async function verifyAssetDownloads() {
     console.log('   3. Check build logs for any download errors');
   }
 
-  // Check build-time config
-  console.log('\n🔍 Checking build-time config environment variable...\n');
-
-  const buildTimeConfig = process.env.NEXT_PUBLIC_BUILD_TIME_CONFIG;
-  if (buildTimeConfig) {
-    try {
-      const parsedConfig = JSON.parse(buildTimeConfig);
-      if (parsedConfig.assets?.logos) {
-        console.log('📋 Assets in NEXT_PUBLIC_BUILD_TIME_CONFIG:\n');
-        for (const assetType of assetTypes) {
-          const url = parsedConfig.assets.logos[assetType];
-          if (url) {
-            if (url.startsWith('/')) {
-              console.log(`  ${assetType.padEnd(12)} → 📁 ${url} (localized)`);
-            } else if (isImgBBUrl(url)) {
-              console.log(`  ${assetType.padEnd(12)} → 🔗 ${url} (still ImgBB - not localized!)`);
-            } else {
-              console.log(`  ${assetType.padEnd(12)} → ${url}`);
-            }
-          }
-        }
-      }
-    } catch (error: any) {
-      console.log('⚠️  Failed to parse NEXT_PUBLIC_BUILD_TIME_CONFIG:', error.message);
-    }
-  } else {
-    console.log('ℹ️  NEXT_PUBLIC_BUILD_TIME_CONFIG is not set');
-    console.log('   This is normal if you haven\'t run a build yet');
-  }
+  // Note: Config is now loaded at runtime from database, not from env var
+  console.log('\nℹ️  Config is loaded at runtime from database');
+  console.log('   Assets are downloaded during build and stored in public/images/');
 }
 
 verifyAssetDownloads().catch((error) => {

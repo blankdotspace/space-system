@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
 import { loadSystemConfig } from "@/config";
 
-export default function RootRedirect() {
-  const config = loadSystemConfig();
+export default async function RootRedirect() {
+  const config = await loadSystemConfig();
   
   // If homePage exists (legacy config), redirect to its default tab
   if (config.homePage?.defaultTab) {
-  const tab = encodeURIComponent(config.homePage.defaultTab);
-  redirect(`/home/${tab}`);
+    const tab = encodeURIComponent(config.homePage.defaultTab);
+    redirect(`/home/${tab}`);
     return null;
   }
   

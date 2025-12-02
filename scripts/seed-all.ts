@@ -32,9 +32,7 @@ import { SignedFile } from '../src/common/lib/signedFiles';
 import { SpaceConfig } from '../src/app/(spaces)/Space';
 
 // Import page configs for navPage spaces
-import { nounsHomePage } from '../src/config/nouns/nouns.home';
-import { nounsExplorePage } from '../src/config/nouns/nouns.explore';
-import { clankerHomePage } from '../src/config/clanker/clanker.home';
+import { nounsHomePage, nounsExplorePage, clankerHomePage } from './seed-data';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

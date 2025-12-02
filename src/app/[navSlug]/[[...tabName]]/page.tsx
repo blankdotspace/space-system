@@ -18,7 +18,6 @@ async function loadSpaceAsPageConfig(spaceId: string): Promise<PageConfig | null
   const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   
   if (!supabaseUrl || !supabaseKey) {
-    // Skip during build if credentials aren't available - will render at runtime
     return null;
   }
   
@@ -92,65 +91,8 @@ async function loadSpaceAsPageConfig(spaceId: string): Promise<PageConfig | null
   }
 }
 
-export async function generateStaticParams() {
-  try {
-    const config = loadSystemConfig();
-    const navItems = config.navigation?.items || [];
-    const params: Array<{ navSlug: string; tabName?: string[] }> = [];
-    
-    // Check if Supabase credentials are available for space loading
-    const hasSupabaseCredentials = !!(
-      process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      (process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)
-    );
-    
-    // For each navigation item, generate params for all its tabs
-    // Note: We don't generate params for base path (no tabName) - it will redirect at runtime
-    // Note: If Supabase credentials aren't available, we skip spaces and only generate for legacy configs
-    for (const item of navItems) {
-      if (!item.href?.startsWith('/')) continue;
-      
-      const navSlug = item.href.slice(1); // Remove leading '/'
-      
-      // If nav item has a spaceId and we have credentials, try to load from storage
-      if (item.spaceId && hasSupabaseCredentials) {
-        try {
-          const pageConfig = await loadSpaceAsPageConfig(item.spaceId);
-          if (pageConfig) {
-            // Generate params for each tab
-            for (const tabName of pageConfig.tabOrder) {
-              params.push({ navSlug, tabName: [tabName] });
-            }
-          }
-          // If loadSpaceAsPageConfig returns null (error loading), skip static generation
-          // The page will render at runtime instead
-        } catch (error) {
-          // Skip this space if there's an error - will render at runtime
-          console.warn(`Skipping static generation for ${navSlug} (space ${item.spaceId}):`, error);
-        }
-      } else if (!item.spaceId) {
-        // Fallback: check legacy configs for tabs (when no spaceId)
-        if (navSlug === 'home' && config.homePage) {
-          for (const tabName of config.homePage.tabOrder) {
-            params.push({ navSlug, tabName: [tabName] });
-          }
-        } else if (navSlug === 'explore' && config.explorePage) {
-          for (const tabName of config.explorePage.tabOrder) {
-            params.push({ navSlug, tabName: [tabName] });
-          }
-        }
-      }
-      // If item has spaceId but no credentials, skip static generation - will render at runtime
-    }
-    
-    return params;
-  } catch (error) {
-    // If anything fails in generateStaticParams, return empty array
-    // Pages will render at runtime instead
-    console.warn('Error in generateStaticParams, skipping static generation:', error);
-    return [];
-  }
-}
+// Force dynamic rendering for all pages
+export const dynamic = 'force-dynamic';
 
 export default async function NavPage({
   params,
@@ -166,7 +108,7 @@ export default async function NavPage({
     notFound();
   }
   
-  const config = loadSystemConfig();
+  const config = await loadSystemConfig();
   
   // Find navigation item by href
   const navItems = config.navigation?.items || [];

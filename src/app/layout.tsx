@@ -9,62 +9,63 @@ import ClientMobileHeaderWrapper from "@/common/components/organisms/ClientMobil
 import ClientSidebarWrapper from "@/common/components/organisms/ClientSidebarWrapper";
 import type { Metadata } from 'next' // Migrating next/head
 
-// Load system configuration
-const config = loadSystemConfig();
-
-// Create default frame from configuration
-const defaultFrame = {
-  version: "next",
-  imageUrl: `${WEBSITE_URL}${config.assets.logos.og}`,
-  button: {
-    title: config.brand.name,
-    action: {
-      type: "launch_frame",
-      url: WEBSITE_URL,
-      name: config.brand.displayName,
-      splashImageUrl: `${WEBSITE_URL}${config.assets.logos.splash}`,
-      splashBackgroundColor: "#FFFFFF",
+// Generate metadata dynamically (async)
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await loadSystemConfig();
+  
+  const defaultFrame = {
+    version: "next",
+    imageUrl: `${WEBSITE_URL}${config.assets.logos.og}`,
+    button: {
+      title: config.brand.name,
+      action: {
+        type: "launch_frame",
+        url: WEBSITE_URL,
+        name: config.brand.displayName,
+        splashImageUrl: `${WEBSITE_URL}${config.assets.logos.splash}`,
+        splashBackgroundColor: "#FFFFFF",
+      }
     }
-  }
-};
+  };
 
-export const metadata: Metadata = {
-  title: config.brand.displayName,
-  description: config.brand.description,
-  openGraph: {
-    siteName: config.brand.displayName,
+  return {
     title: config.brand.displayName,
-    type: "website",
     description: config.brand.description,
-    images: {
-      url: `${WEBSITE_URL}${config.assets.logos.og}`,
-      type: "image/png",
-      width: 1200,
-      height: 737,
+    openGraph: {
+      siteName: config.brand.displayName,
+      title: config.brand.displayName,
+      type: "website",
+      description: config.brand.description,
+      images: {
+        url: `${WEBSITE_URL}${config.assets.logos.og}`,
+        type: "image/png",
+        width: 1200,
+        height: 737,
+      },
+      url: WEBSITE_URL,
     },
-    url: WEBSITE_URL,
-  },
-  icons: {
-    icon: [
-      {
-        url: config.assets.logos.favicon,
-      },
-      {
-        url: "/images/favicon-32x32.png",
-        sizes: "32x32",
-      },
-      {
-        url: "/images/favicon-16x16.png",
-        sizes: "16x16",
-      },
-    ],
-    // Apple touch icon should be a PNG; configs provide a valid PNG path now
-    apple: config.assets.logos.appleTouch,
-  },
-  other: {
-    "fc:frame": JSON.stringify(defaultFrame),
-  },
-};
+    icons: {
+      icon: [
+        {
+          url: config.assets.logos.favicon,
+        },
+        {
+          url: "/images/favicon-32x32.png",
+          sizes: "32x32",
+        },
+        {
+          url: "/images/favicon-16x16.png",
+          sizes: "16x16",
+        },
+      ],
+      // Apple touch icon should be a PNG; configs provide a valid PNG path now
+      apple: config.assets.logos.appleTouch,
+    },
+    other: {
+      "fc:frame": JSON.stringify(defaultFrame),
+    },
+  };
+}
 
 // TO DO: Add global cookie check for a signature of a timestamp (within the last minute)
 // And a public key. If valid, we can prerender as if it is that user signed in
