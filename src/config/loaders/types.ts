@@ -1,12 +1,7 @@
 import { SystemConfig } from '../systemConfig';
 
 /**
- * Configuration loading strategy types
- */
-export type ConfigLoadingStrategy = 'runtime';
-
-/**
- * Context for determining which loading strategy to use
+ * Context for loading configuration
  */
 export interface ConfigLoadContext {
   /** Community ID (e.g., 'nouns', 'example') */
@@ -18,17 +13,7 @@ export interface ConfigLoadContext {
 }
 
 /**
- * Result of a config load operation
- */
-export interface ConfigLoadResult {
-  config: SystemConfig;
-  strategy: ConfigLoadingStrategy;
-  source: string; // e.g., 'runtime-db', etc.
-}
-
-/**
  * Interface for config loaders
- * All loaders must implement this interface
  */
 export interface ConfigLoader {
   /**
@@ -36,18 +21,6 @@ export interface ConfigLoader {
    * @param context Context for loading (community, domain, etc.)
    * @returns The loaded system configuration
    */
-  load(context: ConfigLoadContext): Promise<SystemConfig> | SystemConfig;
-  
-  /**
-   * Check if this loader can handle the given context
-   * @param context Context to check
-   * @returns True if this loader can handle the context
-   */
-  canHandle(context: ConfigLoadContext): boolean;
-  
-  /**
-   * Get the loading strategy this loader implements
-   */
-  getStrategy(): ConfigLoadingStrategy;
+  load(context: ConfigLoadContext): Promise<SystemConfig>;
 }
 
