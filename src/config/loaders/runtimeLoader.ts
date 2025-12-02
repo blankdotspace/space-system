@@ -6,7 +6,6 @@ import { createClient } from '@supabase/supabase-js';
 /**
  * Runtime config loader
  * Fetches configuration from database at runtime based on domain/community
- * Used for dynamic communities that aren't built into the app
  */
 export class RuntimeConfigLoader implements ConfigLoader {
   private supabase: ReturnType<typeof createClient> | null = null;
@@ -20,15 +19,6 @@ export class RuntimeConfigLoader implements ConfigLoader {
     if (supabaseUrl && supabaseKey) {
       this.supabase = createClient(supabaseUrl, supabaseKey);
     }
-  }
-
-  getStrategy(): 'runtime' {
-    return 'runtime';
-  }
-
-  canHandle(context: ConfigLoadContext): boolean {
-    // Can handle if we have Supabase credentials and a community ID
-    return !!this.supabase && !!context.communityId;
   }
 
   async load(context: ConfigLoadContext): Promise<SystemConfig> {

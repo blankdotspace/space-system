@@ -1,16 +1,3 @@
-import { ConfigLoadingStrategy } from './types';
-
-/**
- * Get the loading strategy for a given community
- * All communities use runtime loading
- */
-export function getStrategyForCommunity(
-  _communityId: string,
-  _registry?: unknown
-): ConfigLoadingStrategy {
-  return 'runtime';
-}
-
 /**
  * Resolve community ID from domain
  * 

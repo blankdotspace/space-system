@@ -1,15 +1,25 @@
 import { SystemConfig } from './systemConfig';
 import { 
-  getConfigLoaderFactory, 
   getDomainFromContext,
   getCommunityIdFromHeaders,
+  resolveCommunityId,
   ConfigLoadContext 
 } from './loaders';
-import { resolveCommunityFromDomain } from './loaders/registry';
+import { RuntimeConfigLoader } from './loaders/runtimeLoader';
 
 // Available community configurations
 const AVAILABLE_CONFIGURATIONS = ['nouns', 'example', 'clanker'] as const;
 type CommunityConfig = typeof AVAILABLE_CONFIGURATIONS[number];
+
+// Singleton loader instance
+let loaderInstance: RuntimeConfigLoader | null = null;
+
+function getLoader(): RuntimeConfigLoader {
+  if (!loaderInstance) {
+    loaderInstance = new RuntimeConfigLoader();
+  }
+  return loaderInstance;
+}
 
 /**
  * Load system configuration from database
@@ -21,8 +31,6 @@ type CommunityConfig = typeof AVAILABLE_CONFIGURATIONS[number];
  * @returns The loaded system configuration (always async)
  */
 export async function loadSystemConfig(context?: ConfigLoadContext): Promise<SystemConfig> {
-  const factory = getConfigLoaderFactory();
-  
   // Build context if not provided
   // Server-side: uses headers() to detect domain
   // Client-side: uses window.location.hostname
@@ -44,18 +52,21 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
   };
   
   const loadContext = await buildContext();
-  const loader = factory.getLoader(loadContext);
+  
+  // Resolve community ID with priority order
+  const communityId = resolveCommunityId(loadContext);
+  const finalContext: ConfigLoadContext = {
+    ...loadContext,
+    communityId,
+  };
   
   // Log which community is being loaded (in development)
   if (process.env.NODE_ENV === 'development') {
-    const communityId = loadContext.communityId || 
-                       (loadContext.domain ? resolveCommunityFromDomain(loadContext.domain) : null) ||
-                       'unknown';
-    console.log(`✅ Loading config for community: ${communityId} (domain: ${loadContext.domain || 'none'})`);
+    console.log(`✅ Loading config for community: ${communityId || 'unknown'} (domain: ${loadContext.domain || 'none'})`);
   }
   
-  // Always use runtime loader (async)
-  return loader.load(loadContext) as Promise<SystemConfig>;
+  // Load config using runtime loader
+  return getLoader().load(finalContext);
 }
 
 // Helper function to validate community configuration
