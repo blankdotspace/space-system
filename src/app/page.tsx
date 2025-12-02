@@ -4,6 +4,9 @@ import { loadSystemConfig } from "@/config";
 // Force dynamic rendering - config loading requires request context
 export const dynamic = 'force-dynamic';
 
+// Force dynamic rendering - config loading requires request context
+export const dynamic = 'force-dynamic';
+
 export default async function RootRedirect() {
   const config = await loadSystemConfig();
   
