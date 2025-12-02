@@ -28,14 +28,9 @@ import { nounsBrand } from '../src/config/nouns/nouns.brand';
 import { nounsTheme } from '../src/config/nouns/nouns.theme';
 import { nounsCommunity } from '../src/config/nouns/nouns.community';
 import { nounsFidgets } from '../src/config/nouns/nouns.fidgets';
-import { nounsHomePage, nounsExplorePage, clankerHomePage } from './seed-data';
-// Import remaining config pieces needed for this optional script
-import { nounsBrand } from '../src/config/nouns/nouns.brand';
-import { nounsTheme } from '../src/config/nouns/nouns.theme';
-import { nounsCommunity } from '../src/config/nouns/nouns.community';
-import { nounsFidgets } from '../src/config/nouns/nouns.fidgets';
 import { nounsNavigation } from '../src/config/nouns/nouns.navigation';
 import { nounsUI } from '../src/config/nouns/nouns.ui';
+import { nounsHomePage, nounsExplorePage, clankerHomePage } from './seed-data';
 
 import { exampleBrand } from '../src/config/example/example.brand';
 import { exampleTheme } from '../src/config/example/example.theme';
