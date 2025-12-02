@@ -28,8 +28,12 @@ import { nounsBrand } from '../src/config/nouns/nouns.brand';
 import { nounsTheme } from '../src/config/nouns/nouns.theme';
 import { nounsCommunity } from '../src/config/nouns/nouns.community';
 import { nounsFidgets } from '../src/config/nouns/nouns.fidgets';
-import { nounsHomePage } from '../src/config/nouns/nouns.home';
-import { nounsExplorePage } from '../src/config/nouns/nouns.explore';
+import { nounsHomePage, nounsExplorePage, clankerHomePage } from './seed-data';
+// Import remaining config pieces needed for this optional script
+import { nounsBrand } from '../src/config/nouns/nouns.brand';
+import { nounsTheme } from '../src/config/nouns/nouns.theme';
+import { nounsCommunity } from '../src/config/nouns/nouns.community';
+import { nounsFidgets } from '../src/config/nouns/nouns.fidgets';
 import { nounsNavigation } from '../src/config/nouns/nouns.navigation';
 import { nounsUI } from '../src/config/nouns/nouns.ui';
 
@@ -47,7 +51,6 @@ import { clankerBrand } from '../src/config/clanker/clanker.brand';
 import { clankerTheme } from '../src/config/clanker/clanker.theme';
 import { clankerCommunity } from '../src/config/clanker/clanker.community';
 import { clankerFidgets } from '../src/config/clanker/clanker.fidgets';
-import { clankerHomePage } from '../src/config/clanker/clanker.home';
 import { clankerExplorePage } from '../src/config/clanker/clanker.explore';
 import { clankerNavigation } from '../src/config/clanker/clanker.navigation';
 import { clankerUI } from '../src/config/clanker/clanker.ui';

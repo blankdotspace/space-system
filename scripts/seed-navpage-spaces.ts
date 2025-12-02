@@ -28,9 +28,7 @@ import { SignedFile } from '../src/common/lib/signedFiles';
 import { SpaceConfig } from '../src/app/(spaces)/Space';
 
 // Import page configs
-import { nounsHomePage } from '../src/config/nouns/nouns.home';
-import { nounsExplorePage } from '../src/config/nouns/nouns.explore';
-import { clankerHomePage } from '../src/config/clanker/clanker.home';
+import { nounsHomePage, nounsExplorePage, clankerHomePage } from './seed-data';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
