@@ -1,6 +1,6 @@
 import DEFAULT_THEME from "@/common/lib/theme/defaultTheme";
 import type {
-  ExplorePageConfig,
+  NavPageConfig,
   TabConfig,
 } from "./systemConfig";
 import type {
@@ -182,7 +182,7 @@ export const createExplorePageConfig = ({
   defaultTokenNetwork = "mainnet",
   channelNetwork = "base",
   preloadedDirectoryData,
-}: CreateExplorePageConfigOptions): ExplorePageConfig => {
+}: CreateExplorePageConfigOptions): NavPageConfig => {
   const tabEntries: Array<{ key: string; config: TabConfig }> = [];
   const seenTabNames = new Set<string>();
 

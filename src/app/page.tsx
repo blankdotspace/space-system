@@ -4,14 +4,42 @@ import { loadSystemConfig } from "@/config";
 export default async function RootRedirect() {
   const config = await loadSystemConfig();
   
-  // If homePage exists (legacy config), redirect to its default tab
-  if (config.homePage?.defaultTab) {
-    const tab = encodeURIComponent(config.homePage.defaultTab);
-    redirect(`/home/${tab}`);
-    return null;
+  // Find the home navigation item and redirect to its default tab
+  const navItems = config.navigation?.items || [];
+  const homeNavItem = navItems.find(item => item.href === '/home');
+  
+  if (homeNavItem?.spaceId) {
+    // Load default tab from space storage
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (supabaseUrl && supabaseKey) {
+      try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const supabase = createClient(supabaseUrl, supabaseKey);
+        
+        const { data: tabOrderData } = await supabase.storage
+          .from('spaces')
+          .download(`${homeNavItem.spaceId}/tabOrder`);
+        
+        if (tabOrderData) {
+          const { SignedFile } = await import('@/common/lib/signedFiles');
+          const tabOrderFile = JSON.parse(await tabOrderData.text()) as SignedFile;
+          const tabOrderObj = JSON.parse(tabOrderFile.fileData) as { tabOrder: string[] };
+          const defaultTab = tabOrderObj.tabOrder?.[0];
+          
+          if (defaultTab) {
+            redirect(`/home/${encodeURIComponent(defaultTab)}`);
+            return null;
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to load home space default tab:', error);
+      }
+    }
   }
   
-  // Otherwise, redirect to /home and let the navigation handler figure out the default tab
+  // Fallback: redirect to /home and let the navigation handler figure out the default tab
   redirect('/home');
   return null;
 }

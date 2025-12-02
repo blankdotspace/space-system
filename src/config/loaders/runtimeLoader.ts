@@ -63,13 +63,10 @@ export class RuntimeConfigLoader implements ConfigLoader {
         );
       }
 
-      // Map pages object to homePage/explorePage for backward compatibility
       // Add themes from shared file (themes are not in database)
       const mappedConfig: SystemConfig = {
         ...dbConfig,
         theme: themes, // Themes come from shared file
-        homePage: dbConfig.pages?.['home'] || dbConfig.homePage || null,
-        explorePage: dbConfig.pages?.['explore'] || dbConfig.explorePage || null,
       };
 
       return mappedConfig as SystemConfig;

@@ -6,17 +6,15 @@ import SpacePage, { SpacePageArgs } from "@/app/(spaces)/SpacePage";
 import { SpaceConfig } from "@/app/(spaces)/Space";
 import TabBar from "@/common/components/organisms/TabBar";
 import { useMiniKit } from "@coinbase/onchainkit/minikit";
-import type { HomePageConfig, ExplorePageConfig } from "@/config/systemConfig";
-
-type PageConfig = HomePageConfig | ExplorePageConfig;
+import type { NavPageConfig } from "@/config/systemConfig";
 
 type NavPageClientProps = {
-  pageConfig: PageConfig;
+  pageConfig: NavPageConfig;
   activeTabName: string;
   navSlug: string;
 };
 
-const getTabConfig = (tabName: string, config: PageConfig): SpaceConfig => {
+const getTabConfig = (tabName: string, config: NavPageConfig): SpaceConfig => {
   return (config.tabs[tabName] || config.tabs[config.defaultTab]) as SpaceConfig;
 };
 

@@ -4,15 +4,13 @@ import { loadSystemConfig } from "@/config";
 import NavPageClient from "./NavPageClient";
 import { createClient } from '@supabase/supabase-js';
 import { SignedFile } from "@/common/lib/signedFiles";
-import type { HomePageConfig, ExplorePageConfig } from "@/config/systemConfig";
-
-type PageConfig = HomePageConfig | ExplorePageConfig;
+import type { NavPageConfig } from "@/config/systemConfig";
 
 /**
  * Convert a Space stored in storage to a PageConfig
  * Returns null if Supabase credentials are not available or if the space can't be loaded
  */
-async function loadSpaceAsPageConfig(spaceId: string): Promise<PageConfig | null> {
+async function loadSpaceAsPageConfig(spaceId: string): Promise<NavPageConfig | null> {
   // Check if Supabase credentials are available
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -69,7 +67,7 @@ async function loadSpaceAsPageConfig(spaceId: string): Promise<PageConfig | null
       return null;
     }
     
-    // Reconstruct PageConfig format
+    // Reconstruct NavPageConfig format
     return {
       defaultTab: tabOrder[0] || 'Home',
       tabOrder,
@@ -84,7 +82,7 @@ async function loadSpaceAsPageConfig(spaceId: string): Promise<PageConfig | null
           fontColor: '#000000',
         },
       },
-    } as PageConfig;
+    } as NavPageConfig;
   } catch (error) {
     console.error(`Error loading space ${spaceId} as page config:`, error);
     return null;
@@ -132,76 +130,34 @@ export default async function NavPage({
       }
     }
     
-    // Fallback: check legacy configs
-    if (navSlug === 'home' && config.homePage) {
-      defaultTab = encodeURIComponent(config.homePage.defaultTab);
-      redirect(`/${navSlug}/${defaultTab}`);
-      return null;
-    }
-    
-    if (navSlug === 'explore' && config.explorePage) {
-      defaultTab = encodeURIComponent(config.explorePage.defaultTab);
-      redirect(`/${navSlug}/${defaultTab}`);
-      return null;
-    }
-    
+    // No spaceId and no page config found
     notFound();
   }
   
   // Tab name provided, render the page
   const activeTabName = decodeURIComponent(tabName[0]);
   
-  // If nav item has a spaceId, load from storage
-  if (navItem.spaceId) {
-    const pageConfig = await loadSpaceAsPageConfig(navItem.spaceId);
-    if (!pageConfig) {
-      notFound();
-    }
-    
-    // Validate tab exists
-    if (!pageConfig.tabs[activeTabName]) {
-      notFound();
-    }
-    
-    return (
-      <NavPageClient
-        pageConfig={pageConfig}
-        activeTabName={activeTabName}
-        navSlug={navSlug}
-      />
-    );
+  // Nav item must have a spaceId to load page config
+  if (!navItem.spaceId) {
+    notFound();
   }
   
-  // Fallback: check if it's a legacy homePage/explorePage
-  // (for backward compatibility during transition)
-  if (navSlug === 'home' && config.homePage) {
-    if (!config.homePage.tabs[activeTabName]) {
-      notFound();
-    }
-    
-    return (
-      <NavPageClient
-        pageConfig={config.homePage}
-        activeTabName={activeTabName}
-        navSlug={navSlug}
-      />
-    );
+  const pageConfig = await loadSpaceAsPageConfig(navItem.spaceId);
+  if (!pageConfig) {
+    notFound();
   }
   
-  if (navSlug === 'explore' && config.explorePage) {
-    if (!config.explorePage.tabs[activeTabName]) {
-      notFound();
-    }
-    
-    return (
-      <NavPageClient
-        pageConfig={config.explorePage}
-        activeTabName={activeTabName}
-        navSlug={navSlug}
-      />
-    );
+  // Validate tab exists
+  if (!pageConfig.tabs[activeTabName]) {
+    notFound();
   }
   
-  notFound();
+  return (
+    <NavPageClient
+      pageConfig={pageConfig}
+      activeTabName={activeTabName}
+      navSlug={navSlug}
+    />
+  );
 }
 
