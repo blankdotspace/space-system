@@ -6,10 +6,12 @@
  * 
  * Examples:
  * - staging.nounspace.com -> nouns
+ * - nounspace.vercel.app -> nouns (Vercel preview deployments)
  * - staging.localhost -> nouns (for local testing)
  */
 const DOMAIN_TO_COMMUNITY_MAP: Record<string, string> = {
   'staging.nounspace.com': 'nouns',
+  'nounspace.vercel.app': 'nouns',
 };
 
 /**
@@ -33,6 +35,12 @@ export function resolveCommunityFromDomain(
   // Check special domain mappings first (highest priority)
   if (domain in DOMAIN_TO_COMMUNITY_MAP) {
     return DOMAIN_TO_COMMUNITY_MAP[domain];
+  }
+  
+  // Handle Vercel preview deployments (e.g., nounspace.vercel.app, branch-nounspace.vercel.app)
+  // All Vercel preview deployments should point to nouns community
+  if (domain.endsWith('.vercel.app') && domain.includes('nounspace')) {
+    return 'nouns';
   }
   
   // Support localhost subdomains for local testing
