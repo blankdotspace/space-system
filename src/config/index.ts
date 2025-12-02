@@ -84,11 +84,11 @@ export type { SystemConfig };
 
 // Space creators - re-export directly from Nouns implementations
 import { 
-  default as nounsCreateInitialProfileSpaceConfigForFid,
-  default as nounsCreateInitialChannelSpaceConfig,
-  default as nounsCreateInitialTokenSpaceConfigForAddress,
-  default as nounsCreateInitalProposalSpaceConfigForProposalId,
-  default as nounsINITIAL_HOMEBASE_CONFIG
+  createInitialProfileSpaceConfigForFid as nounsCreateInitialProfileSpaceConfigForFid,
+  createInitialChannelSpaceConfig as nounsCreateInitialChannelSpaceConfig,
+  createInitialTokenSpaceConfigForAddress as nounsCreateInitialTokenSpaceConfigForAddress,
+  createInitalProposalSpaceConfigForProposalId as nounsCreateInitalProposalSpaceConfigForProposalId,
+  INITIAL_HOMEBASE_CONFIG as nounsINITIAL_HOMEBASE_CONFIG
 } from './nouns/index';
 
 export const createInitialProfileSpaceConfigForFid = nounsCreateInitialProfileSpaceConfigForFid;

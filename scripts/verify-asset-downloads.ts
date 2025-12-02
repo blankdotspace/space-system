@@ -147,7 +147,7 @@ async function verifyAssetDownloads() {
   console.log(`\n✅ Found ${imgBBUrls.length} ImgBB URL(s)`);
 
   // Check if downloaded files exist
-  const assetsDir = join(__dirname, '..', 'public', 'images', community);
+  const assetsDir = join(__dirname, '..', 'public', 'images', community as string);
   console.log(`\n📂 Checking download directory: ${assetsDir}\n`);
 
   if (!existsSync(assetsDir)) {

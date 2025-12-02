@@ -115,8 +115,23 @@ export function MyComponent() {
 1. **Explicit Context** (`context.communityId`) - Highest priority
 2. **Development Override** (`NEXT_PUBLIC_TEST_COMMUNITY`) - For local testing only
 3. **Domain Resolution** - From middleware headers (production or localhost subdomains)
+   - **Special Domain Mappings** (checked first) - Configured in `src/config/loaders/registry.ts`
+   - **Normal Domain Resolution** - Subdomain extraction (e.g., `example.nounspace.com` → `example`)
 
 **Note:** If no community ID can be resolved, the system will error when attempting to load config. In development, always set `NEXT_PUBLIC_TEST_COMMUNITY` or use localhost subdomains (e.g., `example.localhost:3000`).
+
+**Special Domain Mappings:**
+
+Certain domains can be mapped to specific communities, overriding normal domain resolution. This is configured in `src/config/loaders/registry.ts`:
+
+```typescript
+const DOMAIN_TO_COMMUNITY_MAP: Record<string, string> = {
+  'staging.nounspace.com': 'nouns',
+  'staging.localhost': 'nouns', // For local testing
+};
+```
+
+These mappings take priority over normal domain resolution and are useful for staging environments, preview deployments, etc.
 
 ### 3. Database Schema
 
