@@ -7,10 +7,6 @@ import {
 } from './loaders';
 import { RuntimeConfigLoader } from './loaders/runtimeLoader';
 
-// Available community configurations
-const AVAILABLE_CONFIGURATIONS = ['nouns', 'example', 'clanker'] as const;
-type CommunityConfig = typeof AVAILABLE_CONFIGURATIONS[number];
-
 // Singleton loader instance
 let loaderInstance: RuntimeConfigLoader | null = null;
 
@@ -22,19 +18,12 @@ function getLoader(): RuntimeConfigLoader {
 }
 
 /**
- * Load system configuration from database
- * 
- * All communities use runtime loading from Supabase.
- * 
- * @param context Optional context (communityId, domain) - if not provided, 
- *                will be inferred from environment/domain
- * @returns The loaded system configuration (always async)
- */
-/**
  * Load system configuration from database (SERVER-ONLY)
  * 
  * This function can only be called from Server Components or Server Actions.
  * For client components, pass systemConfig as a prop from a parent Server Component.
+ * 
+ * All communities use runtime loading from Supabase.
  * 
  * @param context Optional context (communityId, domain) - if not provided, 
  *                will be inferred from headers/domain
@@ -75,9 +64,6 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
   // Load config using runtime loader
   return getLoader().load(finalContext);
 }
-
-// Export available configurations for reference
-export { AVAILABLE_CONFIGURATIONS };
 
 // Export SystemConfig type (configs are now database-backed, no static exports)
 export type { SystemConfig };
