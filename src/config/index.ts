@@ -30,24 +30,31 @@ function getLoader(): RuntimeConfigLoader {
  *                will be inferred from environment/domain
  * @returns The loaded system configuration (always async)
  */
+/**
+ * Load system configuration from database (SERVER-ONLY)
+ * 
+ * This function can only be called from Server Components or Server Actions.
+ * For client components, pass systemConfig as a prop from a parent Server Component.
+ * 
+ * @param context Optional context (communityId, domain) - if not provided, 
+ *                will be inferred from headers/domain
+ * @returns The loaded system configuration (always async)
+ */
 export async function loadSystemConfig(context?: ConfigLoadContext): Promise<SystemConfig> {
   // Build context if not provided
-  // Server-side: uses headers() to detect domain
-  // Client-side: uses window.location.hostname
+  // Server-side only: uses headers() to detect domain
   const buildContext = async (): Promise<ConfigLoadContext> => {
     if (context) {
       return context;
     }
     
-    // Get domain (async on server, sync on client)
-    const domain = typeof window === 'undefined'
-      ? await getDomainFromContext() // Server: uses headers()
-      : getDomainFromContext();      // Client: uses window.location
+    // Get domain from headers (server-side only)
+    const domain = await getDomainFromContext();
     
     return {
       communityId: process.env.NEXT_PUBLIC_COMMUNITY,
       domain,
-      isServer: typeof window === 'undefined',
+      isServer: true,
     };
   };
   

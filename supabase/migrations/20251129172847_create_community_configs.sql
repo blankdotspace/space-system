@@ -39,6 +39,7 @@ BEGIN
     FROM "public"."community_configs"
     WHERE "community_id" = p_community_id
     AND "is_published" = true
+    ORDER BY "updated_at" DESC
     LIMIT 1;
     
     RETURN v_config;

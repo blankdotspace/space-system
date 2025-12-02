@@ -1,9 +1,19 @@
-import { loadSystemConfig } from "@/config";
+import { SystemConfig } from "@/config";
 import { useMemo } from "react";
 
-export const useUIColors = () => {
+type UseUIColorsProps = {
+  systemConfig?: SystemConfig;
+};
+
+/**
+ * Hook to get UI colors from system config
+ * 
+ * @param systemConfig - Optional system config. If not provided, uses default colors.
+ *                       For new code, always pass systemConfig from a parent Server Component.
+ */
+export const useUIColors = ({ systemConfig }: UseUIColorsProps = {}) => {
   return useMemo(() => {
-    const { ui } = loadSystemConfig();
+    const { ui } = systemConfig || {};
     return {
       primaryColor: ui?.primaryColor || "rgb(37, 99, 235)",
       primaryHoverColor: ui?.primaryHoverColor || "rgb(29, 78, 216)",
@@ -14,5 +24,5 @@ export const useUIColors = () => {
         activeColor: ui?.primaryActiveColor || "rgb(30, 64, 175)",
       },
     };
-  }, []);
+  }, [systemConfig]);
 };

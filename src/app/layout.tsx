@@ -4,7 +4,7 @@ import "@/styles/globals.css";
 import '@coinbase/onchainkit/styles.css';
 import Providers from "@/common/providers";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { loadSystemConfig } from "@/config";
+import { loadSystemConfig, SystemConfig } from "@/config";
 import ClientMobileHeaderWrapper from "@/common/components/organisms/ClientMobileHeaderWrapper";
 import ClientSidebarWrapper from "@/common/components/organisms/ClientSidebarWrapper";
 import type { Metadata } from 'next' // Migrating next/head
@@ -71,34 +71,36 @@ export async function generateMetadata(): Promise<Metadata> {
 // And a public key. If valid, we can prerender as if it is that user signed in
 // This will allow us to prerender some logged in state since we will know what user it is
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const systemConfig = await loadSystemConfig();
+  
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
         <SpeedInsights />
-        <Providers>{sidebarLayout(children)}</Providers>
+        <Providers>{sidebarLayout(children, systemConfig)}</Providers>
       </body>
     </html>
   );
 }
 
-const sidebarLayout = (page: React.ReactNode) => {
+const sidebarLayout = (page: React.ReactNode, systemConfig: SystemConfig) => {
   return (
     <>
       <div className="min-h-screen max-w-screen w-screen flex flex-col">
         {/* App Navigation Bar */}
         <div className="w-full flex-shrink-0 md:hidden">
-          <ClientMobileHeaderWrapper />
+          <ClientMobileHeaderWrapper systemConfig={systemConfig} />
         </div>
 
         {/* Main Content with Sidebar */}
         <div className="flex w-full h-full flex-grow">
           <div className="transition-all duration-100 ease-out z-50 hidden md:block flex-shrink-0">
-            <ClientSidebarWrapper />
+            <ClientSidebarWrapper systemConfig={systemConfig} />
           </div>
           {page}
         </div>

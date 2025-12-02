@@ -9,12 +9,16 @@ import {
 import { Tooltip, TooltipArrow } from "@radix-ui/react-tooltip";
 import { FaExternalLinkAlt } from "react-icons/fa";
 import { Londrina_Solid } from "next/font/google";
-import { loadSystemConfig } from "@/config";
+import { SystemConfig } from "@/config";
 
 const Londrina = Londrina_Solid({ subsets: ["latin"], weight: "400" });
 
-const BrandHeader = () => {
-  const { assets, brand, navigation } = loadSystemConfig();
+type BrandHeaderProps = {
+  systemConfig: SystemConfig;
+};
+
+const BrandHeader = ({ systemConfig }: BrandHeaderProps) => {
+  const { assets, brand, navigation } = systemConfig;
   const logoTooltip = navigation?.logoTooltip;
   const logoSrc = assets.logos.icon || assets.logos.main;
 
