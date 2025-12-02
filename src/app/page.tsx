@@ -2,6 +2,9 @@ import { redirect } from "next/navigation";
 import { loadSystemConfig } from "@/config";
 import type { SignedFile } from "@/common/lib/signedFiles";
 
+// Force dynamic rendering - config loading requires request context
+export const dynamic = 'force-dynamic';
+
 export default async function RootRedirect() {
   const config = await loadSystemConfig();
   
