@@ -1,8 +1,26 @@
 /**
+ * Special domain mappings
+ * 
+ * Maps specific domains to community IDs, overriding normal domain resolution.
+ * Useful for staging environments, special domains, etc.
+ * 
+ * Examples:
+ * - staging.nounspace.com -> nouns
+ * - staging.localhost -> nouns (for local testing)
+ */
+const DOMAIN_TO_COMMUNITY_MAP: Record<string, string> = {
+  'staging.nounspace.com': 'nouns',
+};
+
+/**
  * Resolve community ID from domain
  * 
  * The domain is used to infer the community ID.
  * Supports both production domains and localhost subdomains for local testing.
+ * 
+ * Priority:
+ * 1. Special domain mappings (DOMAIN_TO_COMMUNITY_MAP)
+ * 2. Normal domain resolution (subdomain extraction, etc.)
  * 
  * @param domain The domain/hostname
  * @returns The community ID inferred from domain, or null if cannot be determined
@@ -11,6 +29,11 @@ export function resolveCommunityFromDomain(
   domain: string
 ): string | null {
   if (!domain) return null;
+  
+  // Check special domain mappings first (highest priority)
+  if (domain in DOMAIN_TO_COMMUNITY_MAP) {
+    return DOMAIN_TO_COMMUNITY_MAP[domain];
+  }
   
   // Support localhost subdomains for local testing
   // e.g., example.localhost:3000 -> example

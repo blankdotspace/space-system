@@ -63,7 +63,10 @@ npm run dev
 - `http://example.localhost:3000` → loads `example` community
 - `http://clanker.localhost:3000` → loads `clanker` community
 - `http://nouns.localhost:3000` → loads `nouns` community
+- `http://staging.localhost:3000` → loads `nouns` community (special mapping)
 - `http://localhost:3000` → requires `NEXT_PUBLIC_TEST_COMMUNITY` to be set, otherwise will error
+
+**Note:** Special domain mappings (like `staging.localhost`) are configured in `src/config/loaders/registry.ts` and take priority over normal subdomain resolution.
 
 **How it works:**
 - Middleware detects the domain from the `Host` header

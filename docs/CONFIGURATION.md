@@ -121,6 +121,28 @@ The system uses **middleware-based domain detection** to automatically determine
 3. **Sets headers** for Server Components to read (`x-community-id`, `x-detected-domain`)
 4. **Loads config** from database at runtime
 
+### Special Domain Mappings
+
+Certain domains can be mapped to specific communities, overriding normal domain resolution. This is useful for staging environments, preview deployments, etc.
+
+**Configured in:** `src/config/loaders/registry.ts`
+
+**Current mappings:**
+- `staging.nounspace.com` → `nouns`
+- `staging.localhost` → `nouns` (for local testing)
+
+To add more mappings, edit the `DOMAIN_TO_COMMUNITY_MAP` object in `src/config/loaders/registry.ts`:
+
+```typescript
+const DOMAIN_TO_COMMUNITY_MAP: Record<string, string> = {
+  'staging.nounspace.com': 'nouns',
+  'staging.localhost': 'nouns',
+  'preview.nounspace.com': 'example', // Add your mappings here
+};
+```
+
+**Priority:** Special domain mappings take priority over normal domain resolution.
+
 ### How It Works
 
 **Request Flow:**
