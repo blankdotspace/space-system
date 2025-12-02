@@ -633,14 +633,11 @@ export const mycommunitySystemConfig = {
 };
 ```
 
-### Step 5: Register in Main Config
+### Step 5: Register in Database
 
-In `src/config/index.ts`:
+No code registration is needed! The community configuration is automatically loaded from the database based on the domain or `NEXT_PUBLIC_TEST_COMMUNITY` environment variable.
 
-1. Add to `AVAILABLE_CONFIGURATIONS`:
-   ```typescript
-   const AVAILABLE_CONFIGURATIONS = ['nouns', 'example', 'clanker', 'mycommunity'] as const;
-   ```
+Simply ensure your community config is seeded in the `community_configs` table (via `supabase/seed.sql` or `scripts/seed-all.ts`).
 
 2. Import the config:
    ```typescript
