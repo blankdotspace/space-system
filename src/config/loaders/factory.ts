@@ -6,9 +6,12 @@ import { resolveCommunityFromDomain } from './registry';
  * 
  * Priority order:
  * 1. Explicit context.communityId
- * 2. Development override (NEXT_PUBLIC_TEST_COMMUNITY) - for local testing
+ * 2. Development override (NEXT_PUBLIC_TEST_COMMUNITY) - for local testing only
  * 3. Domain resolution (production or localhost subdomains)
- * 4. Environment variable (NEXT_PUBLIC_COMMUNITY) - fallback
+ * 
+ * Note: If no community ID can be resolved, the system will error when attempting
+ * to load config. Use NEXT_PUBLIC_TEST_COMMUNITY in development or ensure domain
+ * resolution works (e.g., use localhost subdomains or production domains).
  */
 export function resolveCommunityId(context: ConfigLoadContext): string | undefined {
   let communityId = context.communityId;
@@ -22,11 +25,6 @@ export function resolveCommunityId(context: ConfigLoadContext): string | undefin
   // Resolve from domain if still no community ID
   if (!communityId && context.domain) {
     communityId = resolveCommunityFromDomain(context.domain) || undefined;
-  }
-
-  // Final fallback to env var
-  if (!communityId) {
-    communityId = process.env.NEXT_PUBLIC_COMMUNITY || undefined;
   }
 
   return communityId;

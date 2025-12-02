@@ -11,7 +11,7 @@ The Community Configuration System is a comprehensive whitelabeling solution tha
 ### Core Components
 
 1. **Configuration Loader** (`src/config/index.ts`)
-   - Reads `NEXT_PUBLIC_COMMUNITY` environment variable
+   - Reads `NEXT_PUBLIC_TEST_COMMUNITY` environment variable (development only)
    - Validates and loads the appropriate community configuration
    - Provides runtime delegation functions for space creators
 
@@ -439,20 +439,20 @@ The system uses **database-backed configuration** with runtime loading. Configs 
 
 ### Runtime Configuration
 
-The community is determined at build time via the `NEXT_PUBLIC_COMMUNITY` environment variable:
+The community is determined at runtime via domain detection or the `NEXT_PUBLIC_TEST_COMMUNITY` environment variable (development only):
 
 ```bash
-# Set community at build time
-NEXT_PUBLIC_COMMUNITY=nouns npm run build
-NEXT_PUBLIC_COMMUNITY=clanker npm run build
-NEXT_PUBLIC_COMMUNITY=example npm run build
+# Set community for local development
+NEXT_PUBLIC_TEST_COMMUNITY=nouns npm run dev
+NEXT_PUBLIC_TEST_COMMUNITY=clanker npm run dev
+NEXT_PUBLIC_TEST_COMMUNITY=example npm run dev
 ```
 
 ### Loading Process
 
-1. **Environment Variable Reading**
+1. **Environment Variable Reading** (development only)
    ```typescript
-   const communityConfig = process.env.NEXT_PUBLIC_COMMUNITY || 'nouns';
+   const communityConfig = process.env.NEXT_PUBLIC_TEST_COMMUNITY; // No fallback
    ```
 
 2. **Validation**
@@ -671,7 +671,7 @@ In `src/config/index.ts`:
 ### Step 6: Use the Configuration
 
 ```bash
-NEXT_PUBLIC_COMMUNITY=mycommunity npm run build
+NEXT_PUBLIC_TEST_COMMUNITY=mycommunity npm run dev
 ```
 
 ## Key Features
@@ -736,9 +736,9 @@ NEXT_PUBLIC_COMMUNITY=mycommunity npm run build
 
 ### Configuration Not Loading
 
-1. **Check Environment Variable**
+1. **Check Environment Variable** (development only)
    ```bash
-   echo $NEXT_PUBLIC_COMMUNITY
+   echo $NEXT_PUBLIC_TEST_COMMUNITY
    ```
 
 2. **Verify Configuration Exists**
@@ -768,8 +768,8 @@ NEXT_PUBLIC_COMMUNITY=mycommunity npm run build
    ```
 
 2. **Check Environment Variables**
-   - Ensure `NEXT_PUBLIC_COMMUNITY` is set correctly
-   - Verify it's available at build time
+   - Ensure `NEXT_PUBLIC_TEST_COMMUNITY` is set correctly (development only)
+   - Verify domain resolution works in production
 
 ## Examples
 
