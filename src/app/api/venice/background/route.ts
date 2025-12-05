@@ -1,4 +1,20 @@
+import { z } from "zod";
+
 const VENICE_API_KEY = process.env.VENICE_API_KEY;
+const MAX_INPUT_CHARS = 2000;
+const requestSchema = z.object({
+  text: z
+    .string()
+    .trim()
+    .min(1, "User input is missing")
+    .max(MAX_INPUT_CHARS, `User input exceeds ${MAX_INPUT_CHARS} characters`),
+});
+class BadRequestError extends Error {
+  status = 400;
+  constructor(message: string) {
+    super(message);
+  }
+}
 
 export const maxDuration = 300;
 
@@ -7,12 +23,17 @@ export async function POST(request: Request) {
     return new Response("API key is missing", { status: 400 });
   }
 
-  const res = await request.json();
-
-  const userInput = res.text;
-  if (!userInput) {
-    return new Response("User input is missing", { status: 400 });
+  let userInput: string;
+  try {
+    userInput = await parseUserInput(request);
+  } catch (error) {
+    if (error instanceof BadRequestError) {
+      return new Response(error.message, { status: error.status });
+    }
+    console.error("Unexpected error parsing request body:", error);
+    return new Response("Invalid request body", { status: 400 });
   }
+  const truncatedInput = userInput.slice(0, MAX_INPUT_CHARS); // never log or send more than the limit
 
   // Models in the order requested by the user
   const models = [
@@ -34,7 +55,7 @@ export async function POST(request: Request) {
           messages: [
             {
               role: "system",
-              content: PROMPT.replace("{{user context}}", userInput),
+              content: PROMPT.replace("{{user context}}", truncatedInput),
             },
           ],
           venice_parameters: {
@@ -66,6 +87,21 @@ export async function POST(request: Request) {
   }
   console.error("All models failed:", lastError);
   return new Response("All models failed", { status: 500 });
+}
+
+async function parseUserInput(request: Request) {
+  let payload: unknown;
+  try {
+    payload = await request.json();
+  } catch {
+    throw new BadRequestError("Invalid JSON payload");
+  }
+  const result = requestSchema.safeParse(payload);
+  if (!result.success) {
+    const issue = result.error.issues.at(0);
+    throw new BadRequestError(issue?.message ?? "Invalid request body");
+  }
+  return result.data.text;
 }
 
 const PROMPT = `\
