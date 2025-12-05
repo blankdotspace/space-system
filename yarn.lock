@@ -6721,20 +6721,15 @@
     rxjs "^7.8.0"
     undici "^5.8.1"
 
-"@zoralabs/coins-sdk@0.2.11":
-  version "0.2.11"
-  resolved "https://registry.yarnpkg.com/@zoralabs/coins-sdk/-/coins-sdk-0.2.11.tgz#ad6161340efacb7619417e711552a67529dd9910"
-  integrity sha512-wcH4g8WTLYvua0PNw70qG/hDhqS+VGgrdjjwEs9Qo+bYQVdi3GJ07WQtFzhv9xuKZKddK0I64o67M7R0a9Z3MA==
+"@zoralabs/coins-sdk@^0.3.3":
+  version "0.3.3"
+  resolved "https://registry.yarnpkg.com/@zoralabs/coins-sdk/-/coins-sdk-0.3.3.tgz#7877dcbc4383c2b91d85c87c8022ded6fc25ff01"
+  integrity sha512-C6rHMgZnK5dfUs4/i6OCJhBzF6Uj4KsuYpfoIyFSvgj2iZbZ7SIICGhS0lKbLdxvb8xbSwv2Fn7Xnqylf/BuEg==
   dependencies:
     "@hey-api/client-fetch" "^0.8.3"
-    "@zoralabs/protocol-deployments" "^0.6.2"
+    "@zoralabs/protocol-deployments" "^0.6.4"
 
-"@zoralabs/protocol-deployments@0.6.2":
-  version "0.6.2"
-  resolved "https://registry.yarnpkg.com/@zoralabs/protocol-deployments/-/protocol-deployments-0.6.2.tgz#4c365d382a433db12690c71fd26a767e3c47bb03"
-  integrity sha512-RvyoNtVwcEzCNLWKqIwYlIC60TzBoZhxYrwpLxBfvoBlWSvQ8wyoc1/Z1f5fqNMPOd2wjk/eK8FAhMgaHerJdQ==
-
-"@zoralabs/protocol-deployments@^0.6.2":
+"@zoralabs/protocol-deployments@^0.6.4":
   version "0.6.4"
   resolved "https://registry.yarnpkg.com/@zoralabs/protocol-deployments/-/protocol-deployments-0.6.4.tgz#fd1afa3def0dc9c068cd7f0fa530e2d822f5e88b"
   integrity sha512-ecgdCAF1zskmsztG+tP+qJ9GvTdm8unGg/D/mJ3eQEHTqkS7UmH8hJ7zOX8GbUyTUW4xWl/2p8CtxGxc8FHAOw==

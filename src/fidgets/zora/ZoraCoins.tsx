@@ -10,6 +10,7 @@ import {
 } from "@/common/fidgets";
 import { defaultStyleFields, WithMargin, ErrorWrapper } from "@/fidgets/helpers";
 import { BsCoin } from "react-icons/bs";
+import { getCoin, setApiKey } from "@zoralabs/coins-sdk";
 
 export type ZoraCoinsFidgetSettings = {
   coinContract?: string;
@@ -100,14 +101,14 @@ interface CoinData {
   mediaContent?: {
     originalUri: string;
     mimeType: string;
+    previewImage?: {
+      small?: string;
+      medium?: string;
+    };
   };
   creatorProfile?: {
     handle?: string;
-    avatar?: {
-      previewImage: {
-        medium: string;
-      };
-    };
+    avatarUrl?: string;
   };
 }
 
@@ -135,32 +136,26 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({
       setError(null);
 
       try {
+        // Set API key (from environment)
+        const apiKey = process.env.NEXT_PUBLIC_ZORA_API_KEY;
+        console.log("[ZoraCoins] API key present:", !!apiKey, apiKey?.substring(0, 20));
+        if (apiKey) {
+          setApiKey(apiKey);
+        } else {
+          console.warn("[ZoraCoins] No API key found in environment");
+        }
+
         if (settings.displayMode === "single" && settings.coinContract) {
-          console.log("Fetching coin data for:", settings.coinContract);
+          console.log("[ZoraCoins] Fetching coin data for:", settings.coinContract);
           
-          // Use our API route instead of SDK directly
-          const response = await fetch("/api/zora", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              address: settings.coinContract,
-              chain: 8453, // Base mainnet
-            }),
+          // Use Zora SDK directly - no API route needed!
+          const response = await getCoin({
+            address: settings.coinContract as `0x${string}`,
+            chain: 8453, // Base mainnet
           });
 
-          console.log("Response status:", response.status, response.statusText);
-          
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error("API error response:", errorText);
-            throw new Error(`API error: ${response.statusText} - ${errorText}`);
-          }
-
-          const data = await response.json();
-          console.log("Coin API response:", data);
-          const token = data?.data?.zora20Token;
+          console.log("[ZoraCoins] Raw SDK response:", JSON.stringify(response, null, 2));
+          const token = response?.data?.zora20Token;
 
           if (token) {
             setCoinData({
@@ -180,7 +175,7 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({
               creatorProfile: token.creatorProfile
                 ? {
                     handle: token.creatorProfile.handle || undefined,
-                    avatar: token.creatorProfile.avatar || undefined,
+                    avatarUrl: token.creatorProfile.avatar?.previewImage?.medium || undefined,
                   }
                 : undefined,
             });
@@ -192,10 +187,13 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({
           setError("Creator mode coming soon");
         }
       } catch (err) {
-        console.error("Error fetching coin data:", err);
+        // Log error details for debugging (using console.log to avoid duplicate error in console)
+        console.log("[ZoraCoins] Fetch error:", {
+          error: err,
+          message: err instanceof Error ? err.message : String(err),
+          coinContract: settings.coinContract,
+        });
         const errorMessage = err instanceof Error ? err.message : String(err);
-        console.error("Error message:", errorMessage);
-        console.error("Coin contract:", settings.coinContract);
         setError(`Failed to fetch coin data: ${errorMessage}`);
       } finally {
         setLoading(false);
@@ -313,9 +311,18 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({
             {coinData.name} ({coinData.symbol})
           </h3>
           {coinData.creatorProfile?.handle && (
-            <p className="text-sm text-gray-600">
-              by @{coinData.creatorProfile.handle}
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              {coinData.creatorProfile.avatarUrl && (
+                <img
+                  src={coinData.creatorProfile.avatarUrl}
+                  alt={coinData.creatorProfile.handle}
+                  className="w-5 h-5 rounded-full object-cover"
+                />
+              )}
+              <p className="text-sm text-gray-600">
+                by @{coinData.creatorProfile.handle}
+              </p>
+            </div>
           )}
         </div>
 
