@@ -29,6 +29,7 @@ import MobileStack from "./layout/tabFullScreen";
 import FramesFidget from "./framesV2/components/FramesFidget";
 import NounsHome from "./nouns-home";
 import Luma from "./ui/luma";
+import ZoraCoins from "./zora/ZoraCoins";
 // import iframely from "./ui/iframely";
 
 export const CompleteFidgets = {
@@ -53,6 +54,7 @@ export const CompleteFidgets = {
   nounsHome: NounsHome,
   links: Links,
   // zora: zoraEmbed, -> 500 server error -Frame ancestors block
+  zoraCoins: ZoraCoins,
   SnapShot: snapShot,
   Swap: Swap,
   Rss: rss,
