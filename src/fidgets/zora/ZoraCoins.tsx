@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import TextInput from "@/common/components/molecules/TextInput";
-import SwitchButton from "@/common/components/molecules/SwitchButton";
 import {
   FidgetArgs,
   FidgetModule,
