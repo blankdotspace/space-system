@@ -2,15 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import TextInput from "@/common/components/molecules/TextInput";
-import {
-  FidgetArgs,
-  FidgetModule,
-  FidgetProperties,
-  FidgetSettingsStyle,
-} from "@/common/fidgets";
+import { FidgetArgs, FidgetModule, FidgetProperties, FidgetSettingsStyle } from "@/common/fidgets";
 import { defaultStyleFields, WithMargin, ErrorWrapper } from "@/fidgets/helpers";
 import { BsCoin } from "react-icons/bs";
-import { getCoin, setApiKey } from "@zoralabs/coins-sdk";
 
 export type ZoraCoinsFidgetSettings = {
   coinContract?: string;
@@ -112,9 +106,7 @@ interface CoinData {
   };
 }
 
-const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({
-  settings,
-}) => {
+const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) => {
   const [coinData, setCoinData] = useState<CoinData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -136,26 +128,19 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({
       setError(null);
 
       try {
-        // Set API key (from environment)
-        const apiKey = process.env.NEXT_PUBLIC_ZORA_API_KEY;
-        console.log("[ZoraCoins] API key present:", !!apiKey, apiKey?.substring(0, 20));
-        if (apiKey) {
-          setApiKey(apiKey);
-        } else {
-          console.warn("[ZoraCoins] No API key found in environment");
-        }
-
         if (settings.displayMode === "single" && settings.coinContract) {
-          console.log("[ZoraCoins] Fetching coin data for:", settings.coinContract);
-          
-          // Use Zora SDK directly - no API route needed!
-          const response = await getCoin({
-            address: settings.coinContract as `0x${string}`,
-            chain: 8453, // Base mainnet
-          });
+          // Use server-side API route to keep API key secure
+          const response = await fetch(
+            `/api/zora/coin?address=${settings.coinContract}&chain=8453`
+          );
 
-          console.log("[ZoraCoins] Raw SDK response:", JSON.stringify(response, null, 2));
-          const token = response?.data?.zora20Token;
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP ${response.status}`);
+          }
+
+          const data = await response.json();
+          const token = data?.zora20Token;
 
           if (token) {
             setCoinData({
@@ -232,12 +217,7 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({
   }
 
   if (!coinData) {
-    return (
-      <ErrorWrapper
-        icon="🪙"
-        message="Enter a coin contract address to display coin information"
-      />
-    );
+    return <ErrorWrapper icon="🪙" message="Enter a coin contract address to display coin information" />;
   }
 
   return (
@@ -278,11 +258,7 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({
                       }
                     }}
                   >
-                    <svg
-                      className="w-8 h-8 ml-1"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
+                    <svg className="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M8 5v14l11-7z" />
                     </svg>
                   </button>
@@ -290,11 +266,7 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({
               )}
             </div>
           ) : (
-            <img
-              src={coinData.mediaContent.originalUri}
-              alt={coinData.name}
-              className="w-full h-full object-cover"
-            />
+            <img src={coinData.mediaContent.originalUri} alt={coinData.name} className="w-full h-full object-cover" />
           )
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gray-100">
@@ -319,9 +291,7 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({
                   className="w-5 h-5 rounded-full object-cover"
                 />
               )}
-              <p className="text-sm text-gray-600">
-                by @{coinData.creatorProfile.handle}
-              </p>
+              <p className="text-sm text-gray-600">by @{coinData.creatorProfile.handle}</p>
             </div>
           )}
         </div>
@@ -330,15 +300,11 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div>
             <p className="text-gray-600">Price</p>
-            <p className="font-semibold">
-              ${parseFloat(coinData.tokenPrice.priceInUsdc).toFixed(6)}
-            </p>
+            <p className="font-semibold">${parseFloat(coinData.tokenPrice.priceInUsdc).toFixed(6)}</p>
           </div>
           <div>
             <p className="text-gray-600">Market Cap</p>
-            <p className="font-semibold">
-              ${parseFloat(coinData.marketCap).toLocaleString()}
-            </p>
+            <p className="font-semibold">${parseFloat(coinData.marketCap).toLocaleString()}</p>
           </div>
         </div>
 

@@ -8,4 +8,3 @@ export const WEBSITE_URL =
 export const APP_FID = process.env.NEXT_PUBLIC_APP_FID
   ? Number(process.env.NEXT_PUBLIC_APP_FID)
   : undefined;
-export const ZORA_API_KEY = process.env.NEXT_PUBLIC_ZORA_API_KEY || "";
