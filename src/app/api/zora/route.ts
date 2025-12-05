@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCoin, setApiKey } from "@zoralabs/coins-sdk";
+
+const ZORA_GRAPHQL_ENDPOINT = "https://api.zora.co/graphql";
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,16 +22,58 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Set API key for SDK
-    setApiKey(apiKey);
+    // GraphQL query for coin data
+    const query = `
+      query GetCoin($address: String!, $chain: Chain!) {
+        zora20Token(address: $address, chain: $chain) {
+          address
+          name
+          symbol
+          marketCap
+          tokenPrice {
+            priceInUsdc
+          }
+          mediaContent {
+            originalUri
+            mimeType
+          }
+          creatorProfile {
+            handle
+            avatar
+          }
+        }
+      }
+    `;
 
-    // Use the SDK to fetch coin data
-    const response = await getCoin({
-      address: address as `0x${string}`,
-      chain: chain || 8453,
+    // Make GraphQL request to Zora
+    const zoraResponse = await fetch(ZORA_GRAPHQL_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-KEY": apiKey,
+      },
+      body: JSON.stringify({
+        query,
+        variables: {
+          address,
+          chain: chain === 8453 ? "BASE_MAINNET" : "BASE_MAINNET", // Map chain ID to enum
+        },
+      }),
     });
 
-    return NextResponse.json(response);
+    if (!zoraResponse.ok) {
+      const errorText = await zoraResponse.text();
+      console.error("Zora API error:", zoraResponse.status, errorText);
+      return NextResponse.json(
+        { error: `Zora API error: ${zoraResponse.statusText}` },
+        { status: zoraResponse.status }
+      );
+    }
+
+    const data = await zoraResponse.json();
+    
+    // Return in the same format as the SDK would
+    return NextResponse.json({ data });
   } catch (error) {
     console.error("Error in Zora API route:", error);
     return NextResponse.json(
