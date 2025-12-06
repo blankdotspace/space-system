@@ -523,8 +523,7 @@ RootLayout (Server Component)
 
 ### Database
 - `supabase/migrations/20251129172847_create_community_configs.sql` - Schema
-- `scripts/seed-community-configs.ts` - Seeding script
-- `scripts/seed-navpage-spaces.ts` - Navigation page seeding
+- `scripts/seed.ts` - Unified seeding script (replaces all individual seed scripts)
 
 ### Space Creators
 - `src/config/nouns/initialSpaces/` - Nouns implementations
