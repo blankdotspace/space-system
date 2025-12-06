@@ -2,6 +2,11 @@
 
 Spaces are the core organizational unit in Nounspace, representing customizable hubs that users can personalize with themes, tabs, and fidgets. The system supports both public and private spaces with different data patterns and access controls.
 
+**Related Documentation:**
+- [Space Architecture](SPACE_ARCHITECTURE.md) - Detailed architecture and tab management
+- [Public Spaces Pattern](PUBLIC_SPACES_PATTERN.md) - Deep dive into public space implementation
+- [Configuration System](../CONFIGURATION/ARCHITECTURE_OVERVIEW.md) - How navigation pages are stored as Spaces
+
 ## Core Concepts
 
 ### Space Types

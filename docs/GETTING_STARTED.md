@@ -43,10 +43,8 @@ This guide will help you set up the Nounspace development environment and unders
 src/
 ├── app/                    # Next.js App Router
 │   ├── (spaces)/          # Space-related routes
+│   ├── [navSlug]/         # Dynamic navigation pages (home, explore, etc.)
 │   ├── api/               # API routes
-│   ├── explore/           # Discovery pages
-│   ├── frames/            # Frame-related routes
-│   ├── home/              # Home page
 │   ├── notifications/     # Notifications
 │   ├── privacy/           # Privacy page
 │   ├── pwa/               # PWA configuration
