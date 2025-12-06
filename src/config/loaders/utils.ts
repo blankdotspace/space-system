@@ -77,20 +77,3 @@ export async function getDomainFromContext(): Promise<string | undefined> {
   return undefined;
 }
 
-/**
- * Get community ID from middleware-set header (server-side only)
- * Returns undefined if not available
- */
-export async function getCommunityIdFromHeaders(): Promise<string | undefined> {
-  if (typeof window === 'undefined') {
-    try {
-      const { headers } = await import('next/headers');
-      const headersList = await headers();
-      return headersList.get('x-community-id') || undefined;
-    } catch (error) {
-      return undefined;
-    }
-  }
-  return undefined;
-}
-
