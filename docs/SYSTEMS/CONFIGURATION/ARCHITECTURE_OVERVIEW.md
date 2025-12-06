@@ -325,6 +325,10 @@ Supabase Storage (spaces bucket):
 - `src/app/[navSlug]/[[...tabName]]/NavPageClient.tsx` - Client component for rendering
 - `src/config/systemConfig.ts` - `NavPageConfig` type definition
 
+**Related Documentation:**
+- See [Space Architecture](../SPACES/SPACE_ARCHITECTURE.md) for details on how Spaces work
+- See [Public Spaces Pattern](../SPACES/PUBLIC_SPACES_PATTERN.md) for the server/client separation pattern
+
 ### 6. Space Creators
 
 #### Simplified Architecture

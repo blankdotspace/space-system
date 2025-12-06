@@ -8,16 +8,12 @@ Nounspace is a highly customizable Farcaster client funded by Nouns DAO. This do
 - [Project Structure](PROJECT_STRUCTURE.md) - Complete directory layout and organization
 - [Contributing](CONTRIBUTING.md) - How to contribute to the project
 - [Documentation Overview](DOCUMENTATION_OVERVIEW.md) - Complete documentation structure
-- [Cleanup TODO](CLEANUP_TODO.md) - Structural improvements and simplifications
-- [Whitelabeling System](WHITELABELING_SYSTEM.md) - Community customization and configuration
-- [Extraction Plan](EXTRACTION_PLAN.md) - Step-by-step variable extraction guide
 
 ## Architecture
 
 - [Architecture Overview](ARCHITECTURE/OVERVIEW.md) - High-level system architecture
 - [Authentication](ARCHITECTURE/AUTHENTICATION.md) - Privy + Farcaster authentication system
 - [State Management](ARCHITECTURE/STATE_MANAGEMENT.md) - Zustand store architecture
-- [Data Flow](ARCHITECTURE/DATA_FLOW.md) - How data flows through the application
 
 ## Systems
 
@@ -42,8 +38,7 @@ Nounspace is a highly customizable Farcaster client funded by Nouns DAO. This do
 - [Customization](SYSTEMS/THEMES/CUSTOMIZATION.md) - Theme customization
 
 ### Configuration
-- [Configuration System](SYSTEMS/CONFIGURATION/OVERVIEW.md) - Database-backed configuration system
-- [Configuration System Overview](SYSTEMS/CONFIGURATION/OVERVIEW.md) - Complete configuration system documentation
+- [Configuration System](SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW.md) - Database-backed configuration system
 
 ### Discovery
 - [Mini App Discovery System](SYSTEMS/DISCOVERY/MINI_APP_DISCOVERY_SYSTEM.md) - Mini-app discovery system

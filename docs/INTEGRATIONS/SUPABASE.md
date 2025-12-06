@@ -12,6 +12,9 @@ Supabase integration provides:
 
 ## Database Schema
 
+**Related Documentation:**
+- [Configuration System](../SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW.md) - How `community_configs` table is used
+
 ### 1. Core Tables
 ```sql
 -- Community configurations

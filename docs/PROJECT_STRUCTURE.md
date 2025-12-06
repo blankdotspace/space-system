@@ -44,9 +44,8 @@ src/app/
 │   ├── MobileViewSimplified.tsx # Mobile layout
 │   └── MobilePreview.tsx    # Mobile preview
 ├── api/                     # API routes
-├── explore/                 # Discovery pages
-├── frames/                  # Frame-related routes
-├── home/                    # Home page
+├── [navSlug]/               # Dynamic navigation pages (home, explore, etc.)
+│   └── [[...tabName]]/     # Tab-based navigation
 ├── notifications/           # Notifications
 ├── privacy/                 # Privacy page
 ├── pwa/                     # PWA configuration
@@ -132,7 +131,7 @@ src/constants/
 
 ### 5. System Configuration (`src/config/`)
 
-Whitelabeling and system configuration with domain-based multi-tenant support. Configurations are stored in Supabase and loaded dynamically based on request domain. See [Configuration System](SYSTEMS/CONFIGURATION/OVERVIEW.md) for details.
+Whitelabeling and system configuration with domain-based multi-tenant support. Configurations are stored in Supabase and loaded dynamically based on request domain. See [Configuration System](SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW.md) for details.
 
 ```
 src/config/                  # System configuration
@@ -146,7 +145,7 @@ src/config/                  # System configuration
 │   ├── nouns.navigation.ts # Navigation config
 │   ├── nouns.theme.ts      # Theme config (references shared)
 │   ├── nouns.ui.ts         # UI colors
-│   └── initialSpaces/      # Initial space templates
+│   └── initialSpaces/      # Nouns space creator implementations (used by all communities)
 ├── clanker/                 # Clanker community configuration (fallback)
 ├── example/                 # Example community configuration (fallback)
 ├── shared/                  # Shared configuration
@@ -155,7 +154,7 @@ src/config/                  # System configuration
 │   ├── types.ts            # Loader interfaces
 │   ├── registry.ts         # Domain resolution
 │   ├── runtimeLoader.ts    # Runtime config loader
-│   ├── factory.ts          # Loader factory
+│   ├── utils.ts            # Utility functions
 │   └── index.ts            # Public API
 ├── systemConfig.ts          # System configuration interface
 ├── index.ts                 # Main configuration loader

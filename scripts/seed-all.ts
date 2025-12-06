@@ -200,19 +200,33 @@ async function seedCommunityConfigs(assetsUrls: Record<string, string>) {
   };
 
   // Get space IDs for navigation
-  const { data: nounsHomeSpace } = await supabase
+  const { data: nounsHomeSpace, error: nounsHomeError } = await supabase
     .from('spaceRegistrations')
     .select('spaceId')
     .eq('spaceName', 'nouns-home')
     .eq('spaceType', 'navPage')
-    .single();
+    .maybeSingle();
 
-  const { data: nounsExploreSpace } = await supabase
+  if (nounsHomeError) {
+    console.error('  ⚠️  Error fetching nouns-home space:', nounsHomeError.message);
+  }
+  if (!nounsHomeSpace) {
+    console.error('  ⚠️  nouns-home space not found in database. Make sure Step 3 (createNavPageSpaces) ran successfully.');
+  }
+
+  const { data: nounsExploreSpace, error: nounsExploreError } = await supabase
     .from('spaceRegistrations')
     .select('spaceId')
     .eq('spaceName', 'nouns-explore')
     .eq('spaceType', 'navPage')
-    .single();
+    .maybeSingle();
+
+  if (nounsExploreError) {
+    console.error('  ⚠️  Error fetching nouns-explore space:', nounsExploreError.message);
+  }
+  if (!nounsExploreSpace) {
+    console.error('  ⚠️  nouns-explore space not found in database. Make sure Step 3 (createNavPageSpaces) ran successfully.');
+  }
 
   // Nouns config
   const { error: nounsError } = await supabase
