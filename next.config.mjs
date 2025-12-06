@@ -1,6 +1,7 @@
 import bundlerAnalyzer from "@next/bundle-analyzer";
-import packageInfo from "./package.json" with { type: "json" };
 import { createRequire } from "node:module";
+import packageInfo from "./package.json";
+with { type: "json" };
 
 const require = createRequire(import.meta.url);
 
