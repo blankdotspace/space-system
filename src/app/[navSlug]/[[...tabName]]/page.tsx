@@ -113,6 +113,8 @@ export default async function NavPage({
   const navItem = navItems.find(item => item.href === `/${navSlug}`);
   
   if (!navItem) {
+    console.error(`[NavPage] Navigation item not found for href: /${navSlug}`);
+    console.error(`[NavPage] Available nav items:`, navItems.map(item => item.href));
     notFound();
   }
   
@@ -127,7 +129,11 @@ export default async function NavPage({
         defaultTab = encodeURIComponent(pageConfig.defaultTab);
         redirect(`/${navSlug}/${defaultTab}`);
         return null;
+      } else {
+        console.error(`[NavPage] Failed to load page config for spaceId: ${navItem.spaceId}`);
       }
+    } else {
+      console.error(`[NavPage] Navigation item "${navSlug}" has no spaceId. Navigation item:`, navItem);
     }
     
     // No spaceId and no page config found
@@ -139,11 +145,13 @@ export default async function NavPage({
   
   // Nav item must have a spaceId to load page config
   if (!navItem.spaceId) {
+    console.error(`[NavPage] Navigation item "${navSlug}" has no spaceId. Navigation item:`, navItem);
     notFound();
   }
   
   const pageConfig = await loadSpaceAsPageConfig(navItem.spaceId);
   if (!pageConfig) {
+    console.error(`[NavPage] Failed to load page config for spaceId: ${navItem.spaceId}`);
     notFound();
   }
   
