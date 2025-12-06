@@ -61,6 +61,7 @@ export class WebSocketService {
       hasSpaceContext: !!this.config.spaceContext,
       spaceContextType: this.config.spaceContext ? typeof this.config.spaceContext : "undefined",
       spaceContextKeys: this.config.spaceContext ? Object.keys(this.config.spaceContext) : [],
+      gridSize: this.config.spaceContext?.gridSize ?? null,
       userFid: this.config.userFid
     });
   }
@@ -206,6 +207,7 @@ export class WebSocketService {
           Object.keys(this.config.spaceContext.fidgetInstanceDatums)) : [],
       hasTheme: !!this.config.spaceContext.theme,
       hasLayout: !!this.config.spaceContext.layoutID,
+      gridSize: this.config.spaceContext.gridSize ?? null,
       fullSpaceContext: JSON.stringify(this.config.spaceContext, null, 2)
     });
 
