@@ -37,6 +37,7 @@ import { SpaceConfig } from "../../app/(spaces)/Space";
 import { defaultUserTheme } from "@/common/lib/theme/defaultTheme";
 import { v4 as uuidv4 } from "uuid";
 import { FidgetPickerModal } from "@/common/components/organisms/FidgetPickerModal";
+import { GridSizeMetadata } from "@/common/lib/utils/gridSize";
 
 export const resizeDirections = ["s", "w", "e", "n", "sw", "nw", "se", "ne"];
 export type ResizeDirection = (typeof resizeDirections)[number];
@@ -188,6 +189,20 @@ const Grid: LayoutFidget<GridLayoutProps> = ({
       theme?.properties?.gridSpacing,
       theme?.properties?.fidgetBorderRadius,
     ],
+  );
+
+  const gridSizeMetadata = useMemo<GridSizeMetadata>(
+    () => ({
+      columns: memoizedGridDetails.cols,
+      rows: memoizedGridDetails.maxRows,
+      rowHeight: memoizedGridDetails.rowHeight,
+      margin: [...memoizedGridDetails.margin] as [number, number],
+      containerPadding: [...memoizedGridDetails.containerPadding] as [number, number],
+      hasFeed,
+      hasProfile,
+      isInferred: false,
+    }),
+    [memoizedGridDetails, hasFeed, hasProfile],
   );
 
 
@@ -653,6 +668,7 @@ const Grid: LayoutFidget<GridLayoutProps> = ({
             layoutConfig,
             theme,
             layoutID: layoutConfig.layout.length > 0 ? 'grid' : undefined,
+            gridSize: gridSizeMetadata,
           })}
           onApplySpaceConfig={saveConfig}
         />,

@@ -30,6 +30,11 @@ import {
   ConnectionStatus,
   type IncomingMessage,
 } from "@/common/lib/services/websocket";
+import {
+  GridSizeMetadata,
+  ensureGridSize,
+  DEFAULT_GRID_SIZE,
+} from "@/common/lib/utils/gridSize";
 import html2canvas from "html2canvas";
 
 // Configuration constants
@@ -116,10 +121,72 @@ interface BuilderResponse {
 
 interface SpaceContextConfig {
   fidgetInstanceDatums?: Record<string, any>;
-  layoutConfig?: any;
-  theme?: { id?: string };
+  layoutConfig?: { layout?: Array<Record<string, any>> } | Record<string, any>;
+  layoutDetails?: {
+    layoutConfig?: { layout?: Array<Record<string, any>> };
+    [key: string]: any;
+  };
+  theme?: { id?: string; properties?: Record<string, any> };
   layoutID?: string;
+  gridSize?: GridSizeMetadata;
+  [key: string]: any;
 }
+
+type LayoutLikeItem = {
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+};
+
+const extractLayoutFromContext = (
+  context?: SpaceContextConfig | null,
+): LayoutLikeItem[] | undefined => {
+  if (!context) {
+    return undefined;
+  }
+
+  const directLayout =
+    context.layoutConfig && Array.isArray(context.layoutConfig.layout)
+      ? context.layoutConfig.layout
+      : undefined;
+
+  if (directLayout) {
+    return directLayout;
+  }
+
+  const detailedLayout = context.layoutDetails?.layoutConfig;
+  if (detailedLayout && Array.isArray(detailedLayout.layout)) {
+    return detailedLayout.layout;
+  }
+
+  const legacyLayout = (context as Record<string, any>)?.layout;
+  if (legacyLayout && Array.isArray(legacyLayout.layout)) {
+    return legacyLayout.layout;
+  }
+
+  return undefined;
+};
+
+const ensureContextHasGridSize = (
+  context: SpaceContextConfig | null,
+): SpaceContextConfig | null => {
+  if (!context) {
+    return null;
+  }
+
+  const layout = extractLayoutFromContext(context);
+  const gridSize = ensureGridSize({
+    existing: context.gridSize,
+    layout,
+    fallback: DEFAULT_GRID_SIZE,
+  });
+
+  return {
+    ...context,
+    gridSize,
+  };
+};
 
 // Use ChatMessage from store instead of local interface
 type Message = ChatMessage;
@@ -235,40 +302,35 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
   const getFreshSpaceContext = useCallback(() => {
     // If external context provider is available, use it (for theme editor)
     if (getCurrentSpaceContext) {
-      return getCurrentSpaceContext();
+      return ensureContextHasGridSize(getCurrentSpaceContext());
     }
 
     // Otherwise, get current context from app store
     const currentSpaceId = getCurrentSpaceId();
     const currentTabName = getCurrentTabName();
 
-    let currentTabConfig: any = null;
-    let currentSpaceConfig: any = null;
+    let currentTabConfig: SpaceContextConfig | null = null;
 
     if (currentSpaceId === "homebase") {
       // For homebase, get tab-specific config or main feed config
       if (
         currentTabName &&
         currentTabName !== "Feed" &&
-        homebaseTabs[currentTabName]?.config
+        homebaseTabs[currentTabName]?.config != null
       ) {
-        currentTabConfig = homebaseTabs[currentTabName].config;
-        currentSpaceConfig = { tabs: { [currentTabName]: currentTabConfig } };
+        currentTabConfig = homebaseTabs[currentTabName]?.config ?? null;
       } else {
         // Main homebase feed config
-        currentTabConfig = homebaseConfig;
-        currentSpaceConfig = homebaseConfig
-          ? { tabs: { Feed: homebaseConfig } }
-          : null;
+        currentTabConfig = homebaseConfig ?? null;
       }
     } else {
       // Regular space configuration
-      currentSpaceConfig = getCurrentSpaceConfig();
+      const currentSpaceConfig = getCurrentSpaceConfig();
       currentTabConfig =
-        currentSpaceConfig?.tabs[getCurrentTabName() || "Profile"] || null;
+        currentSpaceConfig?.tabs[currentTabName || "Profile"] || null;
     }
 
-    return currentTabConfig;
+    return ensureContextHasGridSize(currentTabConfig);
   }, [
     getCurrentSpaceContext,
     getCurrentSpaceId,
@@ -717,7 +779,7 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
         console.log("📤 Sending user message with fresh space config context");
 
         // Get the current context right before sending
-        const freshContext = getFreshSpaceContext();
+        const freshContext = ensureContextHasGridSize(getFreshSpaceContext());
         console.log("🔧 Fresh context for AI:", {
           hasContext: !!freshContext,
           fidgetCount: freshContext?.fidgetInstanceDatums
@@ -725,6 +787,16 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
             : 0,
           layoutID: freshContext?.layoutID,
           theme: freshContext?.theme?.id,
+          gridSize: freshContext?.gridSize
+            ? {
+                columns: freshContext.gridSize.columns,
+                rows: freshContext.gridSize.rows,
+                rowHeight: freshContext.gridSize.rowHeight,
+                hasFeed: freshContext.gridSize.hasFeed,
+                hasProfile: freshContext.gridSize.hasProfile,
+                isInferred: freshContext.gridSize.isInferred,
+              }
+            : null,
         });
 
         // Update the WebSocket service with fresh context
