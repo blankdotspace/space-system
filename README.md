@@ -47,13 +47,29 @@ a protocol for decentralized social apps: https://www.farcaster.xyz
 ```
 The script will attempt to start Supabase automatically if Docker is running; otherwise it will skip this step.
 
-9. Run the test suite
+9. **Seed the local database**
+   After Supabase is running and migrations are applied, seed the database:
+   ```bash
+   # Run migrations and seed SQL (if not already done)
+   supabase db reset
+   
+   # Seed community configs and navPage spaces
+   yarn seed
+   ```
+   
+   This will:
+   - Upload Nouns assets to ImgBB (if `NEXT_PUBLIC_IMGBB_API_KEY` is set)
+   - Create navPage space registrations
+   - Seed community configs (nouns, example, clanker)
+   - Upload navPage space configs to Supabase Storage
+
+10. Run the test suite
    ```bash
    yarn test
    ```
 
-9. cp .env.development.local .env.local
-10. yarn build
+11. cp .env.development.local .env.local
+12. yarn build
 
 ## Contributing and making Fidgets
 
