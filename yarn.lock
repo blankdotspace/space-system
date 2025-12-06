@@ -5297,15 +5297,16 @@
     tslib "2.8.1"
 
 "@supabase/supabase-js@^2.44.1":
-  version "2.86.2"
-  resolved "https://registry.yarnpkg.com/@supabase/supabase-js/-/supabase-js-2.86.2.tgz#6175d4a03619127af7201c6f71a82350867c2692"
-  integrity sha512-KXoiqFf7zZhL/+lj7oBFFUvVDQ6gy03v9wQ5E++f7xiJUuqmI4DuBhrv8uFo6B2EGTQTA3vkXjbxmYIug/zfWw==
+  version "2.50.3"
+  resolved "https://registry.npmjs.org/@supabase/supabase-js/-/supabase-js-2.50.3.tgz"
+  integrity sha512-Ld42AbfSXKnbCE2ObRvrGC5wj9OrfTOzswQZg0OcGQGx+QqcWYN/IqsLqrt4gCFrD57URbNRfGESSWzchzKAuQ==
   dependencies:
-    "@supabase/auth-js" "2.86.2"
-    "@supabase/functions-js" "2.86.2"
-    "@supabase/postgrest-js" "2.86.2"
-    "@supabase/realtime-js" "2.86.2"
-    "@supabase/storage-js" "2.86.2"
+    "@supabase/auth-js" "2.70.0"
+    "@supabase/functions-js" "2.4.5"
+    "@supabase/node-fetch" "2.6.15"
+    "@supabase/postgrest-js" "1.19.4"
+    "@supabase/realtime-js" "2.11.15"
+    "@supabase/storage-js" "2.7.1"
 
 "@swc/helpers@0.5.15":
   version "0.5.15"
