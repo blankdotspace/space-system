@@ -1,6 +1,6 @@
 {
   "name": "nounspace",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "license": "",
   "private": true,
   "scripts": {
@@ -109,7 +109,7 @@
     "moment": "^2.30.1",
     "mutative": "^1.0.3",
     "neverthrow": "^6.2.2",
-    "next": "^15.2.2",
+    "next": "^15.2.6",
     "next-themes": "^0.3.0",
     "prop-types": "^15.8.1",
     "react": "^18.3.1",
