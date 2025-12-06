@@ -11,18 +11,16 @@ ON CONFLICT ("id") DO NOTHING;
 -- Note: Themes are in src/config/shared/themes.ts
 -- Note: Pages (homePage/explorePage) are stored as Spaces with spaceType='navPage'
 -- 
--- IMPORTANT: After seeding, you must upload space configs to Supabase Storage.
--- The spaceRegistrations are created above, but the actual space config files
--- need to be uploaded to the 'spaces' bucket.
+-- IMPORTANT: After running seed.sql, you must run the unified seed script to:
+--   1. Upload Nouns assets to ImgBB
+--   2. Seed community configs in the database
+--   3. Upload navPage space configs to Supabase Storage
 -- 
--- Run this script AFTER seed.sql completes:
---   tsx scripts/seed-navpage-spaces.ts
+-- Run the unified seed script:
+--   tsx scripts/seed.ts
 -- 
--- This script will:
---   1. Read spaceRegistrations from database (created above)
---   2. Import page configs from TypeScript (nounsHomePage, nounsExplorePage, etc.)
---   3. Upload each tab as {spaceId}/tabs/{tabName}
---   4. Upload tabOrder as {spaceId}/tabOrder
+-- Or check if already seeded:
+--   tsx scripts/seed.ts --check
 
 -- Create navPage spaces for each community (system-owned, fid=NULL)
 -- These must be created BEFORE community_configs so they can be referenced
