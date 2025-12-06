@@ -1,25 +1,30 @@
 #!/usr/bin/env tsx
 /**
- * Unified seed script for database and storage
+ * Unified local database seeding script
  * 
- * This script:
- * 1. Uploads Nouns brand assets to ImgBB
- * 2. Seeds the database with community configs (using ImgBB URLs)
- * 3. Creates navPage space registrations
- * 4. Uploads navPage space configs to Supabase Storage
+ * This script handles all local database seeding operations:
+ * 1. Checks if database is already seeded (--check flag)
+ * 2. Uploads Nouns brand assets to ImgBB (--skip-assets to skip)
+ * 3. Seeds storage buckets (if needed)
+ * 4. Creates navPage space registrations
+ * 5. Seeds community configs (using ImgBB URLs)
+ * 6. Uploads navPage space configs to Supabase Storage
  * 
  * Usage:
- *   tsx scripts/seed-all.ts
+ *   tsx scripts/seed.ts                    # Full seeding
+ *   tsx scripts/seed.ts --check            # Check if already seeded
+ *   tsx scripts/seed.ts --skip-assets      # Skip asset upload (use existing URLs)
  * 
  * Requires:
  *   - NEXT_PUBLIC_SUPABASE_URL
  *   - SUPABASE_SERVICE_ROLE_KEY
  *   - NEXT_PUBLIC_IMGBB_API_KEY (optional, only needed for uploading assets)
  * 
- * This script replaces the need to:
- *   - Run supabase/seed.sql separately
- *   - Run scripts/upload-nouns-assets-to-imgbb.ts
- *   - Run scripts/seed-navpage-spaces.ts
+ * This script consolidates:
+ *   - scripts/seed-all.ts (original)
+ *   - scripts/seed-community-configs.ts (redundant)
+ *   - scripts/seed-navpage-spaces.ts (redundant)
+ *   - scripts/check-seeding.ts (integrated)
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -31,8 +36,10 @@ import moment from 'moment';
 import { SignedFile } from '../src/common/lib/signedFiles';
 import { SpaceConfig } from '../src/app/(spaces)/Space';
 
-// Import page configs for navPage spaces
-import { nounsHomePage, nounsExplorePage, clankerHomePage } from './seed-data';
+// Import page configs for navPage spaces (inline imports)
+import { nounsHomePage } from '../src/config/nouns/nouns.home';
+import { nounsExplorePage } from '../src/config/nouns/nouns.explore';
+import { clankerHomePage } from '../src/config/clanker/clanker.home';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -49,6 +56,13 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Parse command-line arguments
+const args = process.argv.slice(2);
+const flags = {
+  check: args.includes('--check'),
+  skipAssets: args.includes('--skip-assets'),
+};
 
 /**
  * Upload a file to ImgBB using base64 encoding
@@ -780,14 +794,78 @@ async function uploadNavPageSpaces() {
 }
 
 /**
+ * Check if database is already seeded
+ */
+async function checkSeeding(): Promise<boolean> {
+  console.log('🔍 Checking if database is seeded...\n');
+
+  // Check if table exists and has data
+  const { data, error, count } = await supabase
+    .from('community_configs')
+    .select('community_id, is_published, updated_at', { count: 'exact' });
+
+  if (error) {
+    console.error('❌ Error checking community_configs:', error.message);
+    console.error('   The table might not exist. Run migrations first.');
+    return false;
+  }
+
+  if (!data || data.length === 0) {
+    console.log('⚠️  No community configs found in database.');
+    console.log('\n📋 Run full seeding:');
+    console.log('   tsx scripts/seed.ts');
+    return false;
+  }
+
+  console.log(`✅ Found ${count} community config(s):\n`);
+  data.forEach((config) => {
+    console.log(`   - ${config.community_id} (published: ${config.is_published}, updated: ${config.updated_at})`);
+  });
+
+  // Test the RPC function
+  console.log('\n🧪 Testing get_active_community_config function...');
+  const { data: testConfig, error: testError } = await supabase
+    .rpc('get_active_community_config', { p_community_id: 'nouns' })
+    .single();
+
+  if (testError) {
+    console.error('❌ Function test failed:', testError.message);
+    return false;
+  }
+
+  if (testConfig && (testConfig as any).brand) {
+    console.log('✅ Function works! Retrieved config successfully.');
+  } else {
+    console.error('❌ Function returned invalid config');
+    return false;
+  }
+
+  console.log('\n✅ Database is properly seeded!');
+  return true;
+}
+
+/**
  * Main seeding function
  */
 async function main() {
+  // Handle --check flag
+  if (flags.check) {
+    const isSeeded = await checkSeeding();
+    process.exit(isSeeded ? 0 : 1);
+    return;
+  }
+
   console.log('🚀 Starting unified database seeding...\n');
 
   try {
-    // Step 1: Upload assets to ImgBB
-    const assetsUrls = await uploadNounsAssets();
+    // Step 1: Upload assets to ImgBB (skip if --skip-assets flag)
+    let assetsUrls: Record<string, string> = {};
+    if (!flags.skipAssets) {
+      assetsUrls = await uploadNounsAssets();
+    } else {
+      console.log('⏭️  Skipping asset upload (--skip-assets flag)\n');
+      // Use empty object - seedCommunityConfigs will handle missing URLs
+    }
 
     // Step 2: Seed storage buckets (skip, assume created via migrations)
     await seedBuckets();
@@ -808,10 +886,16 @@ async function main() {
 
     console.log('\n✅ All seeding completed successfully!');
     console.log('\n📋 Summary:');
-    console.log('  ✓ Nouns assets uploaded to ImgBB');
+    if (!flags.skipAssets) {
+      console.log('  ✓ Nouns assets uploaded to ImgBB');
+    }
     console.log('  ✓ NavPage spaces created');
     console.log('  ✓ Community configs seeded');
     console.log('  ✓ NavPage space configs uploaded to Storage');
+    
+    // Final check
+    console.log('\n🔍 Verifying seeding...');
+    await checkSeeding();
   } catch (error: any) {
     console.error('\n❌ Fatal error:', error);
     process.exit(1);
