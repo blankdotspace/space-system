@@ -1,4 +1,4 @@
-import { metadata } from '../../../constants/metadata';
+import { getMetadata } from '../../../constants/metadata';
 
 function withValidProperties(properties: Record<string, undefined | string | string[]>) {
   return Object.fromEntries(
@@ -7,6 +7,7 @@ function withValidProperties(properties: Record<string, undefined | string | str
 }
 
 export async function GET() {
+  const metadata = await getMetadata();
   const URL = process.env.NEXT_PUBLIC_URL as string;
   const envTags = process.env.NEXT_PUBLIC_APP_TAGS
     ?.split(',')
