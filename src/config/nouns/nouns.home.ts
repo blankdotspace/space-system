@@ -394,9 +394,9 @@ export const nounsHomePage = {
         id: "Homebase-Tab 3-Theme",
         name: "Homebase-Tab 3-Theme",
         properties: {
-          font: "Inter",
-          fontColor: "#000000",
-          headingsFont: "Inter",
+          font: "Londrina Solid",
+          fontColor: "#333333",
+          headingsFont: "Work Sans",
           headingsFontColor: "#000000",
           background: "#ffffff",
           backgroundHTML: "",
