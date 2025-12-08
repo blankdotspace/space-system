@@ -12,16 +12,13 @@ export type FidLinkToIdentityRequest = {
   fid: number;
   identityPublicKey: string;
   timestamp: string;
-  signature: string;
-  signingPublicKey: string;
+  signature?: string | null;
+  signingPublicKey?: string | null;
 };
 
 function isFidLinkToIdentityRequest(
   maybe: unknown,
 ): maybe is FidLinkToIdentityRequest {
-  if (!isSignable(maybe, "signingPublicKey")) {
-    return false;
-  }
   return (
     typeof maybe["fid"] === "number" &&
     typeof maybe["timestamp"] === "string" &&
@@ -33,8 +30,8 @@ export type FidLinkToIdentityResponse = NounspaceResponse<{
   fid: number;
   identityPublicKey: string;
   created: string;
-  signature: string;
-  signingPublicKey: string;
+  signature: string | null;
+  signingPublicKey: string | null;
   isSigningKeyValid: boolean;
 }>;
 
@@ -57,12 +54,13 @@ async function linkFidToIdentity(
       result: "error",
       error: {
         message:
-          "Registration request requires fid, timestamp, identityPublicKey, signingPublicKey, and a signature",
+          "Registration request requires fid, timestamp, and identityPublicKey",
       },
     });
     return;
   }
-  if (!validateSignable(reqBody, "signingPublicKey")) {
+  const hasSigningKeyInfo = !!reqBody.signingPublicKey;
+  if (hasSigningKeyInfo && !validateSignable(reqBody, "signingPublicKey")) {
     res.status(400).json({
       result: "error",
       error: {
@@ -71,14 +69,23 @@ async function linkFidToIdentity(
     });
     return;
   }
-  if (!checkSigningKeyValidForFid) {
+  if (
+    hasSigningKeyInfo &&
+    !(await checkSigningKeyValidForFid(reqBody.fid, reqBody.signingPublicKey!))
+  ) {
     res.status(400).json({
       result: "error",
       error: {
         message: `Signing key ${reqBody.signingPublicKey} is not valid for fid ${reqBody.fid}`,
       },
     });
+    return;
   }
+  const signingPublicKey = hasSigningKeyInfo ? reqBody.signingPublicKey : null;
+  const signature = hasSigningKeyInfo ? reqBody.signature ?? null : null;
+  const signingKeyLastValidatedAt = hasSigningKeyInfo
+    ? moment().toISOString()
+    : null;
   const { data: checkExistsData } = await createSupabaseServerClient()
     .from("fidRegistrations")
     .select("fid, created")
@@ -100,10 +107,10 @@ async function linkFidToIdentity(
       .update({
         created: reqBody.timestamp,
         identityPublicKey: reqBody.identityPublicKey,
-        isSigningKeyValid: true,
-        signature: reqBody.signature,
-        signingKeyLastValidatedAt: moment().toISOString(),
-        signingPublicKey: reqBody.signingPublicKey,
+        isSigningKeyValid: hasSigningKeyInfo,
+        signature,
+        signingKeyLastValidatedAt,
+        signingPublicKey,
       })
       .eq("fid", reqBody.fid)
       .select();
@@ -127,10 +134,10 @@ async function linkFidToIdentity(
         fid: reqBody.fid,
         created: reqBody.timestamp,
         identityPublicKey: reqBody.identityPublicKey,
-        isSigningKeyValid: true,
-        signature: reqBody.signature,
-        signingKeyLastValidatedAt: moment().toISOString(),
-        signingPublicKey: reqBody.signingPublicKey,
+        isSigningKeyValid: hasSigningKeyInfo,
+        signature,
+        signingKeyLastValidatedAt,
+        signingPublicKey,
       })
       .select();
     if (error !== null) {
@@ -172,8 +179,7 @@ async function lookUpFidsForIdentity(
   const { data, error } = await createSupabaseServerClient()
     .from("fidRegistrations")
     .select("fid")
-    .eq("identityPublicKey", identity)
-    .eq("isSigningKeyValid", true);
+    .eq("identityPublicKey", identity);
   if (error) {
     res.status(500).json({
       result: "error",

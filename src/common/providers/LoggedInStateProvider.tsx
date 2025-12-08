@@ -13,6 +13,7 @@ import React, { useEffect } from "react";
 import LoginModal from "../components/templates/LoginModal";
 import { AnalyticsEvent } from "../constants/analyticsEvents";
 import { analytics } from "./AnalyticsProvider";
+import { FARCASTER_AUTHENTICATOR_NAME } from "@/fidgets/farcaster";
 
 type LoggedInLayoutProps = { children: React.ReactNode };
 
@@ -132,6 +133,43 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
     }
   }
 
+  const inferFidFromWallet = async (): Promise<number | undefined> => {
+    if (!user?.wallet?.address) return undefined;
+    try {
+      const response = await fetch(
+        `/api/farcaster/neynar/users?addresses=${user.wallet.address}`,
+      );
+      if (!response.ok) return undefined;
+      const data = await response.json();
+      const users = data?.users ?? [];
+      const walletLower = user.wallet.address.toLowerCase();
+      const matchingUser = users.find((u) =>
+        (u.verified_addresses?.eth_addresses || [])
+          .map((addr: string) => addr.toLowerCase())
+          .includes(walletLower),
+      );
+      return matchingUser?.fid ?? users[0]?.fid;
+    } catch (e) {
+      console.error(e);
+      return undefined;
+    }
+  };
+
+  const waitForAuthenticator = async (
+    authenticatorName: string,
+    attempts = 10,
+    delay = 1000,
+  ) => {
+    for (let i = 0; i < attempts; i++) {
+      const initialized = await authenticatorManager.getInitializedAuthenticators();
+      if (initialized.includes(authenticatorName)) {
+        return true;
+      }
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+    return false;
+  };
+
   async function loadAuthenticators() {
     try {
       await loadPreKeys();
@@ -157,35 +195,52 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
       await loadFidsForCurrentIdentity();
       currentIdentity = getCurrentIdentity()!;
       if (currentIdentity.associatedFids.length === 0) {
-        const fidResult = (await authenticatorManager.callMethod({
-          requestingFidgetId: "root",
-          authenticatorId: "farcaster:nounspace",
-          methodName: "getAccountFid",
-          isLookup: true,
-        })) as { value: number };
-        const publicKeyResult = (await authenticatorManager.callMethod({
-          requestingFidgetId: "root",
-          authenticatorId: "farcaster:nounspace",
-          methodName: "getSignerPublicKey",
-          isLookup: true,
-        })) as { value: Uint8Array };
-        const signForFid = async (messageHash) => {
-          const signResult = (await authenticatorManager.callMethod(
-            {
+        const fidFromWallet = await inferFidFromWallet();
+        if (!isUndefined(fidFromWallet)) {
+          await registerFidForCurrentIdentity(fidFromWallet);
+          await loadFidsForCurrentIdentity();
+          currentIdentity = getCurrentIdentity()!;
+        }
+        if (currentIdentity.associatedFids.length === 0) {
+          await authenticatorManager.installAuthenticators([
+            FARCASTER_AUTHENTICATOR_NAME,
+          ]);
+          authenticatorManager.initializeAuthenticators([
+            FARCASTER_AUTHENTICATOR_NAME,
+          ]);
+          const signerReady = await waitForAuthenticator(FARCASTER_AUTHENTICATOR_NAME);
+          if (signerReady) {
+            const fidResult = (await authenticatorManager.callMethod({
               requestingFidgetId: "root",
-              authenticatorId: "farcaster:nounspace",
-              methodName: "signMessage",
-              isLookup: false,
-            },
-            messageHash,
-          )) as { value: Uint8Array };
-          return signResult.value;
-        };
-        await registerFidForCurrentIdentity(
-          fidResult.value,
-          bytesToHex(publicKeyResult.value),
-          signForFid,
-        );
+              authenticatorId: FARCASTER_AUTHENTICATOR_NAME,
+              methodName: "getAccountFid",
+              isLookup: true,
+            })) as { value: number };
+            const publicKeyResult = (await authenticatorManager.callMethod({
+              requestingFidgetId: "root",
+              authenticatorId: FARCASTER_AUTHENTICATOR_NAME,
+              methodName: "getSignerPublicKey",
+              isLookup: true,
+            })) as { value: Uint8Array };
+            const signForFid = async (messageHash) => {
+              const signResult = (await authenticatorManager.callMethod(
+                {
+                  requestingFidgetId: "root",
+                  authenticatorId: FARCASTER_AUTHENTICATOR_NAME,
+                  methodName: "signMessage",
+                  isLookup: false,
+                },
+                messageHash,
+              )) as { value: Uint8Array };
+              return signResult.value;
+            };
+            await registerFidForCurrentIdentity(
+              fidResult.value,
+              bytesToHex(publicKeyResult.value),
+              signForFid,
+            );
+          }
+        }
       }
     }
     setCurrentStep(SetupStep.ACCOUNTS_REGISTERED);

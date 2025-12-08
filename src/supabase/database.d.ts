@@ -190,19 +190,19 @@ export type Database = {
           id: number
           identityPublicKey: string
           isSigningKeyValid: boolean
-          signature: string
-          signingKeyLastValidatedAt: string
-          signingPublicKey: string
+          signature: string | null
+          signingKeyLastValidatedAt: string | null
+          signingPublicKey: string | null
         }
         Insert: {
           created?: string
           fid: number
           id?: number
           identityPublicKey: string
-          isSigningKeyValid: boolean
-          signature: string
-          signingKeyLastValidatedAt: string
-          signingPublicKey: string
+          isSigningKeyValid?: boolean
+          signature?: string | null
+          signingKeyLastValidatedAt?: string | null
+          signingPublicKey?: string | null
         }
         Update: {
           created?: string
@@ -210,9 +210,9 @@ export type Database = {
           id?: number
           identityPublicKey?: string
           isSigningKeyValid?: boolean
-          signature?: string
-          signingKeyLastValidatedAt?: string
-          signingPublicKey?: string
+          signature?: string | null
+          signingKeyLastValidatedAt?: string | null
+          signingPublicKey?: string | null
         }
         Relationships: []
       }

@@ -17,11 +17,11 @@ type FarcasterActions = {
   getFidsForCurrentIdentity: () => Promise<void>;
   registerFidForCurrentIdentity: (
     fid: number,
-    signingKey: string,
+    signingKey?: string,
     // Takes in signMessage as it is a method
     // of the Authenticator and client doesn't
     // have direct access to the keys
-    signMessage: (messageHash: Uint8Array) => Promise<Uint8Array>,
+    signMessage?: (messageHash: Uint8Array) => Promise<Uint8Array>,
   ) => Promise<void>;
   setFidsForCurrentIdentity: (fids: number[]) => void;
   addFidToCurrentIdentity: (fid: number) => void;
@@ -59,16 +59,21 @@ export const farcasterStore = (
     }
   },
   registerFidForCurrentIdentity: async (fid, signingKey, signMessage) => {
-    const request: Omit<FidLinkToIdentityRequest, "signature"> = {
+    const baseRequest: FidLinkToIdentityRequest = {
       fid,
       identityPublicKey: get().account.currentSpaceIdentityPublicKey!,
       timestamp: moment().toISOString(),
       signingPublicKey: signingKey,
     };
-    const signedRequest: FidLinkToIdentityRequest = {
-      ...request,
-      signature: bytesToHex(await signMessage(hashObject(request))),
-    };
+    if (signingKey && !signMessage) {
+      throw new Error("signMessage is required when signingKey is provided");
+    }
+    const signedRequest: FidLinkToIdentityRequest = signingKey
+      ? {
+          ...baseRequest,
+          signature: bytesToHex(await signMessage!(hashObject(baseRequest))),
+        }
+      : baseRequest;
     const { data } = await axiosBackend.post<FidLinkToIdentityResponse>(
       "/api/fid-link",
       signedRequest,

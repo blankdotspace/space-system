@@ -45,7 +45,8 @@ const Profile: React.FC<FidgetArgs<ProfileFidgetSettings>> = ({
   settings: { fid },
 }) => {
   const isMobile = useIsMobile();
-  const { fid: viewerFid, signer } = useFarcasterSigner("Profile");
+  const { fid: viewerFid, signer, requestSignerAuthorization } =
+    useFarcasterSigner("Profile");
   const { data: userData } = useLoadFarcasterUser(
     fid,
     viewerFid > 0 ? viewerFid : undefined
@@ -65,7 +66,12 @@ const Profile: React.FC<FidgetArgs<ProfileFidgetSettings>> = ({
   // console.log("user", user);
 
   const toggleFollowing = async () => {
-    if (user && signer && viewerFid > 0) {
+    if (!signer || viewerFid <= 0) {
+      await requestSignerAuthorization();
+      return;
+    }
+
+    if (user) {
       setActionStatus("loading");
 
       // Optimistically update the user's following state

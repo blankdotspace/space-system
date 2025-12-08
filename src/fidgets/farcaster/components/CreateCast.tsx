@@ -167,7 +167,8 @@ const CreateCast: React.FC<CreateCastProps> = ({
 
   const hasEmbeds = draft?.embeds && !!draft.embeds.length;
   const isReply = draft?.parentCastId !== undefined;
-  const { signer, isLoadingSigner, fid } = useFarcasterSigner("create-cast");
+  const { signer, isLoadingSigner, fid, requestSignerAuthorization } =
+    useFarcasterSigner("create-cast");
   const [initialChannels, setInitialChannels] = useState() as any;
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
@@ -415,7 +416,12 @@ const CreateCast: React.FC<CreateCastProps> = ({
   );
 
   const onSubmitPost = async (): Promise<boolean> => {
-    if ((!draft?.text && !draft?.embeds?.length) || isUndefined(signer)) {
+    if (isUndefined(signer)) {
+      await requestSignerAuthorization();
+      return false;
+    }
+
+    if (!draft?.text && !draft?.embeds?.length) {
       console.error(
         "Submission failed: Missing text or embeds, or signer is undefined.",
         {
@@ -724,6 +730,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
 
 
   const getButtonText = () => {
+    if (!signer) return "Connect Farcaster";
     if (isLoadingSigner) return "Not signed into Farcaster";
     if (isPublishing) return "Publishing...";
     if (submissionError) return "Retry";
