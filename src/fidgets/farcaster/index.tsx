@@ -2,10 +2,12 @@ import {
   AuthenticatorManager,
   useAuthenticatorManager,
 } from "@/authenticators/AuthenticatorManager";
+import { useAppStore } from "@/common/data/stores/app";
+import { bytesToHex } from "@noble/ciphers/utils";
 import { HubError, SignatureScheme, Signer } from "@farcaster/core";
 import { indexOf } from "lodash";
 import { err, ok } from "neverthrow";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export const FARCASTER_AUTHENTICATOR_NAME = "farcaster:nounspace";
 
@@ -61,45 +63,120 @@ export function useFarcasterSigner(
   authenticatorName: string = "farcaster:nounspace",
 ) {
   const authenticatorManager = useAuthenticatorManager();
-  const [isLoadingSigner, setIsLoadingSigner] = useState(true);
+  const { currentIdentityFids, registerFidForCurrentIdentity, loadFids } =
+    useAppStore((state) => ({
+      currentIdentityFids:
+        state.account.getCurrentIdentity()?.associatedFids || [],
+      registerFidForCurrentIdentity: state.account.registerFidForCurrentIdentity,
+      loadFids: state.account.getFidsForCurrentIdentity,
+    }));
+  const [hasRequestedSigner, setHasRequestedSigner] = useState(false);
+  const [isLoadingSigner, setIsLoadingSigner] = useState(false);
+  const [signer, setSigner] = useState<Signer>();
+  const [fid, setFid] = useState(-1);
+  const requestSignerAuthorization = useCallback(async () => {
+    setHasRequestedSigner(true);
+    setIsLoadingSigner(true);
+    await authenticatorManager.installAuthenticators([authenticatorName]);
+    authenticatorManager.initializeAuthenticators([authenticatorName]);
+  }, [authenticatorManager, authenticatorName]);
+
   useEffect(() => {
+    if (currentIdentityFids.length > 0) {
+      setFid(currentIdentityFids[0]);
+    }
+  }, [currentIdentityFids]);
+
+  useEffect(() => {
+    if (!hasRequestedSigner) {
+      setIsLoadingSigner(false);
+      return;
+    }
     authenticatorManager
       .getInitializedAuthenticators()
-      .then((initilizedAuths) =>
-        setIsLoadingSigner(
-          indexOf(initilizedAuths, FARCASTER_AUTHENTICATOR_NAME) === -1,
-        ),
-      );
-  }, [authenticatorManager.lastUpdatedAt]);
-  const [signer, setSigner] = useState<Signer>();
+      .then((initializedAuths) => {
+        const ready = indexOf(initializedAuths, FARCASTER_AUTHENTICATOR_NAME) !== -1;
+        setIsLoadingSigner(!ready);
+        if (ready) {
+          createFarcasterSignerFromAuthenticatorManager(
+            authenticatorManager,
+            fidgetId,
+            authenticatorName,
+          ).then((newSigner) => setSigner(newSigner));
+          authenticatorManager
+            .callMethod({
+              requestingFidgetId: fidgetId,
+              authenticatorId: FARCASTER_AUTHENTICATOR_NAME,
+              methodName: "getAccountFid",
+              isLookup: true,
+            })
+            .then((methodResult) => {
+              if (methodResult.result === "success") {
+                return setFid(methodResult.value as number);
+              }
+              return setFid(-1);
+            });
+        }
+      });
+  }, [
+    authenticatorManager,
+    authenticatorManager.lastUpdatedAt,
+    authenticatorName,
+    fidgetId,
+    hasRequestedSigner,
+  ]);
+
   useEffect(() => {
-    createFarcasterSignerFromAuthenticatorManager(
-      authenticatorManager,
-      fidgetId,
-      authenticatorName,
-    ).then((signer) => setSigner(signer));
-  }, [authenticatorManager.lastUpdatedAt]);
-  const [fid, setFid] = useState(-1);
-  useEffect(() => {
-    authenticatorManager
-      .callMethod({
+    if (!hasRequestedSigner || !signer || fid < 0) return;
+
+    const syncFidRegistration = async () => {
+      const publicKeyResult = await authenticatorManager.callMethod({
         requestingFidgetId: fidgetId,
         authenticatorId: FARCASTER_AUTHENTICATOR_NAME,
-        methodName: "getAccountFid",
+        methodName: "getSignerPublicKey",
         isLookup: true,
-      })
-      .then((methodResult) => {
-        if (methodResult.result === "success") {
-          return setFid(methodResult.value as number);
-        }
-        return setFid(-1);
       });
-  }, [authenticatorManager.lastUpdatedAt]);
+      const signForFid = async (messageHash: Uint8Array) => {
+        const signResult = await authenticatorManager.callMethod(
+          {
+            requestingFidgetId: fidgetId,
+            authenticatorId: FARCASTER_AUTHENTICATOR_NAME,
+            methodName: "signMessage",
+            isLookup: false,
+          },
+          messageHash,
+        );
+        return signResult.result === "success"
+          ? (signResult.value as Uint8Array)
+          : new Uint8Array();
+      };
+      if (publicKeyResult.result === "success") {
+        await registerFidForCurrentIdentity(
+          fid,
+          bytesToHex(publicKeyResult.value as Uint8Array),
+          signForFid,
+        );
+        await loadFids();
+      }
+    };
+
+    syncFidRegistration();
+  }, [
+    authenticatorManager,
+    authenticatorManager.lastUpdatedAt,
+    fid,
+    fidgetId,
+    hasRequestedSigner,
+    loadFids,
+    registerFidForCurrentIdentity,
+    signer,
+  ]);
 
   return {
     authenticatorManager,
     isLoadingSigner,
     signer,
     fid,
+    requestSignerAuthorization,
   };
 }

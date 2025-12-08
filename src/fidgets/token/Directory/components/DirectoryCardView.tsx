@@ -37,6 +37,7 @@ export type DirectoryCardViewProps = {
   includeFilter: DirectoryIncludeOption;
   viewerFid: number;
   signer: DirectoryFollowButtonProps["signer"];
+  requestSignerAuthorization?: () => Promise<void>;
 };
 
 export const DirectoryCardView: React.FC<DirectoryCardViewProps> = ({
@@ -49,6 +50,7 @@ export const DirectoryCardView: React.FC<DirectoryCardViewProps> = ({
   includeFilter,
   viewerFid,
   signer,
+  requestSignerAuthorization,
 }) => {
   return (
     <div className="grid grid-cols-1 gap-4 py-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -156,6 +158,7 @@ export const DirectoryCardView: React.FC<DirectoryCardViewProps> = ({
                 member={member}
                 viewerFid={viewerFid}
                 signer={signer}
+                requestSignerAuthorization={requestSignerAuthorization}
                 className="pointer-events-auto px-3 py-1 text-xs font-semibold"
               />
             </div>

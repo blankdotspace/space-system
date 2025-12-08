@@ -9,6 +9,7 @@ export type DirectoryFollowButtonProps = {
   viewerFid: number;
   signer: Parameters<typeof followUser>[2] | undefined;
   className?: string;
+  requestSignerAuthorization?: () => Promise<void>;
 };
 
 export const DirectoryFollowButton: React.FC<DirectoryFollowButtonProps> = ({
@@ -16,6 +17,7 @@ export const DirectoryFollowButton: React.FC<DirectoryFollowButtonProps> = ({
   viewerFid,
   signer,
   className,
+  requestSignerAuthorization,
 }) => {
   const { setModalOpen, getIsAccountReady } = useAppStore((state) => ({
     setModalOpen: state.setup.setModalOpen,
@@ -53,6 +55,9 @@ export const DirectoryFollowButton: React.FC<DirectoryFollowButtonProps> = ({
     }
 
     if (!signer || memberFid === null || viewerFid <= 0) {
+      if (requestSignerAuthorization) {
+        await requestSignerAuthorization();
+      }
       return;
     }
 
