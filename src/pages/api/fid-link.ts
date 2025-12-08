@@ -111,6 +111,11 @@ async function linkFidToIdentity(
     signature = reqBody.signature;
     signingKeyLastValidatedAt = moment().toISOString();
   }
+  const signingPublicKey = hasSigningKeyInfo ? reqBody.signingPublicKey : null;
+  const signature = hasSigningKeyInfo ? reqBody.signature ?? null : null;
+  const signingKeyLastValidatedAt = hasSigningKeyInfo
+    ? moment().toISOString()
+    : null;
   const { data: checkExistsData } = await createSupabaseServerClient()
     .from("fidRegistrations")
     .select("fid, created")
