@@ -19,10 +19,16 @@ export type FidLinkToIdentityRequest = {
 function isFidLinkToIdentityRequest(
   maybe: unknown,
 ): maybe is FidLinkToIdentityRequest {
+  if (maybe === null || typeof maybe !== "object" || Array.isArray(maybe)) {
+    return false;
+  }
+
+  const candidate = maybe as Record<string, unknown>;
+
   return (
-    typeof maybe["fid"] === "number" &&
-    typeof maybe["timestamp"] === "string" &&
-    typeof maybe["identityPublicKey"] === "string"
+    typeof candidate.fid === "number" &&
+    typeof candidate.timestamp === "string" &&
+    typeof candidate.identityPublicKey === "string"
   );
 }
 
