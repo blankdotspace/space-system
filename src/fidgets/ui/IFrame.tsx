@@ -1,18 +1,20 @@
+import CropControls from "@/common/components/molecules/CropControls";
+import HTMLInput from "@/common/components/molecules/HTMLInput";
 import IFrameWidthSlider from "@/common/components/molecules/IframeScaleSlider";
 import TextInput from "@/common/components/molecules/TextInput";
-import HTMLInput from "@/common/components/molecules/HTMLInput";
-import CropControls from "@/common/components/molecules/CropControls";
 import { FidgetArgs, FidgetModule, FidgetProperties, type FidgetSettingsStyle } from "@/common/fidgets";
-import useSafeUrl from "@/common/lib/hooks/useSafeUrl";
+import { useCurrentFid } from "@/common/lib/hooks/useCurrentFid";
 import { useIsMobile } from "@/common/lib/hooks/useIsMobile";
-import { debounce } from "lodash";
+import { useMiniAppSdk } from "@/common/lib/hooks/useMiniAppSdk";
+import useSafeUrl from "@/common/lib/hooks/useSafeUrl";
 import { isValidHttpUrl } from "@/common/lib/utils/url";
-import { defaultStyleFields, ErrorWrapper, transformUrl, WithMargin } from "@/fidgets/helpers";
-import React, { useEffect, useMemo, useState } from "react";
-import DOMPurify from "isomorphic-dompurify";
-import { BsCloud, BsCloudFill } from "react-icons/bs";
-import { useMiniApp } from "@/common/utils/useMiniApp";
 import { MINI_APP_PROVIDER_METADATA } from "@/common/providers/MiniAppSdkProvider";
+import { useMiniApp } from "@/common/utils/useMiniApp";
+import { ErrorWrapper, WithMargin, defaultStyleFields, transformUrl } from "@/fidgets/helpers";
+import DOMPurify from "isomorphic-dompurify";
+import { debounce } from "lodash";
+import React, { useEffect, useMemo, useState } from "react";
+import { BsCloud, BsCloudFill } from "react-icons/bs";
 
 const DEFAULT_SANDBOX_RULES =
   "allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox";
@@ -89,9 +91,30 @@ const resolveAllowedEmbedSrc = (src?: string | null): string | null => {
 
 type IframeAttributeMap = Record<string, string>;
 
-const createMiniAppBootstrapSrcDoc = (targetUrl: string) => {
+const createMiniAppBootstrapSrcDoc = (
+  targetUrl: string,
+  fid?: number | null,
+  userContext?: any
+) => {
   const safeTargetUrl = sanitizeMiniAppNavigationTarget(targetUrl);
   const iconPath = MINI_APP_PROVIDER_METADATA.iconPath;
+  
+  // Add FID to URL if provided (for optimistic sign-in support)
+  let finalUrl = safeTargetUrl;
+  if (fid && safeTargetUrl && safeTargetUrl !== "about:blank") {
+    try {
+      const url = new URL(safeTargetUrl);
+      // Only add fid if not already present
+      if (!url.searchParams.has('fid')) {
+        url.searchParams.set('fid', fid.toString());
+      }
+      finalUrl = url.toString();
+    } catch (e) {
+      // If URL parsing fails, use original
+      finalUrl = safeTargetUrl;
+    }
+  }
+
   const providerInfoScript = `
         var providerInfo = parentWindow.__nounspaceMiniAppProviderInfo;
         if (!providerInfo) {
@@ -110,33 +133,85 @@ const createMiniAppBootstrapSrcDoc = (targetUrl: string) => {
         }
       `;
 
+  // Script to expose user context via postMessage
+  const userContextScript = userContext || fid
+    ? `
+        // Expose user context for mini-apps that support optimistic sign-in
+        var userContext = {
+          ${fid ? `fid: ${fid},` : ''}
+          ${userContext ? `context: ${JSON.stringify(userContext)},` : ''}
+          timestamp: Date.now()
+        };
+        
+        // Make context available on window for direct access
+        window.__farcasterUserContext = userContext;
+        
+        // Also expose via postMessage for cross-origin communication
+        if (window.parent && window.parent !== window) {
+          try {
+            window.parent.postMessage({
+              type: 'farcaster:userContext',
+              data: userContext
+            }, '*');
+          } catch (e) {
+            console.warn('Failed to post user context:', e);
+          }
+        }
+      `
+    : '';
+
   return `<!DOCTYPE html><html><head><meta charset="utf-8" /></head><body><script>(function(){
       try {
         var parentWindow = window.parent;
         if (!parentWindow) {
           return;
         }
+        
+        // Setup Ethereum provider for wallet interactions
         var provider = parentWindow.__nounspaceMiniAppEthProvider;
         if (provider) {
+          // Make provider available globally
           window.ethereum = provider;
+          
           ${providerInfoScript}
+          
+          // EIP-6963 provider announcement for wallet discovery
           var announce = function() {
-            var detail = {
-              info: providerInfo,
-              provider: provider
-            };
-            window.dispatchEvent(new CustomEvent("eip6963:announceProvider", { detail: detail }));
+            try {
+              var detail = Object.freeze({
+                info: Object.freeze(providerInfo),
+                provider: provider
+              });
+              window.dispatchEvent(new CustomEvent("eip6963:announceProvider", { detail: detail }));
+            } catch (e) {
+              console.warn("Failed to announce provider:", e);
+            }
           };
+          
+          // Initialize Ethereum provider
           window.dispatchEvent(new Event("ethereum#initialized"));
           announce();
+          
+          // Listen for provider requests
           window.addEventListener("eip6963:requestProvider", announce);
+          
+          // Also listen for legacy ethereum requests
+          window.addEventListener("ethereum#requestProvider", announce);
         }
+        
+        ${userContextScript}
+        
+        // Expose helper function for mini-apps to check if wallet is available
+        window.__nounspaceHasWallet = !!provider;
+        
       } catch (err) {
         console.error("Mini app provider bootstrap failed", err);
       }
+      
+      // Navigate to target URL after setup
       setTimeout(function(){
-        var target = ${JSON.stringify(safeTargetUrl)};
-        if (target) {
+        var target = ${JSON.stringify(finalUrl)};
+        if (target && target !== "about:blank") {
           window.location.replace(target);
         }
       }, 0);
@@ -311,6 +386,22 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
 
   const { isInMiniApp } = useMiniApp();
   const isMiniAppEnvironment = isInMiniApp === true;
+  
+  // Get FID and user context for mini-apps
+  const currentFid = useCurrentFid();
+  const { userContext, context: miniAppContext } = useMiniAppSdk();
+  
+  // Get FID from SDK context if available (when running as mini-app), otherwise use current FID
+  // The SDK context provides the FID when the app is running inside a Farcaster client
+  const fidForMiniApp = miniAppContext?.user?.fid || currentFid;
+  
+  // Prepare user context data for passing to mini-apps
+  // Only include fields that are available in the UserContext type
+  const userContextData = userContext ? {
+    fid: userContext.fid,
+    ...(userContext.username && { username: userContext.username }),
+    ...(userContext.displayName && { displayName: userContext.displayName }),
+  } : (fidForMiniApp ? { fid: fidForMiniApp } : null);
 
   const [sanitizedEmbedAttributes, setSanitizedEmbedAttributes] =
     useState<IframeAttributeMap | null>(null);
@@ -381,7 +472,7 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
       const safeSrc = new URL(iframelyEmbedAttributes.src).toString();
       return {
         safeSrc,
-        bootstrapDoc: createMiniAppBootstrapSrcDoc(safeSrc),
+        bootstrapDoc: createMiniAppBootstrapSrcDoc(safeSrc, fidForMiniApp, userContextData),
         allowFullScreen: "allowfullscreen" in iframelyEmbedAttributes,
         sandboxRules: ensureSandboxRules(iframelyEmbedAttributes.sandbox),
         widthAttr: iframelyEmbedAttributes.width,
@@ -391,7 +482,7 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
       console.warn("Rejected unsupported IFramely iframe src", error);
       return null;
     }
-  }, [isMiniAppEnvironment, iframelyEmbedAttributes]);
+  }, [isMiniAppEnvironment, iframelyEmbedAttributes, fidForMiniApp, userContextData]);
 
   const isValid = isValidHttpUrl(debouncedUrl);
   const sanitizedUrl = useSafeUrl(debouncedUrl);
@@ -473,8 +564,8 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
       return null;
     }
 
-    return createMiniAppBootstrapSrcDoc(resolvedSanitizedMiniAppSrc);
-  }, [resolvedSanitizedMiniAppSrc]);
+    return createMiniAppBootstrapSrcDoc(resolvedSanitizedMiniAppSrc, fidForMiniApp, userContextData);
+  }, [resolvedSanitizedMiniAppSrc, fidForMiniApp, userContextData]);
 
   if (sanitizedEmbedScript) {
     if (
@@ -655,7 +746,7 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
 
   if (embedInfo.directEmbed && transformedUrl) {
     const miniAppBootstrapDoc = isMiniAppEnvironment
-      ? createMiniAppBootstrapSrcDoc(transformedUrl)
+      ? createMiniAppBootstrapSrcDoc(transformedUrl, fidForMiniApp, userContextData)
       : null;
 
     return (

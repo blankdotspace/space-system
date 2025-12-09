@@ -12,6 +12,8 @@ import { defaultStyleFields, ErrorWrapper } from "@/fidgets/helpers";
 import SwitchButton from "@/common/components/molecules/SwitchButton";
 import { BsCloud, BsCloudFill } from "react-icons/bs";
 import FrameRenderer from "./FrameRenderer";
+import { useCurrentFid } from "@/common/lib/hooks/useCurrentFid";
+import { useMiniAppSdk } from "@/common/lib/hooks/useMiniAppSdk";
 
 export type FramesFidgetSettings = {
   url: string;
@@ -97,6 +99,14 @@ const frameConfig: FidgetProperties = {
 const FramesFidget: React.FC<FidgetArgs<FramesFidgetSettings>> = ({
   settings: { url, collapsed = false, title, headingFont },
 }) => {
+  // Get FID for frame authentication
+  const currentFid = useCurrentFid();
+  const { context: miniAppContext } = useMiniAppSdk();
+  
+  // Get FID from SDK context if available (when running as mini-app), otherwise use current FID
+  const fid = miniAppContext?.user?.fid || currentFid;
+  const isConnected = !!fid;
+
   if (!url) {
     return (
       <ErrorWrapper icon="➕" message="Provide a Frame URL to display here." />
@@ -105,10 +115,12 @@ const FramesFidget: React.FC<FidgetArgs<FramesFidgetSettings>> = ({
   if (!isValidUrl(url)) {
     return <ErrorWrapper icon="❌" message={`This URL is invalid (${url}).`} />;
   }
-  // Pass the URL and collapsed state as props to FrameRenderer
+  // Pass the URL, FID, and collapsed state as props to FrameRenderer
   return (
     <FrameRenderer
       frameUrl={url}
+      fid={fid}
+      isConnected={isConnected}
       collapsed={collapsed}
       title={title}
       headingFont={headingFont}
