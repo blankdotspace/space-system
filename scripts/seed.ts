@@ -243,11 +243,15 @@ async function seedCommunityConfigs(assetsUrls: Record<string, string>) {
   }
 
   // Nouns config
+  // Note: Add identityPublicKey values to admin_identity_public_keys to allow users to edit nav pages
+  // You can find a user's identityPublicKey in the browser devtools: 
+  // localStorage.getItem('nounspace-app-store') -> account.currentSpaceIdentityPublicKey
   const { error: nounsError } = await supabase
     .from('community_configs')
     .upsert({
       community_id: 'nouns',
       is_published: true,
+      admin_identity_public_keys: [], // Add admin identityPublicKey values here
       brand_config: {
         name: 'Nouns',
         displayName: 'Nouns',
@@ -380,6 +384,7 @@ async function seedCommunityConfigs(assetsUrls: Record<string, string>) {
   const { error: exampleError } = await supabase.from('community_configs').upsert({
     community_id: 'example',
     is_published: true,
+    admin_identity_public_keys: [],
     brand_config: {
       name: 'Example',
       displayName: 'Example Community',
@@ -492,6 +497,7 @@ async function seedCommunityConfigs(assetsUrls: Record<string, string>) {
   const { error: clankerError } = await supabase.from('community_configs').upsert({
     community_id: 'clanker',
     is_published: true,
+    admin_identity_public_keys: [],
     brand_config: {
       name: 'clanker',
       displayName: 'Clanker',

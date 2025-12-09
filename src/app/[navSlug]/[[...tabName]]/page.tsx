@@ -165,6 +165,8 @@ export default async function NavPage({
       pageConfig={pageConfig}
       activeTabName={activeTabName}
       navSlug={navSlug}
+      spaceId={navItem.spaceId}
+      adminIdentityPublicKeys={config.adminIdentityPublicKeys ?? []}
     />
   );
 }
