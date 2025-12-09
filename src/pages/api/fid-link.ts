@@ -1,7 +1,7 @@
 import requestHandler, {
   NounspaceResponse,
 } from "@/common/data/api/requestHandler";
-import { isSignable, validateSignable } from "@/common/lib/signedFiles";
+import { validateSignable } from "@/common/lib/signedFiles";
 import { NextApiRequest, NextApiResponse } from "next";
 import neynar from "@/common/data/api/neynar";
 import createSupabaseServerClient from "@/common/data/database/supabase/clients/server";
@@ -66,7 +66,25 @@ async function linkFidToIdentity(
     return;
   }
   const hasSigningKeyInfo = !!reqBody.signingPublicKey;
-  if (hasSigningKeyInfo && !validateSignable(reqBody, "signingPublicKey")) {
+  if (hasSigningKeyInfo && typeof reqBody.signature !== "string") {
+    res.status(400).json({
+      result: "error",
+      error: {
+        message: "Invalid signature",
+      },
+    });
+    return;
+  }
+  if (
+    hasSigningKeyInfo &&
+    !validateSignable(
+      {
+        ...reqBody,
+        signature: reqBody.signature,
+      },
+      "signingPublicKey",
+    )
+  ) {
     res.status(400).json({
       result: "error",
       error: {
