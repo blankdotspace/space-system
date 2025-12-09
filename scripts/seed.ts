@@ -27,6 +27,22 @@
  *   - scripts/check-seeding.ts (integrated)
  */
 
+// Load environment variables from .env file
+import dotenv from 'dotenv';
+import { existsSync } from 'fs';
+import { resolve } from 'path';
+
+// Try to load .env files in order of priority
+const envFiles = ['.env.local', '.env.development.local', '.env'];
+for (const envFile of envFiles) {
+  const envPath = resolve(process.cwd(), envFile);
+  if (existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+    console.log(`📁 Loaded environment from ${envFile}`);
+    break;
+  }
+}
+
 import { createClient } from '@supabase/supabase-js';
 import { readFile } from 'fs/promises';
 import { join, dirname } from 'path';
@@ -636,17 +652,18 @@ function createSystemSignedFile(fileData: string): SignedFile {
 }
 
 /**
- * Creates a SignedFile for tab order
+ * Creates tab order data in the format expected by the app
+ * NOTE: Tab order is NOT wrapped in a SignedFile like tabs are.
+ * The app saves tab order directly as a signed request object.
  */
-function createTabOrderSignedFile(spaceId: string, tabOrder: string[]): SignedFile {
-  const tabOrderData = {
+function createTabOrderData(spaceId: string, tabOrder: string[]) {
+  return {
     spaceId,
     timestamp: moment().toISOString(),
     tabOrder,
     publicKey: 'nounspace',
     signature: 'not applicable, machine generated file',
   };
-  return createSystemSignedFile(stringify(tabOrderData));
 }
 
 /**
@@ -673,14 +690,15 @@ async function uploadTab(spaceId: string, tabName: string, tabConfig: SpaceConfi
 
 /**
  * Uploads tab order to Supabase Storage
+ * NOTE: Tab order is saved directly (not wrapped in SignedFile) to match app format
  */
 async function uploadTabOrder(spaceId: string, tabOrder: string[]): Promise<boolean> {
-  const signedFile = createTabOrderSignedFile(spaceId, tabOrder);
+  const tabOrderData = createTabOrderData(spaceId, tabOrder);
   const filePath = `${spaceId}/tabOrder`;
 
   const { error } = await supabase.storage
     .from('spaces')
-    .upload(filePath, new Blob([stringify(signedFile)], { type: 'application/json' }), {
+    .upload(filePath, new Blob([stringify(tabOrderData)], { type: 'application/json' }), {
       upsert: true,
     });
 

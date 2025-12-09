@@ -9,6 +9,7 @@ export const SPACE_TYPES = {
   TOKEN: 'token',
   PROPOSAL: 'proposal',
   CHANNEL: 'channel',
+  NAV_PAGE: 'navPage',
 } as const;
 
 // TypeScript type derived from the constants (for type checking)
@@ -73,12 +74,21 @@ export interface ChannelSpacePageData extends SpacePageData {
   identityPublicKey?: string;
 }
 
+export interface NavPageSpacePageData extends SpacePageData {
+  spaceType: typeof SPACE_TYPES.NAV_PAGE;
+  // navSlug is the URL path segment (e.g., 'home', 'explore')
+  navSlug: string;
+  // Admin identity public keys that can edit this space
+  adminIdentityPublicKeys: string[];
+}
+
 // Union type for all spaces
 export type Space =
   | ProfileSpacePageData
   | TokenSpacePageData
   | ProposalSpacePageData
-  | ChannelSpacePageData;
+  | ChannelSpacePageData
+  | NavPageSpacePageData;
 
 // Type guards (actual TypeScript type guards that narrow types)
 export function isProfileSpace(space: SpacePageData): space is ProfileSpacePageData {
@@ -95,5 +105,9 @@ export function isProposalSpace(space: SpacePageData): space is ProposalSpacePag
 
 export function isChannelSpace(space: SpacePageData): space is ChannelSpacePageData {
   return space.spaceType === SPACE_TYPES.CHANNEL;
+}
+
+export function isNavPageSpace(space: SpacePageData): space is NavPageSpacePageData {
+  return space.spaceType === SPACE_TYPES.NAV_PAGE;
 }
 
