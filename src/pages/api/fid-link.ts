@@ -116,6 +116,60 @@ async function linkFidToIdentity(
   const signingKeyLastValidatedAt = hasSigningKeyInfo
     ? moment().toISOString()
     : null;
+  let signature: string | null = null;
+  let signingPublicKey: string | null = null;
+  let signingKeyLastValidatedAt: string | null = null;
+  if (hasSigningKeyInfo) {
+    if (typeof reqBody.signature !== "string") {
+      res.status(400).json({
+        result: "error",
+        error: {
+          message: "Invalid signature",
+        },
+      });
+      return;
+    }
+    if (typeof reqBody.signingPublicKey !== "string") {
+      res.status(400).json({
+        result: "error",
+        error: {
+          message: "Invalid signingPublicKey",
+        },
+      });
+      return;
+    }
+    if (
+      !validateSignable(
+        {
+          ...reqBody,
+          signature: reqBody.signature,
+        },
+        "signingPublicKey",
+      )
+    ) {
+      res.status(400).json({
+        result: "error",
+        error: {
+          message: "Invalid signature",
+        },
+      });
+      return;
+    }
+    if (
+      !(await checkSigningKeyValidForFid(reqBody.fid, reqBody.signingPublicKey))
+    ) {
+      res.status(400).json({
+        result: "error",
+        error: {
+          message: `Signing key ${reqBody.signingPublicKey} is not valid for fid ${reqBody.fid}`,
+        },
+      });
+      return;
+    }
+    signingPublicKey = reqBody.signingPublicKey;
+    signature = reqBody.signature;
+    signingKeyLastValidatedAt = moment().toISOString();
+  }
   const { data: checkExistsData } = await createSupabaseServerClient()
     .from("fidRegistrations")
     .select("fid, created")
