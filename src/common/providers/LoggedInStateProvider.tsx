@@ -212,9 +212,14 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
   }
 
   const installRequiredAuthenticators = async () => {
-    await authenticatorManager.installAuthenticators(requiredAuthenticators);
-    authenticatorManager.initializeAuthenticators(requiredAuthenticators);
-    setCurrentStep(SetupStep.REQUIRED_AUTHENTICATORS_INSTALLED);
+    if (requiredAuthenticators.length > 0) {
+      await authenticatorManager.installAuthenticators(requiredAuthenticators);
+      authenticatorManager.initializeAuthenticators(requiredAuthenticators);
+      setCurrentStep(SetupStep.REQUIRED_AUTHENTICATORS_INSTALLED);
+    } else {
+      // If no required authenticators, skip directly to initialized
+      setCurrentStep(SetupStep.AUTHENTICATORS_INITIALIZED);
+    }
   };
 
   const registerAccounts = async () => {
