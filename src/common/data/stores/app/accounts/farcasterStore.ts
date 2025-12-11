@@ -88,13 +88,28 @@ export const farcasterStore = (
           ),
         }
       : baseRequest;
-    const { data } = await axiosBackend.post<FidLinkToIdentityResponse>(
-      "/api/fid-link",
-      signedRequest,
-    );
-    if (!isUndefined(data.value)) {
-      get().account.addFidToCurrentIdentity(data.value!.fid);
-      analytics.track(AnalyticsEvent.LINK_FID, { fid });
+    console.log("[registerFidForCurrentIdentity] Request payload:", {
+      fid: signedRequest.fid,
+      hasSigningPublicKey: !!signedRequest.signingPublicKey,
+      hasSignature: !!signedRequest.signature,
+    });
+    try {
+      const { data } = await axiosBackend.post<FidLinkToIdentityResponse>(
+        "/api/fid-link",
+        signedRequest,
+      );
+      console.log("[registerFidForCurrentIdentity] API response:", data);
+      if (!isUndefined(data.value)) {
+        get().account.addFidToCurrentIdentity(data.value!.fid);
+        analytics.track(AnalyticsEvent.LINK_FID, { fid });
+        console.log("[registerFidForCurrentIdentity] Successfully registered FID:", data.value.fid);
+      } else {
+        console.warn("[registerFidForCurrentIdentity] API response has no value:", data);
+      }
+    } catch (error: any) {
+      console.error("[registerFidForCurrentIdentity] Error:", error);
+      console.error("[registerFidForCurrentIdentity] Error response:", error.response?.data);
+      throw error;
     }
   },
 });

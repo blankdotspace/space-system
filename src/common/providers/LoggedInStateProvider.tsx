@@ -135,55 +135,47 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
 
   const inferFidFromWallet = async (): Promise<number | undefined> => {
     if (!user?.wallet?.address) {
+      console.log("[inferFidFromWallet] No wallet address available");
       return undefined;
     }
     try {
+      console.log("[inferFidFromWallet] Fetching FID for wallet:", user.wallet.address);
       const response = await fetch(
         `/api/farcaster/neynar/users?addresses=${user.wallet.address}`,
       );
       if (!response.ok) {
+        console.log("[inferFidFromWallet] API response not OK:", response.status, response.statusText);
         return undefined;
       }
       const data = await response.json();
+      console.log("[inferFidFromWallet] API response data:", data);
       const users = data?.users ?? [];
-      if (users.length === 0) {
-        return undefined;
-      }
-      
       const walletLower = user.wallet.address.toLowerCase();
       const matchingUser = users.find((u: any) => {
-        const verified = u.verified_addresses;
-        const addressCandidates = [
-          verified?.primary?.eth_address,
-          ...(verified?.eth_addresses ?? []),
-          ...(verified?.sol_addresses ?? []),
-          u?.custody_address,
-        ];
-
-        if (
-          addressCandidates.some(
-            (addr) => typeof addr === "string" && addr.toLowerCase() === walletLower,
-          )
-        ) {
+        // Check verified_addresses.primary.eth_address
+        if (u.verified_addresses?.primary?.eth_address?.toLowerCase() === walletLower) {
           return true;
         }
-
-        if (
-          u.verifications?.some(
-            (addr: string) => addr.toLowerCase() === walletLower,
-          )
-        ) {
+        // Check verified_addresses.eth_addresses array
+        if (u.verified_addresses?.eth_addresses?.some(
+          (addr: string) => addr.toLowerCase() === walletLower
+        )) {
           return true;
         }
-
+        // Check verifications array (fallback)
+        if (u.verifications?.some(
+          (addr: string) => addr.toLowerCase() === walletLower
+        )) {
+          return true;
+        }
         return false;
       });
-
-      if (!matchingUser) {
-        return undefined;
-      }
-      return matchingUser.fid;
+      
+      const fid = matchingUser?.fid ?? users[0]?.fid;
+      console.log("[inferFidFromWallet] Found FID:", fid, "from matching user:", !!matchingUser);
+      return fid;
     } catch (e) {
+      console.error("[inferFidFromWallet] Error inferring FID from wallet:", e);
       console.error("[inferFidFromWallet] Error inferring FID from wallet:", e);
       return undefined;
     }
@@ -228,24 +220,34 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
 
   const registerAccounts = async () => {
     let currentIdentity = getCurrentIdentity()!;
+    console.log("[registerAccounts] Starting, current FIDs:", currentIdentity.associatedFids);
     if (currentIdentity.associatedFids.length > 0) {
+      console.log("[registerAccounts] FIDs already exist, skipping registration");
       setCurrentStep(SetupStep.ACCOUNTS_REGISTERED);
     } else {
+      console.log("[registerAccounts] No FIDs found, loading from server...");
       await loadFidsForCurrentIdentity();
       currentIdentity = getCurrentIdentity()!;
+      console.log("[registerAccounts] After loadFidsForCurrentIdentity, FIDs:", currentIdentity.associatedFids);
       if (currentIdentity.associatedFids.length === 0) {
+        console.log("[registerAccounts] No FIDs from server, attempting to infer from wallet...");
         const fidFromWallet = await inferFidFromWallet();
+        console.log("[registerAccounts] Inferred FID from wallet:", fidFromWallet);
         if (!isUndefined(fidFromWallet)) {
           try {
+            console.log("[registerAccounts] Registering FID without signer:", fidFromWallet);
             await registerFidForCurrentIdentity(fidFromWallet);
+            console.log("[registerAccounts] FID registered, reloading...");
             await loadFidsForCurrentIdentity();
             currentIdentity = getCurrentIdentity()!;
+            console.log("[registerAccounts] After registration, FIDs:", currentIdentity.associatedFids);
           } catch (e) {
             console.error("[registerAccounts] Error registering FID from wallet:", e);
             // Continue to fallback flow if registration fails
           }
         }
         if (currentIdentity.associatedFids.length === 0) {
+          console.log("[registerAccounts] No FID found/inferred, falling back to signer flow...");
           await authenticatorManager.installAuthenticators([
             FARCASTER_AUTHENTICATOR_NAME,
           ]);
@@ -283,10 +285,9 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
               fidResult.value,
               bytesToHex(publicKeyResult.value),
               signForFid,
-              );
-              await loadFidsForCurrentIdentity();
+            );
             } catch (e) {
-              console.error("[registerAccounts] Error registering FID with signer:", e);
+              console.error("Error registering FID with signer:", e);
             }
           }
         }
