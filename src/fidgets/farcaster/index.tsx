@@ -130,6 +130,7 @@ export function useFarcasterSigner(
     if (!hasRequestedSigner || !signer || fid < 0) return;
 
     const syncFidRegistration = async () => {
+    try {
       const publicKeyResult = await authenticatorManager.callMethod({
         requestingFidgetId: fidgetId,
         authenticatorId: FARCASTER_AUTHENTICATOR_NAME,
@@ -157,6 +158,9 @@ export function useFarcasterSigner(
           signForFid,
         );
         await loadFids();
+        }
+      } catch (error) {
+        console.error("Error syncing FID registration with signer:", error);
       }
     };
 
