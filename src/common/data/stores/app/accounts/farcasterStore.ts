@@ -59,28 +59,45 @@ export const farcasterStore = (
     }
   },
   registerFidForCurrentIdentity: async (fid, signingKey, signMessage) => {
+    console.log("[registerFidForCurrentIdentity] Starting registration:", { fid, hasSigningKey: !!signingKey });
+    if (signingKey && !signMessage) {
+      throw new Error("signMessage is required when signingKey is provided");
+    }
     const baseRequest: FidLinkToIdentityRequest = {
       fid,
       identityPublicKey: get().account.currentSpaceIdentityPublicKey!,
       timestamp: moment().toISOString(),
-      signingPublicKey: signingKey,
+      signingPublicKey: signingKey ?? null,
+      signature: null,
     };
-    if (signingKey && !signMessage) {
-      throw new Error("signMessage is required when signingKey is provided");
-    }
     const signedRequest: FidLinkToIdentityRequest = signingKey
       ? {
           ...baseRequest,
           signature: bytesToHex(await signMessage!(hashObject(baseRequest))),
         }
       : baseRequest;
-    const { data } = await axiosBackend.post<FidLinkToIdentityResponse>(
-      "/api/fid-link",
-      signedRequest,
-    );
-    if (!isUndefined(data.value)) {
-      get().account.addFidToCurrentIdentity(data.value!.fid);
-      analytics.track(AnalyticsEvent.LINK_FID, { fid });
+    console.log("[registerFidForCurrentIdentity] Request payload:", {
+      fid: signedRequest.fid,
+      hasSigningPublicKey: !!signedRequest.signingPublicKey,
+      hasSignature: !!signedRequest.signature,
+    });
+    try {
+      const { data } = await axiosBackend.post<FidLinkToIdentityResponse>(
+        "/api/fid-link",
+        signedRequest,
+      );
+      console.log("[registerFidForCurrentIdentity] API response:", data);
+      if (!isUndefined(data.value)) {
+        get().account.addFidToCurrentIdentity(data.value!.fid);
+        analytics.track(AnalyticsEvent.LINK_FID, { fid });
+        console.log("[registerFidForCurrentIdentity] Successfully registered FID:", data.value.fid);
+      } else {
+        console.warn("[registerFidForCurrentIdentity] API response has no value:", data);
+      }
+    } catch (error: any) {
+      console.error("[registerFidForCurrentIdentity] Error:", error);
+      console.error("[registerFidForCurrentIdentity] Error response:", error.response?.data);
+      throw error;
     }
   },
 });
