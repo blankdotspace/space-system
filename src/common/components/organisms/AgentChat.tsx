@@ -31,6 +31,7 @@ import {
   type IncomingMessage,
 } from "@/common/lib/services/websocket";
 import html2canvas from "html2canvas";
+import { v4 as uuidv4 } from "uuid";
 
 // Configuration constants
 const AI_CHAT_CONFIG = {
@@ -220,6 +221,7 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
     addMessage,
     updateMessage,
     initializeWithWelcome,
+    setLoading,
   } = useAppStore((state) => ({
     checkpoints: state.checkpoints.checkpoints,
     isRestoring: state.checkpoints.isRestoring,
@@ -229,6 +231,7 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
     addMessage: state.chat.addMessage,
     updateMessage: state.chat.updateMessage,
     initializeWithWelcome: state.chat.initializeWithWelcome,
+    setLoading: state.chat.setLoading,
   }));
 
   // Function to get fresh space context when needed
@@ -284,10 +287,12 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
     initializeWithWelcome();
   }, [initializeWithWelcome]);
   const [inputValue, setInputValue] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadingType, setLoadingType] = useState<
-    "thinking" | "building" | null
-  >(null);
+  
+  // Get loading state from store
+  const { isLoading, loadingType } = useAppStore((state) => ({
+    isLoading: state.chat.isLoading,
+    loadingType: state.chat.loadingType,
+  }));
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>("disconnected");
   const [hasCreatedFirstUserCheckpoint, setHasCreatedFirstUserCheckpoint] = useState(false);
@@ -397,17 +402,53 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
 
   // Automatically apply config and create checkpoint
   const autoApplyConfig = async (spaceConfig: SpaceConfig, messageId: string) => {
-    if (!onApplySpaceConfig) return;
+    if (!onApplySpaceConfig) {
+      setLoading(false, null);
+      return;
+    }
 
     try {
-      // Extract layoutConfig using the utility function for both new and old formats
+      // Generate unique IDs for each fidget to avoid collisions
+      const fidgetInstanceDatums = spaceConfig.fidgetInstanceDatums || {};
       const layoutConfigData = getLayoutConfig(spaceConfig.layoutDetails);
+      const layout = layoutConfigData?.layout || [];
+      
+      // Create a mapping from old IDs to new unique IDs
+      const idMapping: Record<string, string> = {};
+      const newFidgetInstanceDatums: typeof fidgetInstanceDatums = {};
+      
+      // Generate unique IDs for each fidget
+      for (const [oldId, fidgetData] of Object.entries(fidgetInstanceDatums)) {
+        const newId = uuidv4();
+        idMapping[oldId] = newId;
+        newFidgetInstanceDatums[newId] = {
+          ...fidgetData,
+          id: newId,
+        };
+      }
+      
+      // Update layout items with new IDs
+      const newLayout = layout.map((item) => {
+        if (item.i && idMapping[item.i]) {
+          return {
+            ...item,
+            i: idMapping[item.i],
+          };
+        }
+        return item;
+      });
+      
+      // Update layoutConfigData with new layout
+      const updatedLayoutConfigData = {
+        ...layoutConfigData,
+        layout: newLayout,
+      };
 
       // Convert SpaceConfig to the format expected by saveLocalConfig
       const saveDetails = {
         theme: spaceConfig.theme,
-        layoutConfig: layoutConfigData,
-        fidgetInstanceDatums: spaceConfig.fidgetInstanceDatums,
+        layoutConfig: updatedLayoutConfigData,
+        fidgetInstanceDatums: newFidgetInstanceDatums,
         fidgetTrayContents: spaceConfig.fidgetTrayContents,
       };
 
@@ -423,8 +464,8 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
       // Create checkpoint directly from the AI's spaceConfig (what was just applied)
       // Transform AI config format to checkpoint format
       const checkpointConfig = {
-        fidgetInstanceDatums: spaceConfig.fidgetInstanceDatums,
-        layoutConfig: getLayoutConfig(spaceConfig.layoutDetails),
+        fidgetInstanceDatums: newFidgetInstanceDatums,
+        layoutConfig: updatedLayoutConfigData,
         theme: spaceConfig.theme,
       };
 
@@ -516,13 +557,11 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
   ) => {
     addMessage(message);
     if (shouldStopLoading) {
-      setIsLoading(false);
-      setLoadingType(null);
+      setLoading(false, null);
     } else if (newLoadingType !== undefined) {
-      setLoadingType(newLoadingType);
-      setIsLoading(true);
+      setLoading(true, newLoadingType);
     }
-  }, [addMessage]);
+  }, [addMessage, setLoading]);
 
   // Handle pong messages
   const handlePongMessage = useCallback(() => {
@@ -563,8 +602,11 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
         builderResponse: wsMessage as BuilderResponse,
         configApplied: true,
       };
-      addMessageAndUpdateState(aiMessage, true);
-      autoApplyConfig(spaceConfig, aiMessage.id);
+      addMessageAndUpdateState(aiMessage, false, "building");
+      // Keep loading until autoApplyConfig completes
+      autoApplyConfig(spaceConfig, aiMessage.id).finally(() => {
+        setLoading(false, null);
+      });
     } else {
       const aiMessage: Message = {
         id: createMessageId("ai"),
@@ -576,7 +618,7 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
       };
       addMessageAndUpdateState(aiMessage, true);
     }
-  }, [tryParseSpaceConfig, createMessageId, addMessageAndUpdateState, autoApplyConfig]);
+  }, [tryParseSpaceConfig, createMessageId, addMessageAndUpdateState, autoApplyConfig, setLoading]);
 
   // Handle builder logs (with potential config)
   const handleBuilderLogsMessage = useCallback((wsMessage: IncomingMessage) => {
@@ -598,13 +640,16 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
     };
 
     if (spaceConfig) {
-      addMessageAndUpdateState(logMessage, true);
+      addMessageAndUpdateState(logMessage, false, "building");
       toast.success("🎨 New space configuration created!");
-      autoApplyConfig(spaceConfig, logMessage.id);
+      // Keep loading until autoApplyConfig completes
+      autoApplyConfig(spaceConfig, logMessage.id).finally(() => {
+        setLoading(false, null);
+      });
     } else {
       addMessageAndUpdateState(logMessage, false, "building");
     }
-  }, [tryParseSpaceConfig, createMessageId, addMessageAndUpdateState, autoApplyConfig]);
+  }, [tryParseSpaceConfig, createMessageId, addMessageAndUpdateState, autoApplyConfig, setLoading]);
 
   // Handle other log messages
   const handleLogMessage = useCallback((
@@ -709,7 +754,7 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
       addMessage(firstCheckpointMessage);
     }
     setInputValue("");
-    setIsLoading(true);
+    setLoading(true, null);
 
     try {
       // Send message via WebSocket with FRESH context
@@ -744,8 +789,7 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
       toast.error(
         "Failed to send message. Please check your connection and try again."
       );
-      setIsLoading(false);
-      setLoadingType(null);
+      setLoading(false, null);
     }
   };
 

@@ -19,6 +19,8 @@ export interface ChatMessage {
 interface ChatStoreState {
   messages: ChatMessage[];
   maxMessages: number;
+  isLoading: boolean;
+  loadingType: "thinking" | "building" | null;
 }
 
 interface ChatStoreActions {
@@ -27,6 +29,7 @@ interface ChatStoreActions {
   clearMessages: () => void;
   updateMessage: (messageId: string, updates: Partial<ChatMessage>) => void;
   initializeWithWelcome: () => void;
+  setLoading: (isLoading: boolean, loadingType?: "thinking" | "building" | null) => void;
 }
 
 export type ChatStore = ChatStoreState & ChatStoreActions;
@@ -49,6 +52,8 @@ What would you like to customize today?`,
 export const chatStoreDefaults: ChatStoreState = {
   messages: [WELCOME_MESSAGE],
   maxMessages: 100, // Keep last 100 messages to avoid memory bloat
+  isLoading: false,
+  loadingType: null,
 };
 
 export const createChatStoreFunc = (
@@ -125,10 +130,19 @@ export const createChatStoreFunc = (
       }, "initializeWithWelcome");
     }
   },
+
+  setLoading: (isLoading, loadingType = null) => {
+    set((draft) => {
+      draft.chat.isLoading = isLoading;
+      draft.chat.loadingType = loadingType;
+    }, "setLoading");
+  },
 });
 
 export function partializedChatStore(state: AppStore) {
   return {
     messages: state.chat.messages,
+    isLoading: state.chat.isLoading,
+    loadingType: state.chat.loadingType,
   };
 } 

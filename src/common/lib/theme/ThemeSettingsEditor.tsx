@@ -22,6 +22,7 @@ import {
 import { ThemeEditorTab } from "@/common/lib/theme/types";
 import { analytics } from "@/common/providers/AnalyticsProvider";
 import { useMobilePreview } from "@/common/providers/MobilePreviewProvider";
+import { getLayoutConfig } from "@/common/utils/layoutFormatUtils";
 import { DEFAULT_FIDGET_ICON_MAP } from "@/constants/mobileFidgetIcons";
 import { THEMES } from "@/constants/themes";
 import { CompleteFidgets } from "@/fidgets";
@@ -29,13 +30,14 @@ import { SparklesIcon } from "@heroicons/react/24/solid";
 import { useCallback, useEffect, useState } from "react";
 import { FaFloppyDisk, FaTriangleExclamation, FaX } from "react-icons/fa6";
 import { MdMenuBook } from "react-icons/md";
+import { v4 as uuidv4 } from "uuid";
+import { BackgroundGenerator } from "./BackgroundGenerator";
 import CodeTabContent from "./components/CodeTabContent";
 import MobileTabContent from "./components/MobileTabContent";
 import SpaceTabContent from "./components/SpaceTabContent";
 import StyleTabContent from "./components/StyleTabContent";
 import ThemeSettingsTabs from "./components/ThemeSettingsTabs";
 import ThemeSettingsTooltip from "./components/ThemeSettingsTooltip";
-import { BackgroundGenerator } from "./BackgroundGenerator";
 
 export type ThemeSettingsEditorArgs = {
   theme: ThemeSettings;
@@ -264,7 +266,48 @@ export function ThemeSettingsEditor({
 
     // If there's a complete space config and we have the ability to apply it, do so
     if (config.fidgetInstanceDatums && onApplySpaceConfig) {
-      await onApplySpaceConfig(config);
+      // Generate unique IDs for each fidget to avoid collisions (Issue #1206)
+      const fidgetInstanceDatums = config.fidgetInstanceDatums || {};
+      const layoutConfigData = config.layoutConfig || getLayoutConfig(config.layoutDetails);
+      const layout = layoutConfigData?.layout || [];
+      
+      // Create a mapping from old IDs to new unique IDs
+      const idMapping: Record<string, string> = {};
+      const newFidgetInstanceDatums: typeof fidgetInstanceDatums = {};
+      
+      // Generate unique IDs for each fidget
+      for (const [oldId, fidgetData] of Object.entries(fidgetInstanceDatums)) {
+        const newId = uuidv4();
+        idMapping[oldId] = newId;
+        newFidgetInstanceDatums[newId] = {
+          ...(fidgetData as FidgetInstanceData),
+          id: newId,
+        };
+      }
+      
+      // Update layout items with new IDs
+      const newLayout = layout.map((item: any) => {
+        if (item.i && idMapping[item.i]) {
+          return {
+            ...item,
+            i: idMapping[item.i],
+          };
+        }
+        return item;
+      });
+      
+      // Update layoutConfigData with new layout
+      const updatedLayoutConfigData = {
+        ...layoutConfigData,
+        layout: newLayout,
+      };
+
+      // Apply the config with unique IDs
+      await onApplySpaceConfig({
+        ...config,
+        fidgetInstanceDatums: newFidgetInstanceDatums,
+        layoutConfig: updatedLayoutConfigData,
+      });
     }
   };
 

@@ -26,6 +26,8 @@ import { createPortal } from "react-dom";
 import DesktopView from "./DesktopView";
 import MobilePreview from "./MobilePreview";
 import MobileViewSimplified from "./MobileViewSimplified";
+import { useAppStore } from "@/common/data/stores/app";
+import { Loader2 } from "lucide-react";
 
 
 export type SpaceFidgetConfig = {
@@ -128,6 +130,14 @@ export default function Space({
   const isHomebasePath = usePathHelper();
   const { isMobile, showMobileContainer, viewportMobile, setMobilePreview } = useViewportManager();
   const { saveLocalConfig } = useConfigManager(saveConfig);
+  
+  // Get loading state from chat store to show overlay when building
+  const { isLoading, loadingType } = useAppStore((state) => ({
+    isLoading: state.chat.isLoading,
+    loadingType: state.chat.loadingType,
+  }));
+  
+  const isBuilding = isLoading && loadingType === "building";
   
   // Calculate layout stuff once instead of re-computing
   const layoutConfig = getLayoutConfig(config?.layoutDetails);
@@ -354,6 +364,24 @@ export default function Space({
             </>
           )}
         </div>
+        
+        {/* Loading overlay when vibe customizers are building */}
+        {isBuilding && (
+          <div
+            className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center"
+            style={{ pointerEvents: 'all' }}
+          >
+            <div className="flex flex-col items-center gap-4">
+              <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+              <p className="text-lg font-semibold text-gray-700">
+                Building your space...
+              </p>
+              <p className="text-sm text-gray-500">
+                Please wait while we customize your space
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

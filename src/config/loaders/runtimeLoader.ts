@@ -1,7 +1,7 @@
-import { ConfigLoader, ConfigLoadContext } from './types';
-import { SystemConfig } from '../systemConfig';
-import { themes } from '../shared/themes';
 import { createClient } from '@supabase/supabase-js';
+import { themes } from '../shared/themes';
+import { SystemConfig } from '../systemConfig';
+import { ConfigLoadContext, ConfigLoader } from './types';
 
 /**
  * Runtime config loader
@@ -38,13 +38,22 @@ export class RuntimeConfigLoader implements ConfigLoader {
 
     try {
       // Fetch config from database
-      const { data, error } = await this.supabase
-        .rpc('get_active_community_config', { 
-          p_community_id: context.communityId 
-        })
-        .single();
+      // Type assertion needed because Supabase RPC types are not generated
+      const { data, error } = await (this.supabase.rpc as any)(
+        'get_active_community_config', 
+        { p_community_id: context.communityId }
+      );
 
       if (error || !data) {
+        // Check if the error is about missing function
+        if (error?.message?.includes('Could not find the function') || 
+            error?.message?.includes('function') && error?.message?.includes('not found')) {
+          throw new Error(
+            `❌ Database function 'get_active_community_config' not found. ` +
+            `Please run migrations: supabase db reset or supabase migration up`
+          );
+        }
+        
         throw new Error(
           `❌ Failed to load config from database for community: ${context.communityId}. ` +
           `Error: ${error?.message || 'No data returned'}`
