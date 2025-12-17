@@ -34,6 +34,7 @@ import html2canvas from "html2canvas";
 import { v4 as uuidv4 } from "uuid";
 import { comprehensiveCleanup } from "@/common/lib/utils/gridCleanup";
 
+
 // Configuration constants
 const AI_CHAT_CONFIG = {
   DEFAULT_WS_URL: process.env.NEXT_PUBLIC_AI_WS_URL || "wss://space-builder-server.onrender.com",
@@ -287,14 +288,15 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
   useEffect(() => {
     initializeWithWelcome();
     // Clear any stuck loading state on mount
-    setLoading(false, null);
+    setLoading(false, null, null);
   }, [initializeWithWelcome, setLoading]);
   const [inputValue, setInputValue] = useState("");
   
   // Get loading state from store
-  const { isLoading, loadingType } = useAppStore((state) => ({
+  const { isLoading, loadingType, loadingMessage } = useAppStore((state) => ({
     isLoading: state.chat.isLoading,
     loadingType: state.chat.loadingType,
+    loadingMessage: state.chat.loadingMessage,
   }));
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>("disconnected");
@@ -304,6 +306,10 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const wsServiceRef = useRef<WebSocketService | null>(null);
   const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastBuilderLogTimeRef = useRef<number>(0);
+  const gapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const gapIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isBuildingRef = useRef<boolean>(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -327,7 +333,6 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
         document.querySelector('[role="main"] > div:first-child');
 
       if (!gridElement) {
-        console.warn("Could not find grid element to screenshot");
         return null;
       }
 
@@ -356,7 +361,6 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
 
       return canvas.toDataURL('image/jpeg', 0.8);
     } catch (error) {
-      console.error("Failed to capture screenshot:", error);
       return null;
     }
   };
@@ -383,22 +387,6 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
       const checkpoint = checkpoints.find(cp => cp.id === checkpointId);
       toast.success(`Restored to "${checkpoint?.name || 'checkpoint'}"`);
 
-      // Log detailed restoration information
-      try {
-        const currentTabConfig = getFreshSpaceContext();
-        console.log("🔄 Successfully restored checkpoint:", {
-          restored: {
-            checkpointId,
-            checkpointName: checkpoint?.name,
-            checkpointConfig: checkpoint?.spaceConfig,
-          },
-          currentState: {
-            spaceConfig: currentTabConfig,
-          }
-        });
-      } catch (error) {
-        console.error("❌ Failed to log restoration details:", error);
-      }
     } else {
       toast.error("Failed to restore checkpoint. Please try again.");
     }
@@ -407,7 +395,7 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
   // Automatically apply config and create checkpoint
   const autoApplyConfig = async (spaceConfig: SpaceConfig, messageId: string) => {
     if (!onApplySpaceConfig) {
-      setLoading(false, null);
+      setLoading(false, null, null);
       return;
     }
 
@@ -479,7 +467,6 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
       // Manually apply theme to CSS variables for immediate visual feedback
       if (spaceConfig.theme) {
         applyThemeToCSS(spaceConfig.theme);
-        console.log("🎨 Theme manually applied to CSS variables:", spaceConfig.theme.properties);
       }
 
       // Create checkpoint directly from the AI's spaceConfig (what was just applied)
@@ -496,12 +483,6 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
         'ai-chat'
       );
 
-      console.log("💾 Auto-created checkpoint after applying config:", {
-        checkpointId: checkpoint.id,
-        checkpointName: checkpoint.name,
-        savedConfig: checkpoint.spaceConfig,
-      });
-
       // Capture screenshot of the space after applying changes
       const screenshot = await captureSpaceScreenshot();
 
@@ -511,10 +492,8 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
         screenshot: screenshot || undefined,
       });
 
-      console.log("✅ Space configuration auto-applied successfully");
       toast.success("Configuration applied and checkpoint created!");
     } catch (error) {
-      console.error("❌ Failed to auto-apply space config:", error);
       toast.error("Failed to apply configuration. Please try again.");
     }
   };
@@ -524,8 +503,6 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
     if (wsServiceRef.current) {
       wsServiceRef.current.destroy();
     }
-
-    console.log("🔧 Initializing WebSocket service");
 
     const config = {
       url: wsUrl,
@@ -540,7 +517,7 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
         setConnectionStatus(status);
         // Clear loading if WebSocket disconnects or errors
         if (status === "disconnected" || status === "error") {
-          setLoading(false, null);
+          setLoading(false, null, null);
           // Clear any pending timeout
           if (loadingTimeoutRef.current) {
             clearTimeout(loadingTimeoutRef.current);
@@ -553,7 +530,7 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
       },
       onError: (error: string) => {
         toast.error(error);
-        setLoading(false, null);
+        setLoading(false, null, null);
         // Clear any pending timeout
         if (loadingTimeoutRef.current) {
           clearTimeout(loadingTimeoutRef.current);
@@ -571,11 +548,10 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
     try {
       if (messageContent.includes("fidgetInstanceDatums")) {
         const spaceConfig = JSON.parse(messageContent);
-        console.log("✅ AI generated space config:", spaceConfig);
         return spaceConfig;
       }
     } catch (error) {
-      console.error("❌ Failed to parse message as JSON:", error);
+      // Failed to parse, not a space config
     }
     return undefined;
   }, []);
@@ -589,18 +565,19 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
   const addMessageAndUpdateState = useCallback((
     message: Message,
     shouldStopLoading: boolean = false,
-    newLoadingType?: "thinking" | "building" | null
+    newLoadingType?: "thinking" | "building" | null,
+    newLoadingMessage?: string | null
   ) => {
     addMessage(message);
     if (shouldStopLoading) {
-      setLoading(false, null);
+      setLoading(false, null, null);
       // Clear timeout when loading stops
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current);
         loadingTimeoutRef.current = null;
       }
     } else if (newLoadingType !== undefined) {
-      setLoading(true, newLoadingType);
+      setLoading(true, newLoadingType, newLoadingMessage || message.content);
     }
   }, [addMessage, setLoading]);
 
@@ -622,20 +599,27 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
     const messageContent = wsMessage.message || "AI response received";
     const spaceConfig = tryParseSpaceConfig(messageContent);
 
-    console.log("📥 Raw REPLY message:", {
-      type: wsMessage.type,
-      name: wsMessage.name,
-      messageLength: messageContent.length,
-      messagePreview: messageContent.substring(0, 200) + "...",
-      containsFidgetData: messageContent.includes("fidgetInstanceDatums"),
-      rawMessage: messageContent, // Full raw message content
-    });
-
     if (spaceConfig) {
+      // Mark that we're in building mode
+      isBuildingRef.current = true;
+      
+      // Clear gap timeout and interval since we got the config
+      if (gapTimeoutRef.current) {
+        clearTimeout(gapTimeoutRef.current);
+        gapTimeoutRef.current = null;
+      }
+      if (gapIntervalRef.current) {
+        clearInterval(gapIntervalRef.current);
+        gapIntervalRef.current = null;
+      }
+      
+      // Update loading message immediately when config arrives
+      setLoading(true, "building", "Finalizing configuration...");
+      
       const aiMessage: Message = {
         id: createMessageId("ai"),
         role: "assistant",
-        content: "🎨 I've applied the new space configuration for you!",
+        content: "🎨 I've created a new space configuration and applied it automatically!",
         timestamp: new Date(),
         type: "config",
         spaceConfig,
@@ -643,14 +627,23 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
         builderResponse: wsMessage as BuilderResponse,
         configApplied: true,
       };
-      addMessageAndUpdateState(aiMessage, false, "building");
+      addMessageAndUpdateState(aiMessage, false, "building", "Applying configuration...");
       // Keep loading until autoApplyConfig completes
       autoApplyConfig(spaceConfig, aiMessage.id).finally(() => {
-        setLoading(false, null);
+        isBuildingRef.current = false;
+        setLoading(false, null, null);
         // Clear timeout when done
         if (loadingTimeoutRef.current) {
           clearTimeout(loadingTimeoutRef.current);
           loadingTimeoutRef.current = null;
+        }
+        if (gapTimeoutRef.current) {
+          clearTimeout(gapTimeoutRef.current);
+          gapTimeoutRef.current = null;
+        }
+        if (gapIntervalRef.current) {
+          clearInterval(gapIntervalRef.current);
+          gapIntervalRef.current = null;
         }
       });
     } else {
@@ -686,19 +679,81 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
     };
 
     if (spaceConfig) {
-      addMessageAndUpdateState(logMessage, false, "building");
+      // Mark that we're in building mode
+      isBuildingRef.current = true;
+      
+      // Clear gap timeout and interval since we got the config
+      if (gapTimeoutRef.current) {
+        clearTimeout(gapTimeoutRef.current);
+        gapTimeoutRef.current = null;
+      }
+      if (gapIntervalRef.current) {
+        clearInterval(gapIntervalRef.current);
+        gapIntervalRef.current = null;
+      }
+      
+      // Update loading message immediately when config arrives
+      setLoading(true, "building", "Finalizing configuration...");
+      addMessageAndUpdateState(logMessage, false, "building", "Applying configuration...");
       toast.success("🎨 New space configuration created!");
       // Keep loading until autoApplyConfig completes
       autoApplyConfig(spaceConfig, logMessage.id).finally(() => {
-        setLoading(false, null);
+        isBuildingRef.current = false;
+        setLoading(false, null, null);
         // Clear timeout when done
         if (loadingTimeoutRef.current) {
           clearTimeout(loadingTimeoutRef.current);
           loadingTimeoutRef.current = null;
         }
+        if (gapTimeoutRef.current) {
+          clearTimeout(gapTimeoutRef.current);
+          gapTimeoutRef.current = null;
+        }
+        if (gapIntervalRef.current) {
+          clearInterval(gapIntervalRef.current);
+          gapIntervalRef.current = null;
+        }
       });
     } else {
-      addMessageAndUpdateState(logMessage, false, "building");
+      // Mark that we're in building mode
+      isBuildingRef.current = true;
+      
+      // Update loading message with current builder activity
+      // Track when we last received a builder log
+      lastBuilderLogTimeRef.current = Date.now();
+      
+      // Clear any existing gap timeout
+      if (gapTimeoutRef.current) {
+        clearTimeout(gapTimeoutRef.current);
+        gapTimeoutRef.current = null;
+      }
+      
+      // If no new message arrives within 3 seconds, show a "processing" message
+      gapTimeoutRef.current = setTimeout(() => {
+        // Always update to show we're still processing during the gap
+        setLoading(true, "building", "Processing your space...");
+        
+        // Set up an interval to keep updating the message during long gaps
+        // This ensures the loading never stops even during very long waits
+        if (gapIntervalRef.current) {
+          clearInterval(gapIntervalRef.current);
+        }
+        
+        let messageIndex = 0;
+        const processingMessages = [
+          "Processing your space...",
+          "Almost there...",
+          "Finalizing details...",
+          "Putting finishing touches...",
+        ];
+        
+        gapIntervalRef.current = setInterval(() => {
+          messageIndex = (messageIndex + 1) % processingMessages.length;
+          setLoading(true, "building", processingMessages[messageIndex]);
+        }, 5000); // Update message every 5 seconds
+      }, 3000);
+      
+      addMessageAndUpdateState(logMessage, false, "building", messageContent);
     }
   }, [tryParseSpaceConfig, createMessageId, addMessageAndUpdateState, autoApplyConfig, setLoading]);
 
@@ -743,7 +798,6 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
         break;
 
       default:
-        console.log("❓ Unknown WebSocket message type:", wsMessage.type, wsMessage);
         break;
     }
   }, [
@@ -759,10 +813,18 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
     return () => {
       wsServiceRef.current?.destroy();
       // Clear loading state and timeout on unmount
-      setLoading(false, null);
+      setLoading(false, null, null);
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current);
         loadingTimeoutRef.current = null;
+      }
+      if (gapTimeoutRef.current) {
+        clearTimeout(gapTimeoutRef.current);
+        gapTimeoutRef.current = null;
+      }
+      if (gapIntervalRef.current) {
+        clearInterval(gapIntervalRef.current);
+        gapIntervalRef.current = null;
       }
     };
   }, [initializeWebSocketService, setLoading]);
@@ -793,11 +855,6 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
     // Create checkpoint on first user message and add it under the user message
     if (!hasCreatedFirstUserCheckpoint) {
       const firstCheckpoint = createSpaceCheckpoint('Before AI Edits');
-      console.log("💾 Created first-message checkpoint:", {
-        checkpointId: firstCheckpoint.id,
-        checkpointName: firstCheckpoint.name,
-        savedConfig: firstCheckpoint.spaceConfig,
-      });
       setHasCreatedFirstUserCheckpoint(true);
 
       // Capture screenshot of the space before AI changes
@@ -817,31 +874,25 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
       addMessage(firstCheckpointMessage);
     }
     setInputValue("");
-    setLoading(true, null);
+    setLoading(true, null, "Processing your request...");
 
-    // Set a timeout to clear loading if no response is received within 60 seconds
+    // Set a much longer timeout (10 minutes) for building operations
+    // This prevents the loading from stopping during long AI processing
     loadingTimeoutRef.current = setTimeout(() => {
-      console.warn("⏱️ Loading timeout: No response received within 60 seconds");
-      setLoading(false, null);
-      toast.error("Request timed out. Please try again.");
+      // Only clear if we're not in building mode
+      // The building state should only be cleared when config is applied
+      if (!isBuildingRef.current) {
+        setLoading(false, null, null);
+        toast.error("Request timed out. Please try again.");
+      }
       loadingTimeoutRef.current = null;
-    }, 60000); // 60 seconds timeout
+    }, 600000); // 10 minutes timeout - building can take a while
 
     try {
       // Send message via WebSocket with FRESH context
       if (wsServiceRef.current?.isConnected()) {
-        console.log("📤 Sending user message with fresh space config context");
-
         // Get the current context right before sending
         const freshContext = getFreshSpaceContext();
-        console.log("🔧 Fresh context for AI:", {
-          hasContext: !!freshContext,
-          fidgetCount: freshContext?.fidgetInstanceDatums
-            ? Object.keys(freshContext.fidgetInstanceDatums).length
-            : 0,
-          layoutID: freshContext?.layoutID,
-          theme: freshContext?.theme?.id,
-        });
 
         // Update the WebSocket service with fresh context
         wsServiceRef.current.updateSpaceContext(freshContext);
@@ -856,11 +907,10 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
         throw new Error("WebSocket not connected");
       }
     } catch (error) {
-      console.error("❌ Failed to send message:", error);
       toast.error(
         "Failed to send message. Please check your connection and try again."
       );
-      setLoading(false, null);
+      setLoading(false, null, null);
       // Clear timeout on error
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current);
@@ -1050,9 +1100,7 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
                   <div className="flex items-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin" />
                     <span className="text-sm text-gray-600">
-                      {loadingType === "thinking" && "Thinking..."}
-                      {loadingType === "building" && "Building..."}
-                      {!loadingType && "AI is processing..."}
+                      {loadingMessage || (loadingType === "thinking" && "Thinking...") || (loadingType === "building" && "Building...") || "AI is processing..."}
                     </span>
                   </div>
                 </div>

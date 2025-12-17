@@ -132,9 +132,10 @@ export default function Space({
   const { saveLocalConfig } = useConfigManager(saveConfig);
   
   // Get loading state from chat store to show overlay when building
-  const { isLoading, loadingType } = useAppStore((state) => ({
+  const { isLoading, loadingType, loadingMessage } = useAppStore((state) => ({
     isLoading: state.chat.isLoading,
     loadingType: state.chat.loadingType,
+    loadingMessage: state.chat.loadingMessage,
   }));
   
   const isBuilding = isLoading && loadingType === "building";
@@ -374,7 +375,7 @@ export default function Space({
             <div className="flex flex-col items-center gap-4">
               <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
               <p className="text-lg font-semibold text-gray-700">
-                Building your space...
+                {loadingMessage || "Building your space..."}
               </p>
               <p className="text-sm text-gray-500">
                 Please wait while we customize your space
