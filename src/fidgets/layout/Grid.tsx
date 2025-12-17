@@ -926,8 +926,27 @@ const Grid: LayoutFidget<GridLayoutProps> = ({
                 ? CompleteFidgets[fidgetDatum.fidgetType]
                 : null;
               
-              
               if (!fidgetModule) return null;
+              
+              // Validate that the item is within grid boundaries before rendering
+              const isWithinBounds = 
+                gridItem.x >= 0 && 
+                gridItem.y >= 0 && 
+                gridItem.x + gridItem.w <= memoizedGridDetails.cols && 
+                gridItem.y + gridItem.h <= memoizedGridDetails.maxRows;
+              
+              // Don't render items that are outside the grid boundaries
+              if (!isWithinBounds) {
+                console.warn(`⚠️ Fidget ${gridItem.i} is outside grid boundaries and will not be rendered:`, {
+                  x: gridItem.x,
+                  y: gridItem.y,
+                  w: gridItem.w,
+                  h: gridItem.h,
+                  cols: memoizedGridDetails.cols,
+                  maxRows: memoizedGridDetails.maxRows
+                });
+                return null;
+              }
 
               return (
                 <div

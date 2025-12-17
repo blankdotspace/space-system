@@ -32,6 +32,7 @@ import {
 } from "@/common/lib/services/websocket";
 import html2canvas from "html2canvas";
 import { v4 as uuidv4 } from "uuid";
+import { comprehensiveCleanup } from "@/common/lib/utils/gridCleanup";
 
 // Configuration constants
 const AI_CHAT_CONFIG = {
@@ -285,7 +286,9 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
   // Initialize with welcome message if needed
   useEffect(() => {
     initializeWithWelcome();
-  }, [initializeWithWelcome]);
+    // Clear any stuck loading state on mount
+    setLoading(false, null);
+  }, [initializeWithWelcome, setLoading]);
   const [inputValue, setInputValue] = useState("");
   
   // Get loading state from store
@@ -300,6 +303,7 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const wsServiceRef = useRef<WebSocketService | null>(null);
+  const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -438,17 +442,34 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
         return item;
       });
       
-      // Update layoutConfigData with new layout
+      // Determine hasProfile and hasFeed from the NEW layout being applied (not the old context)
+      // This is important because the AI might be adding/removing profile or feed fidgets
+      const hasProfile = Object.values(newFidgetInstanceDatums).some(
+        (f: any) => f.fidgetType === "profile"
+      );
+      const hasFeed = Object.values(newFidgetInstanceDatums).some(
+        (f: any) => f.fidgetType === "feed"
+      );
+      
+      // Clean up layout to ensure all fidgets are within grid boundaries
+      const { cleanedLayout, cleanedFidgetInstanceDatums } = comprehensiveCleanup(
+        newLayout,
+        newFidgetInstanceDatums,
+        hasProfile,
+        hasFeed
+      );
+      
+      // Update layoutConfigData with cleaned layout
       const updatedLayoutConfigData = {
         ...layoutConfigData,
-        layout: newLayout,
+        layout: cleanedLayout,
       };
 
       // Convert SpaceConfig to the format expected by saveLocalConfig
       const saveDetails = {
         theme: spaceConfig.theme,
         layoutConfig: updatedLayoutConfigData,
-        fidgetInstanceDatums: newFidgetInstanceDatums,
+        fidgetInstanceDatums: cleanedFidgetInstanceDatums,
         fidgetTrayContents: spaceConfig.fidgetTrayContents,
       };
 
@@ -517,12 +538,27 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
     const callbacks = {
       onStatusChange: (status: ConnectionStatus) => {
         setConnectionStatus(status);
+        // Clear loading if WebSocket disconnects or errors
+        if (status === "disconnected" || status === "error") {
+          setLoading(false, null);
+          // Clear any pending timeout
+          if (loadingTimeoutRef.current) {
+            clearTimeout(loadingTimeoutRef.current);
+            loadingTimeoutRef.current = null;
+          }
+        }
       },
       onMessage: (message: any) => {
         handleWebSocketMessage(message);
       },
       onError: (error: string) => {
         toast.error(error);
+        setLoading(false, null);
+        // Clear any pending timeout
+        if (loadingTimeoutRef.current) {
+          clearTimeout(loadingTimeoutRef.current);
+          loadingTimeoutRef.current = null;
+        }
       },
     };
 
@@ -558,6 +594,11 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
     addMessage(message);
     if (shouldStopLoading) {
       setLoading(false, null);
+      // Clear timeout when loading stops
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
     } else if (newLoadingType !== undefined) {
       setLoading(true, newLoadingType);
     }
@@ -606,6 +647,11 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
       // Keep loading until autoApplyConfig completes
       autoApplyConfig(spaceConfig, aiMessage.id).finally(() => {
         setLoading(false, null);
+        // Clear timeout when done
+        if (loadingTimeoutRef.current) {
+          clearTimeout(loadingTimeoutRef.current);
+          loadingTimeoutRef.current = null;
+        }
       });
     } else {
       const aiMessage: Message = {
@@ -645,6 +691,11 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
       // Keep loading until autoApplyConfig completes
       autoApplyConfig(spaceConfig, logMessage.id).finally(() => {
         setLoading(false, null);
+        // Clear timeout when done
+        if (loadingTimeoutRef.current) {
+          clearTimeout(loadingTimeoutRef.current);
+          loadingTimeoutRef.current = null;
+        }
       });
     } else {
       addMessageAndUpdateState(logMessage, false, "building");
@@ -707,8 +758,14 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
     initializeWebSocketService();
     return () => {
       wsServiceRef.current?.destroy();
+      // Clear loading state and timeout on unmount
+      setLoading(false, null);
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
     };
-  }, [initializeWebSocketService]);
+  }, [initializeWebSocketService, setLoading]);
 
   useEffect(() => {
     scrollToBottom();
@@ -716,6 +773,12 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
+
+    // Clear any existing timeout
+    if (loadingTimeoutRef.current) {
+      clearTimeout(loadingTimeoutRef.current);
+      loadingTimeoutRef.current = null;
+    }
 
     const userMessage: Message = {
       id: `user-${Date.now()}`,
@@ -756,6 +819,14 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
     setInputValue("");
     setLoading(true, null);
 
+    // Set a timeout to clear loading if no response is received within 60 seconds
+    loadingTimeoutRef.current = setTimeout(() => {
+      console.warn("⏱️ Loading timeout: No response received within 60 seconds");
+      setLoading(false, null);
+      toast.error("Request timed out. Please try again.");
+      loadingTimeoutRef.current = null;
+    }, 60000); // 60 seconds timeout
+
     try {
       // Send message via WebSocket with FRESH context
       if (wsServiceRef.current?.isConnected()) {
@@ -790,6 +861,11 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
         "Failed to send message. Please check your connection and try again."
       );
       setLoading(false, null);
+      // Clear timeout on error
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
     }
   };
 

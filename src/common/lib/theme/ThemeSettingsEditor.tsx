@@ -31,6 +31,7 @@ import { useCallback, useEffect, useState } from "react";
 import { FaFloppyDisk, FaTriangleExclamation, FaX } from "react-icons/fa6";
 import { MdMenuBook } from "react-icons/md";
 import { v4 as uuidv4 } from "uuid";
+import { comprehensiveCleanup } from "@/common/lib/utils/gridCleanup";
 import { BackgroundGenerator } from "./BackgroundGenerator";
 import CodeTabContent from "./components/CodeTabContent";
 import MobileTabContent from "./components/MobileTabContent";
@@ -296,16 +297,33 @@ export function ThemeSettingsEditor({
         return item;
       });
       
-      // Update layoutConfigData with new layout
+      // Try to infer hasProfile and hasFeed from current fidgetInstanceDatums
+      // Default to false if we can't determine (most common case for AI-customized spaces)
+      const hasProfile = Object.values(newFidgetInstanceDatums).some(
+        (f: any) => f.fidgetType === "profile"
+      );
+      const hasFeed = Object.values(newFidgetInstanceDatums).some(
+        (f: any) => f.fidgetType === "feed"
+      );
+      
+      // Clean up layout to ensure all fidgets are within grid boundaries
+      const { cleanedLayout, cleanedFidgetInstanceDatums } = comprehensiveCleanup(
+        newLayout,
+        newFidgetInstanceDatums,
+        hasProfile,
+        hasFeed
+      );
+      
+      // Update layoutConfigData with cleaned layout
       const updatedLayoutConfigData = {
         ...layoutConfigData,
-        layout: newLayout,
+        layout: cleanedLayout,
       };
 
-      // Apply the config with unique IDs
+      // Apply the config with unique IDs and cleaned layout
       await onApplySpaceConfig({
         ...config,
-        fidgetInstanceDatums: newFidgetInstanceDatums,
+        fidgetInstanceDatums: cleanedFidgetInstanceDatums,
         layoutConfig: updatedLayoutConfigData,
       });
     }

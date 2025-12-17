@@ -108,21 +108,38 @@ export function resolveOverlaps(
 
   // Process each fidget in the layout
   for (const item of layout) {
-    // First check if current position is valid
-    if (isSpaceAvailable(item.x, item.y, item.w, item.h, item.i)) {
-      cleanedLayout.push(item);
+    // Ensure item dimensions don't exceed grid size
+    const itemW = Math.min(item.w, cols);
+    const itemH = Math.min(item.h, maxRows);
+    
+    // First, check if the item is within grid boundaries
+    const isWithinBounds = 
+      item.x >= 0 && 
+      item.y >= 0 && 
+      item.x + itemW <= cols && 
+      item.y + itemH <= maxRows;
+
+    // If within bounds and no overlaps, keep the position (with corrected dimensions)
+    if (isWithinBounds && isSpaceAvailable(item.x, item.y, itemW, itemH, item.i)) {
+      cleanedLayout.push({
+        ...item,
+        w: itemW,
+        h: itemH,
+      });
       continue;
     }
 
-    // If current position is invalid, try to find a new position
+    // If current position is invalid (out of bounds or overlapping), try to find a new position
     let found = false;
-    for (let x = 0; x <= cols - item.w; x++) {
-      for (let y = 0; y <= maxRows - item.h; y++) {
-        if (isSpaceAvailable(x, y, item.w, item.h, item.i)) {
+    for (let x = 0; x <= cols - itemW; x++) {
+      for (let y = 0; y <= maxRows - itemH; y++) {
+        if (isSpaceAvailable(x, y, itemW, itemH, item.i)) {
           cleanedLayout.push({
             ...item,
             x,
             y,
+            w: itemW,
+            h: itemH,
           });
           found = true;
           break;
