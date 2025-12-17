@@ -20,6 +20,7 @@ import {
   tabContentClasses,
 } from "@/common/lib/theme/helpers";
 import { ThemeEditorTab } from "@/common/lib/theme/types";
+import { comprehensiveCleanup, fillEmptySpaces } from "@/common/lib/utils/gridCleanup";
 import { analytics } from "@/common/providers/AnalyticsProvider";
 import { useMobilePreview } from "@/common/providers/MobilePreviewProvider";
 import { getLayoutConfig } from "@/common/utils/layoutFormatUtils";
@@ -31,7 +32,6 @@ import { useCallback, useEffect, useState } from "react";
 import { FaFloppyDisk, FaTriangleExclamation, FaX } from "react-icons/fa6";
 import { MdMenuBook } from "react-icons/md";
 import { v4 as uuidv4 } from "uuid";
-import { comprehensiveCleanup } from "@/common/lib/utils/gridCleanup";
 import { BackgroundGenerator } from "./BackgroundGenerator";
 import CodeTabContent from "./components/CodeTabContent";
 import MobileTabContent from "./components/MobileTabContent";
@@ -314,16 +314,39 @@ export function ThemeSettingsEditor({
         hasFeed
       );
       
-      // Update layoutConfigData with cleaned layout
+      // Double-check: ensure all cleaned fidgets are within bounds before filling
+      const cols = hasFeed ? 6 : 12;
+      const maxRows = hasProfile ? 8 : 10;
+      const validatedLayout = cleanedLayout.filter(item => {
+        const isValid = 
+          item.x >= 0 && 
+          item.y >= 0 && 
+          item.x + item.w <= cols && 
+          item.y + item.h <= maxRows;
+        if (!isValid) {
+          console.warn(`Removing fidget ${item.i} that is still outside grid boundaries after cleanup`);
+        }
+        return isValid;
+      });
+      
+      // Fill empty spaces with additional fidgets
+      const { filledLayout, filledFidgetInstanceDatums } = fillEmptySpaces(
+        validatedLayout,
+        cleanedFidgetInstanceDatums,
+        hasProfile,
+        hasFeed
+      );
+      
+      // Update layoutConfigData with filled layout
       const updatedLayoutConfigData = {
         ...layoutConfigData,
-        layout: cleanedLayout,
+        layout: filledLayout,
       };
 
-      // Apply the config with unique IDs and cleaned layout
+      // Apply the config with unique IDs and filled layout
       await onApplySpaceConfig({
         ...config,
-        fidgetInstanceDatums: cleanedFidgetInstanceDatums,
+        fidgetInstanceDatums: filledFidgetInstanceDatums,
         layoutConfig: updatedLayoutConfigData,
       });
     }

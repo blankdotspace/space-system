@@ -32,7 +32,7 @@ import {
 } from "@/common/lib/services/websocket";
 import html2canvas from "html2canvas";
 import { v4 as uuidv4 } from "uuid";
-import { comprehensiveCleanup } from "@/common/lib/utils/gridCleanup";
+import { comprehensiveCleanup, fillEmptySpaces } from "@/common/lib/utils/gridCleanup";
 
 
 // Configuration constants
@@ -447,17 +447,55 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
         hasFeed
       );
       
-      // Update layoutConfigData with cleaned layout
+      // Double-check: ensure all cleaned fidgets are within bounds before filling
+      const cols = hasFeed ? 6 : 12;
+      const maxRows = hasProfile ? 8 : 10;
+      const validatedLayout = cleanedLayout.filter(item => {
+        const isValid = 
+          item.x >= 0 && 
+          item.y >= 0 && 
+          item.x + item.w <= cols && 
+          item.y + item.h <= maxRows;
+        if (!isValid) {
+          console.warn(`Removing fidget ${item.i} that is still outside grid boundaries after cleanup`);
+        }
+        return isValid;
+      });
+      
+      // Fill empty spaces with additional fidgets
+      const { filledLayout, filledFidgetInstanceDatums } = fillEmptySpaces(
+        validatedLayout,
+        cleanedFidgetInstanceDatums,
+        hasProfile,
+        hasFeed
+      );
+      
+      // Final validation: one more check to ensure ALL fidgets are valid before saving
+      const finalValidatedLayout = filledLayout.filter(item => {
+        const isValid = 
+          item.x >= 0 && 
+          item.y >= 0 && 
+          item.x + item.w <= cols && 
+          item.y + item.h <= maxRows;
+        if (!isValid) {
+          console.warn(`Final validation: Removing invalid fidget ${item.i} before saving`);
+          // Remove from fidgetInstanceDatums as well
+          delete filledFidgetInstanceDatums[item.i];
+        }
+        return isValid;
+      });
+
+      // Update layoutConfigData with final validated layout
       const updatedLayoutConfigData = {
         ...layoutConfigData,
-        layout: cleanedLayout,
+        layout: finalValidatedLayout,
       };
 
       // Convert SpaceConfig to the format expected by saveLocalConfig
       const saveDetails = {
         theme: spaceConfig.theme,
         layoutConfig: updatedLayoutConfigData,
-        fidgetInstanceDatums: cleanedFidgetInstanceDatums,
+        fidgetInstanceDatums: filledFidgetInstanceDatums,
         fidgetTrayContents: spaceConfig.fidgetTrayContents,
       };
 
@@ -472,7 +510,7 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
       // Create checkpoint directly from the AI's spaceConfig (what was just applied)
       // Transform AI config format to checkpoint format
       const checkpointConfig = {
-        fidgetInstanceDatums: newFidgetInstanceDatums,
+        fidgetInstanceDatums: filledFidgetInstanceDatums,
         layoutConfig: updatedLayoutConfigData,
         theme: spaceConfig.theme,
       };
