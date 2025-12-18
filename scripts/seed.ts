@@ -630,17 +630,14 @@ function createSystemSignedFile(fileData: string): SignedFile {
 }
 
 /**
- * Creates a SignedFile for tab order
+ * Creates a plain JSON object for tab order (not a SignedFile)
  */
-function createTabOrderSignedFile(spaceId: string, tabOrder: string[]): SignedFile {
-  const tabOrderData = {
+function createTabOrderData(spaceId: string, tabOrder: string[]): { spaceId: string; timestamp: string; tabOrder: string[] } {
+  return {
     spaceId,
     timestamp: moment().toISOString(),
     tabOrder,
-    publicKey: 'nounspace',
-    signature: 'not applicable, machine generated file',
   };
-  return createSystemSignedFile(stringify(tabOrderData));
 }
 
 /**
@@ -666,15 +663,15 @@ async function uploadTab(spaceId: string, tabName: string, tabConfig: SpaceConfi
 }
 
 /**
- * Uploads tab order to Supabase Storage
+ * Uploads tab order to Supabase Storage as plain JSON (not a SignedFile)
  */
 async function uploadTabOrder(spaceId: string, tabOrder: string[]): Promise<boolean> {
-  const signedFile = createTabOrderSignedFile(spaceId, tabOrder);
+  const tabOrderData = createTabOrderData(spaceId, tabOrder);
   const filePath = `${spaceId}/tabOrder`;
 
   const { error } = await supabase.storage
     .from('spaces')
-    .upload(filePath, new Blob([stringify(signedFile)], { type: 'application/json' }), {
+    .upload(filePath, new Blob([stringify(tabOrderData)], { type: 'application/json' }), {
       upsert: true,
     });
 
