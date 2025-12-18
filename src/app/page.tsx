@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { loadSystemConfig } from "@/config";
-import type { SignedFile } from "@/common/lib/signedFiles";
 
 // Force dynamic rendering - config loading requires request context
 export const dynamic = 'force-dynamic';
@@ -27,8 +26,7 @@ export default async function RootRedirect() {
           .download(`${homeNavItem.spaceId}/tabOrder`);
         
         if (tabOrderData) {
-          const tabOrderFile = JSON.parse(await tabOrderData.text()) as SignedFile;
-          const tabOrderObj = JSON.parse(tabOrderFile.fileData) as { tabOrder: string[] };
+          const tabOrderObj = JSON.parse(await tabOrderData.text()) as { tabOrder: string[] };
           const defaultTab = tabOrderObj.tabOrder?.[0];
           
           if (defaultTab) {
