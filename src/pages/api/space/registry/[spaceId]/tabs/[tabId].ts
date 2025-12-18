@@ -13,7 +13,7 @@ import { findIndex, isNull } from "lodash";
 import { NextApiRequest, NextApiResponse } from "next/types";
 import { createSupabaseServerClient } from "@/common/data/database/supabase/clients/server";
 import stringify from "fast-json-stable-stringify";
-import { StorageError } from "@supabase/storage-js";
+import { StorageError, StorageApiError } from "@supabase/storage-js";
 import { identitiesCanModifySpace } from "../../[spaceId]";
 
 export type UnsignedDeleteSpaceTabRequest = {
@@ -103,24 +103,27 @@ async function updateSpace(
     
     // Handle "file not found" gracefully (new tab that was renamed before commit)
     if (error) {
-      const storageError = error as StorageError;
+      // Check if it's a StorageApiError (has HTTP status) or base StorageError
+      const isApiError = error instanceof StorageApiError;
+      const status = isApiError ? error.status : undefined;
       
-      // Primary check: statusCode (reliable, language-independent)
-      if (storageError.statusCode === 404) {
+      // Check for 404 status (file not found)
+      if (status === 404) {
         // Expected case: File doesn't exist - this is fine for new tabs renamed before commit
         // We'll create it at the new location via upload with upsert
         console.log(`[Expected] File ${tabName} not found, creating at ${req.fileName} instead`);
       } else {
         // Unexpected error - fail and log for monitoring
         console.error(`[Unexpected] Move failed for ${tabName} → ${req.fileName}:`, {
-          statusCode: storageError.statusCode,
-          message: storageError.message,
-          error: storageError,
+          status,
+          message: error.message,
+          errorType: isApiError ? 'StorageApiError' : 'StorageError',
+          error: error,
         });
         res.status(500).json({
           result: "error",
           error: {
-            message: storageError.message || "Failed to move file",
+            message: error.message || "Failed to move file",
           },
         });
         return;
@@ -138,16 +141,20 @@ async function updateSpace(
       { upsert: true }, // Creates if doesn't exist, updates if it does
     );
   if (uploadError) {
-    const storageError = uploadError as StorageError;
+    // Check if it's a StorageApiError (has HTTP status) or base StorageError
+    const isApiError = uploadError instanceof StorageApiError;
+    const status = isApiError ? uploadError.status : undefined;
+    
     console.error(`[Unexpected] Upload failed for ${req.fileName}:`, {
-      statusCode: storageError.statusCode,
-      message: storageError.message,
-      error: storageError,
+      status,
+      message: uploadError.message,
+      errorType: isApiError ? 'StorageApiError' : 'StorageError',
+      error: uploadError,
     });
     res.status(500).json({
       result: "error",
       error: {
-        message: storageError.message || "Failed to upload file",
+        message: uploadError.message || "Failed to upload file",
       },
     });
     return;
