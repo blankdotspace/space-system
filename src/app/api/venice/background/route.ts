@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const VENICE_API_KEY = process.env.VENICE_API_KEY;
-const MAX_INPUT_CHARS = 2000;
+const MAX_INPUT_CHARS = 10000; // Increased from 2000 to allow for complex HTML/CSS inputs
 const requestSchema = z.object({
   text: z
     .string()
@@ -28,10 +28,16 @@ export async function POST(request: Request) {
     userInput = await parseUserInput(request);
   } catch (error) {
     if (error instanceof BadRequestError) {
-      return new Response(error.message, { status: error.status });
+      return Response.json(
+        { error: error.message },
+        { status: error.status }
+      );
     }
     console.error("Unexpected error parsing request body:", error);
-    return new Response("Invalid request body", { status: 400 });
+    return Response.json(
+      { error: "Invalid request body" },
+      { status: 400 }
+    );
   }
   const truncatedInput = userInput.slice(0, MAX_INPUT_CHARS); // never log or send more than the limit
 
