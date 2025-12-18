@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import createSupabaseServerClient from '@/common/data/database/supabase/clients/server';
+import { Database } from '@/supabase/database';
 
 interface IncomingCommunityConfig {
   community_id?: string;
@@ -58,6 +59,8 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     const supabase = createSupabaseServerClient();
 
+    type CommunityConfigInsert = Database['public']['Tables']['community_configs']['Insert'];
+
     const normalizedCommunityDetails =
       communityDetails && typeof communityDetails === 'object'
         ? {
@@ -67,21 +70,20 @@ export async function POST(request: NextRequest): Promise<Response> {
           }
         : communityDetails;
 
+    const upsertPayload: CommunityConfigInsert = {
+      community_id: communityId,
+      brand_config: brandConfig as CommunityConfigInsert['brand_config'],
+      assets_config: assetsConfig as CommunityConfigInsert['assets_config'],
+      community_config: normalizedCommunityDetails as CommunityConfigInsert['community_config'],
+      fidgets_config: fidgetsConfig as CommunityConfigInsert['fidgets_config'],
+      navigation_config: (navigationConfig ?? null) as CommunityConfigInsert['navigation_config'],
+      ui_config: (uiConfig ?? null) as CommunityConfigInsert['ui_config'],
+      is_published: isPublished ?? true,
+    };
+
     const { data, error } = await supabase
       .from('community_configs')
-      .upsert(
-        {
-          community_id: communityId,
-          brand_config: brandConfig,
-          assets_config: assetsConfig,
-          community_config: normalizedCommunityDetails,
-          fidgets_config: fidgetsConfig,
-          navigation_config: navigationConfig ?? null,
-          ui_config: uiConfig ?? null,
-          is_published: isPublished ?? true,
-        },
-        { onConflict: 'community_id' }
-      )
+      .upsert(upsertPayload, { onConflict: 'community_id' })
       .select()
       .single();
 
