@@ -38,8 +38,7 @@ async function loadSpaceAsPageConfig(spaceId: string): Promise<NavPageConfig | n
       return null;
     }
     
-    const tabOrderFile = JSON.parse(await tabOrderData.text()) as SignedFile;
-    const tabOrderObj = JSON.parse(tabOrderFile.fileData) as { tabOrder: string[] };
+    const tabOrderObj = JSON.parse(await tabOrderData.text()) as { tabOrder: string[] };
     const tabOrder = tabOrderObj.tabOrder || [];
     
     // Fetch each tab config
