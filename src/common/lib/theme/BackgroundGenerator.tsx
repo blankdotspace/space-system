@@ -12,6 +12,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { Address, formatUnits, zeroAddress } from "viem";
 import { useBalance } from "wagmi";
 import { getGateTokens, getChainForNetwork } from "@/common/lib/utils/tokenGates";
+import type { CommunityTokenNetwork } from "@/config";
 
 interface BackgroundGeneratorProps {
   backgroundHTML: string;
@@ -51,7 +52,7 @@ export const BackgroundGenerator = ({
   const [erc20Token, setErc20Token] = useState<{
     address: Address;
     decimals: number;
-    network?: string;
+    network?: CommunityTokenNetwork;
   } | null>(null);
   
   // Load space contract address (async)
