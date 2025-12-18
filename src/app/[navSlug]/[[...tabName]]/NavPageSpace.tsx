@@ -24,11 +24,10 @@
  * Integrates with: PublicSpace
  */
 
-import React, { useMemo, useEffect } from "react";
+import React, { useMemo } from "react";
 import PublicSpace from "@/app/(spaces)/PublicSpace";
 import { NavPageSpacePageData } from "@/common/types/spaceData";
 import { useCurrentSpaceIdentityPublicKey } from "@/common/lib/hooks/useCurrentSpaceIdentityPublicKey";
-import { useMiniKit } from "@coinbase/onchainkit/minikit";
 
 export interface NavPageSpaceProps {
   spacePageData: Omit<NavPageSpacePageData, 'isEditable' | 'spacePageUrl'>;
@@ -54,12 +53,6 @@ export default function NavPageSpace({
   tabName,
 }: NavPageSpaceProps) {
   const currentUserIdentityPublicKey = useCurrentSpaceIdentityPublicKey();
-  const { setFrameReady, isFrameReady } = useMiniKit();
-
-  // Initialize frame ready state for mini app support
-  useEffect(() => {
-    if (!isFrameReady) setFrameReady();
-  }, [isFrameReady, setFrameReady]);
 
   // Add isEditable and spacePageUrl logic on the client side
   const spaceDataWithClientSideLogic = useMemo(() => ({

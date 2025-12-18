@@ -1,86 +1,7 @@
 import React from "react";
 import { notFound } from "next/navigation";
-import { loadSystemConfig } from "@/config";
 import NavPageSpace from "./NavPageSpace";
-import { createSupabaseServerClient } from "@/common/data/database/supabase/clients/server";
-import { NavPageSpacePageData, SPACE_TYPES } from "@/common/types/spaceData";
-import { INITIAL_SPACE_CONFIG_EMPTY } from "@/config";
-
-/**
- * Get the default tab for a space from its tab order
- * Tab order is stored directly (not wrapped in SignedFile)
- * Similar to how ProfileSpace's getTabList works in utils.ts
- */
-async function getDefaultTab(spaceId: string): Promise<string | null> {
-  try {
-    const { data: tabOrderData, error } = await createSupabaseServerClient()
-      .storage
-      .from('spaces')
-      .download(`${spaceId}/tabOrder`);
-    
-    if (tabOrderError || !tabOrderData) {
-      console.warn(`Failed to load tabOrder for space ${spaceId}:`, tabOrderError);
-      return null;
-    }
-    
-    const tabOrderObj = JSON.parse(await tabOrderData.text()) as { tabOrder: string[] };
-    const tabOrder = tabOrderObj.tabOrder || [];
-    
-    // Fetch each tab config
-    const tabs: Record<string, any> = {};
-    for (const tabName of tabOrder) {
-      try {
-        const { data: tabData, error: tabError } = await supabase.storage
-          .from('spaces')
-          .download(`${spaceId}/tabs/${tabName}`);
-        
-        if (tabError || !tabData) {
-          console.warn(`Failed to load tab ${tabName} for space ${spaceId}:`, tabError);
-          continue;
-        }
-        
-        const tabFile = JSON.parse(await tabData.text()) as SignedFile;
-        const tabConfig = JSON.parse(tabFile.fileData);
-        tabs[tabName] = tabConfig;
-      } catch (error) {
-        console.warn(`Error parsing tab ${tabName} for space ${spaceId}:`, error);
-      }
-    }
-    
-    if (Object.keys(tabs).length === 0) {
-      return null;
-    }
-
-    const tabOrderJson = JSON.parse(await tabOrderData.text());
-    return tabOrderJson.tabOrder?.[0] || null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Create NavPage space data in the same pattern as ProfileSpace's createProfileSpaceData
- * PublicSpace handles loading the actual tab config from storage
- */
-function createNavPageSpaceData(
-  spaceId: string,
-  navSlug: string,
-  tabName: string,
-  adminIdentityPublicKeys: string[]
-): Omit<NavPageSpacePageData, 'isEditable' | 'spacePageUrl'> {
-  return {
-    spaceId,
-    spaceName: navSlug,
-    spaceType: SPACE_TYPES.NAV_PAGE,
-    updatedAt: new Date().toISOString(),
-    defaultTab: tabName,
-    currentTab: tabName,
-    spaceOwnerFid: undefined, // NavPages don't have FID owners
-    config: INITIAL_SPACE_CONFIG_EMPTY, // PublicSpace loads actual config from storage
-    navSlug,
-    adminIdentityPublicKeys,
-  };
-}
+import { loadNavPageSpaceData } from "./utils";
 
 // Force dynamic rendering for all pages
 export const dynamic = 'force-dynamic';
@@ -98,48 +19,22 @@ export default async function NavPage({
     notFound();
   }
 
-  const config = await loadSystemConfig();
-
-  // Find navigation item by href
-  const navItems = config.navigation?.items || [];
-  const navItem = navItems.find(item => item.href === `/${navSlug}`);
-
-  if (!navItem) {
-    notFound();
-  }
-
-  // Nav item must have a spaceId
-  if (!navItem.spaceId) {
-    console.error(`[NavPage] Navigation item "${navSlug}" has no spaceId`);
-    notFound();
-  }
-
-  // Decode tab name if provided, otherwise get default tab
-  let activeTabName: string;
+  // Decode tab name if provided
+  let decodedTabName: string | undefined;
   if (tabName && tabName.length > 0) {
-    activeTabName = decodeURIComponent(tabName[0]);
-  } else {
-    // Get default tab from tab order (same pattern as ProfileSpace)
-    const defaultTab = await getDefaultTab(navItem.spaceId);
-    if (!defaultTab) {
-      console.error(`[NavPage] No tabs found for spaceId: ${navItem.spaceId}`);
-      notFound();
-    }
-    activeTabName = defaultTab;
+    decodedTabName = decodeURIComponent(tabName[0]);
   }
 
-  // Create space data - PublicSpace handles loading actual tab config
-  const spaceData = createNavPageSpaceData(
-    navItem.spaceId,
-    navSlug,
-    activeTabName,
-    config.adminIdentityPublicKeys ?? []
-  );
+  const spaceData = await loadNavPageSpaceData(navSlug, decodedTabName);
+
+  if (!spaceData) {
+    notFound();
+  }
 
   return (
     <NavPageSpace
       spacePageData={spaceData}
-      tabName={activeTabName}
+      tabName={decodedTabName || spaceData.defaultTab}
     />
   );
 }
