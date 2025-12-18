@@ -8,6 +8,7 @@ import { loadSystemConfig, SystemConfig } from "@/config";
 import ClientMobileHeaderWrapper from "@/common/components/organisms/ClientMobileHeaderWrapper";
 import ClientSidebarWrapper from "@/common/components/organisms/ClientSidebarWrapper";
 import type { Metadata } from 'next' // Migrating next/head
+import { extractFontFamilyFromUrl } from "@/common/lib/utils/fontUtils";
 
 // Fallback metadata for build time (when config can't be loaded)
 const fallbackMetadata: Metadata = {
@@ -54,7 +55,7 @@ export async function generateMetadata(): Promise<Metadata> {
       version: "next",
       imageUrl: `${WEBSITE_URL}${config.assets.logos.og}`,
       button: {
-        title: config.brand.name,
+        title: config.brand.displayName,
         action: {
           type: "launch_frame",
           url: WEBSITE_URL,
@@ -120,10 +121,30 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const systemConfig = await loadSystemConfig();
+  const navFontFamily = extractFontFamilyFromUrl(systemConfig.ui?.url);
+  const navFontStack =
+    navFontFamily
+      ? `${navFontFamily}, var(--font-sans, Inter, system-ui, -apple-system, sans-serif)`
+      : "var(--font-sans, Inter, system-ui, -apple-system, sans-serif)";
+  const navFontColor = systemConfig.ui?.fontColor || "#0f172a";
+  const castButtonFontColor = systemConfig.ui?.castButtonFontColor || "#ffffff";
   
   return (
     <html lang="en" suppressHydrationWarning>
-      <body>
+      <head>
+        {systemConfig.ui?.url && (
+          <link rel="stylesheet" href={systemConfig.ui.url} />
+        )}
+      </head>
+      <body
+        style={
+          {
+            ["--ns-nav-font" as string]: navFontStack,
+            ["--ns-nav-font-color" as string]: navFontColor,
+            ["--ns-cast-button-font-color" as string]: castButtonFontColor,
+          } as React.CSSProperties
+        }
+      >
         <SpeedInsights />
         <Providers>{sidebarLayout(children, systemConfig)}</Providers>
       </body>

@@ -49,7 +49,6 @@ import EmojiPicker, {
 import { GoSmiley } from "react-icons/go";
 import { HiOutlineSparkles } from "react-icons/hi2";
 import { Address, formatUnits, zeroAddress } from "viem";
-import { base } from "viem/chains";
 import { useBalance } from "wagmi";
 import { useFarcasterSigner } from "..";
 import {
@@ -63,7 +62,7 @@ import { ChannelPicker } from "./channelPicker";
 import { renderEmbedForUrl } from "./Embeds";
 
 
-import { getSpaceContractAddr } from "@/constants/spaceToken";
+import { getGateTokens, getChainForNetwork } from "@/common/lib/utils/tokenGates";
 
 // SPACE_CONTRACT_ADDR will be loaded when needed (async)
 // For now, we'll use it in a way that handles the Promise
@@ -373,21 +372,39 @@ const CreateCast: React.FC<CreateCastProps> = ({
   const sparklesBannerClosed = isBannerClosed(SPARKLES_BANNER_KEY);
 
   const { user } = usePrivy();
-  const [spaceContractAddr, setSpaceContractAddr] = useState<Address | null>(null);
+  const [erc20Token, setErc20Token] = useState<{
+    address: Address;
+    decimals: number;
+    network?: string;
+  } | null>(null);
   
   // Load space contract address (async)
   useEffect(() => {
-    getSpaceContractAddr().then(addr => setSpaceContractAddr(addr));
+    getGateTokens().then((tokens) => {
+      const primaryErc20 = tokens.erc20Tokens[0];
+      if (primaryErc20) {
+        setErc20Token({
+          address: primaryErc20.address as Address,
+          decimals: primaryErc20.decimals ?? 18,
+          network: primaryErc20.network,
+        });
+      }
+    });
   }, []);
   
   const result = useBalance({
     address: (user?.wallet?.address as Address) || zeroAddress,
-    token: (spaceContractAddr || zeroAddress) as Address,
-    chainId: base.id,
-    query: { enabled: !!spaceContractAddr }, // Only query when address is loaded
+    token: (erc20Token?.address || zeroAddress) as Address,
+    chainId: erc20Token ? getChainForNetwork(erc20Token.network).id : undefined,
+    query: { enabled: !!erc20Token }, // Only query when address is loaded
   });
   const spaceHoldAmount = result?.data
-    ? parseInt(formatUnits(result.data.value, result.data.decimals))
+    ? parseInt(
+        formatUnits(
+          result.data.value,
+          result.data.decimals ?? erc20Token?.decimals ?? 18,
+        ),
+      )
     : 0;
   const userHoldEnoughSpace = spaceHoldAmount >= 1111;
   const { hasNogs } = useAppStore((state) => ({

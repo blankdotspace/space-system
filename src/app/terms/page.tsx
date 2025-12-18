@@ -14,13 +14,7 @@ Welcome to **nounspace** – an open-source social application built on the Farc
 
 **Free, “As-Is” Service:** Nounspace is provided to you free of charge on an “as-is” basis. This means the platform is offered without any guarantees, and you use it at your own risk (we’ll explain more about this in the Disclaimers section). All core features of nounspace are free to use.
 
-**Token-Gated Features:** Some advanced features on nounspace are *token-gated*. To access those, you need to hold certain tokens in your crypto wallet that’s connected to nounspace. Specifically, you will need **either**:
-
-* A *nounspace OG (nOGs) NFT* in your wallet, **or**
-
-* A minimum amount of **$SPACE** tokens (nounspace’s native token) in your wallet.
-
-If you have at least one of these, you can unlock the token-gated features. The exact amount of $SPACE tokens required may change over time, as determined by FrFr LLC or the nounspace DAO. We will communicate any such changes clearly, but it’s ultimately at the discretion of the nounspace DAO and FrFr LLC to adjust token thresholds.
+**Token-Gated Features:** Some advanced features on nounspace are *token-gated*. To access those, you need to hold certain tokens in your connected wallet. Communities can configure which tokens unlock access; holding **one eligible NFT** or at least **1,111 units of an eligible ERC20** will pass the gate. If a community hasn’t configured custom tokens yet, the legacy fallback applies: a nounspace OG (nOGs) NFT or a sufficient $SPACE ERC20 balance will unlock access. Thresholds or token selections may change over time and will be communicated when updated.
 
 **Future Premium Features:** Nounspace may introduce optional premium features or subscriptions in the future. These would be paid features to enhance your experience, but using them will be completely optional. If and when premium subscriptions are offered, we will provide details on the pricing and any additional terms for those services. The basic version of nounspace will remain free.
 

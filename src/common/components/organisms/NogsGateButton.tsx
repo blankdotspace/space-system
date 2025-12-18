@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/common/data/stores/app";
 import { RECHECK_BACKOFF_FACTOR } from "@/common/data/stores/app/setup";
-import { getNogsContractAddr } from "@/constants/nogs";
 import { ALCHEMY_API } from "@/constants/urls";
 import { AlchemyIsHolderOfContract } from "@/pages/api/signerRequests";
 import { usePrivy } from "@privy-io/react-auth";
@@ -10,10 +9,9 @@ import { Button, ButtonProps } from "../atoms/button";
 import NogsChecker from "./NogsChecker";
 import Modal from "../molecules/Modal";
 import { isUndefined } from "lodash";
-import { useBalance } from "wagmi";
 import { Address, formatUnits, zeroAddress } from "viem";
-import { base } from "viem/chains";
-import { getSpaceContractAddr } from "@/constants/spaceToken";
+import { useBalance } from "wagmi";
+import { getGateTokens, getChainForNetwork, mapNetworkToAlchemy } from "@/common/lib/utils/tokenGates";
 
 const MIN_SPACE_TOKENS_FOR_UNLOCK = 1111;
 
@@ -51,13 +49,33 @@ const NogsGateButton = (props: ButtonProps) => {
   }));
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [spaceContractAddr, setSpaceContractAddr] = useState<Address | null>(null);
-  const [nogsContractAddr, setNogsContractAddr] = useState<string | null>(null);
+  const [erc20Token, setErc20Token] = useState<{
+    address: Address;
+    decimals: number;
+    network?: string;
+  } | null>(null);
+  const [nftTokens, setNftTokens] = useState<
+    { address: string; network?: string }[]
+  >([]);
 
   // Load contract addresses (async)
   useEffect(() => {
-    getSpaceContractAddr().then(addr => setSpaceContractAddr(addr));
-    getNogsContractAddr().then(addr => setNogsContractAddr(addr));
+    getGateTokens().then((tokens) => {
+      const primaryErc20 = tokens.erc20Tokens[0];
+      if (primaryErc20) {
+        setErc20Token({
+          address: primaryErc20.address as Address,
+          decimals: primaryErc20.decimals ?? 18,
+          network: primaryErc20.network,
+        });
+      }
+      setNftTokens(
+        (tokens.nftTokens || []).map((token) => ({
+          address: token.address,
+          network: token.network,
+        })),
+      );
+    });
   }, []);
 
   // ----- SPACE token gating -----
@@ -65,13 +83,18 @@ const NogsGateButton = (props: ButtonProps) => {
 
   const { data: spaceBalanceData } = useBalance({
     address: walletAddress ?? zeroAddress,
-    token: (spaceContractAddr || zeroAddress) as Address,
-    chainId: base.id,
-    query: { enabled: Boolean(walletAddress) && !!spaceContractAddr },
+    token: (erc20Token?.address || zeroAddress) as Address,
+    chainId: erc20Token ? getChainForNetwork(erc20Token.network).id : undefined,
+    query: { enabled: Boolean(walletAddress) && !!erc20Token },
   });
 
   const userHoldEnoughSpace = spaceBalanceData
-    ? Number(formatUnits(spaceBalanceData.value, spaceBalanceData.decimals)) >=
+    ? Number(
+        formatUnits(
+          spaceBalanceData.value,
+          spaceBalanceData.decimals ?? erc20Token?.decimals ?? 18,
+        ),
+      ) >=
       MIN_SPACE_TOKENS_FOR_UNLOCK
     : false;
 
@@ -79,20 +102,20 @@ const NogsGateButton = (props: ButtonProps) => {
 
   // Optional debug logs
   useEffect(() => {
-    if (spaceBalanceData && spaceContractAddr) {
+    if (spaceBalanceData && erc20Token?.address) {
       console.log(
-        "[DEBUG] SPACE balance:",
-        Number(formatUnits(spaceBalanceData.value, spaceBalanceData.decimals)),
+        "[DEBUG] ERC20 balance:",
+        Number(
+          formatUnits(
+            spaceBalanceData.value,
+            spaceBalanceData.decimals ?? erc20Token.decimals ?? 18,
+          ),
+        ),
       );
-      console.log("[DEBUG] SPACE contract address:", spaceContractAddr);
+      console.log("[DEBUG] ERC20 contract address:", erc20Token.address);
       console.log("[DEBUG] Connected wallet:", walletAddress);
     }
-  }, [spaceBalanceData, spaceContractAddr, walletAddress]);
-
-  useEffect(() => {
-    console.log("[DEBUG] userHoldEnoughSpace:", userHoldEnoughSpace);
-    console.log("[DEBUG] hasNogs:", hasNogs);
-  }, [userHoldEnoughSpace, hasNogs]);
+  }, [spaceBalanceData, erc20Token?.address, erc20Token?.decimals, walletAddress]);
 
   // ----- nOGs gating / timers -----
 
@@ -105,30 +128,30 @@ const NogsGateButton = (props: ButtonProps) => {
     }
 
     try {
-      console.log("[DEBUG] Checking nOGs for address:", address);
-      console.log(
-        "[DEBUG] Using API:",
-        `${ALCHEMY_API("base")}nft/v3/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}/isHolderOfContract`,
-      );
-      if (!nogsContractAddr) {
-        console.error("[DEBUG] nOGs contract address not loaded yet");
+      if (nftTokens.length === 0) {
+        console.error("[DEBUG] No NFT gating tokens configured");
         return false;
       }
 
-      console.log("[DEBUG] nOGs Contract:", nogsContractAddr);
-
-      const { data } = await axios.get<AlchemyIsHolderOfContract>(
-        `${ALCHEMY_API("base")}nft/v3/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}/isHolderOfContract`,
-        {
-          params: {
-            wallet: address,
-            contractAddress: nogsContractAddr,
+      for (const token of nftTokens) {
+        const alchemyNetwork = mapNetworkToAlchemy(token.network as any);
+        const { data } = await axios.get<AlchemyIsHolderOfContract>(
+          `${ALCHEMY_API(alchemyNetwork)}nft/v3/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}/isHolderOfContract`,
+          {
+            params: {
+              wallet: address,
+              contractAddress: token.address,
+            },
           },
-        },
-      );
+        );
 
-      console.log("[DEBUG] API response for nOGs:", data);
-      return data.isHolderOfContract;
+        console.log("[DEBUG] API response for NFT gate:", data);
+        if (data.isHolderOfContract) {
+          return true;
+        }
+      }
+
+      return false;
     } catch (err) {
       console.error("[DEBUG] Error checking nOGs:", err);
       return false;
@@ -207,36 +230,38 @@ const NogsGateButton = (props: ButtonProps) => {
     };
   }, [nogsTimeoutTimer, nogsRecheckCountDownTimer]);
 
-  // NFT nOGs debug status (optional)
-  const [nogsCheckResult, setNogsCheckResult] = useState<string>("?");
-
   // Automatically check nOGs on load
   useEffect(() => {
     async function checkNogsAuto() {
-      if (!walletAddress || !nogsContractAddr) return;
+      if (!walletAddress || nftTokens.length === 0) return;
 
       try {
-        const { data } = await axios.get<AlchemyIsHolderOfContract>(
-          `${ALCHEMY_API("base")}nft/v3/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}/isHolderOfContract`,
-          {
-            params: {
-              wallet: walletAddress,
-              contractAddress: nogsContractAddr,
-            },
-          },
+        const results = await Promise.all(
+          nftTokens.map((token) => {
+            const alchemyNetwork = mapNetworkToAlchemy(token.network as any);
+            return axios.get<AlchemyIsHolderOfContract>(
+              `${ALCHEMY_API(alchemyNetwork)}nft/v3/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}/isHolderOfContract`,
+              {
+                params: {
+                  wallet: walletAddress,
+                  contractAddress: token.address,
+                },
+              },
+            );
+          }),
         );
 
-        setNogsCheckResult(data.isHolderOfContract ? "YES" : "NO");
-        if (data.isHolderOfContract) {
+        const anyHold = results.some((res) => res.data.isHolderOfContract);
+        if (anyHold) {
           setHasNogs(true);
         }
-      } catch {
-        setNogsCheckResult("ERROR");
+      } catch (error) {
+        console.error("[DEBUG] Error during NFT gate auto-check:", error);
       }
     }
 
     void checkNogsAuto();
-  }, [walletAddress, nogsContractAddr, setHasNogs]);
+  }, [walletAddress, nftTokens, setHasNogs]);
 
   // ----- Button wrapper (this is what ThemeSettingsEditor uses) -----
 

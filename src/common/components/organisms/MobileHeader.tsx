@@ -134,7 +134,10 @@ const MobileHeader = ({ systemConfig }: MobileHeaderProps) => {
           size="icon" 
           disabled
           className="text-white font-medium rounded-md"
-          style={{ backgroundColor: uiColors.primaryColor }}
+          style={{ 
+            backgroundColor: uiColors.primaryColor,
+            fontFamily: uiColors.fontFamily,
+          }}
         >
           <span className="animate-spin">⏳</span>
         </Button>
@@ -146,8 +149,12 @@ const MobileHeader = ({ systemConfig }: MobileHeaderProps) => {
           size="icon" 
           onClick={() => setCastOpen(true)} 
           aria-label="Cast"
-          className="text-white font-medium rounded-md transition-colors"
-          style={{ backgroundColor: uiColors.castButton.backgroundColor }}
+          className="font-medium rounded-md transition-colors"
+          style={{ 
+            backgroundColor: uiColors.castButton.backgroundColor,
+            color: uiColors.castButtonFontColor,
+            fontFamily: uiColors.fontFamily,
+          }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = uiColors.castButton.hoverColor;
           }}
@@ -161,7 +168,7 @@ const MobileHeader = ({ systemConfig }: MobileHeaderProps) => {
             e.currentTarget.style.backgroundColor = uiColors.castButton.hoverColor;
           }}
         >
-          <RiQuillPenLine className="w-5 h-5 text-white" />
+          <RiQuillPenLine className="w-5 h-5" style={{ color: uiColors.castButtonFontColor }} />
         </Button>
       );
     }
@@ -171,7 +178,10 @@ const MobileHeader = ({ systemConfig }: MobileHeaderProps) => {
         onClick={openLogin} 
         withIcon
         className="text-white font-medium rounded-md transition-colors"
-        style={{ backgroundColor: uiColors.primaryColor }}
+        style={{ 
+          backgroundColor: uiColors.primaryColor,
+          fontFamily: uiColors.fontFamily,
+        }}
         onMouseEnter={(e) => {
           e.currentTarget.style.backgroundColor = uiColors.primaryHoverColor;
         }}

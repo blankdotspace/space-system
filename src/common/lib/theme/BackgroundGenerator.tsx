@@ -10,9 +10,8 @@ import { AnalyticsEvent } from "@/common/constants/analyticsEvents";
 import { analytics } from "@/common/providers/AnalyticsProvider";
 import { usePrivy } from "@privy-io/react-auth";
 import { Address, formatUnits, zeroAddress } from "viem";
-import { base } from "viem/chains";
 import { useBalance } from "wagmi";
-import { getSpaceContractAddr } from "@/constants/spaceToken";
+import { getGateTokens, getChainForNetwork } from "@/common/lib/utils/tokenGates";
 
 interface BackgroundGeneratorProps {
   backgroundHTML: string;
@@ -49,21 +48,39 @@ export const BackgroundGenerator = ({
   ];
 
   const { user } = usePrivy();
-  const [spaceContractAddr, setSpaceContractAddr] = useState<Address | null>(null);
+  const [erc20Token, setErc20Token] = useState<{
+    address: Address;
+    decimals: number;
+    network?: string;
+  } | null>(null);
   
   // Load space contract address (async)
   useEffect(() => {
-    getSpaceContractAddr().then(addr => setSpaceContractAddr(addr));
+    getGateTokens().then((tokens) => {
+      const primaryErc20 = tokens.erc20Tokens[0];
+      if (primaryErc20) {
+        setErc20Token({
+          address: primaryErc20.address as Address,
+          decimals: primaryErc20.decimals ?? 18,
+          network: primaryErc20.network,
+        });
+      }
+    });
   }, []);
   
   const result = useBalance({
     address: (user?.wallet?.address as Address) || zeroAddress,
-    token: (spaceContractAddr || zeroAddress) as Address,
-    chainId: base.id,
-    query: { enabled: !!spaceContractAddr }, // Only query when address is loaded
+    token: (erc20Token?.address || zeroAddress) as Address,
+    chainId: erc20Token ? getChainForNetwork(erc20Token.network).id : undefined,
+    query: { enabled: !!erc20Token }, // Only query when address is loaded
   });
   const spaceHoldAmount = result?.data
-    ? parseInt(formatUnits(result.data.value, result.data.decimals))
+    ? parseInt(
+        formatUnits(
+          result.data.value,
+          result.data.decimals ?? erc20Token?.decimals ?? 18,
+        ),
+      )
     : 0;
   const userHoldEnoughSpace = spaceHoldAmount >= 1111;
   const spaceLoading = result.isLoading || result.isFetching;

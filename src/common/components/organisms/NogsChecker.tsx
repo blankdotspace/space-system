@@ -22,17 +22,10 @@ export default function NogsChecker() {
     <>
       <p className="mb-2">
         Premium features like the vibe editor, AI background generation, and cast
-        enhancements are reserved for early supporters holding a nounspace OG NFT
-        (nOGs) or enough $SPACE tokens. Mint a pair{" "}
-        <a
-          href="https://highlight.xyz/mint/663d2717dffb7b3a490f398f"
-          rel="noopener noreferrer"
-          target="_blank"
-          className="cursor-pointer text-blue-500 text-font-medium hover:underline hover:text-blue-500/70"
-        >
-          here
-        </a>
-        , then try again!
+        enhancements are reserved for supporters who hold the configured gate tokens
+        (one eligible NFT or at least 1,111 of an eligible ERC20). If your community
+        has not set custom gate tokens yet, the legacy nOGs NFT or $SPACE ERC20
+        fallback applies.
       </p>
       <Button disabled={isChecking} onClick={userTriggeredRecheck}>
         {isChecking ? "Checking your access" : "Check access"}
