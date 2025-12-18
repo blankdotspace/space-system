@@ -7,6 +7,7 @@ import PlatformSelector, {
 } from "@/common/components/molecules/PlatformSelector";
 import SettingsSelector from "@/common/components/molecules/SettingsSelector";
 import ShadowSelector from "@/common/components/molecules/ShadowSelector";
+import SwitchButton from "@/common/components/molecules/SwitchButton";
 import TextInput from "@/common/components/molecules/TextInput";
 import ThemeColorSelector from "@/common/components/molecules/ThemeColorSelector";
 import ThemeSelector from "@/common/components/molecules/ThemeSelector";
@@ -61,6 +62,7 @@ export type FeedFidgetSettings = {
   style: string;
   useDefaultColors?: boolean;
   membersOnly?: boolean;
+  showBanner?: boolean;
 } & FidgetSettingsStyle;
 
 const FILTER_TYPES = [
@@ -219,6 +221,19 @@ const feedProperties: FidgetProperties<FeedFidgetSettings> = {
       group: "settings",
     },
     {
+      fieldName: "showBanner",
+      displayName: "Display Feed Settings Banner",
+      displayNameHint: "Toggle whether to display the feed settings banner at the top of the feed.",
+      inputSelector: (props) => (
+        <WithMargin>
+          <SwitchButton {...props} />
+        </WithMargin>
+      ),
+      required: false,
+      default: false,
+      group: "settings",
+    },
+    {
       fieldName: "style",
       displayName: "Feed Style",
       inputSelector: (props) => (
@@ -373,6 +388,7 @@ const Feed: React.FC<FidgetArgs<FeedFidgetSettings, FeedFidgetData>> = ({
     filterType,
     keyword,
     membersOnly,
+    showBanner: showBannerSetting,
   } = settings;
   const { fid } = useFarcasterSigner("feed");
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -671,7 +687,7 @@ const Feed: React.FC<FidgetArgs<FeedFidgetSettings, FeedFidgetData>> = ({
       }}
     >
       {/* Feed settings banner: shows a short summary of active filter/feed and hides on scroll */}
-      {!isThreadView && !isTransitioning && (
+      {showBannerSetting && !isThreadView && !isTransitioning && (
         (() => {
           const text = getBannerText(selectPlatform, feedType as FeedType | "for_you" | "trending", filterType, {
             Xhandle,
@@ -689,8 +705,10 @@ const Feed: React.FC<FidgetArgs<FeedFidgetSettings, FeedFidgetData>> = ({
                 showBanner ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
               }`}
             >
-              <div className="w-full px-4 py-2 bg-white/90 dark:bg-black/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 text-sm text-gray-700 dark:text-gray-200">
-                {text}
+              <div className="w-full px-4 py-2 bg-white/90 dark:bg-black/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800">
+                <div className="text-sm font-bold text-gray-500 dark:text-gray-400 text-center">
+                  {text}
+                </div>
               </div>
             </div>
           );
