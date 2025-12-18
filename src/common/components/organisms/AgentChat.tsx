@@ -32,8 +32,8 @@ import {
 } from "@/common/lib/services/websocket";
 import {
   GridSizeMetadata,
-  ensureGridSize,
-  DEFAULT_GRID_SIZE,
+  getGridSizeForSpaceType,
+  validateAndFixLayout,
 } from "@/common/lib/utils/gridSize";
 import html2canvas from "html2canvas";
 
@@ -132,55 +132,37 @@ interface SpaceContextConfig {
   [key: string]: any;
 }
 
-type LayoutLikeItem = {
-  x?: number;
-  y?: number;
-  w?: number;
-  h?: number;
-};
-
-const extractLayoutFromContext = (
-  context?: SpaceContextConfig | null,
-): LayoutLikeItem[] | undefined => {
-  if (!context) {
-    return undefined;
-  }
-
-  const directLayout =
-    context.layoutConfig && Array.isArray(context.layoutConfig.layout)
-      ? context.layoutConfig.layout
-      : undefined;
-
-  if (directLayout) {
-    return directLayout;
-  }
-
-  const detailedLayout = context.layoutDetails?.layoutConfig;
-  if (detailedLayout && Array.isArray(detailedLayout.layout)) {
-    return detailedLayout.layout;
-  }
-
-  const legacyLayout = (context as Record<string, any>)?.layout;
-  if (legacyLayout && Array.isArray(legacyLayout.layout)) {
-    return legacyLayout.layout;
-  }
-
-  return undefined;
-};
-
 const ensureContextHasGridSize = (
   context: SpaceContextConfig | null,
+  tabName?: string | null,
 ): SpaceContextConfig | null => {
   if (!context) {
     return null;
   }
 
-  const layout = extractLayoutFromContext(context);
-  const gridSize = ensureGridSize({
-    existing: context.gridSize,
-    layout,
-    fallback: DEFAULT_GRID_SIZE,
-  });
+  // Get grid size based on space type (tab name or detected from fidgets)
+  // This hardcodes Profile and Channel spaces to use reduced grid size
+  const spaceTypeGridSize = getGridSizeForSpaceType(
+    tabName,
+    context.fidgetInstanceDatums
+  );
+  
+  // Always use the correct grid size for Profile/Channel spaces, even if one exists
+  // This ensures the agent always gets the correct constraints
+  const shouldOverrideGridSize = 
+    spaceTypeGridSize.rows === 8 && // Profile or Channel space
+    (context.gridSize?.rows !== 8 || context.gridSize?.isInferred);
+
+  const gridSize = shouldOverrideGridSize
+    ? spaceTypeGridSize
+    : (context.gridSize?.columns && context.gridSize?.rows
+        ? {
+            ...spaceTypeGridSize,
+            ...context.gridSize,
+            columns: context.gridSize.columns,
+            rows: context.gridSize.rows,
+          }
+        : spaceTypeGridSize);
 
   return {
     ...context,
@@ -300,14 +282,16 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
 
   // Function to get fresh space context when needed
   const getFreshSpaceContext = useCallback(() => {
+    // Get current tab name first (needed for grid size calculation)
+    const currentTabName = getCurrentTabName();
+
     // If external context provider is available, use it (for theme editor)
     if (getCurrentSpaceContext) {
-      return ensureContextHasGridSize(getCurrentSpaceContext());
+      return ensureContextHasGridSize(getCurrentSpaceContext(), currentTabName);
     }
 
     // Otherwise, get current context from app store
     const currentSpaceId = getCurrentSpaceId();
-    const currentTabName = getCurrentTabName();
 
     let currentTabConfig: SpaceContextConfig | null = null;
 
@@ -330,7 +314,7 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
         currentSpaceConfig?.tabs[currentTabName || "Profile"] || null;
     }
 
-    return ensureContextHasGridSize(currentTabConfig);
+    return ensureContextHasGridSize(currentTabConfig, currentTabName);
   }, [
     getCurrentSpaceContext,
     getCurrentSpaceId,
@@ -462,8 +446,63 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
     if (!onApplySpaceConfig) return;
 
     try {
+      // Get current context to determine correct grid size
+      const currentContext = getFreshSpaceContext();
+      const gridSize = currentContext?.gridSize;
+      
       // Extract layoutConfig using the utility function for both new and old formats
       const layoutConfigData = getLayoutConfig(spaceConfig.layoutDetails);
+      
+      // Validate and fix layout items to ensure they fit within grid boundaries
+      // This is critical for Profile/Channel spaces with reduced grid size
+      if (layoutConfigData?.layout && Array.isArray(layoutConfigData.layout)) {
+        // If we don't have gridSize from context, try to detect it
+        const effectiveGridSize = gridSize || getGridSizeForSpaceType(
+          getCurrentTabName(),
+          spaceConfig.fidgetInstanceDatums
+        );
+        
+        console.log("🔍 Validating layout with grid size:", {
+          layoutItemCount: layoutConfigData.layout.length,
+          gridSize: effectiveGridSize,
+          layoutItems: layoutConfigData.layout.map((item: any) => ({
+            id: item.i,
+            x: item.x,
+            y: item.y,
+            w: item.w,
+            h: item.h,
+            outOfBounds: 
+              (item.x + item.w > effectiveGridSize.columns) ||
+              (item.y + item.h > effectiveGridSize.rows)
+          }))
+        });
+        
+        const originalLayout = layoutConfigData.layout;
+        const fixedLayout = validateAndFixLayout(originalLayout, effectiveGridSize);
+        
+        // Always apply the fixed layout to ensure items are within bounds
+        layoutConfigData.layout = fixedLayout;
+        
+        const hadChanges = JSON.stringify(originalLayout) !== JSON.stringify(fixedLayout);
+        if (hadChanges) {
+          console.warn("🔧 Fixed layout items to fit grid boundaries:", {
+            originalCount: originalLayout.length,
+            fixedCount: fixedLayout.length,
+            gridSize: { columns: effectiveGridSize.columns, rows: effectiveGridSize.rows },
+            fixedItems: fixedLayout.filter((item: any, idx: number) => {
+              const orig = originalLayout[idx];
+              return orig && (
+                orig.x !== item.x || orig.y !== item.y || 
+                orig.w !== item.w || orig.h !== item.h
+              );
+            }).map((item: any) => ({
+              id: item.i,
+              original: originalLayout.find((o: any) => o.i === item.i),
+              fixed: item
+            }))
+          });
+        }
+      }
 
       // Convert SpaceConfig to the format expected by saveLocalConfig
       const saveDetails = {
@@ -779,12 +818,17 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
         console.log("📤 Sending user message with fresh space config context");
 
         // Get the current context right before sending
-        const freshContext = ensureContextHasGridSize(getFreshSpaceContext());
+        const freshContext = getFreshSpaceContext();
+        const currentTabName = getCurrentTabName();
         console.log("🔧 Fresh context for AI:", {
           hasContext: !!freshContext,
+          currentTabName,
           fidgetCount: freshContext?.fidgetInstanceDatums
             ? Object.keys(freshContext.fidgetInstanceDatums).length
             : 0,
+          fidgetIds: freshContext?.fidgetInstanceDatums
+            ? Object.keys(freshContext.fidgetInstanceDatums)
+            : [],
           layoutID: freshContext?.layoutID,
           theme: freshContext?.theme?.id,
           gridSize: freshContext?.gridSize
