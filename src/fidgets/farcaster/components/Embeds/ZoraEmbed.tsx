@@ -26,6 +26,7 @@ interface OpenGraphData {
   video?: string;
   siteName?: string;
   url?: string;
+  error?: string;
 }
 
 const MAX_EMBED_HEIGHT = 500;
@@ -54,9 +55,10 @@ const ZoraEmbed: React.FC<ZoraEmbedProps> = ({ url }) => {
               signal: controller.signal,
             }
           );
+          
           if (response.ok) {
             const data = await response.json();
-            // Only set data if we got meaningful content
+            // Accept data if we have any meaningful content
             if (data.title || data.image || data.video || data.description) {
               setOgData(data);
             }
@@ -66,9 +68,6 @@ const ZoraEmbed: React.FC<ZoraEmbedProps> = ({ url }) => {
         }
       } catch (err) {
         // Silently fail - we'll show fallback UI
-        if (err instanceof Error && err.name !== 'AbortError') {
-          console.warn("OpenGraph fetch failed:", err.message);
-        }
       } finally {
         setIsLoading(false);
       }
