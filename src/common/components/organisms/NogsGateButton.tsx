@@ -12,6 +12,7 @@ import { isUndefined } from "lodash";
 import { Address, formatUnits, zeroAddress } from "viem";
 import { useBalance } from "wagmi";
 import { getGateTokens, getChainForNetwork, mapNetworkToAlchemy } from "@/common/lib/utils/tokenGates";
+import { type CommunityTokenNetwork } from "@/config";
 
 const MIN_SPACE_TOKENS_FOR_UNLOCK = 1111;
 
@@ -52,10 +53,10 @@ const NogsGateButton = (props: ButtonProps) => {
   const [erc20Token, setErc20Token] = useState<{
     address: Address;
     decimals: number;
-    network?: string;
+    network?: CommunityTokenNetwork;
   } | null>(null);
   const [nftTokens, setNftTokens] = useState<
-    { address: string; network?: string }[]
+    { address: string; network?: CommunityTokenNetwork }[]
   >([]);
 
   // Load contract addresses (async)
