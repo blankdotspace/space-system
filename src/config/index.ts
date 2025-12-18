@@ -1,4 +1,10 @@
-import { SystemConfig } from './systemConfig';
+import {
+  SystemConfig,
+  type CommunityErc20Token,
+  type CommunityNftToken,
+  type CommunityTokenNetwork,
+  type CommunityTokensConfig,
+} from './systemConfig';
 import { 
   getDomainFromContext,
   resolveCommunityId,
@@ -65,7 +71,13 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
 }
 
 // Export SystemConfig type (configs are now database-backed, no static exports)
-export type { SystemConfig };
+export type {
+  SystemConfig,
+  CommunityErc20Token,
+  CommunityNftToken,
+  CommunityTokenNetwork,
+  CommunityTokensConfig,
+};
 
 // Space creators - re-export directly from Nouns implementations
 import { 
