@@ -63,6 +63,7 @@ import { renderEmbedForUrl } from "./Embeds";
 
 
 import { getGateTokens, getChainForNetwork } from "@/common/lib/utils/tokenGates";
+import { type CommunityTokenNetwork } from "@/config";
 
 // SPACE_CONTRACT_ADDR will be loaded when needed (async)
 // For now, we'll use it in a way that handles the Promise
@@ -375,7 +376,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
   const [erc20Token, setErc20Token] = useState<{
     address: Address;
     decimals: number;
-    network?: string;
+    network?: CommunityTokenNetwork;
   } | null>(null);
   
   // Load space contract address (async)
