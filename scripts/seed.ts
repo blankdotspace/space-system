@@ -661,8 +661,6 @@ function createTabOrderData(spaceId: string, tabOrder: string[]) {
     spaceId,
     timestamp: moment().toISOString(),
     tabOrder,
-    publicKey: 'nounspace',
-    signature: 'not applicable, machine generated file',
   };
 }
 

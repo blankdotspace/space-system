@@ -17,8 +17,37 @@ async function getDefaultTab(spaceId: string): Promise<string | null> {
       .storage
       .from('spaces')
       .download(`${spaceId}/tabOrder`);
-
-    if (error || !tabOrderData) {
+    
+    if (tabOrderError || !tabOrderData) {
+      console.warn(`Failed to load tabOrder for space ${spaceId}:`, tabOrderError);
+      return null;
+    }
+    
+    const tabOrderObj = JSON.parse(await tabOrderData.text()) as { tabOrder: string[] };
+    const tabOrder = tabOrderObj.tabOrder || [];
+    
+    // Fetch each tab config
+    const tabs: Record<string, any> = {};
+    for (const tabName of tabOrder) {
+      try {
+        const { data: tabData, error: tabError } = await supabase.storage
+          .from('spaces')
+          .download(`${spaceId}/tabs/${tabName}`);
+        
+        if (tabError || !tabData) {
+          console.warn(`Failed to load tab ${tabName} for space ${spaceId}:`, tabError);
+          continue;
+        }
+        
+        const tabFile = JSON.parse(await tabData.text()) as SignedFile;
+        const tabConfig = JSON.parse(tabFile.fileData);
+        tabs[tabName] = tabConfig;
+      } catch (error) {
+        console.warn(`Error parsing tab ${tabName} for space ${spaceId}:`, error);
+      }
+    }
+    
+    if (Object.keys(tabs).length === 0) {
       return null;
     }
 

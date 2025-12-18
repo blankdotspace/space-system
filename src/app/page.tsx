@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { loadSystemConfig } from "@/config";
 import { createSupabaseServerClient } from "@/common/data/database/supabase/clients/server";
 
+
 // Force dynamic rendering - config loading requires request context
 export const dynamic = 'force-dynamic';
 
