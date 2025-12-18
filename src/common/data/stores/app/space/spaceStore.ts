@@ -211,31 +211,62 @@ export const createSpaceStoreFunc = (
     const localCopy = cloneDeep(
       get().space.localSpaces[spaceId].tabs[tabName],
     );
-    const oldTabName =
-      get().space.localSpaces[spaceId].changedNames[tabName] || tabName;
     
-    if (localCopy) {
-      const file = await get().account.createSignedFile(
-        stringify(localCopy),
-        "json",
-        { fileName: tabName },
-      );
-      
-      try {
-        await axiosBackend.post(
-          `/api/space/registry/${spaceId}/tabs/${oldTabName}`,
-          { ...file, network },
-        );
+    if (!localCopy) {
+      console.warn(`Tab ${tabName} not found in localSpaces for space ${spaceId}`);
+      return;
+    }
 
-        set((draft) => {
-          draft.space.remoteSpaces[spaceId].tabs[tabName] = localCopy;
-          delete draft.space.remoteSpaces[spaceId].tabs[oldTabName];
-          delete draft.space.localSpaces[spaceId].changedNames[tabName];
-        }, "commitSpaceTabToDatabase");
-      } catch (e) {
-        console.error("Failed to commit space tab:", e);
-        throw e;
+    // Determine storage file name (handles edge case: new tab renamed before commit)
+    const localSpace = get().space.localSpaces[spaceId];
+    const remoteSpace = get().space.remoteSpaces[spaceId];
+    const storageFileName = (() => {
+      const oldName = localSpace.changedNames[tabName];
+      
+      // No rename - use current name
+      if (!oldName) {
+        return tabName;
       }
+      
+      // Check if old file exists in storage (via remoteSpaces)
+      const oldFileExists = remoteSpace?.tabs?.[oldName] !== undefined;
+      
+      if (oldFileExists) {
+        // Real rename: file exists at old name, use old name for move operation
+        return oldName;
+      } else {
+        // Edge case: new tab that was renamed - use new name (nothing to move)
+        return tabName;
+      }
+    })();
+    
+    const file = await get().account.createSignedFile(
+      stringify(localCopy),
+      "json",
+      { fileName: tabName },
+    );
+    
+    try {
+      await axiosBackend.post(
+        `/api/space/registry/${spaceId}/tabs/${storageFileName}`,
+        { ...file, network },
+      );
+
+      set((draft) => {
+        // Update remoteSpaces with new name
+        draft.space.remoteSpaces[spaceId].tabs[tabName] = localCopy;
+        
+        // Remove old name from remoteSpaces (if it was a rename)
+        if (storageFileName !== tabName) {
+          delete draft.space.remoteSpaces[spaceId].tabs[storageFileName];
+        }
+        
+        // Clear rename tracking
+        delete draft.space.localSpaces[spaceId].changedNames[tabName];
+      }, "commitSpaceTabToDatabase");
+    } catch (e) {
+      console.error("Failed to commit space tab:", e);
+      throw e;
     }
   },
   saveLocalSpaceTab: async (spaceId, tabName, config) => {
