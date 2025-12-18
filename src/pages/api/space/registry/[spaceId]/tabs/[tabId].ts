@@ -13,6 +13,7 @@ import { findIndex, isNull } from "lodash";
 import { NextApiRequest, NextApiResponse } from "next/types";
 import { createSupabaseServerClient } from "@/common/data/database/supabase/clients/server";
 import stringify from "fast-json-stable-stringify";
+import { StorageError } from "@supabase/storage-js";
 import { identitiesCanModifySpace } from "../../[spaceId]";
 
 export type UnsignedDeleteSpaceTabRequest = {
@@ -93,33 +94,60 @@ async function updateSpace(
     });
     return;
   }
+  // Handle rename (move file) - but only if file exists
   if (req.fileName !== tabName) {
     const supabase = createSupabaseServerClient();
     const { error } = await supabase.storage
       .from("spaces")
       .move(`${spaceId}/tabs/${tabName}`, `${spaceId}/tabs/${req.fileName}`);
+    
+    // Handle "file not found" gracefully (new tab that was renamed before commit)
     if (error) {
-      res.status(500).json({
-        result: "error",
-        error: {
-          message: error.message,
-        },
-      });
-      return;
+      const storageError = error as StorageError;
+      
+      // Primary check: statusCode (reliable, language-independent)
+      if (storageError.statusCode === 404) {
+        // Expected case: File doesn't exist - this is fine for new tabs renamed before commit
+        // We'll create it at the new location via upload with upsert
+        console.log(`[Expected] File ${tabName} not found, creating at ${req.fileName} instead`);
+      } else {
+        // Unexpected error - fail and log for monitoring
+        console.error(`[Unexpected] Move failed for ${tabName} → ${req.fileName}:`, {
+          statusCode: storageError.statusCode,
+          message: storageError.message,
+          error: storageError,
+        });
+        res.status(500).json({
+          result: "error",
+          error: {
+            message: storageError.message || "Failed to move file",
+          },
+        });
+        return;
+      }
     }
   }
+  
+  // Update/create file (uses upload with upsert to handle both registration and updates)
   const supabase = createSupabaseServerClient();
-  const { error } = await supabase.storage
+  const { error: uploadError } = await supabase.storage
     .from("spaces")
-    .update(
+    .upload(
       `${spaceId}/tabs/${req.fileName}`,
       new Blob([stringify(fileData)], { type: "application/json" }),
+      { upsert: true }, // Creates if doesn't exist, updates if it does
     );
-  if (error) {
+  if (uploadError) {
+    const storageError = uploadError as StorageError;
+    console.error(`[Unexpected] Upload failed for ${req.fileName}:`, {
+      statusCode: storageError.statusCode,
+      message: storageError.message,
+      error: storageError,
+    });
     res.status(500).json({
       result: "error",
       error: {
-        message: error.message,
+        message: storageError.message || "Failed to upload file",
       },
     });
     return;
