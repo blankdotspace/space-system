@@ -187,7 +187,7 @@ export default function Space({
         },
         fidgetInstanceDatums: cleanedFidgetInstanceDatums,
         timestamp: new Date().toISOString(),
-      }).then(commitConfig);
+      });
     }
 
     cleanupHasRun.current = true;
