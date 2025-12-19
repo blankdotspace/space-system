@@ -13,6 +13,7 @@ import {
     FaChevronLeft,
     FaChevronRight,
     FaDiscord,
+    FaPaintbrush,
 } from "react-icons/fa6";
 import { Button } from "../atoms/button";
 import BrandHeader from "../molecules/BrandHeader";
@@ -43,7 +44,16 @@ import {
 import SearchModal, { SearchModalHandle } from "./SearchModal";
 import { toFarcasterCdnUrl } from "@/common/lib/utils/farcasterCdn";
 import { SystemConfig } from "@/config";
+import { NavigationItem } from "@/config/systemConfig";
 import { useUIColors } from "@/common/lib/hooks/useUIColors";
+import { useCurrentSpaceIdentityPublicKey } from "@/common/lib/hooks/useCurrentSpaceIdentityPublicKey";
+import { useSidebarContext } from "./Sidebar";
+import { Reorder } from "framer-motion";
+import { map, debounce } from "lodash";
+import EditableText from "../atoms/editable-text";
+import { CloseIcon } from "../atoms/icons/CloseIcon";
+import { FaPlus, FaCheck, FaXmark } from "react-icons/fa6";
+import { toast } from "sonner";
 
 type NavItemProps = {
   label: string;
@@ -97,13 +107,111 @@ const Navigation = React.memo(
       getIsInitializing: state.getIsInitializing,
     })
   );
+  const { editMode, setEditMode, navEditMode, setNavEditMode } = useSidebarContext();
+  const currentUserIdentityPublicKey = useCurrentSpaceIdentityPublicKey();
   const userTheme: UserTheme = useUserTheme();
   const uiColors = useUIColors({ systemConfig });
+  
+  // Check if user is admin (can edit navigation)
+  const adminIdentityPublicKeys = systemConfig.adminIdentityPublicKeys || [];
+  const isNavigationEditable = currentUserIdentityPublicKey 
+    ? adminIdentityPublicKeys.includes(currentUserIdentityPublicKey)
+    : false;
+  
+  // Initialize navigation store from SystemConfig
+  const {
+    loadNavigation,
+    localNavigation,
+    hasUncommittedChanges,
+    createNavigationItem,
+    deleteNavigationItem,
+    renameNavigationItem,
+    updateNavigationOrder,
+    commitNavigationChanges,
+    resetNavigationChanges,
+  } = useAppStore((state) => ({
+    loadNavigation: state.navigation.loadNavigation,
+    localNavigation: state.navigation.localNavigation,
+    hasUncommittedChanges: state.navigation.hasUncommittedChanges,
+    createNavigationItem: state.navigation.createNavigationItem,
+    deleteNavigationItem: state.navigation.deleteNavigationItem,
+    renameNavigationItem: state.navigation.renameNavigationItem,
+    updateNavigationOrder: state.navigation.updateNavigationOrder,
+    commitNavigationChanges: state.navigation.commitNavigationChanges,
+    resetNavigationChanges: state.navigation.resetNavigationChanges,
+  }));
+  
+  // Destructure navigation from systemConfig early
+  const { community, navigation, ui } = systemConfig;
+  
+  React.useEffect(() => {
+    loadNavigation(systemConfig.navigation);
+  }, [systemConfig.navigation, loadNavigation]);
+  
+  // Always use localNavigation as the source of truth
+  // It's initialized from systemConfig.navigation on mount and updated by user actions
+  const navItemsToDisplay = localNavigation;
+  
+  // For backwards compatibility with code that uses configuredNavItems
+  // Use navItemsToDisplay (which is localNavigation) as the configured items
+  const configuredNavItems = navItemsToDisplay;
+  
+  // Debounced reorder handler
+  const debouncedUpdateOrder = React.useCallback(
+    debounce((newOrder: NavigationItem[]) => {
+      updateNavigationOrder(newOrder);
+    }, 300),
+    [updateNavigationOrder]
+  );
+  
+  // Handle commit
+  const handleCommit = React.useCallback(async () => {
+    if (!hasUncommittedChanges()) {
+      toast.info("No changes to commit");
+      return;
+    }
+    
+    try {
+      await commitNavigationChanges(systemConfig.community?.type || "nouns");
+      toast.success("Navigation changes committed (local only - API endpoints pending)");
+      setNavEditMode(false);
+    } catch (error: any) {
+      console.error("Failed to commit navigation changes:", error);
+      if (error?.response?.status === 404) {
+        toast.success("Navigation changes staged locally (API endpoints not yet implemented)");
+        setNavEditMode(false);
+      } else {
+        toast.error("Failed to commit navigation changes");
+      }
+    }
+  }, [hasUncommittedChanges, commitNavigationChanges, systemConfig.community?.type, setNavEditMode]);
+  
+  // Handle cancel
+  const handleCancel = React.useCallback(() => {
+    resetNavigationChanges();
+    toast.info("Navigation changes cancelled");
+    setNavEditMode(false);
+  }, [resetNavigationChanges, setNavEditMode]);
+  
+  // Handle create new item
+  const handleCreateItem = React.useCallback(async () => {
+    try {
+      await createNavigationItem({
+        label: "New Item",
+        href: "/new-item",
+        icon: "custom",
+        createSpace: true,
+      });
+      toast.success("Navigation item created");
+    } catch (error) {
+      console.error("Failed to create navigation item:", error);
+      toast.error("Failed to create navigation item");
+    }
+  }, [createNavigationItem]);
 
   const logout = useLogout();
   const notificationBadgeText = useNotificationBadgeText();
   const pathname = usePathname();
-  const { community, navigation } = systemConfig;
   const discordUrl = community?.urls?.discord || "https://discord.gg/eYQeXU2WuH";
   
   // Get cast button colors from config, with fallback to blue
@@ -119,9 +227,28 @@ const Navigation = React.memo(
   };
 
   const [shrunk, setShrunk] = useState(mobile ? false : true);
+  const forcedExpansionRef = useRef(false);
+
+  // Force sidebar to remain expanded while in navigation edit mode
+  // Use a ref to track if we've already forced expansion in this edit session
+  // to prevent render loops if external code flips shrunk back to true
+  useEffect(() => {
+    if (navEditMode && shrunk && !forcedExpansionRef.current) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Navigation] Forcing sidebar expansion due to navigation edit mode');
+      }
+      setShrunk(false);
+      forcedExpansionRef.current = true;
+    }
+    
+    // Clear the ref when exiting edit mode
+    if (!navEditMode) {
+      forcedExpansionRef.current = false;
+    }
+  }, [navEditMode, shrunk]);
 
   const toggleSidebar = () => {
-    if (mobile) return;
+    if (mobile || navEditMode) return; // Disable toggle during navigation edit mode
     setShrunk((prev) => !prev);
   };
 
@@ -254,8 +381,6 @@ const Navigation = React.memo(
       default: return HomeIcon;
     }
   }, []);
-
-  const configuredNavItems = navigation?.items || [];
   
   // Process nav items: adjust labels and hrefs based on login status when needed
   const allNavItems = configuredNavItems.map((item) => {
@@ -435,28 +560,133 @@ const Navigation = React.memo(
             )}
           >
             <div className="flex-auto">
-              <ul className="space-y-2">
-                {allNavItems.map((item) => {
-                  if (item.requiresAuth && !isLoggedIn) return null;
-                  const IconComp = iconFor(item.icon);
-                  const badge = item.id === 'notifications' ? notificationBadgeText : null;
-                  return (
-                    <NavItem
-                      key={item.id}
-                      label={item.label}
-                      Icon={IconComp}
-                      href={item.href}
-                      onClick={() => {
-                        if (item.id === 'explore') trackAnalyticsEvent(AnalyticsEvent.CLICK_EXPLORE);
-                        if (item.id === 'notifications') trackAnalyticsEvent(AnalyticsEvent.CLICK_NOTIFICATIONS);
-                        if (item.id === 'home') trackAnalyticsEvent(AnalyticsEvent.CLICK_HOMEBASE);
-                        if (item.id === 'space-token') trackAnalyticsEvent(AnalyticsEvent.CLICK_SPACE_FAIR_LAUNCH);
-                      }}
-                      openInNewTab={item.openInNewTab}
-                      badgeText={badge}
-                    />
-                  );
-                })}
+              {navEditMode && isNavigationEditable ? (
+                // Edit mode: show editable navigation items with drag-and-drop
+                <div className="space-y-2">
+                  <Reorder.Group
+                    axis="y"
+                    onReorder={debouncedUpdateOrder}
+                    values={navItemsToDisplay}
+                    className="space-y-2"
+                  >
+                    {map(navItemsToDisplay, (item) => {
+                      if (item.requiresAuth && !isLoggedIn) return null;
+                      const IconComp = iconFor(item.icon);
+                      const badge = item.id === 'notifications' ? notificationBadgeText : null;
+                      const isSelected = pathname === item.href;
+                      
+                      return (
+                        <Reorder.Item
+                          key={item.id}
+                          value={item}
+                          className="relative"
+                          whileDrag={{ backgroundColor: "#e3e3e3" }}
+                          dragListener={navEditMode}
+                        >
+                          <Link
+                            href={item.href}
+                            className={mergeClasses(
+                              "flex relative items-center p-2 rounded-lg w-full group",
+                              isSelected ? "bg-gray-100" : "hover:bg-gray-100",
+                              navEditMode ? "cursor-grab active:cursor-grabbing" : ""
+                            )}
+                            onClick={(e) => {
+                              // Prevent navigation only if clicking on delete button or input field
+                              const target = e.target as HTMLElement;
+                              if (target.closest('button[aria-label="Delete item"]') || target.tagName === 'INPUT') {
+                                e.preventDefault();
+                                e.stopPropagation();
+                              }
+                            }}
+                            draggable={false}
+                          >
+                            {badge && <NavIconBadge systemConfig={systemConfig}>{badge}</NavIconBadge>}
+                            <IconComp />
+                            {!shrunk && (
+                              <div className="ms-3 flex-1 flex items-center gap-2">
+                                <EditableText
+                                  initialText={item.label}
+                                  updateMethod={(oldLabel, newLabel) => {
+                                    if (oldLabel !== newLabel) {
+                                      renameNavigationItem(item.id, { label: newLabel });
+                                    }
+                                  }}
+                                />
+                              </div>
+                            )}
+                            {navEditMode && (
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  deleteNavigationItem(item.id);
+                                  toast.success("Navigation item deleted");
+                                }}
+                                className="p-1 hover:bg-red-100 rounded opacity-0 group-hover:opacity-100 transition-opacity ml-auto"
+                                aria-label="Delete item"
+                              >
+                                <CloseIcon />
+                              </button>
+                            )}
+                          </Link>
+                        </Reorder.Item>
+                      );
+                    })}
+                  </Reorder.Group>
+                  
+                  {/* Add new item button */}
+                  <button
+                    onClick={handleCreateItem}
+                    className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 w-full text-left text-gray-600"
+                  >
+                    <FaPlus size={14} />
+                    {!shrunk && <span className="text-sm">Add Navigation Item</span>}
+                  </button>
+                  
+                  {/* Commit/Cancel buttons */}
+                  {hasUncommittedChanges() && !shrunk && (
+                    <div className="flex gap-2 mt-4 pt-4 border-t">
+                      <Button
+                        onClick={handleCommit}
+                        className="flex items-center gap-2 rounded-lg px-3 py-2 bg-green-500 hover:bg-green-600 text-white font-semibold text-sm flex-1"
+                      >
+                        <FaCheck size={12} />
+                        <span>Commit</span>
+                      </Button>
+                      <Button
+                        onClick={handleCancel}
+                        className="flex items-center gap-2 rounded-lg px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold text-sm"
+                      >
+                        <FaXmark size={12} />
+                        <span>Cancel</span>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // Normal mode: show regular navigation items
+                <ul className="space-y-2">
+                  {allNavItems.map((item) => {
+                    if (item.requiresAuth && !isLoggedIn) return null;
+                    const IconComp = iconFor(item.icon);
+                    const badge = item.id === 'notifications' ? notificationBadgeText : null;
+                    return (
+                      <NavItem
+                        key={item.id}
+                        label={item.label}
+                        Icon={IconComp}
+                        href={item.href}
+                        onClick={() => {
+                          if (item.id === 'explore') trackAnalyticsEvent(AnalyticsEvent.CLICK_EXPLORE);
+                          if (item.id === 'notifications') trackAnalyticsEvent(AnalyticsEvent.CLICK_NOTIFICATIONS);
+                          if (item.id === 'home') trackAnalyticsEvent(AnalyticsEvent.CLICK_HOMEBASE);
+                          if (item.id === 'space-token') trackAnalyticsEvent(AnalyticsEvent.CLICK_SPACE_FAIR_LAUNCH);
+                        }}
+                        openInNewTab={item.openInNewTab}
+                        badgeText={badge}
+                      />
+                    );
+                  })}
                 <NavButton
                   label="Search"
                   Icon={SearchIcon}
@@ -489,7 +719,18 @@ const Navigation = React.memo(
                     onClick={openModal}
                   />
                 )}
+                {/* Edit Navigation Button - only show if user is admin */}
+                {isNavigationEditable && !mobile && (
+                  <NavButton
+                    label={navEditMode ? "Exit Edit" : "Edit Nav"}
+                    Icon={navEditMode ? LogoutIcon : FaPaintbrush}
+                    onClick={() => {
+                      setNavEditMode(!navEditMode);
+                    }}
+                  />
+                )}
               </ul>
+              )}
             </div>
           </div>
           <div className="flex flex-col flex-auto justify-between border-t px-4">
@@ -573,6 +814,7 @@ const Navigation = React.memo(
               </div>
             )}
           </div>
+          
         </div>
       </div>
     </nav>
