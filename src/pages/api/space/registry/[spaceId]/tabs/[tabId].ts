@@ -109,8 +109,9 @@ async function updateSpace(
       // Also check statusCode as fallback (Supabase may return string status codes)
       const statusCode = (error as any).statusCode;
       
-      // Check for 404 status (file not found) - Supabase returns string status codes like '404'
-      if (status === '404' || statusCode === '404') {
+      // Check for 404 status (file not found) - Supabase may return string or number status codes
+      const is404 = status === 404 || status === '404' || statusCode === 404 || statusCode === '404';
+      if (is404) {
         // Expected case: File doesn't exist - this is fine for new tabs renamed before commit
         // We'll create it at the new location via upload with upsert
         console.log(`[Expected] File ${tabName} not found, creating at ${req.fileName} instead`);
