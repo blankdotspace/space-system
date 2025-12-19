@@ -9,12 +9,10 @@ import { Database } from '@/supabase/database';
  * 
  * Examples:
  * - staging.nounspace.com -> nouns
- * - nounspace.vercel.app -> nouns (Vercel preview deployments)
  * - staging.localhost -> nouns (for local testing)
  */
 const DOMAIN_TO_COMMUNITY_MAP: Record<string, string> = {
   'staging.nounspace.com': 'nouns',
-  'nounspace.vercel.app': 'nouns',
 };
 
 const DEFAULT_COMMUNITY_ID = 'nounspace.com';
@@ -57,11 +55,6 @@ function getCommunityIdCandidates(domain: string): string[] {
 
   // Highest priority: exact domain match
   addCandidate(normalizedDomain);
-
-  // Handle Vercel preview deployments (e.g., nounspace.vercel.app, branch-nounspace.vercel.app)
-  if (normalizedDomain.endsWith('.vercel.app') && normalizedDomain.includes('nounspace')) {
-    addCandidate('nouns');
-  }
 
   // Support localhost subdomains for local testing (e.g., example.localhost)
   if (normalizedDomain.includes('localhost')) {
