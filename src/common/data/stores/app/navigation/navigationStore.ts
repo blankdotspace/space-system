@@ -277,17 +277,8 @@ export const createNavigationStoreFunc = (
         currentIdentity.rootKeys.privateKey
       );
       
-      // TODO: API endpoint not yet implemented - for local testing, just update local state
-      try {
-        await axiosBackend.put("/api/navigation/config", signedRequest);
-      } catch (apiError: any) {
-        // If API endpoint doesn't exist yet (404), log and continue for local testing
-        if (apiError?.response?.status === 404) {
-          console.warn("Navigation config API endpoint not yet implemented - changes remain local only");
-        } else {
-          throw apiError;
-        }
-      }
+      // Update navigation config in database
+      await axiosBackend.put("/api/navigation/config", signedRequest);
       
       // Step 4: Update local state to reflect committed changes
       set((draft) => {
