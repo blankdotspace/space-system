@@ -10,6 +10,7 @@ import {
 import { isArray, isString } from "lodash";
 import { NextApiRequest, NextApiResponse } from "next/types";
 import { NavigationConfig } from "@/config/systemConfig";
+import { SPACE_TYPES } from "@/common/types/spaceData";
 
 export type UnsignedUpdateNavigationConfigRequest = {
   communityId: string;
@@ -66,10 +67,10 @@ async function updateNavigationConfig(
 
   const supabase = createSupabaseServerClient();
 
-  // Check if the identity is an admin for this community
+  // Check if the identity is an admin for this community and get current config
   const { data: config, error: fetchError } = await supabase
     .from("community_configs")
-    .select("admin_identity_public_keys")
+    .select("admin_identity_public_keys, navigation_config")
     .eq("community_id", updateRequest.communityId)
     .eq("is_published", true)
     .single();
@@ -93,6 +94,66 @@ async function updateNavigationConfig(
       },
     });
     return;
+  }
+
+  // Clean up spaces for deleted navigation items
+  const oldNavConfig = config.navigation_config as NavigationConfig | null;
+  const oldItems = oldNavConfig?.items || [];
+  const newItems = updateRequest.navigationConfig.items || [];
+  
+  // Find deleted items by comparing old vs new (using IDs, so renames don't affect this)
+  const newItemIds = new Set(newItems.map((item: any) => item.id));
+  const deletedItems = oldItems.filter((item: any) => !newItemIds.has(item.id));
+  
+  // Delete spaces for deleted nav items
+  for (const item of deletedItems) {
+    if (item.spaceId) {
+      try {
+        // List all tab files in the space directory
+        // This lists actual files from storage, so tab renames don't matter - we delete whatever exists
+        const { data: tabFiles } = await supabase.storage
+          .from("spaces")
+          .list(`${item.spaceId}/tabs`);
+        
+        // Build list of all file paths to delete
+        const pathsToDelete: string[] = [];
+        
+        // Add tabOrder
+        pathsToDelete.push(`${item.spaceId}/tabOrder`);
+        
+        // Add all tab files (using actual file names from storage, handles renames correctly)
+        if (tabFiles) {
+          for (const tabFile of tabFiles) {
+            pathsToDelete.push(`${item.spaceId}/tabs/${tabFile.name}`);
+          }
+        }
+        
+        // Delete all storage files
+        if (pathsToDelete.length > 0) {
+          const { error: deleteError } = await supabase.storage
+            .from("spaces")
+            .remove(pathsToDelete);
+          
+          if (deleteError) {
+            console.warn(`Failed to delete storage files for space ${item.spaceId}:`, deleteError);
+          }
+        }
+        
+        // Delete space registration from database
+        const { error: registrationError } = await supabase
+          .from("spaceRegistrations")
+          .delete()
+          .eq("spaceId", item.spaceId)
+          .eq("spaceType", SPACE_TYPES.NAV_PAGE);
+        
+        if (registrationError) {
+          console.warn(`Failed to delete space registration for ${item.spaceId}:`, registrationError);
+        }
+      } catch (spaceDeleteError: any) {
+        // Log but don't fail the entire update if space deletion fails
+        console.warn(`Failed to delete space ${item.spaceId} for deleted nav item:`, spaceDeleteError);
+      }
+    }
   }
 
   // Update the navigation_config column
