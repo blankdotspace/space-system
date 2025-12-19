@@ -106,9 +106,11 @@ async function updateSpace(
       // Check if it's a StorageApiError (has HTTP status) or base StorageError
       const isApiError = error instanceof StorageApiError;
       const status = isApiError ? error.status : undefined;
+      // Also check statusCode as fallback (Supabase may return string status codes)
+      const statusCode = (error as any).statusCode;
       
-      // Check for 404 status (file not found)
-      if (status === 404) {
+      // Check for 404 status (file not found) - Supabase returns string status codes like '404'
+      if (status === '404' || statusCode === '404') {
         // Expected case: File doesn't exist - this is fine for new tabs renamed before commit
         // We'll create it at the new location via upload with upsert
         console.log(`[Expected] File ${tabName} not found, creating at ${req.fileName} instead`);
@@ -116,6 +118,7 @@ async function updateSpace(
         // Unexpected error - fail and log for monitoring
         console.error(`[Unexpected] Move failed for ${tabName} → ${req.fileName}:`, {
           status,
+          statusCode,
           message: error.message,
           errorType: isApiError ? 'StorageApiError' : 'StorageError',
           error: error,
