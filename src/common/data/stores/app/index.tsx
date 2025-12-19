@@ -37,7 +37,6 @@ import { createCurrentSpaceStoreFunc, CurrentSpaceStore } from "./currentSpace";
 import {
   NavigationStore,
   createNavigationStoreFunc,
-  partializedNavigationStore,
 } from "./navigation/navigationStore";
 import React from "react";
 

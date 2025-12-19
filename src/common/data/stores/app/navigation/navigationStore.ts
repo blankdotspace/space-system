@@ -281,10 +281,3 @@ export const createNavigationStoreFunc = (
   },
 });
 
-export function partializedNavigationStore(state: AppStore) {
-  return {
-    // Only persist minimal state if needed
-    // Navigation config is loaded from SystemConfig on app start
-  };
-}
-
