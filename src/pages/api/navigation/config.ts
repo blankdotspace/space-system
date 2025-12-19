@@ -158,7 +158,7 @@ async function updateNavigationConfig(
 
   // Merge new items with existing config to preserve other fields (logoTooltip, showMusicPlayer, showSocials)
   // Start with existing config to preserve optional fields, then override with new config (which includes items)
-  const mergedNavigationConfig: NavigationConfig = {
+  const mergedNavigationConfig = {
     ...oldNavConfig,
     ...updateRequest.navigationConfig, // This includes items and any other fields if explicitly provided
   };
