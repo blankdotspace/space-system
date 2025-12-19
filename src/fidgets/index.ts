@@ -8,6 +8,7 @@ import Profile from "./ui/profile";
 import Channel from "./ui/channel";
 import Grid from "./layout/Grid";
 import NounishGovernance from "./community/nouns-dao/NounishGovernance";
+import NounishAuctions from "./community/nouns-dao/NounishAuctions";
 import Cast from "./farcaster/Cast";
 import Feed from "./farcaster/Feed";
 import Top8 from "./farcaster/Top8";
@@ -50,6 +51,7 @@ export const CompleteFidgets = {
   iframe: IFrame,
   // Nouns
   governance: NounishGovernance,
+  nounishAuctions: NounishAuctions,
   nounsHome: NounsHome,
   links: Links,
   // zora: zoraEmbed, -> 500 server error -Frame ancestors block
