@@ -9,7 +9,6 @@ import { Database } from '@/supabase/database';
  * 
  * Examples:
  * - staging.nounspace.com -> nounspace.com
- * - staging.localhost -> nouns (for local testing)
  */
 const DOMAIN_TO_COMMUNITY_MAP: Record<string, string> = {
   'staging.nounspace.com': 'nounspace.com',
