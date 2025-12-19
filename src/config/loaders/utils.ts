@@ -1,5 +1,5 @@
 import { ConfigLoadContext } from './types';
-import { resolveCommunityFromDomain } from './registry';
+import { DEFAULT_COMMUNITY_ID, resolveCommunityFromDomain } from './registry';
 
 /**
  * Resolve community ID from context
@@ -8,10 +8,10 @@ import { resolveCommunityFromDomain } from './registry';
  * 1. Explicit context.communityId
  * 2. Development override (NEXT_PUBLIC_TEST_COMMUNITY) - for local testing only
  * 3. Domain resolution (production or localhost subdomains)
- * 4. Build-time fallback (NEXT_PUBLIC_TEST_COMMUNITY or 'nouns') - for static generation
+ * 4. Build-time fallback (NEXT_PUBLIC_TEST_COMMUNITY or default community) - for static generation
  * 
  * Note: During build time (static generation), there's no request context, so we use
- * NEXT_PUBLIC_TEST_COMMUNITY if set, otherwise default to 'nouns' as a fallback.
+ * NEXT_PUBLIC_TEST_COMMUNITY if set, otherwise default to the nounspace community as a fallback.
  */
 export function resolveCommunityId(context: ConfigLoadContext): string | undefined {
   let communityId = context.communityId;
@@ -28,9 +28,9 @@ export function resolveCommunityId(context: ConfigLoadContext): string | undefin
   }
 
   // Build-time fallback: when there's no request context (static generation)
-  // Use NEXT_PUBLIC_TEST_COMMUNITY if set, otherwise default to 'nouns'
+  // Use NEXT_PUBLIC_TEST_COMMUNITY if set, otherwise default to nounspace.com
   if (!communityId) {
-    communityId = process.env.NEXT_PUBLIC_TEST_COMMUNITY || 'nouns';
+    communityId = process.env.NEXT_PUBLIC_TEST_COMMUNITY || DEFAULT_COMMUNITY_ID;
   }
 
   return communityId;
@@ -76,4 +76,3 @@ export async function getDomainFromContext(): Promise<string | undefined> {
   
   return undefined;
 }
-

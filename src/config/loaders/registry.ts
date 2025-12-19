@@ -8,14 +8,14 @@ import { Database } from '@/supabase/database';
  * Useful for staging environments, special domains, etc.
  * 
  * Examples:
- * - staging.nounspace.com -> nouns
+ * - staging.nounspace.com -> nounspace.com
  * - staging.localhost -> nouns (for local testing)
  */
 const DOMAIN_TO_COMMUNITY_MAP: Record<string, string> = {
-  'staging.nounspace.com': 'nouns',
+  'staging.nounspace.com': 'nounspace.com',
 };
 
-const DEFAULT_COMMUNITY_ID = 'nounspace.com';
+export const DEFAULT_COMMUNITY_ID = 'nounspace.com';
 
 type CommunityConfigRow = Database['public']['Tables']['community_configs']['Row'];
 
@@ -60,14 +60,6 @@ function getCommunityIdCandidates(domain: string): string[] {
   if (normalizedDomain.includes('localhost')) {
     const parts = normalizedDomain.split('.');
     if (parts.length > 1 && parts[0] !== 'localhost') {
-      addCandidate(parts[0]);
-    }
-  }
-
-  // Fallback: derive community from the leading subdomain (e.g., example.nounspace.com -> example)
-  if (normalizedDomain.includes('.')) {
-    const parts = normalizedDomain.split('.');
-    if (parts[0]) {
       addCandidate(parts[0]);
     }
   }
@@ -146,8 +138,7 @@ function writeCommunityConfigCache(communityId: string, value: CommunityConfigRo
  * 1) Normalize the domain (lowercase, strip port, drop leading `www.`)
  * 2) Apply DOMAIN_TO_COMMUNITY_MAP overrides
  * 3) Try exact domain match in community_id (e.g., example.blank.space -> community_id=example.blank.space)
- * 4) Fall back to using the leading subdomain as community_id (e.g., example.blank.space -> example)
- * 5) Use the default nounspace community when no explicit match is found
+ * 4) Use the default nounspace community when no explicit match is found
  *
  * A short-lived in-memory cache is used to avoid repeated Supabase lookups for the same
  * community during navigation bursts.
