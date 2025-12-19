@@ -17,7 +17,7 @@
  * 
  * Requires:
  *   - NEXT_PUBLIC_SUPABASE_URL
- *   - SUPABASE_SERVICE_ROLE_KEY
+ *   - SUPABASE_SERVICE_KEY
  *   - NEXT_PUBLIC_IMGBB_API_KEY (optional, only needed for uploading assets)
  * 
  * This script consolidates:
@@ -61,13 +61,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 const imgBBApiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   console.error('❌ Missing required environment variables:');
   console.error('   NEXT_PUBLIC_SUPABASE_URL');
-  console.error('   SUPABASE_SERVICE_ROLE_KEY');
+  console.error('   SUPABASE_SERVICE_KEY');
   process.exit(1);
 }
 

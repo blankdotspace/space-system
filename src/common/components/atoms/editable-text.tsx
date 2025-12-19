@@ -39,10 +39,21 @@ const EditableText = ({ initialText, updateMethod }) => {
       }}
       onChange={_.flow(inputValue, settext)}
       onBlur={onEditEnd}
+      onClick={(e) => {
+        // Prevent navigation when clicking on input
+        e.stopPropagation();
+      }}
       autoFocus
     />
   ) : (
-    <div className="select-none" onDoubleClick={() => setisEditing(true)}>
+    <div 
+      className="select-none" 
+      onDoubleClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setisEditing(true);
+      }}
+    >
       {text}
     </div>
   );
