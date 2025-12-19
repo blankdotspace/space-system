@@ -17,6 +17,8 @@ const DOMAIN_TO_COMMUNITY_MAP: Record<string, string> = {
   'nounspace.vercel.app': 'nouns',
 };
 
+const DEFAULT_COMMUNITY_ID = 'nounspace.com';
+
 type CommunityConfigRow = Database['public']['Tables']['community_configs']['Row'];
 
 /**
@@ -35,11 +37,6 @@ const COMMUNITY_CONFIG_CACHE_TTL_MS = 60_000;
 
 function getCommunityIdCandidates(domain: string): string[] {
   const normalizedDomain = normalizeDomain(domain);
-  if (!normalizedDomain) return [];
-
-  if (normalizedDomain in DOMAIN_TO_COMMUNITY_MAP) {
-    return [DOMAIN_TO_COMMUNITY_MAP[normalizedDomain]];
-  }
 
   const candidates: string[] = [];
   const addCandidate = (candidate?: string | null) => {
@@ -48,6 +45,15 @@ function getCommunityIdCandidates(domain: string): string[] {
       candidates.push(candidate);
     }
   };
+
+  if (!normalizedDomain) {
+    addCandidate(DEFAULT_COMMUNITY_ID);
+    return candidates;
+  }
+
+  if (normalizedDomain in DOMAIN_TO_COMMUNITY_MAP) {
+    addCandidate(DOMAIN_TO_COMMUNITY_MAP[normalizedDomain]);
+  }
 
   // Highest priority: exact domain match
   addCandidate(normalizedDomain);
@@ -72,6 +78,9 @@ function getCommunityIdCandidates(domain: string): string[] {
       addCandidate(parts[0]);
     }
   }
+
+  // Default fallback: use the nounspace config when no other candidate matches
+  addCandidate(DEFAULT_COMMUNITY_ID);
 
   return candidates;
 }
@@ -145,6 +154,7 @@ function writeCommunityConfigCache(communityId: string, value: CommunityConfigRo
  * 2) Apply DOMAIN_TO_COMMUNITY_MAP overrides
  * 3) Try exact domain match in community_id (e.g., example.blank.space -> community_id=example.blank.space)
  * 4) Fall back to using the leading subdomain as community_id (e.g., example.blank.space -> example)
+ * 5) Use the default nounspace community when no explicit match is found
  *
  * A short-lived in-memory cache is used to avoid repeated Supabase lookups for the same
  * community during navigation bursts.
@@ -153,7 +163,6 @@ export async function getCommunityConfigForDomain(
   domain: string
 ): Promise<{ communityId: string; config: CommunityConfigRow } | null> {
   const candidates = getCommunityIdCandidates(domain);
-  if (!candidates.length) return null;
 
   // Check cache first
   for (const candidate of candidates) {
