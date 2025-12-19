@@ -33,6 +33,49 @@ type CommunityConfigCacheEntry = {
 const COMMUNITY_CONFIG_CACHE = new Map<string, CommunityConfigCacheEntry>();
 const COMMUNITY_CONFIG_CACHE_TTL_MS = 60_000;
 
+function getCommunityIdCandidates(domain: string): string[] {
+  const normalizedDomain = normalizeDomain(domain);
+  if (!normalizedDomain) return [];
+
+  if (normalizedDomain in DOMAIN_TO_COMMUNITY_MAP) {
+    return [DOMAIN_TO_COMMUNITY_MAP[normalizedDomain]];
+  }
+
+  const candidates: string[] = [];
+  const addCandidate = (candidate?: string | null) => {
+    if (!candidate) return;
+    if (!candidates.includes(candidate)) {
+      candidates.push(candidate);
+    }
+  };
+
+  // Highest priority: exact domain match
+  addCandidate(normalizedDomain);
+
+  // Handle Vercel preview deployments (e.g., nounspace.vercel.app, branch-nounspace.vercel.app)
+  if (normalizedDomain.endsWith('.vercel.app') && normalizedDomain.includes('nounspace')) {
+    addCandidate('nouns');
+  }
+
+  // Support localhost subdomains for local testing (e.g., example.localhost)
+  if (normalizedDomain.includes('localhost')) {
+    const parts = normalizedDomain.split('.');
+    if (parts.length > 1 && parts[0] !== 'localhost') {
+      addCandidate(parts[0]);
+    }
+  }
+
+  // Fallback: derive community from the leading subdomain (e.g., example.nounspace.com -> example)
+  if (normalizedDomain.includes('.')) {
+    const parts = normalizedDomain.split('.');
+    if (parts[0]) {
+      addCandidate(parts[0]);
+    }
+  }
+
+  return candidates;
+}
+
 /**
  * Normalize an incoming domain/host value for consistent resolution.
  *
@@ -65,46 +108,8 @@ export function normalizeDomain(domain: string): string {
 export function resolveCommunityFromDomain(
   domain: string
 ): string | null {
-  const normalizedDomain = normalizeDomain(domain);
-  if (!normalizedDomain) return null;
-  
-  // Check special domain mappings first (highest priority)
-  if (normalizedDomain in DOMAIN_TO_COMMUNITY_MAP) {
-    return DOMAIN_TO_COMMUNITY_MAP[normalizedDomain];
-  }
-  
-  // Handle Vercel preview deployments (e.g., nounspace.vercel.app, branch-nounspace.vercel.app)
-  // All Vercel preview deployments should point to nouns community
-  if (normalizedDomain.endsWith('.vercel.app') && normalizedDomain.includes('nounspace')) {
-    return 'nouns';
-  }
-  
-  // Support localhost subdomains for local testing
-  // e.g., example.localhost:3000 -> example
-  if (normalizedDomain.includes('localhost')) {
-    const parts = normalizedDomain.split('.');
-    if (parts.length > 1 && parts[0] !== 'localhost') {
-      // Has subdomain before localhost
-      return parts[0];
-    }
-    // Just localhost - can't determine community
-    return null;
-  }
-  
-  // Production domain: extract subdomain or use domain as community ID
-  // Example: subdomain.nounspace.com -> subdomain
-  if (normalizedDomain.includes('.')) {
-    const parts = normalizedDomain.split('.');
-    if (parts.length > 2) {
-      // Has subdomain (e.g., example.nounspace.com)
-      return parts[0];
-    }
-    // Use domain name without TLD as community ID (e.g., example.com -> example)
-    return parts[0];
-  }
-  
-  // Single word domain - use as community ID
-  return normalizedDomain;
+  const candidates = getCommunityIdCandidates(domain);
+  return candidates[0] ?? null;
 }
 
 /**
@@ -138,38 +143,58 @@ function writeCommunityConfigCache(communityId: string, value: CommunityConfigRo
  * Resolution priority:
  * 1) Normalize the domain (lowercase, strip port, drop leading `www.`)
  * 2) Apply DOMAIN_TO_COMMUNITY_MAP overrides
- * 3) Fall back to using the normalized host as the community_id (domain is stored in community_id)
+ * 3) Try exact domain match in community_id (e.g., example.blank.space -> community_id=example.blank.space)
+ * 4) Fall back to using the leading subdomain as community_id (e.g., example.blank.space -> example)
  *
  * A short-lived in-memory cache is used to avoid repeated Supabase lookups for the same
  * community during navigation bursts.
  */
-export async function getCommunityConfigForDomain(domain: string): Promise<CommunityConfigRow | null> {
-  const normalizedDomain = normalizeDomain(domain);
-  if (!normalizedDomain) return null;
+export async function getCommunityConfigForDomain(
+  domain: string
+): Promise<{ communityId: string; config: CommunityConfigRow } | null> {
+  const candidates = getCommunityIdCandidates(domain);
+  if (!candidates.length) return null;
 
-  const communityId = resolveCommunityFromDomain(normalizedDomain);
-  if (!communityId) return null;
-
-  const cached = readCommunityConfigCache(communityId);
-  if (cached !== undefined) {
-    return cached;
+  // Check cache first
+  for (const candidate of candidates) {
+    const cached = readCommunityConfigCache(candidate);
+    if (cached !== undefined) {
+      if (cached) {
+        return { communityId: candidate, config: cached };
+      }
+      // Cached miss, continue to next candidate
+    }
   }
 
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from('community_configs')
     .select('*')
-    .eq('community_id', communityId)
-    .single();
+    .in('community_id', candidates);
 
   if (error) {
-    console.error('Failed to fetch community config', { communityId, error });
-    writeCommunityConfigCache(communityId, null);
+    console.error('Failed to fetch community config', { candidates, error });
+    candidates.forEach((candidate) => writeCommunityConfigCache(candidate, null));
     return null;
   }
 
-  writeCommunityConfigCache(communityId, data ?? null);
-  return data ?? null;
+  const dataById = new Map<string, CommunityConfigRow>();
+  (data ?? []).forEach((row) => {
+    if (row.community_id) {
+      dataById.set(row.community_id, row);
+    }
+  });
+
+  for (const candidate of candidates) {
+    const matched = dataById.get(candidate);
+    if (matched) {
+      writeCommunityConfigCache(candidate, matched);
+      return { communityId: candidate, config: matched };
+    }
+    writeCommunityConfigCache(candidate, null);
+  }
+
+  return null;
 }
 
 /**
@@ -181,18 +206,16 @@ export async function resolveCommunityConfig(
   domain: string
 ): Promise<{ communityId: string; config: CommunityConfigRow } | null> {
   const normalizedDomain = normalizeDomain(domain);
-  const communityId = normalizedDomain ? resolveCommunityFromDomain(normalizedDomain) : null;
-
-  if (!communityId) {
+  if (!normalizedDomain) {
     return null;
   }
 
-  const config = await getCommunityConfigForDomain(normalizedDomain);
+  const resolution = await getCommunityConfigForDomain(normalizedDomain);
 
-  if (!config) {
-    console.warn('Community config not found for domain', { domain: normalizedDomain, communityId });
+  if (!resolution) {
+    console.warn('Community config not found for domain', { domain: normalizedDomain });
     return null;
   }
 
-  return { communityId, config };
+  return resolution;
 }
