@@ -27,14 +27,19 @@ export default async function NavPage({
 
   const spaceData = await loadNavPageSpaceData(navSlug, decodedTabName);
 
-  if (!spaceData) {
-    notFound();
-  }
+  // Load systemConfig to pass admin keys even if spaceData is null
+  // (needed for client-side fallback to local stores)
+  const { loadSystemConfig } = await import("@/config");
+  const config = await loadSystemConfig();
 
+  // If not found on server, pass null to let client check local stores
+  // The client component will construct space data from local stores if found
   return (
     <NavPageSpace
       spacePageData={spaceData}
-      tabName={decodedTabName || spaceData.defaultTab}
+      tabName={decodedTabName}
+      navSlug={navSlug}
+      adminIdentityPublicKeys={config.adminIdentityPublicKeys || []}
     />
   );
 }
