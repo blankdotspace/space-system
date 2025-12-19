@@ -173,16 +173,11 @@ const Navigation = React.memo(
     
     try {
       await commitNavigationChanges(systemConfig.community?.type || "nouns");
-      toast.success("Navigation changes committed (local only - API endpoints pending)");
+      toast.success("Navigation changes committed");
       setNavEditMode(false);
     } catch (error: any) {
       console.error("Failed to commit navigation changes:", error);
-      if (error?.response?.status === 404) {
-        toast.success("Navigation changes staged locally (API endpoints not yet implemented)");
-        setNavEditMode(false);
-      } else {
-        toast.error("Failed to commit navigation changes");
-      }
+      toast.error("Failed to commit navigation changes");
     }
   }, [hasUncommittedChanges, commitNavigationChanges, systemConfig.community?.type, setNavEditMode]);
   
