@@ -249,18 +249,8 @@ export const createNavigationStoreFunc = (
         }
       }
       
-      // Step 2: Delete spaces for deleted items
-      // Derive deleted items by comparing remoteNavigation with localNavigation
-      const localItemIds = new Set(state.localNavigation.map(item => item.id));
-      const deletedItems = state.remoteNavigation.filter(item => !localItemIds.has(item.id));
-      
-      for (const item of deletedItems) {
-        if (item.spaceId) {
-          // Delete space registration and storage
-          // TODO: Implement space deletion endpoint
-          // For now, we'll handle this in the navigation update
-        }
-      }
+      // Step 2: Space cleanup for deleted items is handled server-side in the navigation config API endpoint
+      // The endpoint compares old vs new navigation config to identify deleted spaces and cleans them up
       
       // Step 3: Update navigation config in database
       const unsignedRequest = {
