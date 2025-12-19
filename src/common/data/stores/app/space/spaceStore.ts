@@ -51,7 +51,6 @@ import { analytics } from "@/common/providers/AnalyticsProvider";
 import {
   validateTabName,
   isDuplicateTabName,
-  withOptimisticUpdate,
 } from "@/common/utils/tabUtils";
 type SpaceId = string;
 
@@ -402,73 +401,27 @@ export const createSpaceStoreFunc = (
     const previousRemoteName =
       existingSpace.changedNames?.[tabName] || tabName;
 
-    const resolvedNetworkCandidate =
-      network ?? existingSpace.network ?? get().space.remoteSpaces[spaceId]?.network;
-    const resolvedNetwork = resolvedNetworkCandidate ?? undefined;
+    // Staged rename: only update local state, commit happens via commitAllSpaceChanges
+    set((draft) => {
+      const spaceDraft = draft.space.localSpaces[spaceId];
+      if (!spaceDraft) {
+        return;
+      }
 
-    // Use shared optimistic update pattern
-    return withOptimisticUpdate({
-      updateFn: () => {
-        set((draft) => {
-          const spaceDraft = draft.space.localSpaces[spaceId];
-          if (!spaceDraft) {
-            return;
-          }
+      spaceDraft.tabs[sanitizedNewName] = cloneDeep(mergedConfig);
+      delete spaceDraft.tabs[tabName];
 
-          spaceDraft.tabs[sanitizedNewName] = cloneDeep(mergedConfig);
-          delete spaceDraft.tabs[tabName];
+      spaceDraft.changedNames[sanitizedNewName] = previousRemoteName;
+      delete spaceDraft.changedNames[tabName];
 
-          spaceDraft.changedNames[sanitizedNewName] = previousRemoteName;
-          delete spaceDraft.changedNames[tabName];
+      spaceDraft.order = orderWithoutOldName;
+      spaceDraft.updatedAt = newTimestamp;
+      spaceDraft.orderUpdatedAt = newTimestamp;
 
-          spaceDraft.order = orderWithoutOldName;
-          spaceDraft.updatedAt = newTimestamp;
-          spaceDraft.orderUpdatedAt = newTimestamp;
-
-          if (draft.currentSpace.currentTabName === tabName) {
-            draft.currentSpace.currentTabName = sanitizedNewName;
-          }
-        }, "renameSpaceTabOptimistic");
-      },
-      commitFn: async () => {
-        const commitPromise = get().space.commitSpaceTabToDatabase(
-          spaceId,
-          sanitizedNewName,
-          resolvedNetwork,
-        );
-        if (commitPromise) {
-          await commitPromise;
-        }
-      },
-      rollbackFn: () => {
-        set((draft) => {
-          const spaceDraft = draft.space.localSpaces[spaceId];
-          if (!spaceDraft) {
-            return;
-          }
-
-          spaceDraft.tabs[tabName] = cloneDeep(previousTabState);
-          delete spaceDraft.tabs[sanitizedNewName];
-
-          spaceDraft.changedNames = cloneDeep(previousChangedNames);
-          spaceDraft.order = previousOrder;
-
-          const rollbackTimestamp = moment().toISOString();
-          spaceDraft.updatedAt = rollbackTimestamp;
-          spaceDraft.orderUpdatedAt = rollbackTimestamp;
-        }, "renameSpaceTabRollback");
-
-        set((draft) => {
-          if (draft.currentSpace.currentTabName === sanitizedNewName) {
-            draft.currentSpace.currentTabName = tabName;
-          }
-        }, "renameSpaceTabRollbackCurrentTab");
-      },
-      errorConfig: {
-        title: "Error Renaming Tab",
-        message: "We couldn't rename this tab. Your original tab name has been restored.",
-      },
-    });
+      if (draft.currentSpace.currentTabName === tabName) {
+        draft.currentSpace.currentTabName = sanitizedNewName;
+      }
+    }, "renameSpaceTab");
   },
   deleteSpaceTab: async (
     spaceId,
@@ -571,118 +524,8 @@ export const createSpaceStoreFunc = (
     analytics.track(AnalyticsEvent.CREATE_NEW_TAB);
 
     // Return the tabName immediately so UI can switch to it
-    const result = { tabName };
-
-    // Then make the remote API call in the background
-    const unsignedRequest: UnsignedSpaceTabRegistration = {
-      identityPublicKey: get().account.currentSpaceIdentityPublicKey!,
-      timestamp: moment().toISOString(),
-      spaceId,
-      tabName,
-      initialConfig,
-      network,
-    };
-    const signedRequest = signSignable(
-      unsignedRequest,
-      get().account.getCurrentIdentity()!.rootKeys.privateKey,
-    );
-
-    try {
-      await axiosBackend.post<RegisterNewSpaceTabResponse>(
-        `/api/space/registry/${spaceId}/tabs`,
-        signedRequest,
-      );
-      
-      // Create a signed file for the initial configuration
-      const localCopy = cloneDeep(get().space.localSpaces[spaceId].tabs[tabName]);
-      const file = await get().account.createSignedFile(
-        stringify(localCopy),
-        "json",
-        { fileName: tabName },
-      );
-      
-      // Commit both the order and the tab content immediately
-      await Promise.all([
-        get().space.commitSpaceOrderToDatabase(spaceId, network),
-        axiosBackend.post(
-          `/api/space/registry/${spaceId}/tabs/${tabName}`,
-          { ...file, network },
-        )
-      ]);
-      
-      return result;
-    } catch (e) {
-      console.error("Failed to create space tab:", {
-        error: e,
-        spaceId,
-        tabName,
-        network,
-        request: {
-          identityPublicKey: unsignedRequest.identityPublicKey,
-          timestamp: unsignedRequest.timestamp,
-          initialConfig: initialConfig,
-          network: network
-        },
-        response: axios.isAxiosError(e) ? {
-          status: e.response?.status,
-          statusText: e.response?.statusText,
-          data: e.response?.data,
-          headers: e.response?.headers
-        } : null,
-        stack: e instanceof Error ? e.stack : undefined,
-        localState: {
-          tabs: get().space.localSpaces[spaceId]?.tabs,
-          order: get().space.localSpaces[spaceId]?.order,
-          changedNames: get().space.localSpaces[spaceId]?.changedNames
-        }
-      });
-      
-      // Check if it's a rate limit error
-      if (axios.isAxiosError(e) && e.response?.status === 429) {
-        console.warn("Rate limit hit, attempting retry after delay", {
-          spaceId,
-          tabName,
-          network,
-          retryAfter: e.response?.headers?.['retry-after'],
-          rateLimitRemaining: e.response?.headers?.['x-ratelimit-remaining']
-        });
-        
-        // If it's a rate limit error, we'll retry after a delay
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
-        try {
-          await axiosBackend.post<RegisterNewSpaceTabResponse>(
-            `/api/space/registry/${spaceId}/tabs`,
-            signedRequest,
-          );
-          await get().space.commitSpaceOrderToDatabase(spaceId, network);
-          return result;
-        } catch (retryError) {
-          console.error("Failed to create space tab after retry:", {
-            error: retryError,
-            spaceId,
-            tabName,
-            network,
-            originalError: e
-          });
-          // If retry fails, we'll keep the local state but show an error
-          throw new Error("Failed to create tab due to rate limiting. Please try again in a few seconds.");
-        }
-      }
-      
-      // For other errors, roll back local changes
-      console.error("Rolling back local changes due to error:", {
-        error: e,
-        spaceId,
-        tabName,
-        network,
-        localState: {
-          tabs: get().space.localSpaces[spaceId]?.tabs,
-          order: get().space.localSpaces[spaceId]?.order
-        }
-      });
-      
-      throw e; // Re-throw to allow error handling in the UI
-    }
+    // Tab creation is now staged - use commitAllSpaceChanges to commit
+    return { tabName };
   },
   updateLocalSpaceOrder: async (spaceId, newOrder) => {
     set((draft) => {
