@@ -69,7 +69,6 @@ export default function NavigationManagement({
         href: "/new-item",
         icon: "custom",
         createSpace: true,
-        spaceName: "new-item",
       });
       toast.success("Navigation item created");
     } catch (error) {
