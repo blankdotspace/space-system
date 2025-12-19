@@ -7,8 +7,10 @@ import {
 } from './systemConfig';
 import { 
   getDomainFromContext,
+  getCommunityIdFromHeaders,
   resolveCommunityId,
-  ConfigLoadContext 
+  ConfigLoadContext,
+  DEFAULT_COMMUNITY_ID,
 } from './loaders';
 import { RuntimeConfigLoader } from './loaders/runtimeLoader';
 
@@ -41,12 +43,15 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
     if (context) {
       return context;
     }
-    
-    // Get domain from headers (server-side only)
-    const domain = await getDomainFromContext();
-    
+
+    // Get domain and middleware-resolved community ID from headers (server-side only)
+    const [domain, middlewareCommunityId] = await Promise.all([
+      getDomainFromContext(),
+      getCommunityIdFromHeaders(),
+    ]);
+
     return {
-      communityId: undefined, // Will be resolved via resolveCommunityId()
+      communityId: middlewareCommunityId, // Will be resolved via resolveCommunityId()
       domain,
       isServer: true,
     };
@@ -67,7 +72,24 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
   }
   
   // Load config using runtime loader
-  return getLoader().load(finalContext);
+  try {
+    return await getLoader().load(finalContext);
+  } catch (error) {
+    // If the resolved community fails to load and isn't already the default,
+    // fall back to the nounspace.com config to avoid runtime crashes.
+    if (communityId && communityId !== DEFAULT_COMMUNITY_ID) {
+      console.warn(
+        `Falling back to default community after failed load for "${communityId}".`,
+        error
+      );
+      return await getLoader().load({
+        ...finalContext,
+        communityId: DEFAULT_COMMUNITY_ID,
+      });
+    }
+
+    throw error;
+  }
 }
 
 // Export SystemConfig type (configs are now database-backed, no static exports)
