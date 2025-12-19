@@ -246,7 +246,7 @@ async function seedCommunityConfigs(assetsUrls: Record<string, string>) {
   const { error: nounsError } = await supabase
     .from('community_configs')
     .upsert({
-      community_id: 'nouns',
+      community_id: 'nounspace.com',
       is_published: true,
       brand_config: {
         displayName: 'Nouns',
@@ -464,7 +464,7 @@ async function seedCommunityConfigs(assetsUrls: Record<string, string>) {
 
   // Clanker config
   const { error: clankerError } = await supabase.from('community_configs').upsert({
-    community_id: 'clanker',
+    community_id: 'clanker.space',
     is_published: true,
     brand_config: {
       displayName: 'Clanker',
@@ -780,7 +780,7 @@ async function checkSeeding(): Promise<boolean> {
   // Test the RPC function
   console.log('\n🧪 Testing get_active_community_config function...');
   const { data: testConfig, error: testError } = await supabase
-    .rpc('get_active_community_config', { p_community_id: 'nouns' })
+    .rpc('get_active_community_config', { p_community_id: 'nounspace.com' })
     .single();
 
   if (testError) {
