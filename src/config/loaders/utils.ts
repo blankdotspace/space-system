@@ -37,6 +37,27 @@ export function resolveCommunityId(context: ConfigLoadContext): string | undefin
 }
 
 /**
+ * Reads the community ID that middleware detected (when available).
+ *
+ * Middleware sets the `x-community-id` header after resolving the community
+ * config from the domain. When present, this header should be treated as the
+ * authoritative community ID to avoid re-resolving and to reuse middleware
+ * fallbacks (e.g., defaulting unknown domains to nounspace.com).
+ */
+export async function getCommunityIdFromHeaders(): Promise<string | undefined> {
+  try {
+    const { headers } = await import('next/headers');
+    const headersList = await headers();
+
+    const communityId = headersList.get('x-community-id');
+    return communityId ?? undefined;
+  } catch (error) {
+    // Not in a request context (static generation, etc.)
+    return undefined;
+  }
+}
+
+/**
  * Get domain from middleware-set headers (SERVER-ONLY)
  * 
  * Server-side: Reads x-detected-domain header set by middleware, or falls back
