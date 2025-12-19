@@ -61,7 +61,7 @@ type SidebarProps = {
 };
 
 export const Sidebar: React.FC<SidebarProps> = ({ systemConfig }) => {
-  const { editMode, setEditMode, sidebarEditable, portalRef } =
+  const { editMode, setEditMode, navEditMode, sidebarEditable, portalRef } =
     useSidebarContext();
 
   function enterEditMode() {
