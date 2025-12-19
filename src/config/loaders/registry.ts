@@ -39,7 +39,8 @@ export function resolveCommunityFromDomain(
   
   // Handle Vercel preview deployments (e.g., nounspace.vercel.app, branch-nounspace.vercel.app)
   // All Vercel preview deployments should point to nouns community
-  if (domain.endsWith('.vercel.app') && domain.includes('nounspace')) {
+  // Match any .vercel.app domain (preview deployments have random branch names)
+  if (domain.endsWith('.vercel.app')) {
     return 'nouns';
   }
   
