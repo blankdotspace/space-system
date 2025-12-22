@@ -403,63 +403,33 @@ export async function GET(request: NextRequest) {
     
     // Wrap in IIFE and execute immediately
     const wrappedScript = `(function(){${sdkInjectionScript}})();`;
+    const sdkScriptTag = `<script>${wrappedScript}</script>`;
     
     // CRITICAL: Inject SDK as the VERY FIRST script, before ANY other code runs
     // This ensures the SDK is available when the mini app tries to use it
     
-    // Strategy 1: Inject right after <html> tag (earliest possible)
-    const htmlTagMatch = html.match(/<html[^>]*>/i);
-    if (htmlTagMatch) {
-      const htmlTag = htmlTagMatch[0];
-      const blockingScript = `<script>${wrappedScript}</script>`;
-      html = html.replace(htmlTag, `${htmlTag}\n${blockingScript}`);
-    }
-    
-    // Strategy 2: Inject in <head> as first child
+    // Strategy: Inject in <head> as first child (most reliable approach)
     const headMatch = html.match(/<head[^>]*>/i);
     if (headMatch) {
       const headTag = headMatch[0];
-      // Use inline script (not external) to ensure it runs immediately
-      const sdkScript = `<script>${wrappedScript}</script>`;
-      // Only add if not already added
+      // Only add if not already added (avoid duplicates)
       if (!html.includes('farcasterMiniAppSdk')) {
-        html = html.replace(headTag, `${headTag}\n${sdkScript}`);
+        html = html.replace(headTag, `${headTag}\n${sdkScriptTag}`);
       }
     } else {
-      // If no <head> tag, inject at the very beginning of HTML
-      if (!html.includes('farcasterMiniAppSdk')) {
-        html = `<script>${wrappedScript}</script>\n${html}`;
+      // If no <head> tag, try to inject after <html> tag
+      const htmlTagMatch = html.match(/<html[^>]*>/i);
+      if (htmlTagMatch) {
+        const htmlTag = htmlTagMatch[0];
+        if (!html.includes('farcasterMiniAppSdk')) {
+          html = html.replace(htmlTag, `${htmlTag}\n${sdkScriptTag}`);
+        }
+      } else {
+        // Last resort: inject at the very beginning of HTML
+        if (!html.includes('farcasterMiniAppSdk')) {
+          html = `${sdkScriptTag}\n${html}`;
+        }
       }
-    }
-    
-    // Strategy 3: Block all script execution until SDK is ready
-    // This prevents mini apps from making API calls before SDK is available
-    const blockingScript = `
-      <script>
-        // Block all script execution until SDK is ready
-        (function() {
-          var scripts = document.querySelectorAll('script[src]');
-          var originalAppendChild = Node.prototype.appendChild;
-          Node.prototype.appendChild = function(child) {
-            if (child.tagName === 'SCRIPT' && child.src && !window.farcasterMiniAppSdk) {
-              // Delay script execution until SDK is ready
-              setTimeout(function() {
-                originalAppendChild.call(this, child);
-              }.bind(this), 0);
-              return child;
-            }
-            return originalAppendChild.call(this, child);
-          };
-        })();
-      </script>
-    `;
-    
-    // Inject blocking script right after SDK injection
-    if (htmlTagMatch) {
-      html = html.replace(
-        /<script>\(function\(\)\{[^}]*farcasterMiniAppSdk[^}]*\}\)\(\);<\/script>/,
-        `$&${blockingScript}`
-      );
     }
 
     // Return modified HTML
