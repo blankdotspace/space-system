@@ -238,26 +238,9 @@ export async function GET(request: NextRequest) {
             // Ignore if sdk is read-only
           }
           
-          // Intercept module loading to ensure our SDK is used
-          // This handles cases where the app uses dynamic imports
-          if (typeof window !== 'undefined' && window.document) {
-            // Listen for script loads and ensure SDK is available
-            const originalAppendChild = Node.prototype.appendChild;
-            Node.prototype.appendChild = function(child) {
-              if (child.tagName === 'SCRIPT' && child.src) {
-                // Ensure SDK is available before any script runs
-                if (!window.farcasterMiniAppSdk) {
-                  Object.defineProperty(window, 'farcasterMiniAppSdk', {
-                    value: mockSdk,
-                    writable: false,
-                    configurable: true,
-                    enumerable: true
-                  });
-                }
-              }
-              return originalAppendChild.call(this, child);
-            };
-          }
+          // Note: We don't intercept appendChild anymore as it can break mini apps
+          // The SDK is already available synchronously before any scripts run
+          // Mini apps should check window.farcasterMiniAppSdk first before importing
           
           // Setup Ethereum provider
           if (provider) {
@@ -306,26 +289,36 @@ export async function GET(request: NextRequest) {
           // CRITICAL: Intercept fetch/XMLHttpRequest to add user context to API calls
           // This must happen BEFORE any mini app code runs
           // Some mini apps make API calls immediately on load
+          // IMPORTANT: Only intercept calls to the mini app's own API, not all HTTP calls
+          // This prevents breaking third-party services (like Segment, YouTube, etc.)
           if (hasUser && contextData.fid) {
             // Store original fetch
             const originalFetch = window.fetch;
             window.fetch = function(...args) {
               const [url, options = {}] = args;
-              // Add user context to headers for ALL API calls
+              // Only add headers for API calls to the mini app's domain
+              // This prevents breaking third-party services
               if (typeof url === 'string') {
-                const headers = new Headers(options.headers || {});
-                // Add Farcaster user context headers
-                if (!headers.has('X-Farcaster-User-Fid')) {
-                  headers.set('X-Farcaster-User-Fid', contextData.fid.toString());
+                const urlObj = new URL(url, window.location.origin);
+                const isMiniAppApi = url.includes('/api/') || 
+                                    urlObj.hostname === window.location.hostname ||
+                                    url.includes('talent.app');
+                
+                if (isMiniAppApi) {
+                  const headers = new Headers(options.headers || {});
+                  // Add Farcaster user context headers only for mini app API calls
+                  if (!headers.has('X-Farcaster-User-Fid')) {
+                    headers.set('X-Farcaster-User-Fid', contextData.fid.toString());
+                  }
+                  if (contextData.username && !headers.has('X-Farcaster-Username')) {
+                    headers.set('X-Farcaster-Username', contextData.username);
+                  }
+                  // Also add as Authorization header if app expects it
+                  if (!headers.has('Authorization')) {
+                    headers.set('Authorization', 'Bearer farcaster:' + contextData.fid.toString());
+                  }
+                  options.headers = headers;
                 }
-                if (contextData.username && !headers.has('X-Farcaster-Username')) {
-                  headers.set('X-Farcaster-Username', contextData.username);
-                }
-                // Also add as Authorization header if app expects it
-                if (!headers.has('Authorization')) {
-                  headers.set('Authorization', 'Bearer farcaster:' + contextData.fid.toString());
-                }
-                options.headers = headers;
               }
               return originalFetch.apply(this, [url, options]);
             };
@@ -340,42 +333,30 @@ export async function GET(request: NextRequest) {
             const originalXHRSend = XMLHttpRequest.prototype.send;
             XMLHttpRequest.prototype.send = function(...args) {
               if (this._nounspaceUrl && typeof this._nounspaceUrl === 'string') {
-                if (!this.getRequestHeader('X-Farcaster-User-Fid')) {
-                  this.setRequestHeader('X-Farcaster-User-Fid', contextData.fid.toString());
-                }
-                if (contextData.username && !this.getRequestHeader('X-Farcaster-Username')) {
-                  this.setRequestHeader('X-Farcaster-Username', contextData.username);
-                }
-                if (!this.getRequestHeader('Authorization')) {
-                  this.setRequestHeader('Authorization', 'Bearer farcaster:' + contextData.fid.toString());
+                const urlObj = new URL(this._nounspaceUrl, window.location.origin);
+                const isMiniAppApi = this._nounspaceUrl.includes('/api/') || 
+                                    urlObj.hostname === window.location.hostname ||
+                                    this._nounspaceUrl.includes('talent.app');
+                
+                if (isMiniAppApi) {
+                  if (!this.getRequestHeader('X-Farcaster-User-Fid')) {
+                    this.setRequestHeader('X-Farcaster-User-Fid', contextData.fid.toString());
+                  }
+                  if (contextData.username && !this.getRequestHeader('X-Farcaster-Username')) {
+                    this.setRequestHeader('X-Farcaster-Username', contextData.username);
+                  }
+                  if (!this.getRequestHeader('Authorization')) {
+                    this.setRequestHeader('Authorization', 'Bearer farcaster:' + contextData.fid.toString());
+                  }
                 }
               }
               return originalXHRSend.apply(this, args);
             };
           }
           
-          // Force SDK to be detected by intercepting the real SDK import
-          // This ensures our mock is used even if the app imports @farcaster/miniapp-sdk
-          if (typeof window !== 'undefined') {
-            // Intercept before any module loads
-            const originalDefine = window.define;
-            if (typeof window.define === 'function') {
-              window.define = function(deps, factory) {
-                if (Array.isArray(deps) && deps.some(dep => 
-                  typeof dep === 'string' && dep.includes('@farcaster/miniapp-sdk')
-                )) {
-                  // Replace the SDK dependency with our mock
-                  const newDeps = deps.map(dep => 
-                    (typeof dep === 'string' && dep.includes('@farcaster/miniapp-sdk'))
-                      ? mockSdk
-                      : dep
-                  );
-                  return originalDefine.call(this, newDeps, factory);
-                }
-                return originalDefine.apply(this, arguments);
-              };
-            }
-          }
+          // Note: We don't intercept window.define anymore as it can break AMD/RequireJS modules
+          // The SDK should check window.farcasterMiniAppSdk first before importing
+          // This is the standard pattern used by the Farcaster SDK
           
           // Dispatch custom event to notify mini apps that SDK is ready
           // This allows mini apps to wait for SDK before making API calls
@@ -391,28 +372,12 @@ export async function GET(request: NextRequest) {
             console.warn('[Nounspace] Could not dispatch SDK ready event:', e);
           }
           
-          console.log('[Nounspace] Mini App SDK injected with context:', {
-            hasUser,
-            user: fullContext.user,
-            contextData,
-            sdkAvailable: !!window.farcasterMiniAppSdk,
-            contextUser: fullContext.user,
-            // Log all SDK exposure points
-            exposurePoints: {
-              farcasterMiniAppSdk: !!window.farcasterMiniAppSdk,
-              __farcasterMiniAppSdk: !!window.__farcasterMiniAppSdk,
-              __farcasterContext: !!window.__farcasterContext,
-              __farcasterUser: !!window.__farcasterUser,
-              __farcasterUserContext: !!window.__farcasterUserContext,
-              sdk: !!window.sdk
-            }
-          });
-          
-          // Log when fetch is intercepted (for debugging)
+          // Minimal logging to avoid console spam
           if (hasUser && contextData.fid) {
-            console.log('[Nounspace] Fetch interception active for user:', {
+            console.log('[Nounspace] SDK ready:', {
+              hasUser: true,
               fid: contextData.fid,
-              username: contextData.username
+              sdkAvailable: !!window.farcasterMiniAppSdk
             });
           }
         } catch (err) {
@@ -426,26 +391,40 @@ export async function GET(request: NextRequest) {
     // The script must execute IMMEDIATELY and SYNCHRONOUSLY
     
     try {
-      // Wrap in IIFE and execute immediately
-      const wrappedScript = `(function(){${sdkInjectionScript}})();`;
-      const sdkScriptTag = `<script>${wrappedScript}</script>`;
-      
-      // CRITICAL: Inject SDK as the VERY FIRST script, before ANY other code runs
-      // This ensures the SDK is available when the mini app tries to use it
-      
       // Only inject if not already present (avoid duplicates)
       if (!html.includes('farcasterMiniAppSdk')) {
+        // Wrap in IIFE and execute immediately
+        // IMPORTANT: Use non-blocking script injection to avoid breaking mini app loading
+        const wrappedScript = `(function(){${sdkInjectionScript}})();`;
+        // Use proper script tag with defer to ensure it doesn't block page load
+        // But we need it to run early, so we use async=false and inject at the start
+        const sdkScriptTag = `<script>${wrappedScript}</script>`;
+        
+        // CRITICAL: Inject SDK as the VERY FIRST script, before ANY other code runs
+        // This ensures the SDK is available when the mini app tries to use it
+        
         // Strategy: Inject in <head> as first child (most reliable approach)
         const headMatch = html.match(/<head[^>]*>/i);
         if (headMatch && headMatch[0]) {
           const headTag = headMatch[0];
-          html = html.replace(headTag, `${headTag}\n${sdkScriptTag}`);
+          // Use string replacement - safer than regex for HTML manipulation
+          // Only replace the first occurrence to avoid breaking HTML
+          const firstHeadIndex = html.indexOf(headMatch[0]);
+          if (firstHeadIndex !== -1) {
+            html = html.slice(0, firstHeadIndex + headMatch[0].length) + 
+                   '\n' + sdkScriptTag + 
+                   html.slice(firstHeadIndex + headMatch[0].length);
+          }
         } else {
           // If no <head> tag, try to inject after <html> tag
           const htmlTagMatch = html.match(/<html[^>]*>/i);
           if (htmlTagMatch && htmlTagMatch[0]) {
-            const htmlTag = htmlTagMatch[0];
-            html = html.replace(htmlTag, `${htmlTag}\n${sdkScriptTag}`);
+            const firstHtmlIndex = html.indexOf(htmlTagMatch[0]);
+            if (firstHtmlIndex !== -1) {
+              html = html.slice(0, firstHtmlIndex + htmlTagMatch[0].length) + 
+                     '\n' + sdkScriptTag + 
+                     html.slice(firstHtmlIndex + htmlTagMatch[0].length);
+            }
           } else {
             // Last resort: inject at the very beginning of HTML
             html = `${sdkScriptTag}\n${html}`;
