@@ -52,8 +52,3 @@ export async function getMetadata() {
     APP_OG_IMAGE: `${WEBSITE_URL}${config.assets.logos.og}`,
   };
 }
-
-// Legacy exports for backward compatibility (will be async)
-// These should be migrated to use getDefaultFrame() and getMetadata() instead
-export const defaultFrame = getDefaultFrame();
-export const metadata = getMetadata();

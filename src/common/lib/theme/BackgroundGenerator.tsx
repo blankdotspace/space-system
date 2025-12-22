@@ -13,6 +13,7 @@ import { Address, formatUnits, zeroAddress } from "viem";
 import { useBalance } from "wagmi";
 import { getGateTokens, getChainForNetwork } from "@/common/lib/utils/tokenGates";
 import type { CommunityTokenNetwork } from "@/config";
+import { MIN_SPACE_TOKENS_FOR_UNLOCK } from "@/common/constants/gates";
 
 interface BackgroundGeneratorProps {
   backgroundHTML: string;
@@ -83,7 +84,7 @@ export const BackgroundGenerator = ({
         ),
       )
     : 0;
-  const userHoldEnoughSpace = spaceHoldAmount >= 1111;
+  const userHoldEnoughSpace = spaceHoldAmount >= MIN_SPACE_TOKENS_FOR_UNLOCK;
   const spaceLoading = result.isLoading || result.isFetching;
   const { hasNogs } = useAppStore((state) => ({
     hasNogs: state.account.hasNogs,
@@ -215,7 +216,7 @@ export const BackgroundGenerator = ({
       {showBanner && (
         <div className="flex gap-1 items-center border-2 border-red-600 text-red-600 bg-red-100 rounded-lg p-2 text-sm font-medium">
           <p>
-            Hold at least 1,111{" "}
+            Hold at least {MIN_SPACE_TOKENS_FOR_UNLOCK.toLocaleString()}{" "}
             <a
               target="_blank"
               rel="noreferrer"

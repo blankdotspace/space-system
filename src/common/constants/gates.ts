@@ -1,0 +1,1 @@
+export const MIN_SPACE_TOKENS_FOR_UNLOCK = 1111;

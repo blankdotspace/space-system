@@ -64,6 +64,7 @@ import { renderEmbedForUrl } from "./Embeds";
 
 import { getGateTokens, getChainForNetwork } from "@/common/lib/utils/tokenGates";
 import { type CommunityTokenNetwork } from "@/config";
+import { MIN_SPACE_TOKENS_FOR_UNLOCK } from "@/common/constants/gates";
 
 // SPACE_CONTRACT_ADDR will be loaded when needed (async)
 // For now, we'll use it in a way that handles the Promise
@@ -381,16 +382,30 @@ const CreateCast: React.FC<CreateCastProps> = ({
   
   // Load space contract address (async)
   useEffect(() => {
-    getGateTokens().then((tokens) => {
-      const primaryErc20 = tokens.erc20Tokens[0];
-      if (primaryErc20) {
-        setErc20Token({
-          address: primaryErc20.address as Address,
-          decimals: primaryErc20.decimals ?? 18,
-          network: primaryErc20.network,
-        });
-      }
-    });
+    let isMounted = true;
+
+    getGateTokens()
+      .then((tokens) => {
+        if (!isMounted) return;
+        const primaryErc20 = tokens.erc20Tokens[0];
+        if (primaryErc20) {
+          setErc20Token({
+            address: primaryErc20.address as Address,
+            decimals: primaryErc20.decimals ?? 18,
+            network: primaryErc20.network,
+          });
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load gate tokens for cast creation:", error);
+        if (isMounted) {
+          setErc20Token(null);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
   
   const result = useBalance({
@@ -407,7 +422,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
         ),
       )
     : 0;
-  const userHoldEnoughSpace = spaceHoldAmount >= 1111;
+  const userHoldEnoughSpace = spaceHoldAmount >= MIN_SPACE_TOKENS_FOR_UNLOCK;
   const { hasNogs } = useAppStore((state) => ({
     hasNogs: state.account.hasNogs,
   }));

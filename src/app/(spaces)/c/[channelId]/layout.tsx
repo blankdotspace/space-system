@@ -1,5 +1,5 @@
 import { WEBSITE_URL } from "@/constants/app";
-import { defaultFrame } from "@/constants/metadata";
+import { getDefaultFrame } from "@/constants/metadata";
 import type { Metadata } from "next/types";
 import { getChannelMetadata } from "./utils";
 
@@ -32,34 +32,37 @@ const DEFAULT_MINI_APP_METADATA = {
   },
 };
 
-const DEFAULT_METADATA: Metadata = {
-  title: "Channel | Nounspace",
-  description: DEFAULT_DESCRIPTION,
-  openGraph: {
+async function buildDefaultMetadata(): Promise<Metadata> {
+  const defaultFrame = await getDefaultFrame();
+  return {
     title: "Channel | Nounspace",
     description: DEFAULT_DESCRIPTION,
-    url: WEBSITE_URL,
-    images: [
-      {
-        url: DEFAULT_IMAGE,
-        width: 1200,
-        height: 630,
-        alt: "Nounspace channel preview",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Channel | Nounspace",
-    description: DEFAULT_DESCRIPTION,
-    images: [DEFAULT_IMAGE],
-  },
-  other: {
-    "fc:frame": JSON.stringify(defaultFrame),
-    "fc:miniapp": JSON.stringify(DEFAULT_MINI_APP_METADATA),
-    "fc:miniapp:domain": MINI_APP_DOMAIN,
-  },
-};
+    openGraph: {
+      title: "Channel | Nounspace",
+      description: DEFAULT_DESCRIPTION,
+      url: WEBSITE_URL,
+      images: [
+        {
+          url: DEFAULT_IMAGE,
+          width: 1200,
+          height: 630,
+          alt: "Nounspace channel preview",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "Channel | Nounspace",
+      description: DEFAULT_DESCRIPTION,
+      images: [DEFAULT_IMAGE],
+    },
+    other: {
+      "fc:frame": JSON.stringify(defaultFrame),
+      "fc:miniapp": JSON.stringify(DEFAULT_MINI_APP_METADATA),
+      "fc:miniapp:domain": MINI_APP_DOMAIN,
+    },
+  };
+}
 
 const MAX_BUTTON_TITLE_LENGTH = 32;
 
@@ -72,24 +75,25 @@ export async function generateMetadata({
   params: Promise<{ channelId: string; tabName?: string }>;
 }): Promise<Metadata> {
   const { channelId, tabName } = await params;
+  const defaultMetadata = await buildDefaultMetadata();
 
   if (!channelId) {
-    return DEFAULT_METADATA;
+    return defaultMetadata;
   }
 
   const channel = await getChannelMetadata(channelId);
 
   if (!channel) {
     return {
-      ...DEFAULT_METADATA,
+      ...defaultMetadata,
       title: `${channelId} | Nounspace`,
       openGraph: {
-        ...DEFAULT_METADATA.openGraph,
+        ...defaultMetadata.openGraph,
         title: `${channelId} | Nounspace`,
         url: `${WEBSITE_URL}/c/${channelId}`,
       },
       twitter: {
-        ...DEFAULT_METADATA.twitter,
+        ...defaultMetadata.twitter,
         title: `${channelId} | Nounspace`,
       },
     };
