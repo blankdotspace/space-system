@@ -37,9 +37,16 @@ export function resolveCommunityFromDomain(
     return DOMAIN_TO_COMMUNITY_MAP[domain];
   }
   
-  // Handle Vercel preview deployments (e.g., nounspace.vercel.app, branch-nounspace.vercel.app)
+  // Handle Vercel preview deployments (e.g., nounspace.vercel.app, space-system-xxx-blankdotspace.vercel.app)
   // All Vercel preview deployments should point to nouns community
-  if (domain.endsWith('.vercel.app') && domain.includes('nounspace')) {
+  // Check for any Vercel deployment domain (ends with .vercel.app)
+  if (domain.endsWith('.vercel.app')) {
+    // Check if it's a blankdotspace deployment (our project)
+    if (domain.includes('blankdotspace') || domain.includes('nounspace')) {
+      return 'nouns';
+    }
+    // For any other Vercel deployment, also default to nouns as fallback
+    // This handles preview deployments that don't match the expected pattern
     return 'nouns';
   }
   
