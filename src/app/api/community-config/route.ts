@@ -97,10 +97,18 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     return NextResponse.json({ success: true, data });
   } catch (error) {
+    if (error instanceof SyntaxError || (error as { name?: string })?.name === 'SyntaxError') {
+      console.error('community-config POST JSON parse error:', error);
+      return NextResponse.json(
+        { success: false, error: 'Invalid JSON' },
+        { status: 400 }
+      );
+    }
+
     console.error('community-config POST error:', error);
     return NextResponse.json(
-      { success: false, error: 'Invalid JSON or server error' },
-      { status: 400 }
+      { success: false, error: 'Server error' },
+      { status: 500 }
     );
   }
 }

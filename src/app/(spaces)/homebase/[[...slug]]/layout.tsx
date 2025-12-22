@@ -5,13 +5,16 @@ import { WEBSITE_URL } from "@/constants/app";
 import { CastParamType } from "@neynar/nodejs-sdk/build/api";
 import neynar from "@/common/data/api/neynar";
 import { getCastMetadataStructure } from "@/common/lib/utils/castMetadata";
-import { defaultFrame } from "@/constants/metadata";
+import { getDefaultFrame } from "@/constants/metadata";
 
-const defaultMetadata = {
-  other: {
-    "fc:frame": JSON.stringify(defaultFrame),
-  },
-};
+async function buildDefaultMetadata(): Promise<Metadata> {
+  const defaultFrame = await getDefaultFrame();
+  return {
+    other: {
+      "fc:frame": JSON.stringify(defaultFrame),
+    },
+  };
+}
 
 export async function generateMetadata({ params }): Promise<Metadata> {
   const { slug } = await params;
@@ -27,7 +30,7 @@ export async function generateMetadata({ params }): Promise<Metadata> {
   }
 
   if (!castHash) {
-    return defaultMetadata;
+    return buildDefaultMetadata();
   }
 
   try {

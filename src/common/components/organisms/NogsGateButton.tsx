@@ -13,8 +13,7 @@ import { Address, formatUnits, zeroAddress } from "viem";
 import { useBalance } from "wagmi";
 import { getGateTokens, getChainForNetwork, mapNetworkToAlchemy } from "@/common/lib/utils/tokenGates";
 import { type CommunityTokenNetwork } from "@/config";
-
-const MIN_SPACE_TOKENS_FOR_UNLOCK = 1111;
+import { MIN_SPACE_TOKENS_FOR_UNLOCK } from "@/common/constants/gates";
 
 const NogsGateButton = (props: ButtonProps) => {
   const { user } = usePrivy();

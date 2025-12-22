@@ -10,6 +10,35 @@ import ClientSidebarWrapper from "@/common/components/organisms/ClientSidebarWra
 import type { Metadata } from 'next' // Migrating next/head
 import { extractFontFamilyFromUrl } from "@/common/lib/utils/fontUtils";
 
+const TRUSTED_STYLESHEET_HOSTS = new Set(["fonts.googleapis.com"]);
+
+function validateStylesheetUrl(stylesheetUrl?: string | null): string | null {
+  if (!stylesheetUrl) {
+    return null;
+  }
+
+  try {
+    const parsedUrl = new URL(stylesheetUrl);
+    if (parsedUrl.protocol !== "https:") {
+      console.warn("Rejected non-https UI stylesheet URL", { stylesheetUrl });
+      return null;
+    }
+
+    if (!TRUSTED_STYLESHEET_HOSTS.has(parsedUrl.hostname)) {
+      console.warn("Rejected untrusted UI stylesheet URL", {
+        stylesheetUrl,
+        hostname: parsedUrl.hostname,
+      });
+      return null;
+    }
+
+    return parsedUrl.toString();
+  } catch (error) {
+    console.warn("Failed to parse UI stylesheet URL", { stylesheetUrl, error });
+    return null;
+  }
+}
+
 // Fallback metadata for build time (when config can't be loaded)
 const fallbackMetadata: Metadata = {
   title: "Nounspace",
@@ -121,7 +150,8 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const systemConfig = await loadSystemConfig();
-  const navFontFamily = extractFontFamilyFromUrl(systemConfig.ui?.url);
+  const validatedUiStylesheet = validateStylesheetUrl(systemConfig.ui?.url);
+  const navFontFamily = extractFontFamilyFromUrl(validatedUiStylesheet ?? undefined);
   const navFontStack =
     navFontFamily
       ? `${navFontFamily}, var(--font-sans, Inter, system-ui, -apple-system, sans-serif)`
@@ -132,8 +162,8 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {systemConfig.ui?.url && (
-          <link rel="stylesheet" href={systemConfig.ui.url} />
+        {validatedUiStylesheet && (
+          <link rel="stylesheet" href={validatedUiStylesheet} />
         )}
       </head>
       <body

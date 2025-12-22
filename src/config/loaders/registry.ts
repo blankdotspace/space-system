@@ -130,6 +130,11 @@ function writeCommunityConfigCache(communityId: string, value: CommunityConfigRo
   });
 }
 
+function isNotFoundError(error: unknown): boolean {
+  const code = (error as { code?: string })?.code;
+  return code === 'PGRST116';
+}
+
 /**
  * Fetch the community configuration row for a given domain.
  *
@@ -166,7 +171,9 @@ export async function getCommunityConfigForDomain(
 
   if (error) {
     console.error('Failed to fetch community config', { candidates, error });
-    candidates.forEach((candidate) => writeCommunityConfigCache(candidate, null));
+    if (isNotFoundError(error)) {
+      candidates.forEach((candidate) => writeCommunityConfigCache(candidate, null));
+    }
     return null;
   }
 

@@ -54,7 +54,7 @@ export function getChainForNetwork(network?: CommunityTokenNetwork): Chain {
   return base;
 }
 
-export function mapNetworkToAlchemy(network?: CommunityTokenNetwork): "base" | "opt" | "eth" | "polygon" {
+export function mapNetworkToAlchemy(network?: CommunityTokenNetwork): "base" | "eth" | "polygon" {
   if (network === "polygon") return "polygon";
   if (network === "eth" || network === "mainnet") return "eth";
   if (network === "base") return "base";
