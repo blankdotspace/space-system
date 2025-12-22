@@ -48,6 +48,14 @@ export async function GET(request: NextRequest) {
 
     let html = await response.text();
 
+    // Validate HTML is not empty
+    if (!html || typeof html !== 'string') {
+      return NextResponse.json(
+        { error: "Invalid HTML response from mini-app" },
+        { status: 500 }
+      );
+    }
+
     // Build user context
     const contextData = fid
       ? {
@@ -58,10 +66,20 @@ export async function GET(request: NextRequest) {
         }
       : null;
 
-    const contextJson = contextData ? JSON.stringify(contextData) : "null";
-    const hasUser = contextData && contextData.fid;
+    // Safely stringify context data for injection into JavaScript
+    // We need to escape it properly to avoid breaking the script
+    let contextJson = "null";
+    try {
+      contextJson = contextData ? JSON.stringify(contextData) : "null";
+    } catch (jsonError) {
+      console.error('[miniapp-proxy] Error stringifying context data:', jsonError);
+      contextJson = "null";
+    }
+    
+    const hasUser = contextData && contextData.fid && !isNaN(contextData.fid);
 
     // Build the SDK injection script
+    // IMPORTANT: contextJson is already JSON.stringify'd, so it's safe to inject
     const sdkInjectionScript = `
       (function() {
         try {
@@ -91,8 +109,14 @@ export async function GET(request: NextRequest) {
             };
           }
           
-          // Build context object
-          var contextData = ${contextJson};
+          // Build context object - safely parse JSON string
+          var contextData = null;
+          try {
+            contextData = ${contextJson};
+          } catch (e) {
+            console.warn('[Nounspace] Failed to parse context data:', e);
+            contextData = null;
+          }
           var hasUser = contextData && contextData.fid;
           
           // CRITICAL: Expose user context IMMEDIATELY before any SDK code runs
@@ -401,35 +425,37 @@ export async function GET(request: NextRequest) {
     // This is CRITICAL - the SDK must be available before the mini app loads
     // The script must execute IMMEDIATELY and SYNCHRONOUSLY
     
-    // Wrap in IIFE and execute immediately
-    const wrappedScript = `(function(){${sdkInjectionScript}})();`;
-    const sdkScriptTag = `<script>${wrappedScript}</script>`;
-    
-    // CRITICAL: Inject SDK as the VERY FIRST script, before ANY other code runs
-    // This ensures the SDK is available when the mini app tries to use it
-    
-    // Strategy: Inject in <head> as first child (most reliable approach)
-    const headMatch = html.match(/<head[^>]*>/i);
-    if (headMatch) {
-      const headTag = headMatch[0];
-      // Only add if not already added (avoid duplicates)
+    try {
+      // Wrap in IIFE and execute immediately
+      const wrappedScript = `(function(){${sdkInjectionScript}})();`;
+      const sdkScriptTag = `<script>${wrappedScript}</script>`;
+      
+      // CRITICAL: Inject SDK as the VERY FIRST script, before ANY other code runs
+      // This ensures the SDK is available when the mini app tries to use it
+      
+      // Only inject if not already present (avoid duplicates)
       if (!html.includes('farcasterMiniAppSdk')) {
-        html = html.replace(headTag, `${headTag}\n${sdkScriptTag}`);
-      }
-    } else {
-      // If no <head> tag, try to inject after <html> tag
-      const htmlTagMatch = html.match(/<html[^>]*>/i);
-      if (htmlTagMatch) {
-        const htmlTag = htmlTagMatch[0];
-        if (!html.includes('farcasterMiniAppSdk')) {
-          html = html.replace(htmlTag, `${htmlTag}\n${sdkScriptTag}`);
+        // Strategy: Inject in <head> as first child (most reliable approach)
+        const headMatch = html.match(/<head[^>]*>/i);
+        if (headMatch && headMatch[0]) {
+          const headTag = headMatch[0];
+          html = html.replace(headTag, `${headTag}\n${sdkScriptTag}`);
+        } else {
+          // If no <head> tag, try to inject after <html> tag
+          const htmlTagMatch = html.match(/<html[^>]*>/i);
+          if (htmlTagMatch && htmlTagMatch[0]) {
+            const htmlTag = htmlTagMatch[0];
+            html = html.replace(htmlTag, `${htmlTag}\n${sdkScriptTag}`);
+          } else {
+            // Last resort: inject at the very beginning of HTML
+            html = `${sdkScriptTag}\n${html}`;
+          }
         }
-      } else {
-        // Last resort: inject at the very beginning of HTML
-        if (!html.includes('farcasterMiniAppSdk')) {
-          html = `${sdkScriptTag}\n${html}`;
-        }
       }
+    } catch (injectionError) {
+      console.error('[miniapp-proxy] Error injecting SDK script:', injectionError);
+      // Continue even if injection fails - the app should still work
+      // but without automatic login
     }
 
     // Return modified HTML
