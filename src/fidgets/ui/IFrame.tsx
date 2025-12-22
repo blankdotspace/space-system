@@ -91,29 +91,24 @@ const resolveAllowedEmbedSrc = (src?: string | null): string | null => {
 
 type IframeAttributeMap = Record<string, string>;
 
+type MiniAppUserContext = {
+  fid: number;
+  username?: string;
+  displayName?: string;
+  pfpUrl?: string;
+};
+
 const createMiniAppBootstrapSrcDoc = (
   targetUrl: string,
   fid?: number | null,
-  userContext?: any
+  userContext?: MiniAppUserContext | null
 ) => {
   const safeTargetUrl = sanitizeMiniAppNavigationTarget(targetUrl);
   const iconPath = MINI_APP_PROVIDER_METADATA.iconPath;
-  
-  // Add FID to URL if provided (for optimistic sign-in support)
-  let finalUrl = safeTargetUrl;
-  if (fid && safeTargetUrl && safeTargetUrl !== "about:blank") {
-    try {
-      const url = new URL(safeTargetUrl);
-      // Only add fid if not already present
-      if (!url.searchParams.has('fid')) {
-        url.searchParams.set('fid', fid.toString());
-      }
-      finalUrl = url.toString();
-    } catch (e) {
-      // If URL parsing fails, use original
-      finalUrl = safeTargetUrl;
-    }
-  }
+
+  // Build the context object that will be provided to mini-apps via SDK
+  const contextData = userContext || (fid ? { fid } : null);
+  const contextJson = contextData ? JSON.stringify(contextData) : 'null';
 
   const providerInfoScript = `
         var providerInfo = parentWindow.__nounspaceMiniAppProviderInfo;
@@ -133,89 +128,469 @@ const createMiniAppBootstrapSrcDoc = (
         }
       `;
 
-  // Script to expose user context via postMessage
-  const userContextScript = userContext || fid
-    ? `
-        // Expose user context for mini-apps that support optimistic sign-in
-        var userContext = {
-          ${fid ? `fid: ${fid},` : ''}
-          ${userContext ? `context: ${JSON.stringify(userContext)},` : ''}
-          timestamp: Date.now()
-        };
-        
-        // Make context available on window for direct access
-        window.__farcasterUserContext = userContext;
-        
-        // Also expose via postMessage for cross-origin communication
-        if (window.parent && window.parent !== window) {
+  // Script to inject Farcaster Mini App SDK with context
+  const sdkInjectionScript = `
+        // Inject Farcaster Mini App SDK mock that provides context from Nounspace
+        (function() {
           try {
-            window.parent.postMessage({
-              type: 'farcaster:userContext',
-              data: userContext
-            }, '*');
-          } catch (e) {
-            console.warn('Failed to post user context:', e);
-          }
-        }
-      `
-    : '';
-
-  return `<!DOCTYPE html><html><head><meta charset="utf-8" /></head><body><script>(function(){
-      try {
-        var parentWindow = window.parent;
-        if (!parentWindow) {
-          return;
-        }
-        
-        // Setup Ethereum provider for wallet interactions
-        var provider = parentWindow.__nounspaceMiniAppEthProvider;
-        if (provider) {
-          // Make provider available globally
-          window.ethereum = provider;
-          
-          ${providerInfoScript}
-          
-          // EIP-6963 provider announcement for wallet discovery
-          var announce = function() {
-            try {
-              var detail = Object.freeze({
-                info: Object.freeze(providerInfo),
-                provider: provider
-              });
-              window.dispatchEvent(new CustomEvent("eip6963:announceProvider", { detail: detail }));
-            } catch (e) {
-              console.warn("Failed to announce provider:", e);
+            var parentWindow = window.parent;
+            if (!parentWindow) {
+              return;
             }
-          };
-          
-          // Initialize Ethereum provider
-          window.dispatchEvent(new Event("ethereum#initialized"));
-          announce();
-          
-          // Listen for provider requests
-          window.addEventListener("eip6963:requestProvider", announce);
-          
-          // Also listen for legacy ethereum requests
-          window.addEventListener("ethereum#requestProvider", announce);
-        }
-        
-        ${userContextScript}
-        
-        // Expose helper function for mini-apps to check if wallet is available
-        window.__nounspaceHasWallet = !!provider;
-        
-      } catch (err) {
-        console.error("Mini app provider bootstrap failed", err);
-      }
-      
-      // Navigate to target URL after setup
-      setTimeout(function(){
-        var target = ${JSON.stringify(finalUrl)};
-        if (target && target !== "about:blank") {
+            
+            // Get Ethereum provider from parent
+            var provider = parentWindow.__nounspaceMiniAppEthProvider;
+            ${providerInfoScript}
+            
+            // Build context object
+            var contextData = ${contextJson};
+            var hasUser = contextData && contextData.fid;
+            
+            // CRITICAL: Expose user context IMMEDIATELY before any SDK code runs
+            // This ensures mini apps can access user data synchronously
+            if (hasUser) {
+              try {
+                // Expose user data globally for immediate access
+                window.__farcasterUser = {
+                  fid: contextData.fid,
+                  username: contextData.username || null,
+                  displayName: contextData.displayName || null,
+                  pfpUrl: contextData.pfpUrl || null,
+                };
+                // Also expose as a global variable that some apps check
+                window.farcasterUser = window.__farcasterUser;
+              } catch (e) {
+                console.warn('[Nounspace] Could not expose user immediately:', e);
+              }
+            }
+            
+            // Build the full context object that matches Farcaster Mini App SDK format
+            // IMPORTANT: The user is already available in context.user (automatic login)
+            // Mini apps should check context.user first - if it exists, user is already logged in
+            // signIn() is only needed as a fallback for apps that require explicit sign-in
+            var fullContext = {
+              user: hasUser ? {
+                fid: contextData.fid,
+                username: contextData.username || null,
+                displayName: contextData.displayName || null,
+                pfpUrl: contextData.pfpUrl || null,
+              } : null,
+              client: {
+                platformType: 'web',
+                version: '1.0.0',
+              },
+              location: {
+                type: 'launcher',
+              }
+            };
+            
+            // Create mock SDK that mimics @farcaster/miniapp-sdk
+            // The real SDK uses postMessage to communicate with the parent
+            // We intercept those messages and provide our own context
+            var mockSdk = {
+              // Context is a Promise that resolves to the context object
+              context: Promise.resolve(fullContext),
+              
+              // Wallet provider
+              wallet: {
+                ethProvider: provider || null
+              },
+              
+              // Actions
+              actions: {
+                ready: function(options) {
+                  // Mark app as ready - this hides the splash screen in real clients
+                  return Promise.resolve();
+                },
+                close: function() {
+                  // Close the mini app
+                  return Promise.resolve();
+                },
+                signIn: function(nonce) {
+                  // Sign in - returns user info if available
+                  // NOTE: User is already available in context.user (automatic login)
+                  // This function is for apps that require explicit signIn() call
+                  // If context.user exists, the app should use that instead of calling signIn()
+                  // This maintains backward compatibility with apps that call signIn() explicitly
+                  // IMPORTANT: In Farcaster, signIn() is called to get user info, but the user
+                  // is already available in context.user. We return the user immediately.
+                  console.log('[Nounspace] signIn() called - returning user context:', {
+                    hasUser,
+                    fid: contextData?.fid,
+                    nonce: nonce || 'none'
+                  });
+                  return Promise.resolve(hasUser ? {
+                    fid: contextData.fid,
+                    username: contextData.username || null,
+                    displayName: contextData.displayName || null,
+                    pfpUrl: contextData.pfpUrl || null,
+                  } : null);
+                },
+                openUrl: function(url) {
+                  if (parentWindow) {
+                    parentWindow.open(url, '_blank');
+                  }
+                  return Promise.resolve();
+                },
+                viewProfile: function(fid) {
+                  return Promise.resolve();
+                },
+                addFrame: function(frameUrl) {
+                  return Promise.resolve();
+                }
+              },
+              
+              // Check if in mini app (always true when injected)
+              isInMiniApp: function() {
+                return Promise.resolve(true);
+              },
+              
+              // Event listeners (stubs)
+              on: function(event, callback) {
+                // Stub implementation - could be enhanced to handle real events
+                return this;
+              },
+              off: function(event, callback) {
+                // Stub implementation
+                return this;
+              }
+            };
+            
+            // The real SDK checks for window.farcasterMiniAppSdk first
+            // If it exists, it uses that. Otherwise, it uses postMessage to communicate with parent.
+            // Since we're providing window.farcasterMiniAppSdk, the SDK should use our mock directly.
+            // However, we also listen for any postMessage requests as a fallback.
+            
+            // Listen for messages from parent (in case SDK still tries to use postMessage)
+            window.addEventListener('message', function(event) {
+              // Handle context requests from SDK (fallback)
+              if (event.data && typeof event.data === 'object') {
+                var msgType = event.data.type || event.data.method || '';
+                var isContextRequest = msgType.includes('context') || 
+                                      msgType.includes('Context') ||
+                                      msgType === 'farcaster:getContext' ||
+                                      msgType === 'getContext';
+                
+                if (isContextRequest && event.source === parentWindow) {
+                  // Respond with our context
+                  try {
+                    parentWindow.postMessage({
+                      type: 'farcaster:context',
+                      id: event.data.id,
+                      result: fullContext,
+                      success: true
+                    }, '*');
+                  } catch (e) {
+                    console.warn('[Nounspace] Could not send context response:', e);
+                  }
+                }
+              }
+            }, false);
+            
+            // CRITICAL: Make SDK available BEFORE any imports happen
+            // The SDK library checks for window.farcasterMiniAppSdk first
+            // Multiple exposure points to ensure compatibility
+            
+            // Set SDK immediately - use configurable: true so we can update if needed
+            try {
+              // Delete existing if any (in case of re-injection)
+              try {
+                delete window.farcasterMiniAppSdk;
+              } catch (e) {
+                // Ignore if can't delete
+              }
+              
+              Object.defineProperty(window, 'farcasterMiniAppSdk', {
+                value: mockSdk,
+                writable: false,
+                configurable: true, // Allow redefinition if needed
+                enumerable: true
+              });
+            } catch (e) {
+              // If already exists, try to overwrite
+              try {
+                window.farcasterMiniAppSdk = mockSdk;
+              } catch (e2) {
+                console.warn('[Nounspace] Could not set farcasterMiniAppSdk:', e2);
+              }
+            }
+            
+            // CRITICAL: Intercept dynamic imports to ensure our SDK is used
+            // The real SDK uses: import { sdk } from '@farcaster/miniapp-sdk'
+            // We need to intercept this at the module level
+            if (typeof window !== 'undefined') {
+              // Store original import if it exists
+              const originalImport = window.__import || (() => {});
+              
+              // Try to intercept import() calls
+              // Note: This may not work in all browsers due to security restrictions
+              // But we try anyway as a best effort
+              try {
+                // Override window.import if it exists (some polyfills)
+                if (window.import) {
+                  window.__originalImport = window.import;
+                }
+              } catch (e) {
+                // Ignore
+              }
+            }
+            
+            // Also expose via the expected module export pattern
+            window.__farcasterMiniAppSdk = {
+              sdk: mockSdk,
+              default: mockSdk
+            };
+            
+            // Expose as window.sdk for apps that check this
+            try {
+              if (!window.sdk) {
+                window.sdk = mockSdk;
+              }
+            } catch (e) {
+              // Ignore if sdk is read-only
+            }
+            
+            // Expose as global sdk (some apps might check for this)
+            try {
+              window.sdk = mockSdk;
+            } catch (e) {
+              // Ignore if sdk is read-only
+            }
+            
+            // Store reference for module interception
+            try {
+              window.__nounspaceMockSdk = mockSdk;
+            } catch (e) {
+              // Ignore if property is read-only
+            }
+            
+            // Intercept dynamic imports - this is CRITICAL for ES modules
+            // The real SDK uses: import { sdk } from '@farcaster/miniapp-sdk'
+            // We need to intercept this before it loads
+            var originalImport = window.import || (function() {});
+            if (typeof window !== 'undefined') {
+              // Override import() function if possible
+              // Note: This may not work in all browsers due to security restrictions
+              try {
+                // Store original if it exists
+                if (window.import) {
+                  window.__originalImport = window.import;
+                }
+                
+                // Try to override import (may not work due to browser security)
+                // Fallback: The SDK should check window.farcasterMiniAppSdk first
+              } catch (e) {
+                console.warn('[Nounspace] Could not override import:', e);
+              }
+            }
+            
+            // Intercept require/import calls if possible
+            // This is a best-effort approach since we can't fully intercept ES modules
+            if (typeof window.require !== 'undefined') {
+              try {
+                var originalRequire = window.require;
+                window.require = function(id) {
+                  if (id === '@farcaster/miniapp-sdk' || (typeof id === 'string' && id.includes('@farcaster/miniapp-sdk'))) {
+                    return { sdk: mockSdk, default: mockSdk };
+                  }
+                  return originalRequire.apply(this, arguments);
+                };
+              } catch (e) {
+                console.warn('[Nounspace] Could not intercept require:', e);
+              }
+            }
+            
+            // Try to intercept SystemJS/AMD/CommonJS if they exist
+            if (window.System && window.System.register) {
+              try {
+                var originalRegister = window.System.register;
+                window.System.register = function(name, deps, execute) {
+                  if (name && typeof name === 'string' && name.includes('@farcaster/miniapp-sdk')) {
+                    // Return our mock instead
+                    return originalRegister.call(this, name, [], function() {
+                      return { sdk: mockSdk, default: mockSdk };
+                    });
+                  }
+                  return originalRegister.apply(this, arguments);
+                };
+              } catch (e) {
+                console.warn('[Nounspace] Could not intercept System.register:', e);
+              }
+            }
+            
+            // CRITICAL: The real SDK checks window.farcasterMiniAppSdk FIRST
+            // before trying to import. So if we set it here, it should use our mock.
+            // The SDK code typically does:
+            //   const sdk = window.farcasterMiniAppSdk || (await import('@farcaster/miniapp-sdk')).sdk
+            // So our mock should be used if it's available.
+            
+            // Most importantly: ensure the SDK is available synchronously
+            // before the page loads, so when the mini-app code runs, it finds our mock
+            console.log('[Nounspace] SDK mock installed. Mini-app should use this SDK.');
+            
+            // Setup Ethereum provider for wallet interactions
+            if (provider) {
+              // Make provider available globally
+              window.ethereum = provider;
+              
+              // EIP-6963 provider announcement for wallet discovery
+              var announce = function() {
+                try {
+                  var detail = Object.freeze({
+                    info: Object.freeze(providerInfo),
+                    provider: provider
+                  });
+                  window.dispatchEvent(new CustomEvent("eip6963:announceProvider", { detail: detail }));
+                } catch (e) {
+                  console.warn("Failed to announce provider:", e);
+                }
+              };
+              
+              // Initialize Ethereum provider
+              window.dispatchEvent(new Event("ethereum#initialized"));
+              announce();
+              
+              // Listen for provider requests
+              window.addEventListener("eip6963:requestProvider", announce);
+              
+              // Also listen for legacy ethereum requests
+              window.addEventListener("ethereum#requestProvider", announce);
+            }
+            
+            // Expose helper function for mini-apps to check if wallet is available
+            window.__nounspaceHasWallet = !!provider;
+            
+            // Also expose context directly for backwards compatibility
+            if (contextData) {
+              window.__farcasterUserContext = contextData;
+            }
+            
+            // Make context available immediately for apps that check synchronously
+            window.__farcasterContext = fullContext;
+            
+            // Also expose user directly for apps that check window.__farcasterUserContext
+            if (hasUser) {
+              // Make user available immediately for synchronous checks
+              try {
+                Object.defineProperty(window, '__farcasterUser', {
+                  value: fullContext.user,
+                  writable: false,
+                  configurable: true,
+                  enumerable: true
+                });
+              } catch (e) {
+                console.warn('[Nounspace] Could not expose __farcasterUser:', e);
+              }
+            }
+            
+            // Intercept fetch/XMLHttpRequest to add user context to API calls
+            // Some mini apps make API calls that need the user context
+            if (hasUser && contextData.fid) {
+              // Store original fetch
+              const originalFetch = window.fetch;
+              window.fetch = function(...args) {
+                const [url, options = {}] = args;
+                // Add user context to headers if it's an API call
+                if (typeof url === 'string' && (url.includes('/api/') || url.startsWith('http'))) {
+                  const headers = new Headers(options.headers || {});
+                  // Some apps check for Farcaster context in headers
+                  if (!headers.has('X-Farcaster-User-Fid')) {
+                    headers.set('X-Farcaster-User-Fid', contextData.fid.toString());
+                  }
+                  if (contextData.username && !headers.has('X-Farcaster-Username')) {
+                    headers.set('X-Farcaster-Username', contextData.username);
+                  }
+                  options.headers = headers;
+                }
+                return originalFetch.apply(this, [url, options]);
+              };
+              
+              // Also intercept XMLHttpRequest for older apps
+              const originalXHROpen = XMLHttpRequest.prototype.open;
+              XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+                this._nounspaceUrl = url;
+                return originalXHROpen.apply(this, [method, url, ...rest]);
+              };
+              
+              const originalXHRSend = XMLHttpRequest.prototype.send;
+              XMLHttpRequest.prototype.send = function(...args) {
+                if (this._nounspaceUrl && typeof this._nounspaceUrl === 'string' && 
+                    (this._nounspaceUrl.includes('/api/') || this._nounspaceUrl.startsWith('http'))) {
+                  if (!this.getRequestHeader('X-Farcaster-User-Fid')) {
+                    this.setRequestHeader('X-Farcaster-User-Fid', contextData.fid.toString());
+                  }
+                  if (contextData.username && !this.getRequestHeader('X-Farcaster-Username')) {
+                    this.setRequestHeader('X-Farcaster-Username', contextData.username);
+                  }
+                }
+                return originalXHRSend.apply(this, args);
+              };
+            }
+            
+            // Force SDK to be detected by intercepting the real SDK import
+            // This ensures our mock is used even if the app imports @farcaster/miniapp-sdk
+            if (typeof window !== 'undefined') {
+              // Intercept before any module loads
+              const originalDefine = window.define;
+              if (typeof window.define === 'function') {
+                window.define = function(deps, factory) {
+                  if (Array.isArray(deps) && deps.some(dep => 
+                    typeof dep === 'string' && dep.includes('@farcaster/miniapp-sdk')
+                  )) {
+                    // Replace the SDK dependency with our mock
+                    const newDeps = deps.map(dep => 
+                      (typeof dep === 'string' && dep.includes('@farcaster/miniapp-sdk'))
+                        ? mockSdk
+                        : dep
+                    );
+                    return originalDefine.call(this, newDeps, factory);
+                  }
+                  return originalDefine.apply(this, arguments);
+                };
+              }
+            }
+            
+            console.log('[Nounspace] Mini App SDK injected with context:', {
+              hasUser,
+              user: fullContext.user,
+              contextData,
+              sdkAvailable: !!window.farcasterMiniAppSdk,
+              contextAvailable: !!window.__farcasterContext,
+              userAvailable: !!window.__farcasterUser,
+              // Log all SDK exposure points
+              exposurePoints: {
+                farcasterMiniAppSdk: !!window.farcasterMiniAppSdk,
+                __farcasterMiniAppSdk: !!window.__farcasterMiniAppSdk,
+                __farcasterContext: !!window.__farcasterContext,
+                __farcasterUser: !!window.__farcasterUser,
+                __farcasterUserContext: !!window.__farcasterUserContext,
+                sdk: !!window.sdk
+              }
+            });
+          } catch (err) {
+            console.error('[Nounspace] Failed to inject Mini App SDK:', err);
+          }
+        })();
+      `;
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8" />
+    <script>
+      // STEP 1: Inject SDK BEFORE anything else
+      // Execute immediately and synchronously
+      (function(){${sdkInjectionScript}})();
+    </script>
+    <script>
+      // STEP 2: Navigate to the mini-app
+      // The SDK will be lost on navigation, but we try to inject it before
+      var target = ${JSON.stringify(safeTargetUrl)};
+      if (target && target !== "about:blank") {
+        // Minimum delay to ensure SDK is set
+        setTimeout(function() {
           window.location.replace(target);
-        }
-      }, 0);
-    })();</script></body></html>`;
+        }, 0);
+      }
+    </script>
+  </head><body></body></html>`;
 };
 
 const parseIframeAttributes = (html: string | null): IframeAttributeMap | null => {
@@ -386,22 +761,49 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
 
   const { isInMiniApp } = useMiniApp();
   const isMiniAppEnvironment = isInMiniApp === true;
-  
+
   // Get FID and user context for mini-apps
   const currentFid = useCurrentFid();
   const { userContext, context: miniAppContext } = useMiniAppSdk();
-  
+
   // Get FID from SDK context if available (when running as mini-app), otherwise use current FID
   // The SDK context provides the FID when the app is running inside a Farcaster client
   const fidForMiniApp = miniAppContext?.user?.fid || currentFid;
-  
+
   // Prepare user context data for passing to mini-apps
   // Only include fields that are available in the UserContext type
-  const userContextData = userContext ? {
-    fid: userContext.fid,
-    ...(userContext.username && { username: userContext.username }),
-    ...(userContext.displayName && { displayName: userContext.displayName }),
-  } : (fidForMiniApp ? { fid: fidForMiniApp } : null);
+  // IMPORTANT: Always include FID if available, even if we don't have other user data
+  // This ensures automatic login works for mini apps
+  const userContextData: MiniAppUserContext | null = useMemo(() => {
+    if (userContext && userContext.fid) {
+      return {
+        fid: userContext.fid,
+        ...(userContext.username && { username: userContext.username }),
+        ...(userContext.displayName && { displayName: userContext.displayName }),
+        ...(userContext.pfpUrl && { pfpUrl: userContext.pfpUrl }),
+      };
+    }
+    // Fallback: use FID if available (even without other user data)
+    // This is critical for automatic login
+    if (fidForMiniApp) {
+      return { fid: fidForMiniApp };
+    }
+    return null;
+  }, [userContext, fidForMiniApp]);
+
+  // Debug logging in development
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && url) {
+      console.log('[IFrame] User context for mini app:', {
+        hasUserContext: !!userContext,
+        userContext,
+        currentFid,
+        fidForMiniApp,
+        userContextData,
+        isMiniAppEnvironment,
+      });
+    }
+  }, [url, userContext, currentFid, fidForMiniApp, userContextData, isMiniAppEnvironment]);
 
   const [sanitizedEmbedAttributes, setSanitizedEmbedAttributes] =
     useState<IframeAttributeMap | null>(null);
@@ -460,7 +862,8 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
   }, [embedInfo?.iframelyHtml]);
 
   const iframelyMiniAppConfig = useMemo(() => {
-    if (!isMiniAppEnvironment || !iframelyEmbedAttributes?.src) {
+    // Inject SDK when we have user context (for mini-apps) or when in mini-app environment
+    if ((!isMiniAppEnvironment && !userContextData) || !iframelyEmbedAttributes?.src) {
       return undefined;
     }
 
@@ -552,24 +955,30 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
 
   const sanitizedEmbedSrc = sanitizedEmbedAttributes?.src ?? null;
   const resolvedSanitizedMiniAppSrc = useMemo(() => {
-    if (!isMiniAppEnvironment || !sanitizedEmbedSrc) {
+    // Resolve for mini-apps when we have user context or when in mini-app environment
+    if ((!isMiniAppEnvironment && !userContextData) || !sanitizedEmbedSrc) {
       return undefined;
     }
 
     return resolveAllowedEmbedSrc(sanitizedEmbedSrc);
-  }, [isMiniAppEnvironment, sanitizedEmbedSrc]);
+  }, [isMiniAppEnvironment, sanitizedEmbedSrc, userContextData]);
 
   const sanitizedMiniAppBootstrapDoc = useMemo(() => {
     if (!resolvedSanitizedMiniAppSrc) {
       return null;
     }
 
-    return createMiniAppBootstrapSrcDoc(resolvedSanitizedMiniAppSrc, fidForMiniApp, userContextData);
-  }, [resolvedSanitizedMiniAppSrc, fidForMiniApp, userContextData]);
+    // Always inject SDK when we have user context (for mini-apps)
+    // This allows mini-apps to work properly even when Nounspace is not running as a mini-app
+    if (isMiniAppEnvironment || userContextData) {
+      return createMiniAppBootstrapSrcDoc(resolvedSanitizedMiniAppSrc, fidForMiniApp, userContextData);
+    }
+    return null;
+  }, [resolvedSanitizedMiniAppSrc, fidForMiniApp, userContextData, isMiniAppEnvironment]);
 
   if (sanitizedEmbedScript) {
     if (
-      isMiniAppEnvironment &&
+      (isMiniAppEnvironment || userContextData) &&
       sanitizedEmbedSrc &&
       resolvedSanitizedMiniAppSrc === null
     ) {
@@ -582,12 +991,20 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
     }
 
     if (
-      isMiniAppEnvironment &&
+      (isMiniAppEnvironment || userContextData) &&
       sanitizedEmbedSrc &&
       resolvedSanitizedMiniAppSrc &&
       sanitizedMiniAppBootstrapDoc &&
       sanitizedEmbedAttributes
     ) {
+      // CRITICAL: If we have user context, use proxy instead of srcDoc
+      // srcDoc causes SDK to be lost on navigation, proxy keeps SDK injected
+      const effectiveUserContext = userContextData || (fidForMiniApp ? { fid: fidForMiniApp } : null);
+      const shouldUseProxyForBootstrap = !!effectiveUserContext;
+      const proxyUrlForBootstrap = shouldUseProxyForBootstrap && effectiveUserContext
+        ? `/api/miniapp-proxy?url=${encodeURIComponent(resolvedSanitizedMiniAppSrc)}&fid=${effectiveUserContext.fid}${effectiveUserContext.username ? `&username=${encodeURIComponent(effectiveUserContext.username)}` : ''}${effectiveUserContext.displayName ? `&displayName=${encodeURIComponent(effectiveUserContext.displayName)}` : ''}${effectiveUserContext.pfpUrl ? `&pfpUrl=${encodeURIComponent(effectiveUserContext.pfpUrl)}` : ''}`
+        : null;
+
       const allowFullScreen = "allowfullscreen" in sanitizedEmbedAttributes;
       const sandboxRules = ensureSandboxRules(
         sanitizedEmbedAttributes.sandbox,
@@ -599,8 +1016,9 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
       return (
         <div style={{ overflow: "hidden", width: "100%", height: "100%" }}>
           <iframe
-            key={`miniapp-sanitized-${resolvedSanitizedMiniAppSrc}`}
-            srcDoc={sanitizedMiniAppBootstrapDoc}
+            key={`miniapp-sanitized-${resolvedSanitizedMiniAppSrc}-${shouldUseProxyForBootstrap ? 'proxy' : 'srcdoc'}`}
+            src={shouldUseProxyForBootstrap && proxyUrlForBootstrap ? proxyUrlForBootstrap : undefined}
+            srcDoc={shouldUseProxyForBootstrap ? undefined : sanitizedMiniAppBootstrapDoc}
             title={sanitizedEmbedAttributes.title || "IFrame Fidget"}
             sandbox={sandboxRules}
             allow={sanitizedEmbedAttributes.allow}
@@ -745,9 +1163,28 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
   }
 
   if (embedInfo.directEmbed && transformedUrl) {
-    const miniAppBootstrapDoc = isMiniAppEnvironment
-      ? createMiniAppBootstrapSrcDoc(transformedUrl, fidForMiniApp, userContextData)
-      : null;
+    // For mini-apps, use proxy endpoint that injects SDK into HTML
+    // This ensures SDK persists even after navigation
+    // Always use proxy if we have any user data (FID) to enable automatic login
+    const shouldUseProxy = (isMiniAppEnvironment || userContextData || fidForMiniApp);
+
+    // Build proxy URL with user context
+    // Use userContextData if available, otherwise fallback to fidForMiniApp
+    const effectiveUserContext = userContextData || (fidForMiniApp ? { fid: fidForMiniApp } : null);
+    const proxyUrl = shouldUseProxy && effectiveUserContext
+      ? `/api/miniapp-proxy?url=${encodeURIComponent(transformedUrl)}&fid=${effectiveUserContext.fid}${effectiveUserContext.username ? `&username=${encodeURIComponent(effectiveUserContext.username)}` : ''}${effectiveUserContext.displayName ? `&displayName=${encodeURIComponent(effectiveUserContext.displayName)}` : ''}${effectiveUserContext.pfpUrl ? `&pfpUrl=${encodeURIComponent(effectiveUserContext.pfpUrl)}` : ''}`
+      : transformedUrl;
+
+    // Debug logging - ALWAYS log in development, and also log in production for debugging
+    console.log('[IFrame] Mini app proxy configuration:', {
+      shouldUseProxy,
+      hasUserContextData: !!userContextData,
+      fidForMiniApp,
+      effectiveUserContext,
+      usingProxy: shouldUseProxy && effectiveUserContext,
+      proxyUrl: shouldUseProxy && effectiveUserContext ? proxyUrl : 'NOT USING PROXY',
+      originalUrl: transformedUrl,
+    });
 
     return (
       <div
@@ -770,8 +1207,7 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
           >
             <iframe
               key={`iframe-miniapp-${transformedUrl}`}
-              src={miniAppBootstrapDoc ? undefined : transformedUrl}
-              srcDoc={miniAppBootstrapDoc || undefined}
+              src={proxyUrl}
               title="IFrame Fidget"
               sandbox={DEFAULT_SANDBOX_RULES}
               style={{
@@ -802,8 +1238,7 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
             >
               <iframe
                 key={`iframe-miniapp-${transformedUrl}`}
-                src={miniAppBootstrapDoc ? undefined : transformedUrl}
-                srcDoc={miniAppBootstrapDoc || undefined}
+                src={proxyUrl}
                 title="IFrame Fidget"
                 sandbox={DEFAULT_SANDBOX_RULES}
                 style={{
@@ -823,7 +1258,8 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
   const iframelyEmbedSrc = iframelyEmbedAttributes?.src ?? null;
 
   if (!embedInfo.directEmbed && embedInfo.iframelyHtml) {
-    if (isMiniAppEnvironment && iframelyEmbedSrc && iframelyEmbedAttributes) {
+    // Inject SDK when we have user context (for mini-apps) or when in mini-app environment
+    if ((isMiniAppEnvironment || userContextData) && iframelyEmbedSrc && iframelyEmbedAttributes) {
       if (iframelyMiniAppConfig === null) {
         return (
           <div

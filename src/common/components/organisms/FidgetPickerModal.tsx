@@ -271,14 +271,18 @@ export const FidgetPickerModal: React.FC<FidgetPickerModalProps> = ({
       }
     } else if (option.type === 'miniapp') {
       const miniappOption = option as MiniAppFidgetOption;
-      const framesFidget = CompleteFidgets.FramesV2;
-      if (framesFidget) {
-        // Create FramesV2 fidget with pre-populated frame URL
-        addFidgetWithCustomSettings('FramesV2', framesFidget, {
-          url: miniappOption.frameUrl,
-          collapsed: false,
-          title: miniappOption.name,
-          headingFont: 'Inter'
+      const iframeFidget = CompleteFidgets.iframe;
+      if (iframeFidget) {
+        // Create iframe fidget for mini-app with pre-populated URL
+        // Mini-apps should use iframe (not FramesV2) so they get the SDK injection
+        // Use homeUrl if available, otherwise fall back to frameUrl
+        const miniAppUrl = miniappOption.homeUrl || miniappOption.frameUrl;
+        addFidgetWithCustomSettings('iframe', iframeFidget, {
+          url: miniAppUrl,
+          size: 1,
+          cropOffsetX: 0,
+          cropOffsetY: 0,
+          isScrollable: false
         });
       }
     }
