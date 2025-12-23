@@ -442,10 +442,15 @@ export async function GET(request: NextRequest) {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
         "Cache-Control": "no-cache, no-store, must-revalidate",
+        "X-Content-Type-Options": "nosniff",
       },
     });
   } catch (error) {
-    console.error("Error proxying mini-app:", error);
+    console.error("[miniapp-proxy] Error proxying mini-app:", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      url: searchParams.get("url"),
+    });
     return NextResponse.json(
       {
         error: "Failed to proxy mini-app",

@@ -873,9 +873,9 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
 
     try {
       const safeSrc = new URL(iframelyEmbedAttributes.src).toString();
+      // bootstrapDoc causes SDK to be lost when the page navigates
       return {
         safeSrc,
-        bootstrapDoc: createMiniAppBootstrapSrcDoc(safeSrc, fidForMiniApp, userContextData),
         allowFullScreen: "allowfullscreen" in iframelyEmbedAttributes,
         sandboxRules: ensureSandboxRules(iframelyEmbedAttributes.sandbox),
         widthAttr: iframelyEmbedAttributes.width,
@@ -963,18 +963,7 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
     return resolveAllowedEmbedSrc(sanitizedEmbedSrc);
   }, [isMiniAppEnvironment, sanitizedEmbedSrc, userContextData]);
 
-  const sanitizedMiniAppBootstrapDoc = useMemo(() => {
-    if (!resolvedSanitizedMiniAppSrc) {
-      return null;
-    }
-
-    // Always inject SDK when we have user context (for mini-apps)
-    // This allows mini-apps to work properly even when Nounspace is not running as a mini-app
-    if (isMiniAppEnvironment || userContextData) {
-      return createMiniAppBootstrapSrcDoc(resolvedSanitizedMiniAppSrc, fidForMiniApp, userContextData);
-    }
-    return null;
-  }, [resolvedSanitizedMiniAppSrc, fidForMiniApp, userContextData, isMiniAppEnvironment]);
+  // This ensures the SDK is available even after the mini-app navigates to different pages
 
   if (sanitizedEmbedScript) {
     if (
@@ -994,16 +983,13 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
       (isMiniAppEnvironment || userContextData) &&
       sanitizedEmbedSrc &&
       resolvedSanitizedMiniAppSrc &&
-      sanitizedMiniAppBootstrapDoc &&
       sanitizedEmbedAttributes
     ) {
-      // CRITICAL: If we have user context, use proxy instead of srcDoc
-      // srcDoc causes SDK to be lost on navigation, proxy keeps SDK injected
+      // CRITICAL: Always use proxy when we have user context to ensure SDK persists after navigation
       const effectiveUserContext = userContextData || (fidForMiniApp ? { fid: fidForMiniApp } : null);
-      const shouldUseProxyForBootstrap = !!effectiveUserContext;
-      const proxyUrlForBootstrap = shouldUseProxyForBootstrap && effectiveUserContext
+      const proxyUrl = effectiveUserContext
         ? `/api/miniapp-proxy?url=${encodeURIComponent(resolvedSanitizedMiniAppSrc)}&fid=${effectiveUserContext.fid}${effectiveUserContext.username ? `&username=${encodeURIComponent(effectiveUserContext.username)}` : ''}${effectiveUserContext.displayName ? `&displayName=${encodeURIComponent(effectiveUserContext.displayName)}` : ''}${effectiveUserContext.pfpUrl ? `&pfpUrl=${encodeURIComponent(effectiveUserContext.pfpUrl)}` : ''}`
-        : null;
+        : resolvedSanitizedMiniAppSrc;
 
       const allowFullScreen = "allowfullscreen" in sanitizedEmbedAttributes;
       const sandboxRules = ensureSandboxRules(
@@ -1016,9 +1002,8 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
       return (
         <div style={{ overflow: "hidden", width: "100%", height: "100%" }}>
           <iframe
-            key={`miniapp-sanitized-${resolvedSanitizedMiniAppSrc}-${shouldUseProxyForBootstrap ? 'proxy' : 'srcdoc'}`}
-            src={shouldUseProxyForBootstrap && proxyUrlForBootstrap ? proxyUrlForBootstrap : undefined}
-            srcDoc={shouldUseProxyForBootstrap ? undefined : sanitizedMiniAppBootstrapDoc}
+            key={`miniapp-sanitized-${resolvedSanitizedMiniAppSrc}-${effectiveUserContext ? 'proxy' : 'direct'}`}
+            src={proxyUrl}
             title={sanitizedEmbedAttributes.title || "IFrame Fidget"}
             sandbox={sandboxRules}
             allow={sanitizedEmbedAttributes.allow}
@@ -1272,18 +1257,23 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
       if (iframelyMiniAppConfig) {
         const {
           safeSrc,
-          bootstrapDoc,
           allowFullScreen,
           sandboxRules,
           widthAttr,
           heightAttr,
         } = iframelyMiniAppConfig;
 
+        // srcDoc causes SDK to be lost when the page navigates
+        const effectiveUserContext = userContextData || (fidForMiniApp ? { fid: fidForMiniApp } : null);
+        const proxyUrl = effectiveUserContext
+          ? `/api/miniapp-proxy?url=${encodeURIComponent(safeSrc)}&fid=${effectiveUserContext.fid}${effectiveUserContext.username ? `&username=${encodeURIComponent(effectiveUserContext.username)}` : ''}${effectiveUserContext.displayName ? `&displayName=${encodeURIComponent(effectiveUserContext.displayName)}` : ''}${effectiveUserContext.pfpUrl ? `&pfpUrl=${encodeURIComponent(effectiveUserContext.pfpUrl)}` : ''}`
+          : safeSrc;
+
         return (
           <div style={{ overflow: "hidden", width: "100%", height: "100%" }}>
             <iframe
-              key={`miniapp-iframely-${safeSrc}`}
-              srcDoc={bootstrapDoc}
+              key={`miniapp-iframely-${safeSrc}-${effectiveUserContext ? 'proxy' : 'direct'}`}
+              src={proxyUrl}
               title={iframelyEmbedAttributes.title || "IFrame Fidget"}
               sandbox={sandboxRules}
               allow={iframelyEmbedAttributes.allow}
