@@ -198,7 +198,7 @@ const proxyRequest = async (request: NextRequest, targetUrl: string) => {
 
 const handle = async (
   request: NextRequest,
-  context: { params: { path?: string[] } },
+  context: { params: { path: string[] } },
 ) => {
   const targetUrl = buildTargetUrl(request, context.params.path);
   if (!targetUrl) {
@@ -210,49 +210,49 @@ const handle = async (
 
 export async function GET(
   request: NextRequest,
-  context: { params: { path?: string[] } },
+  context: { params: { path: string[] } },
 ) {
   return handle(request, context);
 }
 
 export async function HEAD(
   request: NextRequest,
-  context: { params: { path?: string[] } },
+  context: { params: { path: string[] } },
 ) {
   return handle(request, context);
 }
 
 export async function POST(
   request: NextRequest,
-  context: { params: { path?: string[] } },
+  context: { params: { path: string[] } },
 ) {
   return handle(request, context);
 }
 
 export async function PUT(
   request: NextRequest,
-  context: { params: { path?: string[] } },
+  context: { params: { path: string[] } },
 ) {
   return handle(request, context);
 }
 
 export async function PATCH(
   request: NextRequest,
-  context: { params: { path?: string[] } },
+  context: { params: { path: string[] } },
 ) {
   return handle(request, context);
 }
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: { path?: string[] } },
+  context: { params: { path: string[] } },
 ) {
   return handle(request, context);
 }
 
 export async function OPTIONS(
   request: NextRequest,
-  context: { params: { path?: string[] } },
+  context: { params: { path: string[] } },
 ) {
   return handle(request, context);
 }
