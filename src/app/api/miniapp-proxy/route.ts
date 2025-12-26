@@ -386,48 +386,57 @@ export async function GET(request: NextRequest) {
       })();
     `;
 
-    // Inject SDK script into HTML BEFORE any other scripts
+    // Inject <base> and SDK script into HTML BEFORE any other scripts
     // This is CRITICAL - the SDK must be available before the mini app loads
     // The script must execute IMMEDIATELY and SYNCHRONOUSLY
-    
     try {
-      // Only inject if not already present (avoid duplicates)
-      if (!html.includes('farcasterMiniAppSdk')) {
+      const hasSdk = html.includes('farcasterMiniAppSdk');
+      const hasBaseTag = /<base\s/i.test(html);
+      const baseHref = new URL('.', url).toString();
+      const headInsertions: string[] = [];
+
+      if (!hasBaseTag) {
+        headInsertions.push(`<base href="${baseHref}">`);
+      }
+
+      if (!hasSdk) {
         // Wrap in IIFE and execute immediately
         // IMPORTANT: Use non-blocking script injection to avoid breaking mini app loading
         const wrappedScript = `(function(){${sdkInjectionScript}})();`;
         // Use proper script tag with defer to ensure it doesn't block page load
         // But we need it to run early, so we use async=false and inject at the start
         const sdkScriptTag = `<script>${wrappedScript}</script>`;
-        
-        // CRITICAL: Inject SDK as the VERY FIRST script, before ANY other code runs
-        // This ensures the SDK is available when the mini app tries to use it
-        
-        // Strategy: Inject in <head> as first child (most reliable approach)
+        headInsertions.push(sdkScriptTag);
+      }
+
+      if (headInsertions.length > 0) {
+        const injection = headInsertions.join('\n');
+
+        // CRITICAL: Inject at the VERY START of <head> before ANY other code runs.
         const headMatch = html.match(/<head[^>]*>/i);
         if (headMatch && headMatch[0]) {
           const headTag = headMatch[0];
-          // Use string replacement - safer than regex for HTML manipulation
-          // Only replace the first occurrence to avoid breaking HTML
-          const firstHeadIndex = html.indexOf(headMatch[0]);
+          const firstHeadIndex = html.indexOf(headTag);
           if (firstHeadIndex !== -1) {
-            html = html.slice(0, firstHeadIndex + headMatch[0].length) + 
-                   '\n' + sdkScriptTag + 
-                   html.slice(firstHeadIndex + headMatch[0].length);
+            html =
+              html.slice(0, firstHeadIndex + headTag.length) +
+              '\n' +
+              injection +
+              html.slice(firstHeadIndex + headTag.length);
           }
         } else {
-          // If no <head> tag, try to inject after <html> tag
           const htmlTagMatch = html.match(/<html[^>]*>/i);
           if (htmlTagMatch && htmlTagMatch[0]) {
             const firstHtmlIndex = html.indexOf(htmlTagMatch[0]);
             if (firstHtmlIndex !== -1) {
-              html = html.slice(0, firstHtmlIndex + htmlTagMatch[0].length) + 
-                     '\n' + sdkScriptTag + 
-                     html.slice(firstHtmlIndex + htmlTagMatch[0].length);
+              html =
+                html.slice(0, firstHtmlIndex + htmlTagMatch[0].length) +
+                '\n' +
+                injection +
+                html.slice(firstHtmlIndex + htmlTagMatch[0].length);
             }
           } else {
-            // Last resort: inject at the very beginning of HTML
-            html = `${sdkScriptTag}\n${html}`;
+            html = `${injection}\n${html}`;
           }
         }
       }
@@ -460,5 +469,4 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
 
