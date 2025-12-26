@@ -2,6 +2,67 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
+const normalizeProxyRoot = (proxyRoot: string) =>
+  proxyRoot.endsWith("/") ? proxyRoot.slice(0, -1) : proxyRoot;
+
+const rewriteHtmlUrls = (html: string, proxyRoot: string) => {
+  const normalizedProxyRoot = normalizeProxyRoot(proxyRoot);
+
+  const rewriteRootPath = (value: string) => {
+    if (!value || !value.startsWith("/") || value.startsWith("//")) {
+      return value;
+    }
+    if (
+      value === normalizedProxyRoot ||
+      value.startsWith(`${normalizedProxyRoot}/`)
+    ) {
+      return value;
+    }
+    return `${normalizedProxyRoot}${value}`;
+  };
+
+  let updated = html.replace(
+    /(\s(?:src|href|action|poster)=["'])([^"']+)(["'])/gi,
+    (_match, prefix, value, suffix) => {
+      const rewritten = rewriteRootPath(value);
+      return `${prefix}${rewritten}${suffix}`;
+    },
+  );
+
+  updated = updated.replace(
+    /(\ssrcset=["'])([^"']*)(["'])/gi,
+    (_match, prefix, value, suffix) => {
+      const rewritten = value
+        .split(",")
+        .map((entry) => {
+          const trimmed = entry.trim();
+          if (!trimmed) {
+            return entry;
+          }
+          const firstSpace = trimmed.search(/\s/);
+          const url =
+            firstSpace === -1 ? trimmed : trimmed.slice(0, firstSpace);
+          const descriptor =
+            firstSpace === -1 ? "" : trimmed.slice(firstSpace).trim();
+          const nextUrl = rewriteRootPath(url);
+          return descriptor ? `${nextUrl} ${descriptor}` : nextUrl;
+        })
+        .join(", ");
+      return `${prefix}${rewritten}${suffix}`;
+    },
+  );
+
+  updated = updated.replace(
+    /url\(\s*(['"]?)(\/(?!\/)[^'")]+)\1\s*\)/gi,
+    (_match, quote, path) => {
+      const rewritten = rewriteRootPath(path);
+      return `url(${quote}${rewritten}${quote})`;
+    },
+  );
+
+  return updated;
+};
+
 /**
  * Proxy endpoint that injects Farcaster Mini App SDK into HTML before serving
  * This allows the SDK to persist even after navigation
@@ -31,8 +92,14 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const targetUrl = url;
+    const targetOrigin = new URL(targetUrl).origin;
+    const proxyRoot = `/api/miniapp-proxy/${encodeURIComponent(targetOrigin)}`;
+    const targetBasePath = new URL(".", targetUrl).pathname;
+    const proxyBaseHref = `${proxyRoot}${targetBasePath}`;
+
     // Fetch the mini-app HTML
-    const response = await fetch(url, {
+    const response = await fetch(targetUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -108,6 +175,10 @@ export async function GET(request: NextRequest) {
               rdns: "com.nounspace"
             };
           }
+          
+          var miniAppOrigin = ${JSON.stringify(targetOrigin)};
+          var miniAppBaseUrl = ${JSON.stringify(targetUrl)};
+          var miniAppProxyRoot = ${JSON.stringify(proxyRoot)};
           
           // Build context object - safely parse JSON string
           var contextData = null;
@@ -286,73 +357,100 @@ export async function GET(request: NextRequest) {
             }
           }
           
-          // CRITICAL: Intercept fetch/XMLHttpRequest to add user context to API calls
+          // CRITICAL: Intercept fetch/XMLHttpRequest to route relative calls through the proxy
           // This must happen BEFORE any mini app code runs
           // Some mini apps make API calls immediately on load
-          // IMPORTANT: Only intercept calls to the mini app's own API, not all HTTP calls
-          // This prevents breaking third-party services (like Segment, YouTube, etc.)
-          if (hasUser && contextData.fid) {
-            // Store original fetch
-            const originalFetch = window.fetch;
-            window.fetch = function(...args) {
-              const [url, options = {}] = args;
-              // Only add headers for API calls to the mini app's domain
-              // This prevents breaking third-party services
-              if (typeof url === 'string') {
-                const urlObj = new URL(url, window.location.origin);
-                const isMiniAppApi = url.includes('/api/') || 
-                                    urlObj.hostname === window.location.hostname ||
-                                    url.includes('talent.app');
-                
-                if (isMiniAppApi) {
-                  const headers = new Headers(options.headers || {});
-                  // Add Farcaster user context headers only for mini app API calls
-                  if (!headers.has('X-Farcaster-User-Fid')) {
-                    headers.set('X-Farcaster-User-Fid', contextData.fid.toString());
-                  }
-                  if (contextData.username && !headers.has('X-Farcaster-Username')) {
-                    headers.set('X-Farcaster-Username', contextData.username);
-                  }
-                  // Also add as Authorization header if app expects it
-                  if (!headers.has('Authorization')) {
-                    headers.set('Authorization', 'Bearer farcaster:' + contextData.fid.toString());
-                  }
-                  options.headers = headers;
-                }
+          function toProxyUrl(inputUrl) {
+            if (!inputUrl || typeof inputUrl !== 'string') {
+              return inputUrl;
+            }
+            if (inputUrl.startsWith(miniAppProxyRoot) || inputUrl.startsWith('/api/miniapp-proxy/')) {
+              return inputUrl;
+            }
+            try {
+              var parsedAbsolute = new URL(inputUrl);
+              if (
+                parsedAbsolute.origin === window.location.origin &&
+                parsedAbsolute.pathname.startsWith('/api/miniapp-proxy/')
+              ) {
+                return parsedAbsolute.pathname + parsedAbsolute.search + parsedAbsolute.hash;
               }
-              return originalFetch.apply(this, [url, options]);
-            };
-            
-            // Also intercept XMLHttpRequest for older apps
-            const originalXHROpen = XMLHttpRequest.prototype.open;
-            XMLHttpRequest.prototype.open = function(method, url, ...rest) {
-              this._nounspaceUrl = url;
-              return originalXHROpen.apply(this, [method, url, ...rest]);
-            };
-            
-            const originalXHRSend = XMLHttpRequest.prototype.send;
-            XMLHttpRequest.prototype.send = function(...args) {
-              if (this._nounspaceUrl && typeof this._nounspaceUrl === 'string') {
-                const urlObj = new URL(this._nounspaceUrl, window.location.origin);
-                const isMiniAppApi = this._nounspaceUrl.includes('/api/') || 
-                                    urlObj.hostname === window.location.hostname ||
-                                    this._nounspaceUrl.includes('talent.app');
-                
-                if (isMiniAppApi) {
-                  if (!this.getRequestHeader('X-Farcaster-User-Fid')) {
-                    this.setRequestHeader('X-Farcaster-User-Fid', contextData.fid.toString());
-                  }
-                  if (contextData.username && !this.getRequestHeader('X-Farcaster-Username')) {
-                    this.setRequestHeader('X-Farcaster-Username', contextData.username);
-                  }
-                  if (!this.getRequestHeader('Authorization')) {
-                    this.setRequestHeader('Authorization', 'Bearer farcaster:' + contextData.fid.toString());
-                  }
-                }
+            } catch (e) {
+              // Not an absolute URL, continue.
+            }
+            try {
+              var isAbsolute = /^[a-zA-Z][\\w+.-]*:/.test(inputUrl);
+              var resolvedUrl = isAbsolute ? new URL(inputUrl) : new URL(inputUrl, miniAppBaseUrl);
+              if (resolvedUrl.pathname && resolvedUrl.pathname.startsWith(miniAppProxyRoot)) {
+                return resolvedUrl.pathname + resolvedUrl.search + resolvedUrl.hash;
               }
-              return originalXHRSend.apply(this, args);
-            };
+              if (resolvedUrl.origin === miniAppOrigin || resolvedUrl.origin === window.location.origin) {
+                return miniAppProxyRoot + resolvedUrl.pathname + resolvedUrl.search + resolvedUrl.hash;
+              }
+            } catch (e) {
+              return inputUrl;
+            }
+            return inputUrl;
           }
+
+          function shouldAttachHeaders(resolvedUrl) {
+            if (!hasUser || !contextData || !contextData.fid || typeof resolvedUrl !== 'string') {
+              return false;
+            }
+            try {
+              var urlObj = new URL(resolvedUrl, window.location.origin);
+              return urlObj.pathname.startsWith(miniAppProxyRoot) || urlObj.origin === miniAppOrigin;
+            } catch (e) {
+              return false;
+            }
+          }
+
+          // Store original fetch
+          const originalFetch = window.fetch;
+          window.fetch = function(...args) {
+            const [url, options = {}] = args;
+            const resolvedUrl = typeof url === 'string' ? toProxyUrl(url) : url;
+
+            if (typeof resolvedUrl === 'string' && shouldAttachHeaders(resolvedUrl)) {
+              const headers = new Headers(options.headers || {});
+              if (!headers.has('X-Farcaster-User-Fid')) {
+                headers.set('X-Farcaster-User-Fid', contextData.fid.toString());
+              }
+              if (contextData.username && !headers.has('X-Farcaster-Username')) {
+                headers.set('X-Farcaster-Username', contextData.username);
+              }
+              if (!headers.has('Authorization')) {
+                headers.set('Authorization', 'Bearer farcaster:' + contextData.fid.toString());
+              }
+              options.headers = headers;
+            }
+
+            return originalFetch.apply(this, [resolvedUrl, options]);
+          };
+
+          // Also intercept XMLHttpRequest for older apps
+          const originalXHROpen = XMLHttpRequest.prototype.open;
+          XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+            const resolvedUrl = typeof url === 'string' ? toProxyUrl(url) : url;
+            this._nounspaceUrl = resolvedUrl;
+            return originalXHROpen.apply(this, [method, resolvedUrl, ...rest]);
+          };
+
+          const originalXHRSend = XMLHttpRequest.prototype.send;
+          XMLHttpRequest.prototype.send = function(...args) {
+            if (this._nounspaceUrl && typeof this._nounspaceUrl === 'string' && shouldAttachHeaders(this._nounspaceUrl)) {
+              if (!this.getRequestHeader('X-Farcaster-User-Fid')) {
+                this.setRequestHeader('X-Farcaster-User-Fid', contextData.fid.toString());
+              }
+              if (contextData.username && !this.getRequestHeader('X-Farcaster-Username')) {
+                this.setRequestHeader('X-Farcaster-Username', contextData.username);
+              }
+              if (!this.getRequestHeader('Authorization')) {
+                this.setRequestHeader('Authorization', 'Bearer farcaster:' + contextData.fid.toString());
+              }
+            }
+            return originalXHRSend.apply(this, args);
+          };
           
           // Note: We don't intercept window.define anymore as it can break AMD/RequireJS modules
           // The SDK should check window.farcasterMiniAppSdk first before importing
@@ -391,7 +489,7 @@ export async function GET(request: NextRequest) {
     // The script must execute IMMEDIATELY and SYNCHRONOUSLY
     try {
       const hasSdk = html.includes('farcasterMiniAppSdk');
-      const baseHref = new URL('.', url).toString();
+      const baseHref = proxyBaseHref;
       const headInsertions: string[] = [];
       const existingBaseMatch = html.match(/<base[^>]*>/i);
       const baseTargetMatch = existingBaseMatch
@@ -449,6 +547,8 @@ export async function GET(request: NextRequest) {
       // Continue even if injection fails - the app should still work
       // but without automatic login
     }
+
+    html = rewriteHtmlUrls(html, proxyRoot);
 
     // Return modified HTML
     return new NextResponse(html, {
