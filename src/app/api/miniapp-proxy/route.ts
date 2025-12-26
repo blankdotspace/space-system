@@ -391,13 +391,17 @@ export async function GET(request: NextRequest) {
     // The script must execute IMMEDIATELY and SYNCHRONOUSLY
     try {
       const hasSdk = html.includes('farcasterMiniAppSdk');
-      const hasBaseTag = /<base\s/i.test(html);
       const baseHref = new URL('.', url).toString();
       const headInsertions: string[] = [];
+      const existingBaseMatch = html.match(/<base[^>]*>/i);
+      const baseTargetMatch = existingBaseMatch
+        ? existingBaseMatch[0].match(/\starget\s*=\s*["']([^"']+)["']/i)
+        : null;
+      const baseTarget = baseTargetMatch?.[1];
 
-      if (!hasBaseTag) {
-        headInsertions.push(`<base href="${baseHref}">`);
-      }
+      headInsertions.push(
+        `<base href="${baseHref}"${baseTarget ? ` target="${baseTarget}"` : ""}>`,
+      );
 
       if (!hasSdk) {
         // Wrap in IIFE and execute immediately
@@ -469,4 +473,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
