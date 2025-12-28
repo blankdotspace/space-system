@@ -5,7 +5,33 @@ export const dynamic = "force-dynamic";
 const normalizeProxyRoot = (proxyRoot: string) =>
   proxyRoot.endsWith("/") ? proxyRoot.slice(0, -1) : proxyRoot;
 
-const rewriteHtmlUrls = (html: string, proxyRoot: string) => {
+const rewriteNextAssetPrefix = (html: string, assetPrefix: string) => {
+  const nextDataRegex =
+    /<script[^>]*id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i;
+  const match = html.match(nextDataRegex);
+  if (!match) {
+    return html;
+  }
+
+  try {
+    const data = JSON.parse(match[1]);
+    if (data?.assetPrefix === assetPrefix) {
+      return html;
+    }
+    data.assetPrefix = assetPrefix;
+    const updatedScript = match[0].replace(match[1], JSON.stringify(data));
+    return html.replace(match[0], updatedScript);
+  } catch (error) {
+    console.warn("[miniapp-proxy] Failed to rewrite __NEXT_DATA__", error);
+    return html;
+  }
+};
+
+const rewriteHtmlUrls = (
+  html: string,
+  proxyRoot: string,
+  targetOrigin?: string,
+) => {
   const normalizedProxyRoot = normalizeProxyRoot(proxyRoot);
 
   const rewriteRootPath = (value: string) => {
@@ -21,10 +47,42 @@ const rewriteHtmlUrls = (html: string, proxyRoot: string) => {
     return `${normalizedProxyRoot}${value}`;
   };
 
+  const rewriteAbsoluteUrl = (value: string) => {
+    if (!value || !targetOrigin) {
+      return value;
+    }
+    const isAbsolute =
+      value.startsWith("http://") ||
+      value.startsWith("https://") ||
+      value.startsWith("//");
+    if (!isAbsolute) {
+      return value;
+    }
+    try {
+      const parsed = new URL(value, targetOrigin);
+      if (parsed.origin === targetOrigin) {
+        return `${normalizedProxyRoot}${parsed.pathname}${parsed.search}${parsed.hash}`;
+      }
+    } catch {
+      return value;
+    }
+    return value;
+  };
+
+  const rewriteUrlValue = (value: string) => {
+    if (!value) {
+      return value;
+    }
+    if (value.startsWith("/") && !value.startsWith("//")) {
+      return rewriteRootPath(value);
+    }
+    return rewriteAbsoluteUrl(value);
+  };
+
   let updated = html.replace(
     /(\s(?:src|href|action|poster)=["'])([^"']+)(["'])/gi,
     (_match, prefix, value, suffix) => {
-      const rewritten = rewriteRootPath(value);
+      const rewritten = rewriteUrlValue(value);
       return `${prefix}${rewritten}${suffix}`;
     },
   );
@@ -44,7 +102,7 @@ const rewriteHtmlUrls = (html: string, proxyRoot: string) => {
             firstSpace === -1 ? trimmed : trimmed.slice(0, firstSpace);
           const descriptor =
             firstSpace === -1 ? "" : trimmed.slice(firstSpace).trim();
-          const nextUrl = rewriteRootPath(url);
+          const nextUrl = rewriteUrlValue(url);
           return descriptor ? `${nextUrl} ${descriptor}` : nextUrl;
         })
         .join(", ");
@@ -60,8 +118,22 @@ const rewriteHtmlUrls = (html: string, proxyRoot: string) => {
     },
   );
 
+  updated = updated.replace(
+    /url\(\s*(['"]?)(https?:\/\/[^'")]+|\/\/[^'")]+)\1\s*\)/gi,
+    (_match, quote, path) => {
+      const rewritten = rewriteAbsoluteUrl(path);
+      return `url(${quote}${rewritten}${quote})`;
+    },
+  );
+
   return updated;
 };
+
+const stripMetaCsp = (html: string) =>
+  html.replace(
+    /<meta[^>]+http-equiv=["']?content-security-policy["']?[^>]*>/gi,
+    "",
+  );
 
 /**
  * Proxy endpoint that injects Farcaster Mini App SDK into HTML before serving
@@ -122,6 +194,8 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    html = stripMetaCsp(html);
 
     // Build user context
     const contextData = fid
@@ -357,6 +431,23 @@ export async function GET(request: NextRequest) {
             }
           }
           
+          // Remove any CSP meta tags that would block inline scripts or network calls.
+          try {
+            var removeCspMeta = function() {
+              var metas = document.querySelectorAll('meta[http-equiv="Content-Security-Policy" i]');
+              for (var i = 0; i < metas.length; i++) {
+                metas[i].parentNode && metas[i].parentNode.removeChild(metas[i]);
+              }
+            };
+            removeCspMeta();
+            new MutationObserver(removeCspMeta).observe(document.documentElement, {
+              childList: true,
+              subtree: true
+            });
+          } catch (e) {
+            // Ignore CSP cleanup failures.
+          }
+
           // CRITICAL: Intercept fetch/XMLHttpRequest to route relative calls through the proxy
           // This must happen BEFORE any mini app code runs
           // Some mini apps make API calls immediately on load
@@ -392,6 +483,48 @@ export async function GET(request: NextRequest) {
             }
             return inputUrl;
           }
+
+          function shouldRewriteElementUrl(element, attributeName) {
+            if (!element || !attributeName) {
+              return false;
+            }
+            var tagName = element.tagName ? element.tagName.toUpperCase() : '';
+            var attrName = attributeName.toString().toLowerCase();
+            return (tagName === 'SCRIPT' && attrName === 'src') || (tagName === 'LINK' && attrName === 'href');
+          }
+
+          function patchElementUrlSetter(elementProto, propertyName) {
+            try {
+              var descriptor = Object.getOwnPropertyDescriptor(elementProto, propertyName);
+              if (!descriptor || typeof descriptor.set !== 'function' || typeof descriptor.get !== 'function') {
+                return;
+              }
+              Object.defineProperty(elementProto, propertyName, {
+                configurable: true,
+                enumerable: descriptor.enumerable,
+                get: function() {
+                  return descriptor.get.call(this);
+                },
+                set: function(value) {
+                  return descriptor.set.call(this, toProxyUrl(value));
+                }
+              });
+            } catch (e) {
+              // Ignore failures; some browsers lock down these descriptors.
+            }
+          }
+
+          // Ensure dynamically loaded chunks/assets go through the proxy.
+          patchElementUrlSetter(HTMLScriptElement.prototype, 'src');
+          patchElementUrlSetter(HTMLLinkElement.prototype, 'href');
+
+          var originalSetAttribute = Element.prototype.setAttribute;
+          Element.prototype.setAttribute = function(name, value) {
+            if (shouldRewriteElementUrl(this, name)) {
+              return originalSetAttribute.call(this, name, toProxyUrl(value));
+            }
+            return originalSetAttribute.call(this, name, value);
+          };
 
           function shouldAttachHeaders(resolvedUrl) {
             if (!hasUser || !contextData || !contextData.fid || typeof resolvedUrl !== 'string') {
@@ -439,14 +572,16 @@ export async function GET(request: NextRequest) {
           const originalXHRSend = XMLHttpRequest.prototype.send;
           XMLHttpRequest.prototype.send = function(...args) {
             if (this._nounspaceUrl && typeof this._nounspaceUrl === 'string' && shouldAttachHeaders(this._nounspaceUrl)) {
-              if (!this.getRequestHeader('X-Farcaster-User-Fid')) {
-                this.setRequestHeader('X-Farcaster-User-Fid', contextData.fid.toString());
-              }
-              if (contextData.username && !this.getRequestHeader('X-Farcaster-Username')) {
-                this.setRequestHeader('X-Farcaster-Username', contextData.username);
-              }
-              if (!this.getRequestHeader('Authorization')) {
-                this.setRequestHeader('Authorization', 'Bearer farcaster:' + contextData.fid.toString());
+              if (typeof this.setRequestHeader === 'function') {
+                try {
+                  this.setRequestHeader('X-Farcaster-User-Fid', contextData.fid.toString());
+                  if (contextData.username) {
+                    this.setRequestHeader('X-Farcaster-Username', contextData.username);
+                  }
+                  this.setRequestHeader('Authorization', 'Bearer farcaster:' + contextData.fid.toString());
+                } catch (e) {
+                  console.warn('[Nounspace] Could not set XHR headers:', e);
+                }
               }
             }
             return originalXHRSend.apply(this, args);
@@ -548,7 +683,8 @@ export async function GET(request: NextRequest) {
       // but without automatic login
     }
 
-    html = rewriteHtmlUrls(html, proxyRoot);
+    html = rewriteHtmlUrls(html, proxyRoot, targetOrigin);
+    html = rewriteNextAssetPrefix(html, proxyRoot);
 
     // Return modified HTML
     return new NextResponse(html, {

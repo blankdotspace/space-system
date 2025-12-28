@@ -5,7 +5,33 @@ export const dynamic = "force-dynamic";
 const normalizeProxyRoot = (proxyRoot: string) =>
   proxyRoot.endsWith("/") ? proxyRoot.slice(0, -1) : proxyRoot;
 
-const rewriteHtmlUrls = (html: string, proxyRoot: string) => {
+const rewriteNextAssetPrefix = (html: string, assetPrefix: string) => {
+  const nextDataRegex =
+    /<script[^>]*id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i;
+  const match = html.match(nextDataRegex);
+  if (!match) {
+    return html;
+  }
+
+  try {
+    const data = JSON.parse(match[1]);
+    if (data?.assetPrefix === assetPrefix) {
+      return html;
+    }
+    data.assetPrefix = assetPrefix;
+    const updatedScript = match[0].replace(match[1], JSON.stringify(data));
+    return html.replace(match[0], updatedScript);
+  } catch (error) {
+    console.warn("[miniapp-proxy] Failed to rewrite __NEXT_DATA__", error);
+    return html;
+  }
+};
+
+const rewriteHtmlUrls = (
+  html: string,
+  proxyRoot: string,
+  targetOrigin?: string,
+) => {
   const normalizedProxyRoot = normalizeProxyRoot(proxyRoot);
 
   const rewriteRootPath = (value: string) => {
@@ -21,10 +47,42 @@ const rewriteHtmlUrls = (html: string, proxyRoot: string) => {
     return `${normalizedProxyRoot}${value}`;
   };
 
+  const rewriteAbsoluteUrl = (value: string) => {
+    if (!value || !targetOrigin) {
+      return value;
+    }
+    const isAbsolute =
+      value.startsWith("http://") ||
+      value.startsWith("https://") ||
+      value.startsWith("//");
+    if (!isAbsolute) {
+      return value;
+    }
+    try {
+      const parsed = new URL(value, targetOrigin);
+      if (parsed.origin === targetOrigin) {
+        return `${normalizedProxyRoot}${parsed.pathname}${parsed.search}${parsed.hash}`;
+      }
+    } catch {
+      return value;
+    }
+    return value;
+  };
+
+  const rewriteUrlValue = (value: string) => {
+    if (!value) {
+      return value;
+    }
+    if (value.startsWith("/") && !value.startsWith("//")) {
+      return rewriteRootPath(value);
+    }
+    return rewriteAbsoluteUrl(value);
+  };
+
   let updated = html.replace(
     /(\s(?:src|href|action|poster)=["'])([^"']+)(["'])/gi,
     (_match, prefix, value, suffix) => {
-      const rewritten = rewriteRootPath(value);
+      const rewritten = rewriteUrlValue(value);
       return `${prefix}${rewritten}${suffix}`;
     },
   );
@@ -44,7 +102,7 @@ const rewriteHtmlUrls = (html: string, proxyRoot: string) => {
             firstSpace === -1 ? trimmed : trimmed.slice(0, firstSpace);
           const descriptor =
             firstSpace === -1 ? "" : trimmed.slice(firstSpace).trim();
-          const nextUrl = rewriteRootPath(url);
+          const nextUrl = rewriteUrlValue(url);
           return descriptor ? `${nextUrl} ${descriptor}` : nextUrl;
         })
         .join(", ");
@@ -60,8 +118,22 @@ const rewriteHtmlUrls = (html: string, proxyRoot: string) => {
     },
   );
 
+  updated = updated.replace(
+    /url\(\s*(['"]?)(https?:\/\/[^'")]+|\/\/[^'")]+)\1\s*\)/gi,
+    (_match, quote, path) => {
+      const rewritten = rewriteAbsoluteUrl(path);
+      return `url(${quote}${rewritten}${quote})`;
+    },
+  );
+
   return updated;
 };
+
+const stripMetaCsp = (html: string) =>
+  html.replace(
+    /<meta[^>]+http-equiv=["']?content-security-policy["']?[^>]*>/gi,
+    "",
+  );
 
 const CONTEXT_PARAM_KEYS = new Set([
   "fid",
@@ -75,6 +147,9 @@ const isHtmlResponse = (contentType: string | null) =>
     ? contentType.includes("text/html") ||
       contentType.includes("application/xhtml+xml")
     : false;
+
+const isCssResponse = (contentType: string | null) =>
+  contentType ? contentType.includes("text/css") : false;
 
 const buildTargetUrl = (
   request: NextRequest,
@@ -166,6 +241,23 @@ const proxyRequest = async (request: NextRequest, targetUrl: string) => {
   });
 
   const contentType = response.headers.get("content-type");
+  const targetOrigin = new URL(targetUrl).origin;
+  const proxyRoot = `/api/miniapp-proxy/${encodeURIComponent(targetOrigin)}`;
+
+  if (isCssResponse(contentType)) {
+    let css = await response.text();
+    css = rewriteHtmlUrls(css, proxyRoot, targetOrigin);
+    const responseHeaders = new Headers(response.headers);
+    responseHeaders.set("content-type", "text/css; charset=utf-8");
+    responseHeaders.delete("content-encoding");
+    responseHeaders.delete("content-length");
+    responseHeaders.delete("transfer-encoding");
+    return new NextResponse(css, {
+      status: response.status,
+      headers: responseHeaders,
+    });
+  }
+
   if (!isHtmlResponse(contentType)) {
     const responseHeaders = new Headers(response.headers);
     responseHeaders.delete("content-encoding");
@@ -178,13 +270,13 @@ const proxyRequest = async (request: NextRequest, targetUrl: string) => {
   }
 
   let html = await response.text();
-  const targetOrigin = new URL(targetUrl).origin;
-  const proxyRoot = `/api/miniapp-proxy/${encodeURIComponent(targetOrigin)}`;
   const targetBasePath = new URL(".", targetUrl).pathname;
   const proxyBaseHref = `${proxyRoot}${targetBasePath}`;
 
+  html = stripMetaCsp(html);
   html = injectBaseTag(html, proxyBaseHref);
-  html = rewriteHtmlUrls(html, proxyRoot);
+  html = rewriteHtmlUrls(html, proxyRoot, targetOrigin);
+  html = rewriteNextAssetPrefix(html, proxyRoot);
 
   return new NextResponse(html, {
     status: response.status,
@@ -196,11 +288,27 @@ const proxyRequest = async (request: NextRequest, targetUrl: string) => {
   });
 };
 
+type RouteHandlerContext = {
+  params: Promise<any>;
+};
+
+const getPathSegments = (params?: Record<string, string | string[] | undefined>) => {
+  const pathValue = params?.path;
+  if (!pathValue) {
+    return undefined;
+  }
+  return Array.isArray(pathValue) ? pathValue : [pathValue];
+};
+
 const handle = async (
   request: NextRequest,
-  context: { params: { path: string[] } },
+  context: RouteHandlerContext,
 ) => {
-  const targetUrl = buildTargetUrl(request, context.params.path);
+  const params = (await context.params) as Record<
+    string,
+    string | string[] | undefined
+  >;
+  const targetUrl = buildTargetUrl(request, getPathSegments(params));
   if (!targetUrl) {
     return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
   }
@@ -210,49 +318,49 @@ const handle = async (
 
 export async function GET(
   request: NextRequest,
-  context: { params: { path: string[] } },
+  context: RouteHandlerContext,
 ) {
   return handle(request, context);
 }
 
 export async function HEAD(
   request: NextRequest,
-  context: { params: { path: string[] } },
+  context: RouteHandlerContext,
 ) {
   return handle(request, context);
 }
 
 export async function POST(
   request: NextRequest,
-  context: { params: { path: string[] } },
+  context: RouteHandlerContext,
 ) {
   return handle(request, context);
 }
 
 export async function PUT(
   request: NextRequest,
-  context: { params: { path: string[] } },
+  context: RouteHandlerContext,
 ) {
   return handle(request, context);
 }
 
 export async function PATCH(
   request: NextRequest,
-  context: { params: { path: string[] } },
+  context: RouteHandlerContext,
 ) {
   return handle(request, context);
 }
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: { path: string[] } },
+  context: RouteHandlerContext,
 ) {
   return handle(request, context);
 }
 
 export async function OPTIONS(
   request: NextRequest,
-  context: { params: { path: string[] } },
+  context: RouteHandlerContext,
 ) {
   return handle(request, context);
 }

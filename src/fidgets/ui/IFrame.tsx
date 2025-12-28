@@ -12,9 +12,10 @@ import { MINI_APP_PROVIDER_METADATA } from "@/common/providers/MiniAppSdkProvide
 import { useMiniApp } from "@/common/utils/useMiniApp";
 import { ErrorWrapper, WithMargin, defaultStyleFields, transformUrl } from "@/fidgets/helpers";
 import DOMPurify from "isomorphic-dompurify";
-import { debounce } from "lodash";
-import React, { useEffect, useMemo, useState } from "react";
+import { debounce, first } from "lodash";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BsCloud, BsCloudFill } from "react-icons/bs";
+import { useLoadFarcasterUser } from "@/common/data/queries/farcaster";
 
 const DEFAULT_SANDBOX_RULES =
   "allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox";
@@ -769,6 +770,11 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
   // Get FID from SDK context if available (when running as mini-app), otherwise use current FID
   // The SDK context provides the FID when the app is running inside a Farcaster client
   const fidForMiniApp = miniAppContext?.user?.fid || currentFid;
+  const { data: farcasterUserData } = useLoadFarcasterUser(fidForMiniApp ?? -1);
+  const farcasterUser = useMemo(
+    () => first(farcasterUserData?.users),
+    [farcasterUserData?.users],
+  );
 
   // Prepare user context data for passing to mini-apps
   // Only include fields that are available in the UserContext type
@@ -783,13 +789,31 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
         ...(userContext.pfpUrl && { pfpUrl: userContext.pfpUrl }),
       };
     }
+
+    if (farcasterUser && fidForMiniApp) {
+      return {
+        fid: fidForMiniApp,
+        ...(farcasterUser.username && { username: farcasterUser.username }),
+        ...(farcasterUser.display_name && { displayName: farcasterUser.display_name }),
+        ...(farcasterUser.pfp_url && { pfpUrl: farcasterUser.pfp_url }),
+      };
+    }
+
     // Fallback: use FID if available (even without other user data)
     // This is critical for automatic login
     if (fidForMiniApp) {
       return { fid: fidForMiniApp };
     }
     return null;
-  }, [userContext, fidForMiniApp]);
+  }, [userContext, farcasterUser, fidForMiniApp]);
+
+  const miniAppHostContextRef = useRef<MiniAppUserContext | null>(null);
+  const miniAppHostFramesRef = useRef<WeakSet<HTMLIFrameElement>>(new WeakSet());
+  const miniAppHostLastFrameRef = useRef<HTMLIFrameElement | null>(null);
+
+  useEffect(() => {
+    miniAppHostContextRef.current = userContextData || (fidForMiniApp ? { fid: fidForMiniApp } : null);
+  }, [userContextData, fidForMiniApp]);
 
   // Debug logging in development
   useEffect(() => {
@@ -804,6 +828,222 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
       });
     }
   }, [url, userContext, currentFid, fidForMiniApp, userContextData, isMiniAppEnvironment]);
+
+  const setupMiniAppHost = useCallback((iframe: HTMLIFrameElement | null) => {
+    void (async () => {
+      if (typeof window === "undefined") {
+        return;
+      }
+
+      if (!iframe?.contentWindow) {
+        return;
+      }
+
+      miniAppHostLastFrameRef.current = iframe;
+
+      if (miniAppHostFramesRef.current.has(iframe)) {
+        return;
+      }
+
+      const currentContext = miniAppHostContextRef.current;
+      if (!currentContext?.fid) {
+        return;
+      }
+
+      miniAppHostFramesRef.current.add(iframe);
+
+      try {
+        const { expose, windowEndpoint } = await import("comlink");
+
+        const buildMiniAppContext = () => {
+          const context = miniAppHostContextRef.current;
+          if (!context?.fid) {
+            return null;
+          }
+
+          return {
+            user: {
+              fid: context.fid,
+              ...(context.username && { username: context.username }),
+              ...(context.displayName && { displayName: context.displayName }),
+              ...(context.pfpUrl && { pfpUrl: context.pfpUrl }),
+            },
+            client: {
+              platformType: "web",
+              clientFid: context.fid,
+              added: true,
+            },
+            location: {
+              type: "launcher",
+            },
+            features: {
+              haptics: false,
+            },
+          };
+        };
+
+        const getEthProvider = () => {
+          const win = window as Window & { ethereum?: unknown };
+          return win.__nounspaceMiniAppEthProvider || win.ethereum || null;
+        };
+
+        const host = {
+          get context() {
+            return buildMiniAppContext();
+          },
+          ready() {
+            return;
+          },
+          close() {
+            return;
+          },
+          openUrl(urlToOpen: string) {
+            try {
+              window.open(urlToOpen, "_blank", "noopener");
+            } catch (error) {
+              console.warn("[Nounspace] Failed to open URL:", error);
+            }
+          },
+          signIn(options: { nonce: string }) {
+            const context = miniAppHostContextRef.current;
+            if (!context?.fid) {
+              return Promise.resolve({ error: { type: "rejected_by_user" } });
+            }
+
+            const nonce = options?.nonce || "nounspace";
+            const domain = window.location.host;
+            const issuedAt = new Date().toISOString();
+            const message = `${domain} wants you to sign in with your Ethereum account:\n` +
+              `0x0000000000000000000000000000000000000000\n\n` +
+              `Sign in with Farcaster.\n\n` +
+              `URI: https://${domain}\n` +
+              `Version: 1\n` +
+              `Chain ID: 1\n` +
+              `Nonce: ${nonce}\n` +
+              `Issued At: ${issuedAt}`;
+
+            return Promise.resolve({
+              result: {
+                message,
+                signature: `0x${"0".repeat(130)}`,
+                authMethod: "custody",
+              },
+            });
+          },
+          setPrimaryButton() {
+            return;
+          },
+          async ethProviderRequest(request: { method: string; params?: unknown[] }) {
+            const provider = getEthProvider();
+            if (!provider?.request) {
+              throw new Error("Ethereum provider not available");
+            }
+            return provider.request({ method: request.method, params: request.params });
+          },
+          async ethProviderRequestV2(request: { id?: number | string; method: string; params?: unknown[] }) {
+            const provider = getEthProvider();
+            if (!provider?.request) {
+              return {
+                id: request.id ?? 0,
+                jsonrpc: "2.0",
+                error: { code: 4200, message: "Ethereum provider not available" },
+              };
+            }
+
+            try {
+              const result = await provider.request({ method: request.method, params: request.params });
+              return {
+                id: request.id ?? 0,
+                jsonrpc: "2.0",
+                result,
+              };
+            } catch (error) {
+              return {
+                id: request.id ?? 0,
+                jsonrpc: "2.0",
+                error: { code: 4001, message: error instanceof Error ? error.message : "Request failed" },
+              };
+            }
+          },
+          eip6963RequestProvider() {
+            return;
+          },
+          addFrame() {
+            return Promise.resolve({ result: {} });
+          },
+          addMiniApp() {
+            return Promise.resolve({ result: {} });
+          },
+          viewCast() {
+            return;
+          },
+          viewProfile() {
+            return;
+          },
+          viewToken() {
+            return;
+          },
+          sendToken() {
+            return;
+          },
+          swapToken() {
+            return;
+          },
+          openMiniApp() {
+            return;
+          },
+          composeCast() {
+            return Promise.resolve({ cast: null });
+          },
+          impactOccurred() {
+            return;
+          },
+          notificationOccurred() {
+            return;
+          },
+          selectionChanged() {
+            return;
+          },
+          getCapabilities() {
+            const capabilities = [
+              "actions.ready",
+              "actions.openUrl",
+              "actions.close",
+              "actions.signIn",
+              "actions.viewProfile",
+              "actions.viewCast",
+              "actions.composeCast",
+              "actions.addMiniApp",
+              "actions.addFrame",
+              "back",
+            ];
+
+            if (getEthProvider()) {
+              capabilities.push("wallet.getEthereumProvider");
+            }
+
+            return Promise.resolve(capabilities);
+          },
+          getChains() {
+            return Promise.resolve([]);
+          },
+          updateBackState() {
+            return Promise.resolve();
+          },
+        };
+
+        expose(host, windowEndpoint(iframe.contentWindow));
+      } catch (error) {
+        console.warn("[Nounspace] Failed to expose miniapp host:", error);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (miniAppHostContextRef.current?.fid && miniAppHostLastFrameRef.current) {
+      setupMiniAppHost(miniAppHostLastFrameRef.current);
+    }
+  }, [setupMiniAppHost, userContextData, fidForMiniApp]);
 
   const [sanitizedEmbedAttributes, setSanitizedEmbedAttributes] =
     useState<IframeAttributeMap | null>(null);
@@ -1007,6 +1247,7 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
             title={sanitizedEmbedAttributes.title || "IFrame Fidget"}
             sandbox={sandboxRules}
             allow={sanitizedEmbedAttributes.allow}
+            ref={setupMiniAppHost}
             referrerPolicy={
               sanitizedEmbedAttributes.referrerpolicy as React.IframeHTMLAttributes<HTMLIFrameElement>["referrerPolicy"]
             }
@@ -1015,6 +1256,7 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
             }
             frameBorder={sanitizedEmbedAttributes.frameborder}
             allowFullScreen={allowFullScreen}
+            scrolling={isScrollable ? "yes" : "no"}
             width={widthAttr}
             height={heightAttr}
             style={{
@@ -1195,6 +1437,8 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
               src={proxyUrl}
               title="IFrame Fidget"
               sandbox={DEFAULT_SANDBOX_RULES}
+              ref={setupMiniAppHost}
+              scrolling={isScrollable ? "yes" : "no"}
               style={{
                 width: "100%",
                 height: "100%",
@@ -1226,6 +1470,8 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
                 src={proxyUrl}
                 title="IFrame Fidget"
                 sandbox={DEFAULT_SANDBOX_RULES}
+                ref={setupMiniAppHost}
+                scrolling={isScrollable ? "yes" : "no"}
                 style={{
                   width: "100%",
                   height: "100%",
@@ -1277,6 +1523,7 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
               title={iframelyEmbedAttributes.title || "IFrame Fidget"}
               sandbox={sandboxRules}
               allow={iframelyEmbedAttributes.allow}
+              ref={setupMiniAppHost}
               referrerPolicy={
                 iframelyEmbedAttributes.referrerpolicy as React.IframeHTMLAttributes<HTMLIFrameElement>["referrerPolicy"]
               }
@@ -1285,6 +1532,7 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
               }
               frameBorder={iframelyEmbedAttributes.frameborder}
               allowFullScreen={allowFullScreen}
+              scrolling={isScrollable ? "yes" : "no"}
               width={widthAttr}
               height={heightAttr}
               style={{
