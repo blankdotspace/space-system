@@ -27,7 +27,7 @@ import { THEMES } from "@/constants/themes";
 import { CompleteFidgets } from "@/fidgets";
 import { SparklesIcon } from "@heroicons/react/24/solid";
 import { useCallback, useEffect, useState } from "react";
-import { FaFloppyDisk, FaTriangleExclamation, FaX } from "react-icons/fa6";
+import { FaDownload, FaFloppyDisk, FaTriangleExclamation, FaX } from "react-icons/fa6";
 import { MdMenuBook } from "react-icons/md";
 import CodeTabContent from "./components/CodeTabContent";
 import MobileTabContent from "./components/MobileTabContent";
@@ -458,6 +458,20 @@ export function ThemeSettingsEditor({
             ) : (
               // X Button and Save Button (shows first)
               <>
+                {onExportConfig && (
+                  <div className="gap-2 pt-2 flex items-center justify-center">
+                    <Button
+                      onClick={onExportConfig}
+                      variant="secondary"
+                      width="auto"
+                      withIcon
+                      className="w-full"
+                    >
+                      <FaDownload aria-hidden="true" />
+                      <span>Export Config</span>
+                    </Button>
+                  </div>
+                )}
                 <div className="gap-2 pt-2 flex items-center justify-center">
                   <Button
                     onClick={() => setShowConfirmCancel(true)}
