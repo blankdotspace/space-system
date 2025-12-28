@@ -86,9 +86,26 @@ export async function GET(request: NextRequest) {
                        getMetaContent("description") || 
                        null;
 
-    const image = getMetaContent("og:image") || 
-                  getMetaContent("twitter:image") || 
-                  null;
+    const normalizeMetadataUrl = (value: string | null, baseUrl: URL): string | null => {
+      if (!value) return null;
+      try {
+        const normalized = new URL(value, baseUrl);
+        if (normalized.protocol === "http:") {
+          normalized.protocol = "https:";
+        }
+        return normalized.protocol === "https:" ? normalized.toString() : null;
+      } catch {
+        return null;
+      }
+    };
+
+    const rawImage =
+      getMetaContent("og:image") ||
+      getMetaContent("twitter:image") ||
+      getMetaContent("twitter:image:src") ||
+      null;
+
+    const image = normalizeMetadataUrl(rawImage, parsedUrl);
 
     const siteName = getMetaContent("og:site_name") || 
                      new URL(url).hostname;

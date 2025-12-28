@@ -9,6 +9,9 @@ import VideoEmbed from "./VideoEmbed";
 import ImageEmbed from "./ImageEmbed";
 import SmartFrameEmbed from "./SmartFrameEmbed";
 import ZoraEmbed from "./ZoraEmbed";
+import GitHubEmbed, { isGitHubUrl } from "./GitHubEmbed";
+import NounsColorEmbed, { isNounsColorUrl } from "./NounsColorEmbed";
+import HighlightEmbed, { isHighlightUrl } from "./HighlightEmbed";
 import { isImageUrl, isVideoUrl } from "@/common/lib/utils/urls";
 import CreateCastImage from "./createCastImage";
 
@@ -23,12 +26,14 @@ export type CastEmbed = {
 
 export const renderEmbedForUrl = (
   { url, castId, key }: CastEmbed,
-  isCreateCast: boolean
+  isCreateCast: boolean,
+  options?: { allowOpenGraph?: boolean }
 ) => {
   if (castId) {
     return <EmbededCast castId={castId} key={key} />;
   }
   if (!url) return null;
+  const allowOpenGraph = options?.allowOpenGraph ?? true;
 
   if (isImageUrl(url)) {
     return !isCreateCast ? (
@@ -67,10 +72,16 @@ export const renderEmbedForUrl = (
     return <ParagraphXyzEmbed url={url} key={key} />;
   } else if (url.startsWith("https://open.spotify.com/track")) {
     return <SpotifyEmbed url={url} key={key} />;
+  } else if (isNounsColorUrl(url)) {
+    return <NounsColorEmbed url={url} key={key} />;
+  } else if (isHighlightUrl(url)) {
+    return <HighlightEmbed url={url} key={key} />;
+  } else if (isGitHubUrl(url)) {
+    return <GitHubEmbed url={url} key={key} />;
   } else if (!isImageUrl(url)) {
     // Use smart frame detection to render Frame v2 when possible
     // Falls back to legacy frame system if Frame v2 metadata is not detected
-    return <SmartFrameEmbed url={url} key={key} />;
+    return <SmartFrameEmbed url={url} key={key} allowOpenGraph={allowOpenGraph} />;
   } else {
     return null;
   }

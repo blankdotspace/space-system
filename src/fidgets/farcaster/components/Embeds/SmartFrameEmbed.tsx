@@ -10,9 +10,10 @@ import Loading from "@/common/components/molecules/Loading";
 
 interface SmartFrameEmbedProps {
   url: string;
+  allowOpenGraph?: boolean;
 }
 
-const SmartFrameEmbed: React.FC<SmartFrameEmbedProps> = ({ url }) => {
+const SmartFrameEmbed: React.FC<SmartFrameEmbedProps> = ({ url, allowOpenGraph = true }) => {
   const [isFrameV2, setIsFrameV2] = useState<boolean | null>(null);
   const [isFrameV1, setIsFrameV1] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -89,6 +90,9 @@ const SmartFrameEmbed: React.FC<SmartFrameEmbedProps> = ({ url }) => {
 
   // Show loading state with a more neutral placeholder
   if (isLoading) {
+    if (!allowOpenGraph) {
+      return null;
+    }
     return (
       <div className="border border-gray-200 rounded-lg overflow-hidden w-full max-w-2xl">
         <div className="animate-pulse">
@@ -109,6 +113,9 @@ const SmartFrameEmbed: React.FC<SmartFrameEmbedProps> = ({ url }) => {
   }
 
   // If it's neither Frame V1 nor V2, render as OpenGraph metadata card
+  if (!allowOpenGraph) {
+    return null;
+  }
   return <OpenGraphEmbed url={url} />;
 };
 

@@ -18,6 +18,7 @@ const OpenGraphEmbed: React.FC<OpenGraphEmbedProps> = ({ url }) => {
   const [ogData, setOgData] = useState<OpenGraphData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [resolvedUrl, setResolvedUrl] = useState<string>(url);
 
   useEffect(() => {
     if (isYouTubeUrl(url)) {
@@ -27,6 +28,9 @@ const OpenGraphEmbed: React.FC<OpenGraphEmbedProps> = ({ url }) => {
     const fetchOGData = async () => {
       try {
         setIsLoading(true);
+        setError(null);
+        setOgData(null);
+        setResolvedUrl(url);
         const response = await fetch(
           `/api/opengraph?url=${encodeURIComponent(url)}`
         );
@@ -70,55 +74,49 @@ const OpenGraphEmbed: React.FC<OpenGraphEmbedProps> = ({ url }) => {
     );
   }
 
-  if (error || !ogData) {
-    return (
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center text-blue-500 hover:text-blue-700 hover:underline"
-      >
-        🔗 {new URL(url).hostname}
-      </a>
-    );
+  if (error || !ogData || !ogData.image) {
+    return null;
   }
 
+  const siteLabel = ogData.siteName || (() => {
+    try {
+      return new URL(resolvedUrl).hostname;
+    } catch {
+      return resolvedUrl;
+    }
+  })();
+
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="block border border-gray-200 rounded-lg overflow-hidden hover:border-gray-300 transition-colors w-full max-w-2xl"
-    >
-      {ogData.image && (
-        <div className="relative w-full h-48">
-          <Image
-            src={ogData.image}
-            alt={ogData.title || "Link preview"}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          />
-        </div>
-      )}
-      <div className="p-4">
-        {ogData.title && (
-          <h3 className="font-semibold text-gray-900 mb-1 line-clamp-2">
-            {ogData.title}
-          </h3>
-        )}
-        {ogData.description && (
-          <p className="text-gray-600 text-sm mb-2 line-clamp-2">
-            {ogData.description}
-          </p>
-        )}
-        <div className="flex items-center text-gray-500 text-xs">
-          <span className="truncate">
-            {ogData.siteName || new URL(url).hostname}
-          </span>
+    <div className="w-full">
+      <div className="relative w-full aspect-[16/9] overflow-hidden rounded-xl border border-foreground/10">
+        <Image
+          src={ogData.image}
+          alt={ogData.title || "Link preview"}
+          fill
+          className="object-cover"
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 70vw, 50vw"
+        />
+        <a
+          href={resolvedUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full border border-white/30 bg-black/60 px-2 py-1 text-[11px] font-medium text-white shadow-sm transition-colors hover:border-white/60"
+        >
+          Open
+          <span aria-hidden="true">↗</span>
+        </a>
+        <div className="absolute inset-x-0 bottom-0 bg-black/60 px-3 py-2">
+          <div className="text-xs uppercase tracking-wide text-white/80 truncate">
+            {siteLabel}
+          </div>
+          {ogData.title && (
+            <div className="text-sm font-semibold text-white line-clamp-2">
+              {ogData.title}
+            </div>
+          )}
         </div>
       </div>
-    </a>
+    </div>
   );
 };
 

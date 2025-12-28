@@ -5,7 +5,11 @@ import Modal from "@/common/components/molecules/Modal";
 import { trackAnalyticsEvent } from "@/common/lib/utils/analyticsUtils";
 import { useAppStore } from "@/common/data/stores/app";
 import { formatTimeAgo } from "@/common/lib/utils/date";
+import { isLikelyFrameUrl } from "@/common/lib/utils/frameDetection";
 import { mergeClasses as classNames } from "@/common/lib/utils/mergeClasses";
+import { getUrlsInText } from "@/common/lib/utils/text";
+import { isImageUrl, isVideoUrl } from "@/common/lib/utils/urls";
+import { isYouTubeUrl } from "@/common/lib/utils/youtubeUtils";
 import { useFarcasterSigner } from "@/fidgets/farcaster/index";
 import { CastReactionType } from "@/fidgets/farcaster/types";
 import { publishReaction, removeReaction } from "@/fidgets/farcaster/utils";
@@ -30,6 +34,9 @@ import { FaReply } from "react-icons/fa6";
 import { IoMdShare } from "react-icons/io";
 import CreateCast, { DraftType } from "./CreateCast";
 import { renderEmbedForUrl, type CastEmbed } from "./Embeds";
+import { isGitHubUrl } from "./Embeds/GitHubEmbed";
+import { isNounsColorUrl } from "./Embeds/NounsColorEmbed";
+import { isHighlightUrl } from "./Embeds/HighlightEmbed";
 import { AnalyticsEvent } from "@/common/constants/analyticsEvents";
 import { useToastStore } from "@/common/data/stores/toastStore";
 
@@ -117,10 +124,32 @@ interface CastEmbedsProps {
   onSelectCast: (hash: string, username: string) => void;
 }
 
+const normalizeUrlForComparison = (url?: string): string | null => {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    const pathname = parsed.pathname.replace(/\/$/, "");
+    return `${hostname}${pathname}`;
+  } catch {
+    return null;
+  }
+};
+
 // Helper function to extract URLs from cast text
 const extractUrlsFromText = (text: string): string[] => {
-  const urlRegex = /(https?:\/\/[^\s]+)/gi;
-  return text.match(urlRegex) || [];
+  if (!text) return [];
+  const urls = getUrlsInText(text)
+    .map(({ url }) => url)
+    .filter((url) => url.startsWith("http://") || url.startsWith("https://"));
+
+  const seen = new Set<string>();
+  return urls.filter((url) => {
+    const normalized = normalizeUrlForComparison(url) ?? url;
+    if (seen.has(normalized)) return false;
+    seen.add(normalized);
+    return true;
+  });
 };
 
 // Helper: try to extract a tweet id from a URL
@@ -146,12 +175,15 @@ const isUrlAlreadyEmbedded = (
   embedUrls: Array<EmbedUrl | { cast_id?: { hash?: string | Uint8Array } }>
 ): boolean => {
   const urlTweetId = getTweetIdFromUrl(url);
+  const normalizedUrl = normalizeUrlForComparison(url);
   
   return embedUrls.some((embed) => {
     if (isEmbedUrl(embed)) {
       if (embed.url === url) return true;
       const embedTweetId = getTweetIdFromUrl(embed.url as string);
       if (embedTweetId && urlTweetId && embedTweetId === urlTweetId) return true;
+      const normalizedEmbedUrl = normalizeUrlForComparison(embed.url as string);
+      if (normalizedUrl && normalizedEmbedUrl && normalizedUrl === normalizedEmbedUrl) return true;
     }
     return false;
   });
@@ -160,6 +192,51 @@ const isUrlAlreadyEmbedded = (
 // Helper: extract embed URLs from cast
 const getEmbedUrls = (cast: CastWithInteractions): Array<EmbedUrl | { cast_id?: { hash?: string | Uint8Array } }> => {
   return "embeds" in cast && cast.embeds ? cast.embeds : [];
+};
+
+const isGenericLinkPreviewUrl = (url?: string): boolean => {
+  if (!url) return false;
+
+  if (isGitHubUrl(url) || isNounsColorUrl(url) || isHighlightUrl(url)) return false;
+  if (isImageUrl(url) || isVideoUrl(url) || isYouTubeUrl(url)) return false;
+  if (url.includes("i.imgur.com") || url.startsWith("https://imagedelivery.net")) return false;
+  if (url.startsWith('"chain:')) return false;
+  if (url.startsWith("https://warpcast.com") && !url.includes("/~/")) return false;
+  if ((url.includes("twitter.com") || url.startsWith("https://x.com")) && url.includes("status/")) return false;
+  if (url.startsWith("https://nouns.build")) return false;
+  if (url.includes("zora.co") || url.startsWith("zoraCoin:")) return false;
+  if (url.includes("paragraph.xyz") || url.includes("pgrph.xyz")) return false;
+  if (url.startsWith("https://open.spotify.com/track")) return false;
+  if (isLikelyFrameUrl(url)) return false;
+
+  return true;
+};
+
+const getPrimaryGenericPreviewUrl = (
+  embedUrls: Array<EmbedUrl | { cast_id?: { hash?: string | Uint8Array } }>,
+  textUrls: string[]
+): string | null => {
+  const seen = new Set<string>();
+
+  for (const embed of embedUrls) {
+    if (!isEmbedUrl(embed)) continue;
+    if (!isGenericLinkPreviewUrl(embed.url)) continue;
+    const normalized = normalizeUrlForComparison(embed.url) ?? embed.url;
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    return embed.url;
+  }
+
+  for (const url of textUrls) {
+    if (isUrlAlreadyEmbedded(url, embedUrls)) continue;
+    if (!isGenericLinkPreviewUrl(url)) continue;
+    const normalized = normalizeUrlForComparison(url) ?? url;
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    return url;
+  }
+
+  return null;
 };
 
 // Helper: check if a URL is a Twitter/X URL
@@ -177,11 +254,54 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
   // Get URLs from embeds and also extract any URLs from the cast text
   const embedUrls = getEmbedUrls(cast);
   const textUrls = extractUrlsFromText(cast.text || "");
+  const primaryGenericPreviewUrl = getPrimaryGenericPreviewUrl(embedUrls, textUrls);
 
   // If no embeds from API and no URLs in text, return null
   if (!embedUrls.length && !textUrls.length) {
     return null;
   }
+
+  const renderEmbedContainer = (
+    embedData: CastEmbed,
+    key: string,
+    onClick?: (event: React.MouseEvent<HTMLDivElement>) => void
+  ) => {
+    const isGenericPreview = isGenericLinkPreviewUrl(embedData.url);
+    if (isGenericPreview) {
+      if (!primaryGenericPreviewUrl) return null;
+      const normalizedEmbedUrl = normalizeUrlForComparison(embedData.url) ?? embedData.url;
+      const normalizedPrimary = normalizeUrlForComparison(primaryGenericPreviewUrl) ?? primaryGenericPreviewUrl;
+      if (normalizedEmbedUrl !== normalizedPrimary) return null;
+    }
+
+    const embedContent = renderEmbedForUrl(embedData, false, {
+      allowOpenGraph: true,
+    });
+    if (!embedContent) return null;
+
+    const isTwitterEmbed = isTwitterUrl(embedData.url);
+    const widthClass = embedData.castId || isGenericPreview ? "max-w-[100%]" : "max-w-max";
+
+    const handleEmbedClick = (event: React.MouseEvent<HTMLDivElement>) => {
+      event.stopPropagation();
+      onClick?.(event);
+    };
+
+    return (
+      <div
+        key={key}
+        className={classNames(
+          "mt-4 gap-y-4 border border-foreground/15 rounded-xl flex justify-center items-center w-full bg-background/50",
+          // only apply clipping for non-twitter embeds
+          !isTwitterEmbed ? "overflow-hidden max-h-[500px]" : "",
+          widthClass
+        )}
+        onClick={handleEmbedClick}
+      >
+        {embedContent}
+      </div>
+    );
+  };
 
   return (
     <ErrorBoundary>
@@ -197,28 +317,14 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
               key: embed.cast_id?.hash ? castHashToString(embed.cast_id.hash) : "",
             };
 
-        const isTwitterEmbed = isTwitterUrl(isEmbedUrl(embed) ? embed.url : embedData.url);
-
-        return (
-          <div
-            key={`embed-${i}`}
-            className={classNames(
-              "mt-4 gap-y-4 border border-foreground/15 rounded-xl flex justify-center items-center w-full bg-background/50",
-              // only apply clipping for non-twitter embeds
-              !isTwitterEmbed ? "overflow-hidden max-h-[500px]" : "",
-              embedData.castId ? "max-w-[100%]" : "max-w-max"
-            )}
-            onClick={(event) => {
-              event.stopPropagation();
-              if (embedData?.castId?.hash) {
-                const hashString = castHashToString(embedData.castId.hash);
-                onSelectCast(hashString, cast.author.username);
-              }
-            }}
-          >
-            {renderEmbedForUrl(embedData, false)}
-          </div>
-        );
+        const embedKey = embedData.key ? `embed-${embedData.key}` : `embed-${i}`;
+        return renderEmbedContainer(embedData, embedKey, (event) => {
+          event.stopPropagation();
+          if (embedData?.castId?.hash) {
+            const hashString = castHashToString(embedData.castId.hash);
+            onSelectCast(hashString, cast.author.username);
+          }
+        });
       })}
       {/* Render URLs found in text that are not embeddings or Spotify */}
       {textUrls.map((url, i) => {
@@ -232,20 +338,8 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
           key: url,
         };
 
-        const isTwitterTextUrl = isTwitterUrl(url);
-
-        return (
-          <div
-            key={`text-url-${i}`}
-            className={classNames(
-              "mt-4 gap-y-4 border border-foreground/15 rounded-xl flex justify-center items-center w-full bg-background/50",
-              !isTwitterTextUrl ? "overflow-hidden max-h-[500px]" : "",
-              "max-w-max"
-            )}
-          >
-            {renderEmbedForUrl(embedData, false)}
-          </div>
-        );
+        const embedKey = embedData.key ? `text-url-${embedData.key}` : `text-url-${i}`;
+        return renderEmbedContainer(embedData, embedKey);
       })}
     </ErrorBoundary>
   );
@@ -697,17 +791,37 @@ const CastBodyComponent = ({
   const embedUrls = getEmbedUrls(cast);
   let filteredText = cast.text || "";
   try {
-    const textUrls = extractUrlsFromText(filteredText);
-    const textUrlsToRemove = new Set<string>();
-    textUrls.forEach((u) => {
-      if (isUrlAlreadyEmbedded(u, embedUrls)) {
-        textUrlsToRemove.add(u);
-      }
-    });
+    if (!hideEmbeds) {
+      const textUrls = extractUrlsFromText(filteredText);
+      const primaryGenericPreviewUrl = getPrimaryGenericPreviewUrl(embedUrls, textUrls);
+      const normalizedPrimary =
+        primaryGenericPreviewUrl ? normalizeUrlForComparison
+        (primaryGenericPreviewUrl) ?? primaryGenericPreviewUrl : null;
+      const textUrlsToRemove = new Set<string>();
 
-    textUrlsToRemove.forEach((u) => {
-      filteredText = filteredText.replace(u, "");
-    });
+      textUrls.forEach((u) => {
+        if (isUrlAlreadyEmbedded(u, embedUrls) && !isGenericLinkPreviewUrl(u)) {
+          textUrlsToRemove.add(u);
+          return;
+        }
+
+        if (isGitHubUrl(u) || isNounsColorUrl(u) || isHighlightUrl(u)) {
+          textUrlsToRemove.add(u);
+          return;
+        }
+
+        if (normalizedPrimary) {
+          const normalizedUrl = normalizeUrlForComparison(u) ?? u;
+          if (normalizedUrl === normalizedPrimary) {
+            textUrlsToRemove.add(u);
+          }
+        }
+      });
+
+      textUrlsToRemove.forEach((u) => {
+        filteredText = filteredText.replace(u, "");
+      });
+    }
   // Normalizes whitespace after removing URLs
     filteredText = filteredText.replace(/\n{3,}/g, "\n\n").trim();
   } catch (e) {
