@@ -31,8 +31,8 @@ const TabItem = React.memo(({
   tab, 
   index, 
   isSelected, 
-  activeColor,
-  inactiveColor,
+  fontColor,
+  fontFamily,
   onSelect,
   getTabIcon,
   getTabLabel
@@ -40,8 +40,8 @@ const TabItem = React.memo(({
   tab: TabItem; 
   index: number;
   isSelected: boolean; 
-  activeColor: string;
-  inactiveColor: string;
+  fontColor: string;
+  fontFamily: string;
   onSelect: (id: string) => void;
   getTabIcon: (tab: TabItem) => React.ReactNode;
   getTabLabel: (tab: TabItem, index: number) => string;
@@ -77,7 +77,9 @@ const TabItem = React.memo(({
       )}
       style={{
         "--tw-text-opacity": 1,
-        color: isSelected ? activeColor : inactiveColor,
+        color: fontColor,
+        opacity: isSelected ? 1 : 0.7,
+        fontFamily,
         WebkitTapHighlightColor: "transparent",
         outline: "none",
         border: "none"
@@ -307,8 +309,8 @@ const MobileNavbar: React.FC<MobileNavbarProps> = ({
   }, [tabs, selected, onSelect]);
 
   // Get theme colors for active tab indicators
-  const activeColor = theme?.properties?.headingsFontColor || "#000000";
-  const inactiveColor = "rgba(107, 114, 128, 0.7)"; // text-gray-500 with some opacity
+  const navFontColor = "var(--ns-nav-font-color, #0f172a)";
+  const navFontFamily = "var(--ns-nav-font, var(--font-sans, Inter, system-ui, -apple-system, sans-serif))";
 
   return (
     <Tabs
@@ -352,8 +354,8 @@ const MobileNavbar: React.FC<MobileNavbarProps> = ({
               tab={tab}
               index={index}
               isSelected={selected === tab.id}
-              activeColor={activeColor}
-              inactiveColor={inactiveColor}
+              fontColor={navFontColor}
+              fontFamily={navFontFamily}
               onSelect={onSelect}
               getTabIcon={getTabIcon}
               getTabLabel={getTabLabel}

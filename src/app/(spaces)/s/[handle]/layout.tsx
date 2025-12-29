@@ -3,13 +3,16 @@ import React from "react";
 import { getUserMetadata } from "./utils";
 import type { Metadata } from "next/types";
 import { getUserMetadataStructure } from "@/common/lib/utils/userMetadata";
-import { defaultFrame } from "@/constants/metadata";
+import { getDefaultFrame } from "@/constants/metadata";
 
 // Default metadata (used as fallback)
-const defaultMetadata = {
-  other: {
-    "fc:frame": JSON.stringify(defaultFrame),
-  },
+const buildDefaultMetadata = async () => {
+  const defaultFrame = await getDefaultFrame();
+  return {
+    other: {
+      "fc:frame": JSON.stringify(defaultFrame),
+    },
+  };
 };
 
 export async function generateMetadata({ 
@@ -20,12 +23,13 @@ export async function generateMetadata({
   const { handle, tabName: tabNameParam } = await params;
 
   if (!handle) {
-    return defaultMetadata; // Return default metadata if no handle
+    return buildDefaultMetadata(); // Return default metadata if no handle
   }
 
   const normalizedHandle = handle.toLowerCase();
   const userMetadata = await getUserMetadata(handle);
   if (!userMetadata) {
+    const defaultFrame = await getDefaultFrame();
     const baseMetadata = getUserMetadataStructure({ username: normalizedHandle });
     return {
       ...baseMetadata,

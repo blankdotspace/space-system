@@ -2,12 +2,15 @@ import { Metadata } from "next/types";
 import React from "react";
 import { WEBSITE_URL } from "@/constants/app";
 import { loadProposalData, calculateTimeRemaining } from "./utils";
-import { defaultFrame } from "@/constants/metadata";
+import { getDefaultFrame } from "@/constants/metadata";
 
-const defaultMetadata = {
-  other: {
-    'fc:frame': JSON.stringify(defaultFrame),
-  },
+const buildDefaultMetadata = async () => {
+  const defaultFrame = await getDefaultFrame();
+  return {
+    other: {
+      'fc:frame': JSON.stringify(defaultFrame),
+    },
+  };
 };
 
 export async function generateMetadata({ 
@@ -16,6 +19,7 @@ export async function generateMetadata({
   params: Promise<{ proposalId: string }> 
 }): Promise<Metadata> {
   const { proposalId } = await params;
+  const defaultMetadata = await buildDefaultMetadata();
   
   if (!proposalId) {
     return defaultMetadata;

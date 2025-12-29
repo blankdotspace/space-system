@@ -98,18 +98,24 @@ const Navigation = React.memo(
     })
   );
   const userTheme: UserTheme = useUserTheme();
+  const uiColors = useUIColors({ systemConfig });
 
   const logout = useLogout();
   const notificationBadgeText = useNotificationBadgeText();
   const pathname = usePathname();
-  const { community, navigation, ui } = systemConfig;
+  const { community, navigation } = systemConfig;
   const discordUrl = community?.urls?.discord || "https://discord.gg/eYQeXU2WuH";
   
   // Get cast button colors from config, with fallback to blue
-  const castButtonColors = ui?.castButton || {
-    backgroundColor: "rgb(37, 99, 235)",
-    hoverColor: "rgb(29, 78, 216)",
-    activeColor: "rgb(30, 64, 175)",
+  const castButtonColors = {
+    backgroundColor: uiColors.castButton.backgroundColor,
+    hoverColor: uiColors.castButton.hoverColor,
+    activeColor: uiColors.castButton.activeColor,
+    fontColor: uiColors.castButtonFontColor,
+  };
+  const navTextStyle: React.CSSProperties = {
+    color: uiColors.fontColor,
+    fontFamily: uiColors.fontFamily,
   };
 
   const [shrunk, setShrunk] = useState(mobile ? false : true);
@@ -304,6 +310,7 @@ const Navigation = React.memo(
             href === pathname ? "bg-gray-100" : "",
             shrunk ? "justify-center" : ""
           )}
+          style={navTextStyle}
           onClick={handleClick}
           rel={openInNewTab ? "noopener noreferrer" : undefined}
           target={openInNewTab ? "_blank" : undefined}
@@ -332,6 +339,7 @@ const Navigation = React.memo(
             "hover:bg-gray-100 dark:hover:bg-gray-700",
             shrunk ? "justify-center" : ""
           )}
+          style={navTextStyle}
           onClick={onClick}
         >
           {badgeText && <NavIconBadge systemConfig={systemConfig}>{badgeText}</NavIconBadge>}
@@ -361,6 +369,7 @@ const Navigation = React.memo(
           : "w-full transition-transform -translate-x-full sm:translate-x-0"
       )}
       aria-label="Sidebar"
+      style={navTextStyle}
     >
       <Modal
         open={showCastModal}
@@ -375,6 +384,7 @@ const Navigation = React.memo(
             <CreateCast
               afterSubmit={closeCastModal}
               onShouldConfirmCloseChange={setShouldConfirmCastClose}
+              systemConfig={systemConfig}
             />
             <CastDiscardPrompt
               open={showCastDiscardPrompt}
@@ -504,9 +514,11 @@ const Navigation = React.memo(
                   onClick={openCastModal}
                   id="open-cast-modal-button"
                   width="auto"
-                  className="flex items-center justify-center w-12 h-12 text-white font-medium rounded-md transition-colors"
+                  className="flex items-center justify-center w-12 h-12 font-medium rounded-md transition-colors"
                   style={{
                     backgroundColor: castButtonColors.backgroundColor,
+                    color: castButtonColors.fontColor,
+                    fontFamily: uiColors.fontFamily,
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
@@ -539,6 +551,7 @@ const Navigation = React.memo(
                       "flex items-center p-2 text-gray-900 rounded-lg dark:text-white group w-full gap-2 text-lg font-medium",
                       shrunk ? "justify-center gap-0" : ""
                     )}
+                    style={navTextStyle}
                     rel="noopener noreferrer"
                     target="_blank"
                   >
@@ -548,6 +561,7 @@ const Navigation = React.memo(
                 )}
                 <div
                   className="flex flex-col items-center text-xs text-gray-500 mt-5"
+                  style={navTextStyle}
                 >
                   <Link href="/terms" className="hover:underline">
                     Terms

@@ -65,19 +65,10 @@ export const Tab = ({
         <div
           className={`static flex md:p-2 items-center transition-colors duration-300 group`}
           style={{
-            color: isSelected ? uiColors.primaryColor : undefined,
+            color: uiColors.fontColor,
+            fontFamily: uiColors.fontFamily,
             fontWeight: isSelected ? 'bold' : undefined,
             cursor: isSelected && inEditMode ? 'grab' : isSelected ? undefined : 'pointer',
-          }}
-          onMouseEnter={(e) => {
-            if (!isSelected) {
-              e.currentTarget.style.color = uiColors.primaryColor;
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!isSelected) {
-              e.currentTarget.style.color = '';
-            }
           }}
         >
           {/* Text */}

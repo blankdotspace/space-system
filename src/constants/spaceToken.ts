@@ -1,34 +1,22 @@
 import type { Address } from "viem";
 import { isAddress } from "viem";
-import { loadSystemConfig } from "@/config";
 
-// Lazy-load config for module-level constant
-// This is used in contexts where async isn't possible, so we cache after first load
-let cachedAddress: Address | null = null;
-
-async function getSpaceContractAddress(): Promise<Address> {
-  if (cachedAddress) {
-    return cachedAddress;
-  }
-  
-  const config = await loadSystemConfig();
-  const address = config.community.contracts.space;
-  
-  if (!isAddress(address)) {
-    throw new Error(
-      "Invalid space contract address configured. Expected a checksummed 0x-prefixed address.",
-    );
-  }
-  
-  cachedAddress = address;
-  return address;
-}
+const DEFAULT_SPACE_CONTRACT_ADDR =
+  (process.env.NEXT_PUBLIC_SPACE_CONTRACT_ADDR ||
+    process.env.SPACE_CONTRACT_ADDR ||
+    "0x48C6740BcF807d6C47C864FaEEA15Ed4dA3910Ab") as Address;
 
 // Export as async function - callers must await
 export async function getSpaceContractAddr(): Promise<Address> {
-  return getSpaceContractAddress();
+  if (!isAddress(DEFAULT_SPACE_CONTRACT_ADDR)) {
+    throw new Error(
+      "Invalid default SPACE contract address configured. Expected a checksummed 0x-prefixed address.",
+    );
+  }
+
+  return DEFAULT_SPACE_CONTRACT_ADDR;
 }
 
 // Legacy export for backward compatibility (will be a Promise)
 // Migrate to getSpaceContractAddr() instead
-export const SPACE_CONTRACT_ADDR: Promise<Address> = getSpaceContractAddress();
+export const SPACE_CONTRACT_ADDR: Promise<Address> = getSpaceContractAddr();
