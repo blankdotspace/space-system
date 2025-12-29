@@ -154,11 +154,7 @@ export async function getCommunityConfigForDomain(
     return { communityId, config: primaryConfig };
   }
 
-  // Config not found - log error
-  console.error(
-    `[Config] Community config not found for domain "${domain}" (resolved to communityId: "${communityId}"). ` +
-    `Check: Does a record exist in community_configs with community_id="${communityId}" and is_published=true?`
-  );
+  // Config not found - return null (caller will handle fallback)
   return null;
 }
 

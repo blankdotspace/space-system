@@ -69,12 +69,11 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
     if (resolution) {
       return resolution.config;
     }
-    // Domain provided but config not found - throw informative error
-    throw new Error(
-      `❌ Community config not found for domain: "${domain}". ` +
-      `No automatic fallback to default. ` +
-      `Check: Does a record exist in community_configs with community_id matching this domain and is_published=true?`
+    // Domain provided but config not found - fall back to default
+    console.error(
+      `[Config] Community config not found for domain: "${domain}", falling back to default: "${DEFAULT_COMMUNITY_ID}"`
     );
+    return await loadSystemConfigById(DEFAULT_COMMUNITY_ID);
   }
 
   // Priority 3: Development override
@@ -86,15 +85,13 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
     return await loadSystemConfigById(devCommunityId);
   }
 
-  // No domain or communityId provided - throw error
+  // No domain or communityId provided - fall back to default
   // This should not happen at runtime if host header is available
   // If this happens during build, the layout should be set to dynamic
-  throw new Error(
-    `❌ Cannot load system config: No domain or communityId provided. ` +
-    `Either provide a domain in the request context, or set NEXT_PUBLIC_TEST_COMMUNITY in development. ` +
-    `Check: Is the host header available in the request? ` +
-    `If this happens during build, ensure the layout uses 'export const dynamic = "force-dynamic"'.`
+  console.error(
+    `[Config] No domain or communityId provided, falling back to default: "${DEFAULT_COMMUNITY_ID}"`
   );
+  return await loadSystemConfigById(DEFAULT_COMMUNITY_ID);
 }
 
 // Export SystemConfig type (configs are now database-backed, no static exports)
