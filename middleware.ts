@@ -1,38 +1,26 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { normalizeDomain, resolveCommunityConfig } from '@/config/loaders/registry';
+import { normalizeDomain } from '@/config/loaders/registry';
 
 /**
- * Middleware for domain-based community detection
- *
- * Detects the domain from the request, resolves the matching community config
- * (including Supabase lookup + caching), and sets headers for Server Components
- * to read without re-querying:
- * - x-community-id: resolved community id for the incoming domain
- * - x-community-config: stringified community config row (when found)
+ * Middleware for domain detection
+ * 
+ * Only normalizes and passes the domain to Server Components.
+ * Community resolution happens server-side to avoid unnecessary
+ * database queries for static assets and API routes.
  */
-export async function middleware(request: NextRequest) {
-  // Get domain from request headers (synchronous in middleware)
+export function middleware(request: NextRequest) {
+  // Get domain from request headers
   const host = request.headers.get('host') || 
                request.headers.get('x-forwarded-host') || 
                '';
 
   const domain = normalizeDomain(host);
-
-  const communityResolution = domain
-    ? await resolveCommunityConfig(domain)
-    : null;
   
   // Create response
   const response = NextResponse.next();
   
-  // Set headers for Server Components to read
-  if (communityResolution) {
-    response.headers.set('x-community-id', communityResolution.communityId);
-    response.headers.set('x-community-config', JSON.stringify(communityResolution.config));
-  }
-  
-  // Also set domain for reference/debugging
+  // Set domain header for Server Components to read
   if (domain) {
     response.headers.set('x-detected-domain', domain);
   }

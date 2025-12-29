@@ -85,25 +85,6 @@ export function normalizeDomain(domain: string): string {
   return host.startsWith('www.') ? host.slice(4) : host;
 }
 
-/**
- * Resolve community ID from domain
- * 
- * The domain is used to infer the community ID.
- * Supports both production domains and localhost subdomains for local testing.
- * 
- * Priority:
- * 1. Special domain mappings (DOMAIN_TO_COMMUNITY_MAP)
- * 2. Normal domain resolution (subdomain extraction, etc.)
- * 
- * @param domain The domain/hostname
- * @returns The community ID inferred from domain, or null if cannot be determined
- */
-export function resolveCommunityFromDomain(
-  domain: string
-): string | null {
-  const candidates = getCommunityIdCandidates(domain);
-  return candidates[0] ?? null;
-}
 
 /**
  * Attempt to read a cached community config entry if it has not expired.

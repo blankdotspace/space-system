@@ -1,19 +1,19 @@
 import { ConfigLoadContext } from './types';
-import { DEFAULT_COMMUNITY_ID, resolveCommunityFromDomain } from './registry';
+import { DEFAULT_COMMUNITY_ID, resolveCommunityConfig } from './registry';
 
 /**
- * Resolve community ID from context
+ * Resolve community ID from context (async version with caching)
  * 
  * Priority order:
  * 1. Explicit context.communityId
  * 2. Development override (NEXT_PUBLIC_TEST_COMMUNITY) - for local testing only
- * 3. Domain resolution (production or localhost subdomains)
+ * 3. Domain resolution (production or localhost subdomains) - uses cached Supabase lookup
  * 4. Build-time fallback (NEXT_PUBLIC_TEST_COMMUNITY or default community) - for static generation
  * 
  * Note: During build time (static generation), there's no request context, so we use
  * NEXT_PUBLIC_TEST_COMMUNITY if set, otherwise default to the nounspace community as a fallback.
  */
-export function resolveCommunityId(context: ConfigLoadContext): string | undefined {
+export async function resolveCommunityId(context: ConfigLoadContext): Promise<string | undefined> {
   let communityId = context.communityId;
   
   // Development override: allows testing communities locally
@@ -22,9 +22,10 @@ export function resolveCommunityId(context: ConfigLoadContext): string | undefin
     communityId = process.env.NEXT_PUBLIC_TEST_COMMUNITY || undefined;
   }
   
-  // Resolve from domain if still no community ID
+  // Resolve from domain if still no community ID (uses cached Supabase lookup)
   if (!communityId && context.domain) {
-    communityId = resolveCommunityFromDomain(context.domain) || undefined;
+    const resolution = await resolveCommunityConfig(context.domain);
+    communityId = resolution?.communityId || undefined;
   }
 
   // Build-time fallback: when there's no request context (static generation)
@@ -36,64 +37,4 @@ export function resolveCommunityId(context: ConfigLoadContext): string | undefin
   return communityId;
 }
 
-/**
- * Reads the community ID that middleware detected (when available).
- *
- * Middleware sets the `x-community-id` header after resolving the community
- * config from the domain. When present, this header should be treated as the
- * authoritative community ID to avoid re-resolving and to reuse middleware
- * fallbacks (e.g., defaulting unknown domains to nounspace.com).
- */
-export async function getCommunityIdFromHeaders(): Promise<string | undefined> {
-  try {
-    const { headers } = await import('next/headers');
-    const headersList = await headers();
 
-    const communityId = headersList.get('x-community-id');
-    return communityId ?? undefined;
-  } catch (error) {
-    // Not in a request context (static generation, etc.)
-    return undefined;
-  }
-}
-
-/**
- * Get domain from middleware-set headers (SERVER-ONLY)
- * 
- * Server-side: Reads x-detected-domain header set by middleware, or falls back
- * to reading host/x-forwarded-host headers directly.
- * 
- * Returns undefined if domain cannot be determined (build time, etc.)
- * 
- * This function is server-only and should not be called from client components.
- */
-export async function getDomainFromContext(): Promise<string | undefined> {
-  try {
-    // Dynamic import to avoid issues when headers() isn't available (build time)
-    const { headers } = await import('next/headers');
-    const headersList = await headers();
-    
-    // Read domain from middleware-set header (preferred)
-    const domain = headersList.get('x-detected-domain');
-    if (domain) {
-      return domain;
-    }
-    
-    // Fallback: read directly from headers if middleware didn't set it
-    const forwardedHost = headersList.get('x-forwarded-host');
-    if (forwardedHost) {
-      return forwardedHost.split(':')[0]; // Remove port
-    }
-    
-    const host = headersList.get('host');
-    if (host) {
-      return host.split(':')[0]; // Remove port
-    }
-  } catch (error) {
-    // Not in request context (static generation, etc.)
-    // Return undefined to fall back to env vars
-    return undefined;
-  }
-  
-  return undefined;
-}

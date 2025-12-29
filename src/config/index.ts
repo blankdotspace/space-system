@@ -6,8 +6,6 @@ import {
   type CommunityTokensConfig,
 } from './systemConfig';
 import { 
-  getDomainFromContext,
-  getCommunityIdFromHeaders,
   resolveCommunityId,
   ConfigLoadContext,
   DEFAULT_COMMUNITY_ID,
@@ -44,14 +42,19 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
       return context;
     }
 
-    // Get domain and middleware-resolved community ID from headers (server-side only)
-    const [domain, middlewareCommunityId] = await Promise.all([
-      getDomainFromContext(),
-      getCommunityIdFromHeaders(),
-    ]);
+    // Get domain from middleware-set header (server-side only)
+    let domain: string | undefined;
+    try {
+      const { headers } = await import('next/headers');
+      const headersList = await headers();
+      domain = headersList.get('x-detected-domain') ?? undefined;
+    } catch (error) {
+      // Not in request context (static generation, etc.)
+      domain = undefined;
+    }
 
     return {
-      communityId: middlewareCommunityId, // Will be resolved via resolveCommunityId()
+      communityId: undefined, // Will be resolved via resolveCommunityId()
       domain,
       isServer: true,
     };
@@ -59,8 +62,8 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
   
   const loadContext = await buildContext();
   
-  // Resolve community ID with priority order
-  const communityId = resolveCommunityId(loadContext);
+  // Resolve community ID with priority order (uses cached Supabase lookup)
+  const communityId = await resolveCommunityId(loadContext);
   const finalContext: ConfigLoadContext = {
     ...loadContext,
     communityId,
