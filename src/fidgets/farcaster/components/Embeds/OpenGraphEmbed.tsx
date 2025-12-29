@@ -86,9 +86,9 @@ const OpenGraphEmbed: React.FC<OpenGraphEmbedProps> = ({ url, metadata }) => {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="block w-full max-w-2xl"
+      className="block w-full max-w-full sm:max-w-2xl"
     >
-      <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-foreground/10">
+      <div className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl bg-foreground/10">
         <Image
           src={ogData.image}
           alt={title}

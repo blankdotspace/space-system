@@ -272,7 +272,7 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
               "mt-4 gap-y-4 border border-foreground/15 rounded-xl flex justify-center items-center w-full bg-background/50",
               // only apply clipping for non-twitter embeds
               !isTwitterEmbed ? "overflow-hidden max-h-[500px]" : "",
-              embedData.castId ? "max-w-[100%]" : "max-w-max"
+              embedData.castId ? "max-w-full" : "max-w-full"
             )}
             onClick={(event) => {
               event.stopPropagation();
@@ -317,7 +317,7 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
             className={classNames(
               "mt-4 gap-y-4 border border-foreground/15 rounded-xl flex justify-center items-center w-full bg-background/50",
               !isTwitterTextUrl ? "overflow-hidden max-h-[500px]" : "",
-              "max-w-max"
+              "max-w-full"
             )}
           >
             {renderedEmbed}
