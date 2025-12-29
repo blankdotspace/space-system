@@ -148,19 +148,11 @@ export async function getCommunityConfigForDomain(
   // Always log domain resolution - use console.error for visibility in Vercel
   console.error(`[Config] Domain resolution: "${domain}" → communityId: "${communityId}"`);
   
-  // Check cache first
-  const cached = readSystemConfigCache(communityId);
-  if (cached) {
-    console.error(`[Config] Cache hit for communityId: "${communityId}"`);
-    return { communityId, config: cached };
-  }
-  
-  // Log cache miss and show what's in cache (for debugging)
-  const cacheKeys = Array.from(SYSTEM_CONFIG_CACHE.keys());
-  console.error(`[Config] Cache miss for communityId: "${communityId}". Cache contains keys: [${cacheKeys.join(', ') || 'none'}]`);
+  // BYPASS CACHE - Direct database lookup only
+  console.error(`[Config] Bypassing cache, querying database directly for communityId: "${communityId}"`);
 
-  // Try primary community ID
-  const primaryConfig = await tryLoadCommunityConfig(communityId);
+  // Load config from database
+  const primaryConfig = await loadCommunityConfigFromDatabase(communityId);
   if (primaryConfig) {
     console.error(`[Config] Loaded config for communityId: "${communityId}"`);
     return { communityId, config: primaryConfig };
@@ -176,22 +168,13 @@ export async function getCommunityConfigForDomain(
 }
 
 /**
- * Try to load a community config by ID.
- * Returns null if not found (does not cache misses to allow retries).
+ * Core function to load a community config from the database.
+ * Returns null if not found, throws on validation errors.
+ * This is the single source of truth for database queries.
  */
-async function tryLoadCommunityConfig(communityId: string): Promise<SystemConfig | null> {
-  // Check cache
-  const cached = readSystemConfigCache(communityId);
-  if (cached !== undefined) {
-    if (cached) {
-      console.error(`[Config] Cache hit in tryLoadCommunityConfig for communityId: "${communityId}"`);
-    }
-    return cached;
-  }
-  
-  // Log cache miss
-  const cacheKeys = Array.from(SYSTEM_CONFIG_CACHE.keys());
-  console.error(`[Config] Cache miss in tryLoadCommunityConfig for communityId: "${communityId}". Cache contains keys: [${cacheKeys.join(', ')}]`);
+async function loadCommunityConfigFromDatabase(communityId: string): Promise<SystemConfig | null> {
+  // BYPASS CACHE - Direct database lookup only
+  console.error(`[Config] Querying database for communityId: "${communityId}"`);
 
   // Query Supabase
   const supabase = createSupabaseServerClient();
@@ -214,19 +197,16 @@ async function tryLoadCommunityConfig(communityId: string): Promise<SystemConfig
     .maybeSingle();
 
   if (error) {
-    // Don't cache null for errors - allows retries for transient errors
     // PGRST116 = no rows returned (legitimate not found)
-    // Other errors are likely transient (network, timeout, etc.)
     const isNotFoundError = error.code === 'PGRST116';
     
     if (isNotFoundError) {
-      // Legitimate "not found" - return null without caching
-      // Always log (not just dev) for Vercel visibility
+      // Legitimate "not found" - return null
       console.error(`[Config] Community config not found in database: "${communityId}" (PGRST116)`);
       console.error(`[Config] Check: Does a record exist with community_id="${communityId}" and is_published=true?`);
       return null;
     } else {
-      // Transient/unknown error - don't cache null to avoid suppressing valid entries
+      // Transient/unknown error - return null to allow retries
       console.error(
         `❌ Failed to fetch community config (transient error) for communityId: "${communityId}". ` +
         `Error code: ${error.code}, Message: ${error.message}. ` +
@@ -239,8 +219,6 @@ async function tryLoadCommunityConfig(communityId: string): Promise<SystemConfig
 
   if (!data) {
     // No data returned but no error - legitimate not found
-    // Don't cache null to allow retries if config is added later
-    // Always log (not just dev) for Vercel visibility
     console.error(`[Config] No data returned for communityId: "${communityId}"`);
     console.error(`[Config] Check: Does a record exist with community_id="${communityId}" and is_published=true?`);
     return null;
@@ -260,73 +238,9 @@ async function tryLoadCommunityConfig(communityId: string): Promise<SystemConfig
   }
   
   if (missingFields.length > 0) {
-    // Invalid config structure - don't cache null, allow retries if config is fixed
-    console.error(
+    // Invalid config structure - throw error (this is a data integrity issue)
+    throw new Error(
       `❌ Invalid config structure for communityId: "${communityId}". ` +
-      `Missing required fields: ${missingFields.join(', ')}. ` +
-      `All community configs must have brand_config, assets_config, community_config, and fidgets_config. ` +
-      `Will retry on next request if config is fixed.`,
-      { communityId, missingFields }
-    );
-    return null;
-  }
-
-  // Transform to SystemConfig
-  const systemConfig = transformRowToSystemConfig(data);
-  
-  // Cache the result
-  writeSystemConfigCache(communityId, systemConfig);
-  
-  return systemConfig;
-}
-
-/**
- * Load SystemConfig by community ID (when ID is already known).
- * Uses cache if available, otherwise queries Supabase.
- */
-export async function loadSystemConfigById(
-  communityId: string
-): Promise<SystemConfig> {
-  // Check cache first
-  const cached = readSystemConfigCache(communityId);
-  if (cached) {
-    return cached;
-  }
-
-  // Query Supabase
-  const supabase = createSupabaseServerClient();
-  const { data, error } = await supabase
-    .from('community_configs')
-    .select('*')
-    .eq('community_id', communityId)
-    .eq('is_published', true)
-    .order('updated_at', { ascending: false })
-    .limit(1)
-    .single();
-
-  if (error || !data) {
-    const errorCode = error?.code || 'UNKNOWN';
-    const errorMessage = error?.message || 'No data returned';
-    throw new Error(
-      `❌ Failed to load config from database for community: "${communityId}". ` +
-      `Error code: ${errorCode}, Message: ${errorMessage}. ` +
-      `Check: Does a record exist in community_configs with community_id="${communityId}" and is_published=true?`
-    );
-  }
-
-  // Validate config structure - check all required fields
-  const requiredFields = ['brand_config', 'assets_config', 'community_config', 'fidgets_config'] as const;
-  const missingFields: string[] = [];
-  
-  for (const field of requiredFields) {
-    if (!data[field]) {
-      missingFields.push(field);
-    }
-  }
-  
-  if (missingFields.length > 0) {
-    throw new Error(
-      `❌ Invalid config structure from database for community: "${communityId}". ` +
       `Missing required fields: ${missingFields.join(', ')}. ` +
       `All community configs must have brand_config, assets_config, community_config, and fidgets_config. ` +
       `Ensure database is seeded correctly or update the record.`
@@ -336,9 +250,28 @@ export async function loadSystemConfigById(
   // Transform to SystemConfig
   const systemConfig = transformRowToSystemConfig(data);
   
-  // Cache the result
-  writeSystemConfigCache(communityId, systemConfig);
+  // BYPASS CACHE - Not caching result
+  console.error(`[Config] Loaded config for communityId: "${communityId}" (not cached)`);
   
   return systemConfig;
+}
+
+/**
+ * Load SystemConfig by community ID (when ID is already known).
+ * Throws an error if config is not found (use when config must exist).
+ */
+export async function loadSystemConfigById(
+  communityId: string
+): Promise<SystemConfig> {
+  const config = await loadCommunityConfigFromDatabase(communityId);
+  
+  if (!config) {
+    throw new Error(
+      `❌ Failed to load config from database for community: "${communityId}". ` +
+      `Check: Does a record exist in community_configs with community_id="${communityId}" and is_published=true?`
+    );
+  }
+  
+  return config;
 }
 
