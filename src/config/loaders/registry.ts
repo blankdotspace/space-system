@@ -35,41 +35,25 @@ type SystemConfigCacheEntry = {
 const SYSTEM_CONFIG_CACHE = new Map<string, SystemConfigCacheEntry>();
 const SYSTEM_CONFIG_CACHE_TTL_MS = 60_000;
 
-function getCommunityIdCandidates(domain: string): string[] {
+/**
+ * Resolve community ID from domain.
+ * Simple priority: special mapping → domain as-is → default fallback
+ */
+function resolveCommunityIdFromDomain(domain: string): string {
   const normalizedDomain = normalizeDomain(domain);
-
-  const candidates: string[] = [];
-  const addCandidate = (candidate?: string | null) => {
-    if (!candidate) return;
-    if (!candidates.includes(candidate)) {
-      candidates.push(candidate);
-    }
-  };
-
+  
   if (!normalizedDomain) {
-    addCandidate(DEFAULT_COMMUNITY_ID);
-    return candidates;
+    return DEFAULT_COMMUNITY_ID;
   }
-
+  
+  // Priority 1: Special domain mappings
   if (normalizedDomain in DOMAIN_TO_COMMUNITY_MAP) {
-    addCandidate(DOMAIN_TO_COMMUNITY_MAP[normalizedDomain]);
+    return DOMAIN_TO_COMMUNITY_MAP[normalizedDomain];
   }
-
-  // Highest priority: exact domain match
-  addCandidate(normalizedDomain);
-
-  // Support localhost subdomains for local testing (e.g., example.localhost)
-  if (normalizedDomain.includes('localhost')) {
-    const parts = normalizedDomain.split('.');
-    if (parts.length > 1 && parts[0] !== 'localhost') {
-      addCandidate(parts[0]);
-    }
-  }
-
-  // Default fallback: use the nounspace config when no other candidate matches
-  addCandidate(DEFAULT_COMMUNITY_ID);
-
-  return candidates;
+  
+  // Priority 2: Domain as community ID (e.g., example.nounspace.com → example.nounspace.com)
+  // Priority 3: Default fallback (handled by caller if domain lookup fails)
+  return normalizedDomain;
 }
 
 /**
@@ -130,19 +114,14 @@ function writeSystemConfigCache(communityId: string, value: SystemConfig | null)
   });
 }
 
-function isNotFoundError(error: unknown): boolean {
-  const code = (error as { code?: string })?.code;
-  return code === 'PGRST116';
-}
 
 /**
  * Fetch the SystemConfig for a given domain.
  *
  * Resolution priority:
- * 1) Normalize the domain (lowercase, strip port, drop leading `www.`)
- * 2) Apply DOMAIN_TO_COMMUNITY_MAP overrides
- * 3) Try exact domain match in community_id (e.g., example.blank.space -> community_id=example.blank.space)
- * 4) Use the default nounspace community when no explicit match is found
+ * 1) Special domain mappings (DOMAIN_TO_COMMUNITY_MAP)
+ * 2) Domain as community_id (e.g., example.nounspace.com → community_id=example.nounspace.com)
+ * 3) Default fallback (nounspace.com)
  *
  * A short-lived in-memory cache is used to avoid repeated Supabase lookups for the same
  * community during navigation bursts. Returns the final SystemConfig (transformed and ready to use).
@@ -150,62 +129,88 @@ function isNotFoundError(error: unknown): boolean {
 export async function getCommunityConfigForDomain(
   domain: string
 ): Promise<{ communityId: string; config: SystemConfig } | null> {
-  const candidates = getCommunityIdCandidates(domain);
-
-  // Check cache first (now caches SystemConfig, not raw rows)
-  for (const candidate of candidates) {
-    const cached = readSystemConfigCache(candidate);
-    if (cached !== undefined) {
-      if (cached) {
-        return { communityId: candidate, config: cached };
+  // Resolve community ID from domain (simple priority)
+  const communityId = resolveCommunityIdFromDomain(domain);
+  
+  // Check cache first
+  const cached = readSystemConfigCache(communityId);
+  if (cached !== undefined) {
+    if (cached) {
+      return { communityId, config: cached };
+    }
+    // Cached miss - try fallback if not already default
+    if (communityId !== DEFAULT_COMMUNITY_ID) {
+      const defaultCached = readSystemConfigCache(DEFAULT_COMMUNITY_ID);
+      if (defaultCached) {
+        return { communityId: DEFAULT_COMMUNITY_ID, config: defaultCached };
       }
-      // Cached miss, continue to next candidate
     }
   }
 
-  // Single Supabase query - get published configs only
+  // Try primary community ID
+  const primaryConfig = await tryLoadCommunityConfig(communityId);
+  if (primaryConfig) {
+    return { communityId, config: primaryConfig };
+  }
+
+  // Fallback to default if primary failed and not already default
+  if (communityId !== DEFAULT_COMMUNITY_ID) {
+    const defaultConfig = await tryLoadCommunityConfig(DEFAULT_COMMUNITY_ID);
+    if (defaultConfig) {
+      return { communityId: DEFAULT_COMMUNITY_ID, config: defaultConfig };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Try to load a community config by ID.
+ * Returns null if not found (caches the miss).
+ */
+async function tryLoadCommunityConfig(communityId: string): Promise<SystemConfig | null> {
+  // Check cache
+  const cached = readSystemConfigCache(communityId);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  // Query Supabase
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from('community_configs')
     .select('*')
-    .in('community_id', candidates)
+    .eq('community_id', communityId)
     .eq('is_published', true)
-    .order('updated_at', { ascending: false });
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   if (error) {
-    console.error('Failed to fetch community config', { candidates, error });
-    if (isNotFoundError(error)) {
-      candidates.forEach((candidate) => writeSystemConfigCache(candidate, null));
-    }
+    console.error('Failed to fetch community config', { communityId, error });
+    writeSystemConfigCache(communityId, null);
     return null;
   }
 
-  // Build map of results (most recent first due to ordering)
-  const dataById = new Map<string, CommunityConfigRow>();
-  (data ?? []).forEach((row) => {
-    if (row.community_id && !dataById.has(row.community_id)) {
-      // Only keep first (most recent) entry per community_id
-      dataById.set(row.community_id, row);
-    }
-  });
-
-  // Try each candidate in priority order
-  for (const candidate of candidates) {
-    const matched = dataById.get(candidate);
-    if (matched) {
-      // Transform row to SystemConfig
-      const systemConfig = transformRowToSystemConfig(matched);
-      
-      // Cache SystemConfig (not raw row)
-      writeSystemConfigCache(candidate, systemConfig);
-      
-      return { communityId: candidate, config: systemConfig };
-    }
-    // Cache the miss
-    writeSystemConfigCache(candidate, null);
+  if (!data) {
+    writeSystemConfigCache(communityId, null);
+    return null;
   }
 
-  return null;
+  // Validate config structure
+  if (!data.brand_config || !data.assets_config) {
+    console.error('Invalid config structure', { communityId });
+    writeSystemConfigCache(communityId, null);
+    return null;
+  }
+
+  // Transform to SystemConfig
+  const systemConfig = transformRowToSystemConfig(data);
+  
+  // Cache the result
+  writeSystemConfigCache(communityId, systemConfig);
+  
+  return systemConfig;
 }
 
 /**
