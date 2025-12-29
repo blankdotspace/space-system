@@ -140,16 +140,26 @@ export async function getCommunityConfigForDomain(
   // Resolve community ID from domain (simple priority)
   const communityId = resolveCommunityIdFromDomain(domain);
   
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[Config] Resolving domain "${domain}" → communityId: "${communityId}"`);
+  }
+  
   // Check cache first
   const cached = readSystemConfigCache(communityId);
   if (cached !== undefined) {
     if (cached) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Config] Cache hit for communityId: "${communityId}"`);
+      }
       return { communityId, config: cached };
     }
     // Cached miss - try fallback if not already default
     if (communityId !== DEFAULT_COMMUNITY_ID) {
       const defaultCached = readSystemConfigCache(DEFAULT_COMMUNITY_ID);
       if (defaultCached) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[Config] Cache miss for "${communityId}", using default from cache`);
+        }
         return { communityId: DEFAULT_COMMUNITY_ID, config: defaultCached };
       }
     }
@@ -158,11 +168,17 @@ export async function getCommunityConfigForDomain(
   // Try primary community ID
   const primaryConfig = await tryLoadCommunityConfig(communityId);
   if (primaryConfig) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Config] ✅ Loaded config for communityId: "${communityId}"`);
+    }
     return { communityId, config: primaryConfig };
   }
 
   // Fallback to default if primary failed and not already default
   if (communityId !== DEFAULT_COMMUNITY_ID) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Config] ⚠️  Config not found for "${communityId}", falling back to default`);
+    }
     const defaultConfig = await tryLoadCommunityConfig(DEFAULT_COMMUNITY_ID);
     if (defaultConfig) {
       return { communityId: DEFAULT_COMMUNITY_ID, config: defaultConfig };
@@ -185,6 +201,11 @@ async function tryLoadCommunityConfig(communityId: string): Promise<SystemConfig
 
   // Query Supabase
   const supabase = createSupabaseServerClient();
+  
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[Config] 🔍 Querying database for communityId: "${communityId}"`);
+  }
+  
   const { data, error } = await supabase
     .from('community_configs')
     .select('*')
@@ -202,6 +223,10 @@ async function tryLoadCommunityConfig(communityId: string): Promise<SystemConfig
     
     if (isNotFoundError) {
       // Legitimate "not found" - return null without caching
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Config] ❌ Community config not found in database: "${communityId}" (PGRST116)`);
+        console.log(`[Config] 💡 Check: Does a record exist with community_id="${communityId}" and is_published=true?`);
+      }
       return null;
     } else {
       // Transient/unknown error - don't cache null to avoid suppressing valid entries
@@ -217,7 +242,15 @@ async function tryLoadCommunityConfig(communityId: string): Promise<SystemConfig
   if (!data) {
     // No data returned but no error - legitimate not found
     // Don't cache null to allow retries if config is added later
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Config] ❌ No data returned for communityId: "${communityId}"`);
+      console.log(`[Config] 💡 Check: Does a record exist with community_id="${communityId}" and is_published=true?`);
+    }
     return null;
+  }
+  
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[Config] ✅ Found config in database for communityId: "${communityId}"`);
   }
 
   // Validate config structure - check all required fields
