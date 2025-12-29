@@ -16,5 +16,4 @@
 export * from './types';
 export * from './registry';
 export * from './runtimeLoader';
-export { resolveCommunityId } from './utils';
 export { getCommunityConfigForDomain, loadSystemConfigById } from './registry';

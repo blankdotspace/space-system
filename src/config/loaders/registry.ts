@@ -146,23 +146,11 @@ export async function getCommunityConfigForDomain(
   
   // Check cache first
   const cached = readSystemConfigCache(communityId);
-  if (cached !== undefined) {
-    if (cached) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[Config] Cache hit for communityId: "${communityId}"`);
-      }
-      return { communityId, config: cached };
+  if (cached) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Config] Cache hit for communityId: "${communityId}"`);
     }
-    // Cached miss - try fallback if not already default
-    if (communityId !== DEFAULT_COMMUNITY_ID) {
-      const defaultCached = readSystemConfigCache(DEFAULT_COMMUNITY_ID);
-      if (defaultCached) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[Config] Cache miss for "${communityId}", using default from cache`);
-        }
-        return { communityId: DEFAULT_COMMUNITY_ID, config: defaultCached };
-      }
-    }
+    return { communityId, config: cached };
   }
 
   // Try primary community ID
@@ -174,23 +162,18 @@ export async function getCommunityConfigForDomain(
     return { communityId, config: primaryConfig };
   }
 
-  // Fallback to default if primary failed and not already default
-  if (communityId !== DEFAULT_COMMUNITY_ID) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[Config] ⚠️  Config not found for "${communityId}", falling back to default`);
-    }
-    const defaultConfig = await tryLoadCommunityConfig(DEFAULT_COMMUNITY_ID);
-    if (defaultConfig) {
-      return { communityId: DEFAULT_COMMUNITY_ID, config: defaultConfig };
-    }
-  }
-
+  // Config not found - return null with informative error (always log, not just in dev)
+  console.error(
+    `[Config] ❌ Community config not found for domain "${domain}" (resolved to communityId: "${communityId}"). ` +
+    `No automatic fallback to default. ` +
+    `Check: Does a record exist in community_configs with community_id="${communityId}" and is_published=true?`
+  );
   return null;
 }
 
 /**
  * Try to load a community config by ID.
- * Returns null if not found (caches the miss).
+ * Returns null if not found (does not cache misses to allow retries).
  */
 async function tryLoadCommunityConfig(communityId: string): Promise<SystemConfig | null> {
   // Check cache
@@ -230,11 +213,12 @@ async function tryLoadCommunityConfig(communityId: string): Promise<SystemConfig
       return null;
     } else {
       // Transient/unknown error - don't cache null to avoid suppressing valid entries
-      console.error('Failed to fetch community config (transient error)', { 
-        communityId, 
-        error: error.message,
-        code: error.code 
-      });
+      console.error(
+        `❌ Failed to fetch community config (transient error) for communityId: "${communityId}". ` +
+        `Error code: ${error.code}, Message: ${error.message}. ` +
+        `This may be a network issue or database problem. Will retry on next request.`,
+        { communityId, error: error.message, code: error.code }
+      );
       return null;
     }
   }
@@ -265,10 +249,13 @@ async function tryLoadCommunityConfig(communityId: string): Promise<SystemConfig
   
   if (missingFields.length > 0) {
     // Invalid config structure - don't cache null, allow retries if config is fixed
-    console.error('Invalid config structure', { 
-      communityId, 
-      missingFields 
-    });
+    console.error(
+      `❌ Invalid config structure for communityId: "${communityId}". ` +
+      `Missing required fields: ${missingFields.join(', ')}. ` +
+      `All community configs must have brand_config, assets_config, community_config, and fidgets_config. ` +
+      `Will retry on next request if config is fixed.`,
+      { communityId, missingFields }
+    );
     return null;
   }
 
@@ -306,9 +293,12 @@ export async function loadSystemConfigById(
     .single();
 
   if (error || !data) {
+    const errorCode = error?.code || 'UNKNOWN';
+    const errorMessage = error?.message || 'No data returned';
     throw new Error(
-      `❌ Failed to load config from database for community: ${communityId}. ` +
-      `Error: ${error?.message || 'No data returned'}`
+      `❌ Failed to load config from database for community: "${communityId}". ` +
+      `Error code: ${errorCode}, Message: ${errorMessage}. ` +
+      `Check: Does a record exist in community_configs with community_id="${communityId}" and is_published=true?`
     );
   }
 
@@ -324,9 +314,10 @@ export async function loadSystemConfigById(
   
   if (missingFields.length > 0) {
     throw new Error(
-      `❌ Invalid config structure from database. ` +
+      `❌ Invalid config structure from database for community: "${communityId}". ` +
       `Missing required fields: ${missingFields.join(', ')}. ` +
-      `Ensure database is seeded correctly.`
+      `All community configs must have brand_config, assets_config, community_config, and fidgets_config. ` +
+      `Ensure database is seeded correctly or update the record.`
     );
   }
 

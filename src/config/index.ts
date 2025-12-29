@@ -30,15 +30,14 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
     try {
       return await loadSystemConfigById(context.communityId);
     } catch (error) {
-      // Fallback to default if explicit ID fails
-      if (context.communityId !== DEFAULT_COMMUNITY_ID) {
-        console.warn(
-          `Falling back to default community after failed load for "${context.communityId}".`,
-          error
-        );
-        return await loadSystemConfigById(DEFAULT_COMMUNITY_ID);
-      }
-      throw error;
+      // Don't fall back to default - throw informative error
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `❌ Failed to load config for explicit communityId "${context.communityId}". ` +
+        `Error: ${errorMessage}. ` +
+        `No automatic fallback to default. ` +
+        `Check: Does a record exist in community_configs with community_id="${context.communityId}" and is_published=true?`
+      );
     }
   }
 
@@ -66,6 +65,12 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
       }
       return resolution.config;
     }
+    // Domain provided but config not found - throw informative error
+    throw new Error(
+      `❌ Community config not found for domain: "${domain}". ` +
+      `No automatic fallback to default. ` +
+      `Check: Does a record exist in community_configs with community_id matching this domain and is_published=true?`
+    );
   }
 
   // Priority 3: Development override
@@ -77,9 +82,13 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
     return await loadSystemConfigById(devCommunityId);
   }
 
-  // Priority 4: Fallback to default
+  // Priority 4: Final fallback to default (only when no domain/context available)
+  // This is a last resort for cases where we truly have no domain information
   if (process.env.NODE_ENV === 'development') {
-    console.log(`✅ Loading config for community: ${DEFAULT_COMMUNITY_ID} (fallback)`);
+    console.warn(
+      `⚠️  No domain or communityId provided, falling back to default "${DEFAULT_COMMUNITY_ID}". ` +
+      `This should only happen in edge cases (e.g., static generation without domain context).`
+    );
   }
   return await loadSystemConfigById(DEFAULT_COMMUNITY_ID);
 }
