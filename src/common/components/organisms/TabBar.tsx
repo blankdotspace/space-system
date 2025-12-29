@@ -104,15 +104,14 @@ function TabBar({
           switchTabTo(finalTabName, false);
         }
         
-        // Commit the order (createTab already updated local state)
-        commitTabOrder();
+        // Tab creation is staged - commit via commitAllSpaceChanges
       } catch (error) {
         console.error("Error creating tab:", error);
         toast.error("Failed to create tab. Please try again.");
         // TODO: Rollback optimistic changes if needed
       }
     }, 300),
-    [tabList, createTab, commitTabOrder, switchTabTo]
+    [tabList, createTab, switchTabTo]
   );
 
   const debouncedDeleteTab = React.useCallback(
@@ -177,16 +176,15 @@ function TabBar({
         // Update current tab name in store and URL
         switchTabTo(uniqueName);
         
-        // Wait for rename to complete, then commit
+        // Wait for rename to complete
         await renamePromise;
-        commitTab(uniqueName);
-        commitTabOrder();
+        // Rename is staged - commit via commitAllSpaceChanges
         
       } catch (error) {
         console.error("Error in handleRenameTab:", error);
       }
     }, 300),
-    [renameTab, switchTabTo, commitTab, commitTabOrder, tabList]
+    [renameTab, switchTabTo, tabList]
   );
 
   function generateNewTabName(): string {
@@ -236,9 +234,9 @@ function TabBar({
   const debouncedReorder = React.useCallback(
     debounce((newOrder) => {
       updateTabOrder(newOrder);
-      commitTabOrder();
+      // Order update is staged - commit via commitAllSpaceChanges
     }, 300),
-    [updateTabOrder, commitTabOrder]
+    [updateTabOrder]
   );
 
   const isLoggedIn = getIsLoggedIn();

@@ -137,11 +137,20 @@ export async function identitiesCanModifySpace(
   const supabase = createSupabaseServerClient();
   const { data: spaceRegistrationData } = await supabase
     .from("spaceRegistrations")
-    .select("contractAddress, network, fid, identityPublicKey")
+    .select("contractAddress, network, fid, identityPublicKey, spaceType")
     .eq("spaceId", spaceId);
   if (spaceRegistrationData === null || spaceRegistrationData.length === 0)
     return [];
   const registration = first(spaceRegistrationData)!;
+  
+  // For navPage spaces, also check community admin permissions
+  if (registration.spaceType === "navPage") {
+    const adminIdentities = await getAdminIdentitiesForNavPageSpace(supabase, spaceId);
+    if (adminIdentities.length > 0) {
+      return adminIdentities;
+    }
+  }
+  
   const contractAddress = registration.contractAddress;
   if (!isNull(contractAddress)) {
     const effectiveNetwork = network || registration.network;
@@ -163,6 +172,35 @@ export async function identitiesCanModifySpace(
   } else {
     return [];
   }
+}
+
+/**
+ * Get admin identity public keys for a navPage space by finding
+ * which community references this space in its navigation config
+ */
+async function getAdminIdentitiesForNavPageSpace(
+  supabase: ReturnType<typeof createSupabaseServerClient>,
+  spaceId: string,
+): Promise<string[]> {
+  // Find communities that reference this spaceId in their navigation config
+  const { data: configs } = await supabase
+    .from("community_configs")
+    .select("admin_identity_public_keys, navigation_config")
+    .eq("is_published", true);
+  
+  if (!configs) return [];
+  
+  for (const config of configs) {
+    const navConfig = config.navigation_config as { items?: Array<{ spaceId?: string }> } | null;
+    if (navConfig?.items) {
+      const hasSpace = navConfig.items.some((item) => item.spaceId === spaceId);
+      if (hasSpace && config.admin_identity_public_keys) {
+        return config.admin_identity_public_keys as string[];
+      }
+    }
+  }
+  
+  return [];
 }
 
 async function spacePublicKeys(req: NextApiRequest, res: NextApiResponse) {

@@ -32,6 +32,7 @@ export interface SystemConfig {
   fidgets: FidgetConfig;
   navigation?: NavigationConfig;
   ui?: UIConfig;
+  adminIdentityPublicKeys?: string[]; // identityPublicKey values of users who can edit nav pages
 }
 
 export interface UIConfig {

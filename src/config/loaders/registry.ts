@@ -46,13 +46,20 @@ function resolveCommunityIdFromDomain(domain: string): string {
     return DEFAULT_COMMUNITY_ID;
   }
   
-  // Priority 1: Special domain mappings
+  // Priority 1: Handle Vercel preview deployments (e.g., nounspace.vercel.app, branch-nounspace.vercel.app)
+  // All Vercel preview deployments should point to nouns community
+  // Match any .vercel.app domain (preview deployments have random branch names)
+  if (domain.endsWith('.vercel.app')) {
+    return 'nouns';
+  }
+  
+  // Priority 2: Special domain mappings
   if (normalizedDomain in DOMAIN_TO_COMMUNITY_MAP) {
     return DOMAIN_TO_COMMUNITY_MAP[normalizedDomain];
   }
   
-  // Priority 2: Domain as community ID (e.g., example.nounspace.com → example.nounspace.com)
-  // Priority 3: Default fallback (handled by caller if domain lookup fails)
+  // Priority 3: Domain as community ID (e.g., example.nounspace.com → example.nounspace.com)
+  // Priority 4: Default fallback (handled by caller if domain lookup fails)
   return normalizedDomain;
 }
 

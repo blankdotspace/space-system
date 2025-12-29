@@ -27,6 +27,22 @@
  *   - scripts/check-seeding.ts (integrated)
  */
 
+// Load environment variables from .env file
+import dotenv from 'dotenv';
+import { existsSync } from 'fs';
+import { resolve } from 'path';
+
+// Try to load .env files in order of priority
+const envFiles = ['.env.local', '.env.development.local', '.env'];
+for (const envFile of envFiles) {
+  const envPath = resolve(process.cwd(), envFile);
+  if (existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+    console.log(`📁 Loaded environment from ${envFile}`);
+    break;
+  }
+}
+
 import { createClient } from '@supabase/supabase-js';
 import { readFile } from 'fs/promises';
 import { join, dirname } from 'path';
@@ -243,11 +259,15 @@ async function seedCommunityConfigs(assetsUrls: Record<string, string>) {
   }
 
   // Nouns config
+  // Note: Add identityPublicKey values to admin_identity_public_keys to allow users to edit nav pages
+  // You can find a user's identityPublicKey in the browser devtools: 
+  // localStorage.getItem('nounspace-app-store') -> account.currentSpaceIdentityPublicKey
   const { error: nounsError } = await supabase
     .from('community_configs')
     .upsert({
       community_id: 'nounspace.com',
       is_published: true,
+      admin_identity_public_keys: [], // Add admin identityPublicKey values here
       brand_config: {
         displayName: 'Nouns',
         description: 'The social hub for Nouns',
@@ -367,6 +387,7 @@ async function seedCommunityConfigs(assetsUrls: Record<string, string>) {
   const { error: exampleError } = await supabase.from('community_configs').upsert({
     community_id: 'example',
     is_published: true,
+    admin_identity_public_keys: [],
     brand_config: {
       displayName: 'Example Community',
       description: 'The social hub for Example Community',
@@ -466,6 +487,7 @@ async function seedCommunityConfigs(assetsUrls: Record<string, string>) {
   const { error: clankerError } = await supabase.from('community_configs').upsert({
     community_id: 'clanker.space',
     is_published: true,
+    admin_identity_public_keys: [],
     brand_config: {
       displayName: 'Clanker',
       description:
@@ -588,9 +610,11 @@ function createSystemSignedFile(fileData: string): SignedFile {
 }
 
 /**
- * Creates a plain JSON object for tab order (not a SignedFile)
+ * Creates tab order data in the format expected by the app
+ * NOTE: Tab order is NOT wrapped in a SignedFile like tabs are.
+ * The app saves tab order directly as a signed request object.
  */
-function createTabOrderData(spaceId: string, tabOrder: string[]): { spaceId: string; timestamp: string; tabOrder: string[] } {
+function createTabOrderData(spaceId: string, tabOrder: string[]) {
   return {
     spaceId,
     timestamp: moment().toISOString(),
@@ -621,7 +645,8 @@ async function uploadTab(spaceId: string, tabName: string, tabConfig: SpaceConfi
 }
 
 /**
- * Uploads tab order to Supabase Storage as plain JSON (not a SignedFile)
+ * Uploads tab order to Supabase Storage
+ * NOTE: Tab order is saved directly (not wrapped in SignedFile) to match app format
  */
 async function uploadTabOrder(spaceId: string, tabOrder: string[]): Promise<boolean> {
   const tabOrderData = createTabOrderData(spaceId, tabOrder);

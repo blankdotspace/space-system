@@ -185,40 +185,46 @@ export type Database = {
       }
       community_configs: {
         Row: {
-          assets_config: Json
-          brand_config: Json
-          community_config: Json
+          id: number
           community_id: string
-          fidgets_config: Json
-          id: string
-          is_published: boolean | null
+          brand_config: Json | null
+          assets_config: Json | null
+          community_config: Json | null
+          fidgets_config: Json | null
           navigation_config: Json | null
           ui_config: Json | null
-          updated_at: string | null
+          admin_identity_public_keys: string[] | null
+          is_published: boolean
+          created_at: string
+          updated_at: string
         }
         Insert: {
-          assets_config: Json
-          brand_config: Json
-          community_config: Json
+          id?: number
           community_id: string
-          fidgets_config: Json
-          id?: string
-          is_published?: boolean | null
+          brand_config?: Json | null
+          assets_config?: Json | null
+          community_config?: Json | null
+          fidgets_config?: Json | null
           navigation_config?: Json | null
           ui_config?: Json | null
-          updated_at?: string | null
+          admin_identity_public_keys?: string[] | null
+          is_published?: boolean
+          created_at?: string
+          updated_at?: string
         }
         Update: {
-          assets_config?: Json
-          brand_config?: Json
-          community_config?: Json
+          id?: number
           community_id?: string
-          fidgets_config?: Json
-          id?: string
-          is_published?: boolean | null
+          brand_config?: Json | null
+          assets_config?: Json | null
+          community_config?: Json | null
+          fidgets_config?: Json | null
           navigation_config?: Json | null
           ui_config?: Json | null
-          updated_at?: string | null
+          admin_identity_public_keys?: string[] | null
+          is_published?: boolean
+          created_at?: string
+          updated_at?: string
         }
         Relationships: []
       }
