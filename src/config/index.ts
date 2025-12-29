@@ -52,14 +52,28 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
     try {
       const { headers } = await import('next/headers');
       const headersList = await headers();
-      domain = headersList.get('x-detected-domain') ?? undefined;
-      // Log header read for Vercel visibility
-      console.error(`[Config] Read x-detected-domain header: "${domain ?? 'null'}"`);
+      let headerValue = headersList.get('x-detected-domain');
+      
+      // If middleware didn't set the header, try to get host directly and normalize it
+      if (!headerValue) {
+        const host = headersList.get('host') || headersList.get('x-forwarded-host');
+        console.error(`[Config] x-detected-domain header not found, reading host directly: "${host}"`);
+        if (host) {
+          // Import normalizeDomain to normalize the host
+          const { normalizeDomain } = await import('./loaders/registry');
+          headerValue = normalizeDomain(host);
+          console.error(`[Config] Normalized host to domain: "${headerValue}"`);
+        }
+      } else {
+        console.error(`[Config] Found x-detected-domain header: "${headerValue}"`);
+      }
+      
+      domain = headerValue ?? undefined;
     } catch (error) {
       // Not in request context (static generation/build time)
       // This should not happen if layout is set to dynamic
       domain = undefined;
-      console.error(`[Config] Failed to read headers (not in request context)`);
+      console.error(`[Config] Failed to read headers (not in request context):`, error);
     }
   }
 
