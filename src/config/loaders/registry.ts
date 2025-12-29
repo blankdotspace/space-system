@@ -142,6 +142,12 @@ export async function getCommunityConfigForDomain(
     return null;
   }
 
+  // Check cache first
+  const cached = readSystemConfigCache(communityId);
+  if (cached) {
+    return { communityId, config: cached };
+  }
+
   // Load config from database
   const primaryConfig = await loadCommunityConfigFromDatabase(communityId);
   if (primaryConfig) {
@@ -162,6 +168,12 @@ export async function getCommunityConfigForDomain(
  * This is the single source of truth for database queries.
  */
 async function loadCommunityConfigFromDatabase(communityId: string): Promise<SystemConfig | null> {
+  // Check cache first
+  const cached = readSystemConfigCache(communityId);
+  if (cached !== undefined) {
+    return cached;
+  }
+
   // Query Supabase
   const supabase = createSupabaseServerClient();
   
@@ -221,6 +233,9 @@ async function loadCommunityConfigFromDatabase(communityId: string): Promise<Sys
   // Transform to SystemConfig
   const systemConfig = transformRowToSystemConfig(data);
   
+  // Cache the result
+  writeSystemConfigCache(communityId, systemConfig);
+  
   return systemConfig;
 }
 
@@ -231,6 +246,12 @@ async function loadCommunityConfigFromDatabase(communityId: string): Promise<Sys
 export async function loadSystemConfigById(
   communityId: string
 ): Promise<SystemConfig> {
+  // Check cache first
+  const cached = readSystemConfigCache(communityId);
+  if (cached) {
+    return cached;
+  }
+
   const config = await loadCommunityConfigFromDatabase(communityId);
   
   if (!config) {
