@@ -1,7 +1,7 @@
 export type CastIdEmbed = {
   castId: {
     fid: number;
-    hash: Uint8Array | string | { type?: string; data?: number[] } | number[];
+    hash: Uint8Array;
   };
 };
 
