@@ -37,19 +37,15 @@ import {
 } from "@/common/lib/utils/castModalInteractivity";
 import { CAST_MODAL_INTERACTIVE_ATTR } from "@/common/components/molecules/CastModalHelpers";
 import Spinner from "@/common/components/atoms/spinner";
-import { useAppStore } from "@/common/data/stores/app";
 import { useBannerStore } from "@/common/stores/bannerStore";
 import { CastType, Signer } from "@farcaster/core";
 import { PhotoIcon } from "@heroicons/react/20/solid";
-import { usePrivy } from "@privy-io/react-auth";
 import EmojiPicker, {
   Theme,
   EmojiClickData,
 } from "emoji-picker-react";
 import { GoSmiley } from "react-icons/go";
 import { HiOutlineSparkles } from "react-icons/hi2";
-import { Address, formatUnits, zeroAddress } from "viem";
-import { useBalance } from "wagmi";
 import { useFarcasterSigner } from "..";
 import {
   FarcasterEmbed,
@@ -62,9 +58,8 @@ import { ChannelPicker } from "./channelPicker";
 import { renderEmbedForUrl } from "./Embeds";
 
 
-import { getGateTokens, getChainForNetwork } from "@/common/lib/utils/tokenGates";
-import { type CommunityTokenNetwork } from "@/config";
-import { MIN_SPACE_TOKENS_FOR_UNLOCK } from "@/common/constants/gates";
+import { useTokenGate } from "@/common/lib/hooks/useTokenGate";
+import { type SystemConfig } from "@/config";
 
 // SPACE_CONTRACT_ADDR will be loaded when needed (async)
 // For now, we'll use it in a way that handles the Promise
@@ -144,6 +139,7 @@ type CreateCastProps = {
   initialDraft?: Partial<DraftType>;
   afterSubmit?: () => void;
   onShouldConfirmCloseChange?: (shouldConfirm: boolean) => void;
+  systemConfig?: SystemConfig;
 };
 
 const SPARKLES_BANNER_KEY = "sparkles-banner-v1";
@@ -152,6 +148,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
   initialDraft,
   afterSubmit = () => {},
   onShouldConfirmCloseChange,
+  systemConfig,
 }) => {
   const castModalPortalContainer = useCastModalPortalContainer();
   const isMobile = useIsMobile();
@@ -373,59 +370,8 @@ const CreateCast: React.FC<CreateCastProps> = ({
   const { isBannerClosed, closeBanner } = useBannerStore();
   const sparklesBannerClosed = isBannerClosed(SPARKLES_BANNER_KEY);
 
-  const { user } = usePrivy();
-  const [erc20Token, setErc20Token] = useState<{
-    address: Address;
-    decimals: number;
-    network?: CommunityTokenNetwork;
-  } | null>(null);
-  
-  // Load space contract address (async)
-  useEffect(() => {
-    let isMounted = true;
-
-    getGateTokens()
-      .then((tokens) => {
-        if (!isMounted) return;
-        const primaryErc20 = tokens.erc20Tokens[0];
-        if (primaryErc20) {
-          setErc20Token({
-            address: primaryErc20.address as Address,
-            decimals: primaryErc20.decimals ?? 18,
-            network: primaryErc20.network,
-          });
-        }
-      })
-      .catch((error) => {
-        console.error("Failed to load gate tokens for cast creation:", error);
-        if (isMounted) {
-          setErc20Token(null);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-  
-  const result = useBalance({
-    address: (user?.wallet?.address as Address) || zeroAddress,
-    token: (erc20Token?.address || zeroAddress) as Address,
-    chainId: erc20Token ? getChainForNetwork(erc20Token.network).id : undefined,
-    query: { enabled: !!erc20Token }, // Only query when address is loaded
-  });
-  const spaceHoldAmount = result?.data
-    ? parseInt(
-        formatUnits(
-          result.data.value,
-          result.data.decimals ?? erc20Token?.decimals ?? 18,
-        ),
-      )
-    : 0;
-  const userHoldEnoughSpace = spaceHoldAmount >= MIN_SPACE_TOKENS_FOR_UNLOCK;
-  const { hasNogs } = useAppStore((state) => ({
-    hasNogs: state.account.hasNogs,
-  }));
+  // Use token gate hook for ERC20 token gating
+  const { hasEnoughTokens: userHoldEnoughSpace, hasNogs } = useTokenGate(systemConfig);
   const [showEnhanceBanner, setShowEnhanceBanner] = useState(false);
 
   useEffect(() => {

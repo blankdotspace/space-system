@@ -4,25 +4,22 @@ import { Button } from "@/common/components/atoms/button";
 import Spinner from "@/common/components/atoms/spinner";
 import HTMLInput from "@/common/components/molecules/HTMLInput";
 import { useToastStore } from "@/common/data/stores/toastStore";
-import { useAppStore } from "@/common/data/stores/app";
 import { ThemeSettingsTooltip } from "./components/ThemeSettingsTooltip";
 import { AnalyticsEvent } from "@/common/constants/analyticsEvents";
 import { analytics } from "@/common/providers/AnalyticsProvider";
-import { usePrivy } from "@privy-io/react-auth";
-import { Address, formatUnits, zeroAddress } from "viem";
-import { useBalance } from "wagmi";
-import { getGateTokens, getChainForNetwork } from "@/common/lib/utils/tokenGates";
-import type { CommunityTokenNetwork } from "@/config";
-import { MIN_SPACE_TOKENS_FOR_UNLOCK } from "@/common/constants/gates";
+import { useTokenGate } from "@/common/lib/hooks/useTokenGate";
+import type { SystemConfig } from "@/config";
 
 interface BackgroundGeneratorProps {
   backgroundHTML: string;
   onChange: (value: string) => void;
+  systemConfig?: SystemConfig;
 }
 
 export const BackgroundGenerator = ({
   backgroundHTML,
   onChange,
+  systemConfig,
 }: BackgroundGeneratorProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateText, setGenerateText] = useState("Generate");
@@ -49,46 +46,8 @@ export const BackgroundGenerator = ({
     "Animated purple gradient",
   ];
 
-  const { user } = usePrivy();
-  const [erc20Token, setErc20Token] = useState<{
-    address: Address;
-    decimals: number;
-    network?: CommunityTokenNetwork;
-  } | null>(null);
-  
-  // Load space contract address (async)
-  useEffect(() => {
-    getGateTokens().then((tokens) => {
-      const primaryErc20 = tokens.erc20Tokens[0];
-      if (primaryErc20) {
-        setErc20Token({
-          address: primaryErc20.address as Address,
-          decimals: primaryErc20.decimals ?? 18,
-          network: primaryErc20.network,
-        });
-      }
-    });
-  }, []);
-  
-  const result = useBalance({
-    address: (user?.wallet?.address as Address) || zeroAddress,
-    token: (erc20Token?.address || zeroAddress) as Address,
-    chainId: erc20Token ? getChainForNetwork(erc20Token.network).id : undefined,
-    query: { enabled: !!erc20Token }, // Only query when address is loaded
-  });
-  const spaceHoldAmount = result?.data
-    ? parseInt(
-        formatUnits(
-          result.data.value,
-          result.data.decimals ?? erc20Token?.decimals ?? 18,
-        ),
-      )
-    : 0;
-  const userHoldEnoughSpace = spaceHoldAmount >= MIN_SPACE_TOKENS_FOR_UNLOCK;
-  const spaceLoading = result.isLoading || result.isFetching;
-  const { hasNogs } = useAppStore((state) => ({
-    hasNogs: state.account.hasNogs,
-  }));
+  // Use token gate hook for ERC20 token gating
+  const { hasEnoughTokens: userHoldEnoughSpace, isLoading: spaceLoading, hasNogs } = useTokenGate(systemConfig);
 
   // Sync gate state with token data
   useEffect(() => {

@@ -299,6 +299,7 @@ const MobileHeader = ({ systemConfig }: MobileHeaderProps) => {
             <CreateCast
               afterSubmit={closeCastModal}
               onShouldConfirmCloseChange={setShouldConfirmCastClose}
+              systemConfig={systemConfig}
             />
             <CastDiscardPrompt
               open={showCastDiscardPrompt}

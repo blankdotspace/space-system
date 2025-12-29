@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import createSupabaseServerClient from '@/common/data/database/supabase/clients/server';
 import { Database } from '@/supabase/database';
+import type { CommunityTokensConfig } from '@/config';
 
 interface IncomingCommunityConfig {
   community_id?: string;
@@ -13,6 +14,73 @@ interface IncomingCommunityConfig {
   navigation_config?: unknown;
   ui_config?: unknown;
   is_published?: boolean;
+}
+
+// Default fallback tokens (SPACE + nOGs)
+const DEFAULT_SPACE_CONTRACT_ADDR = 
+  process.env.NEXT_PUBLIC_SPACE_CONTRACT_ADDR ||
+  process.env.SPACE_CONTRACT_ADDR ||
+  "0x48C6740BcF807d6C47C864FaEEA15Ed4dA3910Ab";
+
+const DEFAULT_NOGS_CONTRACT_ADDR =
+  process.env.NEXT_PUBLIC_NOGS_CONTRACT_ADDR ||
+  process.env.NOGS_CONTRACT_ADDR ||
+  "0xD094D5D45c06c1581f5f429462eE7cCe72215616";
+
+/**
+ * Get default fallback tokens (SPACE + nOGs).
+ */
+function getDefaultTokens(): CommunityTokensConfig {
+  return {
+    erc20Tokens: [
+      {
+        address: DEFAULT_SPACE_CONTRACT_ADDR,
+        symbol: "SPACE",
+        decimals: 18,
+        network: "base",
+      },
+    ],
+    nftTokens: DEFAULT_NOGS_CONTRACT_ADDR
+      ? [
+          {
+            address: DEFAULT_NOGS_CONTRACT_ADDR,
+            symbol: "NOGS",
+            type: "erc721",
+            network: "base",
+          },
+        ]
+      : [],
+  };
+}
+
+/**
+ * Ensure tokens are present in community_config.
+ * Adds default SPACE + nOGs tokens if tokens are missing or empty.
+ * Returns a properly typed config object.
+ */
+function ensureTokensInCommunityConfig(communityConfig: unknown): Record<string, unknown> {
+  if (!communityConfig || typeof communityConfig !== 'object') {
+    return { tokens: getDefaultTokens() };
+  }
+
+  const config = communityConfig as Record<string, unknown>;
+  const tokens = config.tokens as CommunityTokensConfig | undefined;
+
+  // Type-safe check: ensure tokens exist and have at least one token
+  const hasTokens = tokens && (
+    (Array.isArray(tokens.erc20Tokens) && tokens.erc20Tokens.length > 0) ||
+    (Array.isArray(tokens.nftTokens) && tokens.nftTokens.length > 0)
+  );
+
+  if (!hasTokens) {
+    // Add default fallback tokens
+    return {
+      ...config,
+      tokens: getDefaultTokens(),
+    };
+  }
+
+  return config;
 }
 
 export async function POST(request: NextRequest): Promise<Response> {
@@ -61,14 +129,17 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     type CommunityConfigInsert = Database['public']['Tables']['community_configs']['Insert'];
 
+    // Ensure tokens are present in community_config (add fallback if missing)
+    const communityConfigWithTokens = ensureTokensInCommunityConfig(communityDetails);
+
     const normalizedCommunityDetails =
-      communityDetails && typeof communityDetails === 'object'
+      communityConfigWithTokens && typeof communityConfigWithTokens === 'object'
         ? {
-            ...(communityDetails as Record<string, unknown>),
+            ...(communityConfigWithTokens as Record<string, unknown>),
             ...(adminAddress ? { admin_address: adminAddress } : {}),
             ...(domain ? { domain } : {}),
           }
-        : communityDetails;
+        : communityConfigWithTokens;
 
     const upsertPayload: CommunityConfigInsert = {
       community_id: communityId,

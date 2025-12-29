@@ -384,6 +384,7 @@ const Navigation = React.memo(
             <CreateCast
               afterSubmit={closeCastModal}
               onShouldConfirmCloseChange={setShouldConfirmCastClose}
+              systemConfig={systemConfig}
             />
             <CastDiscardPrompt
               open={showCastDiscardPrompt}

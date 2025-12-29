@@ -9,15 +9,16 @@ import { Button, ButtonProps } from "../atoms/button";
 import NogsChecker from "./NogsChecker";
 import Modal from "../molecules/Modal";
 import { isUndefined } from "lodash";
-import { Address, formatUnits, zeroAddress } from "viem";
-import { useBalance } from "wagmi";
-import { getGateTokens, getChainForNetwork, mapNetworkToAlchemy } from "@/common/lib/utils/tokenGates";
-import { type CommunityTokenNetwork } from "@/config";
-import { MIN_SPACE_TOKENS_FOR_UNLOCK } from "@/common/constants/gates";
+import { mapNetworkToAlchemy } from "@/common/lib/utils/tokenGates";
+import { getNftTokens } from "@/common/lib/utils/tokenGates";
+import { useTokenGate } from "@/common/lib/hooks/useTokenGate";
+import { type SystemConfig } from "@/config";
 
-const NogsGateButton = (props: ButtonProps) => {
-  const { user } = usePrivy();
+type NogsGateButtonProps = ButtonProps & {
+  systemConfig?: SystemConfig;
+};
 
+const NogsGateButton = ({ systemConfig, ...props }: NogsGateButtonProps) => {
   const {
     setNogsIsChecking,
     nogsTimeoutTimer,
@@ -30,7 +31,6 @@ const NogsGateButton = (props: ButtonProps) => {
     nogsRecheckCountDown,
     setNogsRecheckCountDownTimer,
     nogsShouldRecheck,
-    hasNogs,
     setHasNogs,
   } = useAppStore((state) => ({
     setNogsIsChecking: state.setup.setNogsIsChecking,
@@ -44,78 +44,25 @@ const NogsGateButton = (props: ButtonProps) => {
     nogsRecheckCountDown: state.setup.nogsRecheckCountDown,
     setNogsRecheckCountDownTimer: state.setup.setNogsRecheckCountDownTimer,
     nogsShouldRecheck: state.setup.nogsShouldRecheck,
-    hasNogs: state.account.hasNogs,
     setHasNogs: state.account.setHasNogs,
   }));
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [erc20Token, setErc20Token] = useState<{
-    address: Address;
-    decimals: number;
-    network?: CommunityTokenNetwork;
-  } | null>(null);
-  const [nftTokens, setNftTokens] = useState<
-    { address: string; network?: CommunityTokenNetwork }[]
-  >([]);
-
-  // Load contract addresses (async)
-  useEffect(() => {
-    getGateTokens().then((tokens) => {
-      const primaryErc20 = tokens.erc20Tokens[0];
-      if (primaryErc20) {
-        setErc20Token({
-          address: primaryErc20.address as Address,
-          decimals: primaryErc20.decimals ?? 18,
-          network: primaryErc20.network,
-        });
-      }
-      setNftTokens(
-        (tokens.nftTokens || []).map((token) => ({
-          address: token.address,
-          network: token.network,
-        })),
-      );
-    });
-  }, []);
-
-  // ----- SPACE token gating -----
-  const walletAddress = user?.wallet?.address as Address | undefined;
-
-  const { data: spaceBalanceData } = useBalance({
-    address: walletAddress ?? zeroAddress,
-    token: (erc20Token?.address || zeroAddress) as Address,
-    chainId: erc20Token ? getChainForNetwork(erc20Token.network).id : undefined,
-    query: { enabled: Boolean(walletAddress) && !!erc20Token },
-  });
-
-  const userHoldEnoughSpace = spaceBalanceData
-    ? Number(
-        formatUnits(
-          spaceBalanceData.value,
-          spaceBalanceData.decimals ?? erc20Token?.decimals ?? 18,
-        ),
-      ) >=
-      MIN_SPACE_TOKENS_FOR_UNLOCK
-    : false;
-
-  const gatingSatisfied = hasNogs || userHoldEnoughSpace;
+  const { user } = usePrivy();
+  
+  // Use token gate hook for ERC20 token gating
+  const { gatingSatisfied, walletAddress } = useTokenGate(systemConfig);
+  
+  // Extract NFT tokens from config
+  const nftTokens = getNftTokens(systemConfig);
 
   // Optional debug logs
   useEffect(() => {
-    if (spaceBalanceData && erc20Token?.address) {
-      console.log(
-        "[DEBUG] ERC20 balance:",
-        Number(
-          formatUnits(
-            spaceBalanceData.value,
-            spaceBalanceData.decimals ?? erc20Token.decimals ?? 18,
-          ),
-        ),
-      );
+    if (erc20Token?.address && walletAddress) {
       console.log("[DEBUG] ERC20 contract address:", erc20Token.address);
       console.log("[DEBUG] Connected wallet:", walletAddress);
     }
-  }, [spaceBalanceData, erc20Token?.address, erc20Token?.decimals, walletAddress]);
+  }, [erc20Token?.address, walletAddress]);
 
   // ----- nOGs gating / timers -----
 
