@@ -197,12 +197,12 @@ interface SystemConfig {
 
 | Component | Storage Location | Notes |
 |-----------|-----------------|-------|
-| **Brand Config** | Database (`brand_config`) | Display name, tagline, description |
+| **Brand Config** | Database (`brand_config`) | Display name, description, mini-app tags |
 | **Assets Config** | Database (`assets_config`) | Logo paths, favicon, OG images |
-| **Community Config** | Database (`community_config`) | URLs, social handles, contracts, tokens |
+| **Community Config** | Database (`community_config`) | URLs, social handles, governance identifiers, tokens |
 | **Fidgets Config** | Database (`fidgets_config`) | Enabled/disabled fidget IDs |
 | **Navigation Config** | Database (`navigation_config`) | Navigation items with `spaceId` refs |
-| **UI Config** | Database (`ui_config`) | Primary colors, hover states |
+| **UI Config** | Database (`ui_config`) | Primary colors, hover states, font colors, font URL |
 | **Themes** | `src/config/shared/themes.ts` | Shared across all communities |
 | **Navigation Pages** | Supabase Storage (`spaces` bucket) | Stored as Spaces, referenced by `spaceId` |
 
@@ -538,4 +538,3 @@ RootLayout (Server Component)
 3. **Admin UI**: Could build admin interface for config updates
 4. **Validation**: Could add JSON schema validation for configs
 5. **Rollback**: Could add version history and rollback capabilities
-

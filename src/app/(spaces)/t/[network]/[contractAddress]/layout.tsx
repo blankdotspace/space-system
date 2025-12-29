@@ -2,21 +2,25 @@ import { WEBSITE_URL } from "@/constants/app";
 import { Metadata } from "next/types";
 import React from "react";
 import { getTokenMetadataStructure } from "@/common/lib/utils/tokenMetadata";
-import { defaultFrame } from "@/constants/metadata";
+import { getDefaultFrame } from "@/constants/metadata";
 import { fetchMasterTokenServer } from "@/common/data/queries/serverTokenData";
 import { EtherScanChainName } from "@/constants/etherscanChainIds";
 
 // Default metadata (used as fallback)
-const defaultMetadata = {
-  other: {
-    "fc:frame": JSON.stringify(defaultFrame),
-  },
-};
+async function buildDefaultMetadata(): Promise<Metadata> {
+  const defaultFrame = await getDefaultFrame();
+  return {
+    other: {
+      "fc:frame": JSON.stringify(defaultFrame),
+    },
+  };
+}
 
 export async function generateMetadata({
   params,
 }): Promise<Metadata> {
   const { network, contractAddress, tabName: tabNameParam } = await params;
+  const defaultMetadata = await buildDefaultMetadata();
   
   if (!network || !contractAddress) {
     return defaultMetadata; // Return default metadata if no network/contractAddress
@@ -123,4 +127,3 @@ export async function generateMetadata({
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return children;
 }
-

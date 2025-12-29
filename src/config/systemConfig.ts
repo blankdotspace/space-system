@@ -1,12 +1,11 @@
 // This file contains only the SystemConfig interface
 // Individual configurations are imported from their respective folders
 
-import { Address } from "viem";
-
 export type CommunityTokenNetwork = "mainnet" | "base" | "polygon" | "eth";
 
 export interface CommunityErc20Token {
   address: string;
+  name?: string;
   symbol: string;
   decimals: number;
   network?: CommunityTokenNetwork;
@@ -14,6 +13,7 @@ export interface CommunityErc20Token {
 
 export interface CommunityNftToken {
   address: string;
+  name?: string;
   symbol: string;
   type: "erc721" | "erc1155" | string;
   network?: CommunityTokenNetwork;
@@ -36,6 +36,10 @@ export interface SystemConfig {
 }
 
 export interface UIConfig {
+  url?: string;
+  fontColor?: string;
+  castButtonFontColor?: string;
+  backgroundColor?: string;
   primaryColor: string;
   primaryHoverColor: string;
   primaryActiveColor: string;
@@ -47,9 +51,7 @@ export interface UIConfig {
 }
 
 export interface BrandConfig {
-  name: string;
   displayName: string;
-  tagline: string;
   description: string;
   miniAppTags: string[];
 }
@@ -99,34 +101,20 @@ export interface ThemeProperties {
 }
 
 
-export type CommunityContractsConfig = {
-  nouns: Address;
-  auctionHouse: Address;
-  space: Address;
-  nogs: Address;
-} & Record<string, Address>;
-
 export interface CommunityConfig {
   type: string;
   urls: {
     website: string;
     discord: string;
-    twitter: string;
-    github: string;
-    forum: string;
   };
-  social: {
-    farcaster: string;
-    discord: string;
-    twitter: string;
+  social?: {
+    farcaster?: string;
   };
-  governance: {
-    proposals: string;
-    delegates: string;
-    treasury: string;
+  governance?: {
+    snapshotSpace?: string;
+    nounishGov?: string;
   };
-  tokens: CommunityTokensConfig;
-  contracts: CommunityContractsConfig;
+  tokens?: CommunityTokensConfig;
 }
 
 export interface FidgetConfig {

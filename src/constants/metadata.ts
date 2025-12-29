@@ -21,7 +21,7 @@ export async function getDefaultFrame() {
     version: "next",
     imageUrl: `${WEBSITE_URL}${config.assets.logos.og}`,
     button: {
-      title: config.brand.name,
+      title: config.brand.displayName,
       action: {
         type: "launch_frame",
         url: WEBSITE_URL,
@@ -36,9 +36,9 @@ export async function getDefaultFrame() {
 export async function getMetadata() {
   const config = await getConfig();
   return {
-    APP_NAME: config.brand.name,
+    APP_NAME: config.brand.displayName,
     APP_ICON: `${WEBSITE_URL}${config.assets.logos.icon}`,
-    APP_SUBTITLE: config.brand.tagline,
+    APP_SUBTITLE: config.brand.description,
     APP_BUTTON_TITLE: 'Open Space',
     APP_DESCRIPTION: config.brand.description,
     APP_TAGS: config.brand.miniAppTags,
@@ -46,14 +46,9 @@ export async function getMetadata() {
     SPLASH_BACKGROUND_COLOR: '#FFFFFF',
     APP_PRIMARY_CATEGORY: 'social',
     APP_HERO_IMAGE: `${WEBSITE_URL}${config.assets.logos.splash}`,
-    APP_TAGLINE: config.brand.tagline,
+    APP_TAGLINE: config.brand.description,
     APP_OG_TITLE: config.brand.displayName,
     APP_OG_DESCRIPTION: config.brand.description,
     APP_OG_IMAGE: `${WEBSITE_URL}${config.assets.logos.og}`,
   };
 }
-
-// Legacy exports for backward compatibility (will be async)
-// These should be migrated to use getDefaultFrame() and getMetadata() instead
-export const defaultFrame = getDefaultFrame();
-export const metadata = getMetadata();
