@@ -7,6 +7,7 @@ import {
 } from './systemConfig';
 import { 
   ConfigLoadContext,
+  DEFAULT_COMMUNITY_ID,
   getCommunityConfigForDomain,
   loadSystemConfigById,
 } from './loaders';
@@ -55,7 +56,8 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
       // Log header read for Vercel visibility
       console.error(`[Config] Read x-detected-domain header: "${domain ?? 'null'}"`);
     } catch (error) {
-      // Not in request context (static generation, etc.)
+      // Not in request context (static generation/build time)
+      // This should not happen if layout is set to dynamic
       domain = undefined;
       console.error(`[Config] Failed to read headers (not in request context)`);
     }
@@ -86,11 +88,14 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
     return await loadSystemConfigById(devCommunityId);
   }
 
-  // No domain or communityId provided - throw error (no default fallback)
+  // No domain or communityId provided - throw error
+  // This should not happen at runtime if middleware is working correctly
+  // If this happens during build, the layout should be set to dynamic
   throw new Error(
     `❌ Cannot load system config: No domain or communityId provided. ` +
     `Either provide a domain in the request context, or set NEXT_PUBLIC_TEST_COMMUNITY in development. ` +
-    `Check: Is the middleware setting the x-detected-domain header correctly?`
+    `Check: Is the middleware setting the x-detected-domain header correctly? ` +
+    `If this happens during build, ensure the layout uses 'export const dynamic = "force-dynamic"'.`
   );
 }
 
