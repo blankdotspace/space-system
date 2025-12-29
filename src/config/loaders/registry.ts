@@ -137,34 +137,36 @@ function writeSystemConfigCache(communityId: string, value: SystemConfig | null)
 export async function getCommunityConfigForDomain(
   domain: string
 ): Promise<{ communityId: string; config: SystemConfig } | null> {
+  // CRITICAL LOG - should definitely appear in Vercel
+  console.error(`[getCommunityConfigForDomain] ENTRY - domain: "${domain}"`);
+  
   // Resolve community ID from domain (simple priority)
   const communityId = resolveCommunityIdFromDomain(domain);
   
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`[Config] Resolving domain "${domain}" → communityId: "${communityId}"`);
-  }
+  // Always log domain resolution - use console.error for visibility in Vercel
+  console.error(`[Config] Domain resolution: "${domain}" → communityId: "${communityId}"`);
   
   // Check cache first
   const cached = readSystemConfigCache(communityId);
   if (cached) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[Config] Cache hit for communityId: "${communityId}"`);
-    }
+    console.error(`[Config] Cache hit for communityId: "${communityId}"`);
     return { communityId, config: cached };
   }
+  
+  // Log cache miss and show what's in cache (for debugging)
+  const cacheKeys = Array.from(SYSTEM_CONFIG_CACHE.keys());
+  console.error(`[Config] Cache miss for communityId: "${communityId}". Cache contains keys: [${cacheKeys.join(', ') || 'none'}]`);
 
   // Try primary community ID
   const primaryConfig = await tryLoadCommunityConfig(communityId);
   if (primaryConfig) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[Config] ✅ Loaded config for communityId: "${communityId}"`);
-    }
+    console.error(`[Config] Loaded config for communityId: "${communityId}"`);
     return { communityId, config: primaryConfig };
   }
 
   // Config not found - return null with informative error (always log, not just in dev)
   console.error(
-    `[Config] ❌ Community config not found for domain "${domain}" (resolved to communityId: "${communityId}"). ` +
+    `[Config] Community config not found for domain "${domain}" (resolved to communityId: "${communityId}"). ` +
     `No automatic fallback to default. ` +
     `Check: Does a record exist in community_configs with community_id="${communityId}" and is_published=true?`
   );
@@ -179,15 +181,26 @@ async function tryLoadCommunityConfig(communityId: string): Promise<SystemConfig
   // Check cache
   const cached = readSystemConfigCache(communityId);
   if (cached !== undefined) {
+    if (cached) {
+      console.error(`[Config] Cache hit in tryLoadCommunityConfig for communityId: "${communityId}"`);
+    }
     return cached;
   }
+  
+  // Log cache miss
+  const cacheKeys = Array.from(SYSTEM_CONFIG_CACHE.keys());
+  console.error(`[Config] Cache miss in tryLoadCommunityConfig for communityId: "${communityId}". Cache contains keys: [${cacheKeys.join(', ')}]`);
 
   // Query Supabase
   const supabase = createSupabaseServerClient();
   
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`[Config] 🔍 Querying database for communityId: "${communityId}"`);
-  }
+  // Always log database query - use console.error for visibility in Vercel
+  console.error(
+    `[Config] Querying database: ` +
+    `SELECT * FROM community_configs ` +
+    `WHERE community_id = '${communityId}' AND is_published = true ` +
+    `ORDER BY updated_at DESC LIMIT 1`
+  );
   
   const { data, error } = await supabase
     .from('community_configs')
@@ -206,10 +219,9 @@ async function tryLoadCommunityConfig(communityId: string): Promise<SystemConfig
     
     if (isNotFoundError) {
       // Legitimate "not found" - return null without caching
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[Config] ❌ Community config not found in database: "${communityId}" (PGRST116)`);
-        console.log(`[Config] 💡 Check: Does a record exist with community_id="${communityId}" and is_published=true?`);
-      }
+      // Always log (not just dev) for Vercel visibility
+      console.error(`[Config] Community config not found in database: "${communityId}" (PGRST116)`);
+      console.error(`[Config] Check: Does a record exist with community_id="${communityId}" and is_published=true?`);
       return null;
     } else {
       // Transient/unknown error - don't cache null to avoid suppressing valid entries
@@ -226,16 +238,14 @@ async function tryLoadCommunityConfig(communityId: string): Promise<SystemConfig
   if (!data) {
     // No data returned but no error - legitimate not found
     // Don't cache null to allow retries if config is added later
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[Config] ❌ No data returned for communityId: "${communityId}"`);
-      console.log(`[Config] 💡 Check: Does a record exist with community_id="${communityId}" and is_published=true?`);
-    }
+    // Always log (not just dev) for Vercel visibility
+    console.error(`[Config] No data returned for communityId: "${communityId}"`);
+    console.error(`[Config] Check: Does a record exist with community_id="${communityId}" and is_published=true?`);
     return null;
   }
   
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`[Config] ✅ Found config in database for communityId: "${communityId}"`);
-  }
+  // Always log success for Vercel visibility
+  console.error(`[Config] Found config in database for communityId: "${communityId}"`);
 
   // Validate config structure - check all required fields
   const requiredFields = ['brand_config', 'assets_config', 'community_config', 'fidgets_config'] as const;

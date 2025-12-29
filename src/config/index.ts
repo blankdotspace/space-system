@@ -25,6 +25,9 @@ import {
  * @returns The loaded system configuration (always async)
  */
 export async function loadSystemConfig(context?: ConfigLoadContext): Promise<SystemConfig> {
+  // Entry point log - should show in Vercel
+  console.error('[loadSystemConfig] Entry point called', { hasContext: !!context, hasCommunityId: !!context?.communityId, hasDomain: !!context?.domain });
+  
   // Priority 1: Explicit communityId provided
   if (context?.communityId) {
     try {
@@ -50,19 +53,21 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
       const { headers } = await import('next/headers');
       const headersList = await headers();
       domain = headersList.get('x-detected-domain') ?? undefined;
+      // Log header read for Vercel visibility
+      console.error(`[Config] Read x-detected-domain header: "${domain ?? 'null'}"`);
     } catch (error) {
       // Not in request context (static generation, etc.)
       domain = undefined;
+      console.error(`[Config] Failed to read headers (not in request context)`);
     }
   }
 
   if (domain) {
+    console.error(`[Config] Starting domain resolution for: "${domain}"`);
     const resolution = await getCommunityConfigForDomain(domain);
     if (resolution) {
-      // Log which community is being loaded (in development)
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`✅ Loading config for community: ${resolution.communityId} (domain: ${domain})`);
-      }
+      // Always log for Vercel visibility
+      console.error(`[Config] Successfully loaded config for community: ${resolution.communityId} (domain: ${domain})`);
       return resolution.config;
     }
     // Domain provided but config not found - throw informative error

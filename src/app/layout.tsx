@@ -149,7 +149,10 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Log entry point - this should definitely show in Vercel logs
+  console.error('[RootLayout] Starting loadSystemConfig...');
   const systemConfig = await loadSystemConfig();
+  console.error(`[RootLayout] Config loaded for community: ${systemConfig.brand?.displayName || 'unknown'}`);
   const validatedUiStylesheet = validateStylesheetUrl(systemConfig.ui?.url);
   const navFontFamily = extractFontFamilyFromUrl(validatedUiStylesheet ?? undefined);
   const navFontStack =

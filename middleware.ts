@@ -17,12 +17,18 @@ export function middleware(request: NextRequest) {
 
   const domain = normalizeDomain(host);
   
+  // Log in middleware - should show in Vercel logs
+  console.error(`[Middleware] Host: "${host}" → Normalized domain: "${domain}"`);
+  
   // Create response
   const response = NextResponse.next();
   
   // Set domain header for Server Components to read
   if (domain) {
     response.headers.set('x-detected-domain', domain);
+    console.error(`[Middleware] Set x-detected-domain header: "${domain}"`);
+  } else {
+    console.error(`[Middleware] No domain to set (host was: "${host}")`);
   }
   
   return response;
