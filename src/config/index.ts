@@ -44,31 +44,24 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
     }
   }
 
-  // Priority 2: Resolve from domain (uses cached lookup)
+  // Priority 2: Resolve from domain
   let domain: string | undefined = context?.domain;
   
   if (!domain) {
-    // Get domain from middleware-set header (server-side only)
+    // Read host header directly (no middleware needed)
     try {
       const { headers } = await import('next/headers');
       const headersList = await headers();
-      let headerValue = headersList.get('x-detected-domain');
+      const host = headersList.get('host') || headersList.get('x-forwarded-host');
       
-      // If middleware didn't set the header, try to get host directly and normalize it
-      if (!headerValue) {
-        const host = headersList.get('host') || headersList.get('x-forwarded-host');
-        console.error(`[Config] x-detected-domain header not found, reading host directly: "${host}"`);
-        if (host) {
-          // Import normalizeDomain to normalize the host
-          const { normalizeDomain } = await import('./loaders/registry');
-          headerValue = normalizeDomain(host);
-          console.error(`[Config] Normalized host to domain: "${headerValue}"`);
-        }
+      if (host) {
+        // Import normalizeDomain to normalize the host
+        const { normalizeDomain } = await import('./loaders/registry');
+        domain = normalizeDomain(host);
+        console.error(`[Config] Read host header: "${host}" → normalized domain: "${domain}"`);
       } else {
-        console.error(`[Config] Found x-detected-domain header: "${headerValue}"`);
+        console.error(`[Config] No host header found`);
       }
-      
-      domain = headerValue ?? undefined;
     } catch (error) {
       // Not in request context (static generation/build time)
       // This should not happen if layout is set to dynamic
@@ -103,12 +96,12 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
   }
 
   // No domain or communityId provided - throw error
-  // This should not happen at runtime if middleware is working correctly
+  // This should not happen at runtime if host header is available
   // If this happens during build, the layout should be set to dynamic
   throw new Error(
     `❌ Cannot load system config: No domain or communityId provided. ` +
     `Either provide a domain in the request context, or set NEXT_PUBLIC_TEST_COMMUNITY in development. ` +
-    `Check: Is the middleware setting the x-detected-domain header correctly? ` +
+    `Check: Is the host header available in the request? ` +
     `If this happens during build, ensure the layout uses 'export const dynamic = "force-dynamic"'.`
   );
 }
