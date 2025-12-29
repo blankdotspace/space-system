@@ -24,24 +24,42 @@ const OpenGraphEmbed: React.FC<OpenGraphEmbedProps> = ({ url }) => {
       setIsLoading(false);
       return;
     }
+    let isMounted = true;
+
     const fetchOGData = async () => {
       try {
         setIsLoading(true);
+        setOgData(null);
+        setError(null);
+
         const response = await fetch(
           `/api/opengraph?url=${encodeURIComponent(url)}`
         );
+
         if (!response.ok) {
           throw new Error(`Failed to fetch: ${response.statusText}`);
         }
+
         const data = await response.json();
+
+        if (!isMounted) return;
+
         setOgData(data);
       } catch (err) {
+        if (!isMounted) return;
         setError(err instanceof Error ? err.message : "Unknown error");
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
+
     fetchOGData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [url]);
 
   const youtubeId = getYouTubeId(url);
@@ -59,28 +77,28 @@ const OpenGraphEmbed: React.FC<OpenGraphEmbedProps> = ({ url }) => {
     );
   }
 
+  const domain = (() => {
+    try {
+      return new URL(ogData?.url || url).hostname.replace(/^www\./, "");
+    } catch (err) {
+      console.debug("Failed to parse domain for OpenGraph embed", err);
+      return "";
+    }
+  })();
+
+  const title = ogData?.title || ogData?.siteName || domain;
+
   if (isLoading) {
     return (
-      <div className="border border-gray-200 rounded-lg p-4 w-full max-w-2xl">
-        <div className="animate-pulse">
-          <div className="bg-gray-300 h-4 rounded w-3/4 mb-2"></div>
-          <div className="bg-gray-300 h-3 rounded w-1/2"></div>
-        </div>
+      <div className="w-full max-w-2xl">
+        <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-foreground/10 animate-pulse" />
+        <div className="mt-2 h-4 w-28 rounded-full bg-foreground/10 animate-pulse" />
       </div>
     );
   }
 
-  if (error || !ogData) {
-    return (
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center text-blue-500 hover:text-blue-700 hover:underline"
-      >
-        🔗 {new URL(url).hostname}
-      </a>
-    );
+  if (error || !ogData?.image || !title) {
+    return null;
   }
 
   return (
@@ -88,36 +106,29 @@ const OpenGraphEmbed: React.FC<OpenGraphEmbedProps> = ({ url }) => {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="block border border-gray-200 rounded-lg overflow-hidden hover:border-gray-300 transition-colors w-full max-w-2xl"
+      className="block w-full max-w-2xl"
     >
-      {ogData.image && (
-        <div className="relative w-full h-48">
-          <Image
-            src={ogData.image}
-            alt={ogData.title || "Link preview"}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          />
-        </div>
-      )}
-      <div className="p-4">
-        {ogData.title && (
-          <h3 className="font-semibold text-gray-900 mb-1 line-clamp-2">
-            {ogData.title}
-          </h3>
-        )}
-        {ogData.description && (
-          <p className="text-gray-600 text-sm mb-2 line-clamp-2">
-            {ogData.description}
-          </p>
-        )}
-        <div className="flex items-center text-gray-500 text-xs">
-          <span className="truncate">
-            {ogData.siteName || new URL(url).hostname}
-          </span>
+      <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-foreground/10">
+        <Image
+          src={ogData.image}
+          alt={title}
+          fill
+          className="object-cover"
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 75vw, 50vw"
+        />
+
+        <div className="absolute bottom-3 left-3 right-3 flex">
+          <div className="inline-flex max-w-full items-center rounded-lg bg-black/65 px-3 py-2 backdrop-blur-sm">
+            <p className="line-clamp-2 text-sm font-semibold leading-snug text-white">
+              {title}
+            </p>
+          </div>
         </div>
       </div>
+
+      {domain ? (
+        <div className="mt-2 text-sm text-foreground/60">{domain}</div>
+      ) : null}
     </a>
   );
 };

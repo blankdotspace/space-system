@@ -32,6 +32,8 @@ import CreateCast, { DraftType } from "./CreateCast";
 import { renderEmbedForUrl, type CastEmbed } from "./Embeds";
 import { AnalyticsEvent } from "@/common/constants/analyticsEvents";
 import { useToastStore } from "@/common/data/stores/toastStore";
+import { isImageUrl, isVideoUrl } from "@/common/lib/utils/urls";
+import { isLikelyFrameUrl } from "@/common/lib/utils/frameDetection";
 
 function isEmbedUrl(maybe: unknown): maybe is EmbedUrl {
   return isObject(maybe) && typeof maybe["url"] === "string";
@@ -162,6 +164,30 @@ const getEmbedUrls = (cast: CastWithInteractions): Array<EmbedUrl | { cast_id?: 
   return "embeds" in cast && cast.embeds ? cast.embeds : [];
 };
 
+const isPriorityUrl = (url: string | undefined | null) => {
+  if (!url) return false;
+
+  return (
+    isImageUrl(url) ||
+    isVideoUrl(url) ||
+    isLikelyFrameUrl(url) ||
+    url.startsWith('"chain:') ||
+    (url.startsWith("https://warpcast.com") && !url.includes("/~/")) ||
+    ((url.includes("twitter.com") || url.startsWith("https://x.com")) && url.includes("status/")) ||
+    url.startsWith("https://nouns.build") ||
+    url.includes("zora.co") ||
+    url.startsWith("zoraCoin:") ||
+    url.includes("paragraph.xyz") ||
+    url.includes("pgrph.xyz") ||
+    url.startsWith("https://open.spotify.com/track")
+  );
+};
+
+const isPriorityEmbed = (embed: EmbedUrl | { cast_id?: { hash?: string | Uint8Array } }) => {
+  if (!isEmbedUrl(embed)) return Boolean(embed.cast_id);
+  return isPriorityUrl(embed.url);
+};
+
 // Helper: check if a URL is a Twitter/X URL
 const isTwitterUrl = (url: string | undefined | null): boolean => {
   if (!url || typeof url !== "string") return false;
@@ -183,6 +209,9 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
     return null;
   }
 
+  const hasPriorityEmbed = embedUrls.some((embed) => isPriorityEmbed(embed));
+  let hasRenderedOpenGraph = false;
+
   return (
     <ErrorBoundary>
       {/* Render embeds from API */}
@@ -198,6 +227,18 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
             };
 
         const isTwitterEmbed = isTwitterUrl(isEmbedUrl(embed) ? embed.url : embedData.url);
+
+        const shouldAllowOpenGraph =
+          !hasPriorityEmbed && !hasRenderedOpenGraph && isEmbedUrl(embed) && !isPriorityUrl(embed.url);
+        const renderedEmbed = renderEmbedForUrl(embedData, false, shouldAllowOpenGraph);
+
+        if (shouldAllowOpenGraph && renderedEmbed) {
+          hasRenderedOpenGraph = true;
+        }
+
+        if (!renderedEmbed) {
+          return null;
+        }
 
         return (
           <div
@@ -216,7 +257,7 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
               }
             }}
           >
-            {renderEmbedForUrl(embedData, false)}
+            {renderedEmbed}
           </div>
         );
       })}
@@ -234,6 +275,17 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
 
         const isTwitterTextUrl = isTwitterUrl(url);
 
+        const shouldAllowOpenGraph = !hasPriorityEmbed && !hasRenderedOpenGraph && !isPriorityUrl(url);
+        const renderedEmbed = renderEmbedForUrl(embedData, false, shouldAllowOpenGraph);
+
+        if (shouldAllowOpenGraph && renderedEmbed) {
+          hasRenderedOpenGraph = true;
+        }
+
+        if (!renderedEmbed) {
+          return null;
+        }
+
         return (
           <div
             key={`text-url-${i}`}
@@ -243,7 +295,7 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
               "max-w-max"
             )}
           >
-            {renderEmbedForUrl(embedData, false)}
+            {renderedEmbed}
           </div>
         );
       })}

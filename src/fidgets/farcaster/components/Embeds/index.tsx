@@ -23,7 +23,8 @@ export type CastEmbed = {
 
 export const renderEmbedForUrl = (
   { url, castId, key }: CastEmbed,
-  isCreateCast: boolean
+  isCreateCast: boolean,
+  allowOpenGraph = true
 ) => {
   if (castId) {
     return <EmbededCast castId={castId} key={key} />;
@@ -70,7 +71,7 @@ export const renderEmbedForUrl = (
   } else if (!isImageUrl(url)) {
     // Use smart frame detection to render Frame v2 when possible
     // Falls back to legacy frame system if Frame v2 metadata is not detected
-    return <SmartFrameEmbed url={url} key={key} />;
+    return <SmartFrameEmbed url={url} key={key} allowOpenGraph={allowOpenGraph} />;
   } else {
     return null;
   }
