@@ -252,6 +252,7 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
             };
 
         const isTwitterEmbed = isTwitterUrl(isEmbedUrl(embed) ? embed.url : embedData.url);
+        const isVideoEmbed = isEmbedUrl(embed) && isVideoUrl(embed.url);
 
         const shouldAllowOpenGraph =
           !hasPriorityEmbed && !hasRenderedOpenGraph && isEmbedUrl(embed) && !isPriorityUrl(embed.url);
@@ -270,8 +271,11 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
 
         const wrapperClass = classNames(
           "mt-4 w-full",
-          !isTwitterEmbed && !isFrameEmbed ? "overflow-hidden max-h-[500px]" : "",
-          isFrameEmbed || isOgEmbed ? "" : "gap-y-4 border border-foreground/15 rounded-xl flex justify-center items-center bg-background/50"
+          isFrameEmbed || isOgEmbed || isVideoEmbed ? "max-w-[680px]" : "max-w-full",
+          !isTwitterEmbed && !isFrameEmbed && !isVideoEmbed ? "overflow-hidden max-h-[500px]" : "",
+          isFrameEmbed || isOgEmbed || isVideoEmbed
+            ? ""
+            : "gap-y-4 border border-foreground/15 rounded-xl flex justify-center items-center bg-background/50"
         );
 
         return (
@@ -317,6 +321,7 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
 
         const wrapperClass = classNames(
           "mt-4 w-full",
+          shouldAllowOpenGraph ? "max-w-[680px]" : "max-w-full",
           !isTwitterTextUrl ? "overflow-hidden max-h-[500px]" : "",
           shouldAllowOpenGraph ? "" : "gap-y-4 border border-foreground/15 rounded-xl flex justify-center items-center bg-background/50"
         );
