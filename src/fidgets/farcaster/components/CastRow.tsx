@@ -265,15 +265,19 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
           return null;
         }
 
+        const isFrameEmbed = isEmbedUrl(embed) && Boolean(embed.metadata?.frame);
+        const isOgEmbed = isEmbedUrl(embed) && shouldAllowOpenGraph && !isFrameEmbed;
+
+        const wrapperClass = classNames(
+          "mt-4 w-full",
+          !isTwitterEmbed && !isFrameEmbed ? "overflow-hidden max-h-[500px]" : "",
+          isFrameEmbed || isOgEmbed ? "" : "gap-y-4 border border-foreground/15 rounded-xl flex justify-center items-center bg-background/50"
+        );
+
         return (
           <div
             key={`embed-${i}`}
-            className={classNames(
-              "mt-4 gap-y-4 border border-foreground/15 rounded-xl flex justify-center items-center w-full bg-background/50",
-              // only apply clipping for non-twitter embeds
-              !isTwitterEmbed ? "overflow-hidden max-h-[500px]" : "",
-              embedData.castId ? "max-w-full" : "max-w-full"
-            )}
+            className={wrapperClass}
             onClick={(event) => {
               event.stopPropagation();
               if (embedData?.castId?.hash) {
@@ -311,15 +315,14 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
           return null;
         }
 
+        const wrapperClass = classNames(
+          "mt-4 w-full",
+          !isTwitterTextUrl ? "overflow-hidden max-h-[500px]" : "",
+          shouldAllowOpenGraph ? "" : "gap-y-4 border border-foreground/15 rounded-xl flex justify-center items-center bg-background/50"
+        );
+
         return (
-          <div
-            key={`text-url-${i}`}
-            className={classNames(
-              "mt-4 gap-y-4 border border-foreground/15 rounded-xl flex justify-center items-center w-full bg-background/50",
-              !isTwitterTextUrl ? "overflow-hidden max-h-[500px]" : "",
-              "max-w-full"
-            )}
-          >
+          <div key={`text-url-${i}`} className={wrapperClass}>
             {renderedEmbed}
           </div>
         );

@@ -86,7 +86,7 @@ const OpenGraphEmbed: React.FC<OpenGraphEmbedProps> = ({ url, metadata }) => {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="block w-full max-w-full sm:max-w-2xl"
+      className="block w-full max-w-full sm:max-w-[680px]"
     >
       <div className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl bg-foreground/10">
         <Image
@@ -107,7 +107,7 @@ const OpenGraphEmbed: React.FC<OpenGraphEmbedProps> = ({ url, metadata }) => {
       </div>
 
       {domain ? (
-        <div className="mt-2 text-sm text-foreground/60">{domain}</div>
+        <div className="mt-2 text-sm text-foreground/60 pl-3">{domain}</div>
       ) : null}
     </a>
   );
