@@ -57,7 +57,7 @@ function resolveCommunityIdFromDomain(domain: string): string {
   
   // Priority 3: Domain as community ID (e.g., example.nounspace.com → example.nounspace.com)
   return normalizedDomain;
-}
+} 
 
 /**
  * Normalize an incoming domain/host value for consistent resolution.
@@ -132,9 +132,6 @@ function writeSystemConfigCache(communityId: string, value: SystemConfig | null)
 export async function getCommunityConfigForDomain(
   domain: string
 ): Promise<{ communityId: string; config: SystemConfig } | null> {
-  // CRITICAL LOG - should definitely appear in Vercel
-  console.error(`[getCommunityConfigForDomain] ENTRY - domain: "${domain}"`);
-  
   // Resolve community ID from domain (throws if cannot resolve)
   let communityId: string;
   try {
@@ -144,24 +141,16 @@ export async function getCommunityConfigForDomain(
     console.error(`[Config] Failed to resolve community ID from domain "${domain}": ${errorMessage}`);
     return null;
   }
-  
-  // Always log domain resolution - use console.error for visibility in Vercel
-  console.error(`[Config] Domain resolution: "${domain}" → communityId: "${communityId}"`);
-  
-  // BYPASS CACHE - Direct database lookup only
-  console.error(`[Config] Bypassing cache, querying database directly for communityId: "${communityId}"`);
 
   // Load config from database
   const primaryConfig = await loadCommunityConfigFromDatabase(communityId);
   if (primaryConfig) {
-    console.error(`[Config] Loaded config for communityId: "${communityId}"`);
     return { communityId, config: primaryConfig };
   }
 
-  // Config not found - return null with informative error (always log, not just in dev)
+  // Config not found - log error
   console.error(
     `[Config] Community config not found for domain "${domain}" (resolved to communityId: "${communityId}"). ` +
-    `No automatic fallback to default. ` +
     `Check: Does a record exist in community_configs with community_id="${communityId}" and is_published=true?`
   );
   return null;
@@ -173,19 +162,8 @@ export async function getCommunityConfigForDomain(
  * This is the single source of truth for database queries.
  */
 async function loadCommunityConfigFromDatabase(communityId: string): Promise<SystemConfig | null> {
-  // BYPASS CACHE - Direct database lookup only
-  console.error(`[Config] Querying database for communityId: "${communityId}"`);
-
   // Query Supabase
   const supabase = createSupabaseServerClient();
-  
-  // Always log database query - use console.error for visibility in Vercel
-  console.error(
-    `[Config] Querying database: ` +
-    `SELECT * FROM community_configs ` +
-    `WHERE community_id = '${communityId}' AND is_published = true ` +
-    `ORDER BY updated_at DESC LIMIT 1`
-  );
   
   const { data, error } = await supabase
     .from('community_configs')
@@ -202,8 +180,6 @@ async function loadCommunityConfigFromDatabase(communityId: string): Promise<Sys
     
     if (isNotFoundError) {
       // Legitimate "not found" - return null
-      console.error(`[Config] Community config not found in database: "${communityId}" (PGRST116)`);
-      console.error(`[Config] Check: Does a record exist with community_id="${communityId}" and is_published=true?`);
       return null;
     } else {
       // Transient/unknown error - return null to allow retries
@@ -219,13 +195,8 @@ async function loadCommunityConfigFromDatabase(communityId: string): Promise<Sys
 
   if (!data) {
     // No data returned but no error - legitimate not found
-    console.error(`[Config] No data returned for communityId: "${communityId}"`);
-    console.error(`[Config] Check: Does a record exist with community_id="${communityId}" and is_published=true?`);
     return null;
   }
-  
-  // Always log success for Vercel visibility
-  console.error(`[Config] Found config in database for communityId: "${communityId}"`);
 
   // Validate config structure - check all required fields
   const requiredFields = ['brand_config', 'assets_config', 'community_config', 'fidgets_config'] as const;
@@ -249,9 +220,6 @@ async function loadCommunityConfigFromDatabase(communityId: string): Promise<Sys
 
   // Transform to SystemConfig
   const systemConfig = transformRowToSystemConfig(data);
-  
-  // BYPASS CACHE - Not caching result
-  console.error(`[Config] Loaded config for communityId: "${communityId}" (not cached)`);
   
   return systemConfig;
 }

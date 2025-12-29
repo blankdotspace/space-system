@@ -25,9 +25,6 @@ import {
  * @returns The loaded system configuration (always async)
  */
 export async function loadSystemConfig(context?: ConfigLoadContext): Promise<SystemConfig> {
-  // Entry point log - should show in Vercel
-  console.error('[loadSystemConfig] Entry point called', { hasContext: !!context, hasCommunityId: !!context?.communityId, hasDomain: !!context?.domain });
-  
   // Priority 1: Explicit communityId provided
   if (context?.communityId) {
     try {
@@ -58,9 +55,6 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
         // Import normalizeDomain to normalize the host
         const { normalizeDomain } = await import('./loaders/registry');
         domain = normalizeDomain(host);
-        console.error(`[Config] Read host header: "${host}" → normalized domain: "${domain}"`);
-      } else {
-        console.error(`[Config] No host header found`);
       }
     } catch (error) {
       // Not in request context (static generation/build time)
@@ -71,11 +65,8 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
   }
 
   if (domain) {
-    console.error(`[Config] Starting domain resolution for: "${domain}"`);
     const resolution = await getCommunityConfigForDomain(domain);
     if (resolution) {
-      // Always log for Vercel visibility
-      console.error(`[Config] Successfully loaded config for community: ${resolution.communityId} (domain: ${domain})`);
       return resolution.config;
     }
     // Domain provided but config not found - throw informative error
