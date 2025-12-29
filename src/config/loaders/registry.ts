@@ -3,20 +3,21 @@ import { Database } from '@/supabase/database';
 import { SystemConfig } from '../systemConfig';
 import { themes } from '../shared/themes';
 
+export const DEFAULT_COMMUNITY_ID = 'nounspace.com';
+
 /**
  * Special domain mappings
  * 
  * Maps specific domains to community IDs, overriding normal domain resolution.
- * Useful for staging environments, special domains, etc.
+ * Useful for staging environments, special domains, Vercel preview deployments, etc.
  * 
  * Examples:
  * - staging.nounspace.com -> nounspace.com
+ * - *.vercel.app -> nounspace.com (handled separately for pattern matching)
  */
 const DOMAIN_TO_COMMUNITY_MAP: Record<string, string> = {
-  'staging.nounspace.com': 'nounspace.com',
+  'staging.nounspace.com': DEFAULT_COMMUNITY_ID,
 };
-
-export const DEFAULT_COMMUNITY_ID = 'nounspace.com';
 
 type CommunityConfigRow = Database['public']['Tables']['community_configs']['Row'];
 
@@ -47,13 +48,13 @@ function resolveCommunityIdFromDomain(domain: string): string {
   }
   
   // Priority 1: Handle Vercel preview deployments (e.g., nounspace.vercel.app, branch-nounspace.vercel.app)
-  // All Vercel preview deployments should point to nouns community
+  // All Vercel preview deployments should point to nounspace.com community
   // Match any .vercel.app domain (preview deployments have random branch names)
   if (domain.endsWith('.vercel.app')) {
-    return 'nouns';
+    return DEFAULT_COMMUNITY_ID;
   }
   
-  // Priority 2: Special domain mappings
+  // Priority 2: Special domain mappings (from DOMAIN_TO_COMMUNITY_MAP)
   if (normalizedDomain in DOMAIN_TO_COMMUNITY_MAP) {
     return DOMAIN_TO_COMMUNITY_MAP[normalizedDomain];
   }
