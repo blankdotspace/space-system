@@ -1,5 +1,5 @@
 import { ConfigLoadContext } from './types';
-import { DEFAULT_COMMUNITY_ID, resolveCommunityConfig } from './registry';
+import { DEFAULT_COMMUNITY_ID, getCommunityConfigForDomain } from './registry';
 
 /**
  * Resolve community ID from context (async version with caching)
@@ -24,7 +24,10 @@ export async function resolveCommunityId(context: ConfigLoadContext): Promise<st
   
   // Resolve from domain if still no community ID (uses cached Supabase lookup)
   if (!communityId && context.domain) {
-    const resolution = await resolveCommunityConfig(context.domain);
+    const resolution = await getCommunityConfigForDomain(context.domain);
+    if (!resolution) {
+      console.warn('Community config not found for domain', { domain: context.domain });
+    }
     communityId = resolution?.communityId || undefined;
   }
 

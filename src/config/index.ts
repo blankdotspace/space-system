@@ -6,21 +6,11 @@ import {
   type CommunityTokensConfig,
 } from './systemConfig';
 import { 
-  resolveCommunityId,
   ConfigLoadContext,
   DEFAULT_COMMUNITY_ID,
+  getCommunityConfigForDomain,
+  loadSystemConfigById,
 } from './loaders';
-import { RuntimeConfigLoader } from './loaders/runtimeLoader';
-
-// Singleton loader instance
-let loaderInstance: RuntimeConfigLoader | null = null;
-
-function getLoader(): RuntimeConfigLoader {
-  if (!loaderInstance) {
-    loaderInstance = new RuntimeConfigLoader();
-  }
-  return loaderInstance;
-}
 
 /**
  * Load system configuration from database (SERVER-ONLY)
@@ -35,15 +25,28 @@ function getLoader(): RuntimeConfigLoader {
  * @returns The loaded system configuration (always async)
  */
 export async function loadSystemConfig(context?: ConfigLoadContext): Promise<SystemConfig> {
-  // Build context if not provided
-  // Server-side only: uses headers() to detect domain
-  const buildContext = async (): Promise<ConfigLoadContext> => {
-    if (context) {
-      return context;
+  // Priority 1: Explicit communityId provided
+  if (context?.communityId) {
+    try {
+      return await loadSystemConfigById(context.communityId);
+    } catch (error) {
+      // Fallback to default if explicit ID fails
+      if (context.communityId !== DEFAULT_COMMUNITY_ID) {
+        console.warn(
+          `Falling back to default community after failed load for "${context.communityId}".`,
+          error
+        );
+        return await loadSystemConfigById(DEFAULT_COMMUNITY_ID);
+      }
+      throw error;
     }
+  }
 
+  // Priority 2: Resolve from domain (uses cached lookup)
+  let domain: string | undefined = context?.domain;
+  
+  if (!domain) {
     // Get domain from middleware-set header (server-side only)
-    let domain: string | undefined;
     try {
       const { headers } = await import('next/headers');
       const headersList = await headers();
@@ -52,47 +55,33 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
       // Not in request context (static generation, etc.)
       domain = undefined;
     }
-
-    return {
-      communityId: undefined, // Will be resolved via resolveCommunityId()
-      domain,
-      isServer: true,
-    };
-  };
-  
-  const loadContext = await buildContext();
-  
-  // Resolve community ID with priority order (uses cached Supabase lookup)
-  const communityId = await resolveCommunityId(loadContext);
-  const finalContext: ConfigLoadContext = {
-    ...loadContext,
-    communityId,
-  };
-  
-  // Log which community is being loaded (in development)
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`✅ Loading config for community: ${communityId || 'unknown'} (domain: ${loadContext.domain || 'none'})`);
   }
-  
-  // Load config using runtime loader
-  try {
-    return await getLoader().load(finalContext);
-  } catch (error) {
-    // If the resolved community fails to load and isn't already the default,
-    // fall back to the nounspace.com config to avoid runtime crashes.
-    if (communityId && communityId !== DEFAULT_COMMUNITY_ID) {
-      console.warn(
-        `Falling back to default community after failed load for "${communityId}".`,
-        error
-      );
-      return await getLoader().load({
-        ...finalContext,
-        communityId: DEFAULT_COMMUNITY_ID,
-      });
+
+  if (domain) {
+    const resolution = await getCommunityConfigForDomain(domain);
+    if (resolution) {
+      // Log which community is being loaded (in development)
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`✅ Loading config for community: ${resolution.communityId} (domain: ${domain})`);
+      }
+      return resolution.config;
     }
-
-    throw error;
   }
+
+  // Priority 3: Development override
+  if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_TEST_COMMUNITY) {
+    const devCommunityId = process.env.NEXT_PUBLIC_TEST_COMMUNITY;
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ Loading config for community: ${devCommunityId} (dev override)`);
+    }
+    return await loadSystemConfigById(devCommunityId);
+  }
+
+  // Priority 4: Fallback to default
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`✅ Loading config for community: ${DEFAULT_COMMUNITY_ID} (fallback)`);
+  }
+  return await loadSystemConfigById(DEFAULT_COMMUNITY_ID);
 }
 
 // Export SystemConfig type (configs are now database-backed, no static exports)
