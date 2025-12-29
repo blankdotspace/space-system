@@ -1,9 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { getYouTubeId, isYouTubeUrl } from "@/common/lib/utils/youtubeUtils";
+import {
+  type EmbedUrlMetadata,
+  type OgObject,
+} from "@neynar/nodejs-sdk/build/api/models";
 
 interface OpenGraphEmbedProps {
   url: string;
+  metadata?: EmbedUrlMetadata;
 }
 
 interface OpenGraphData {
@@ -14,7 +19,33 @@ interface OpenGraphData {
   url?: string;
 }
 
-const OpenGraphEmbed: React.FC<OpenGraphEmbedProps> = ({ url }) => {
+const pickOgImage = (ogImage?: OgObject["ogImage"]) => {
+  if (!ogImage) return undefined;
+  if (typeof ogImage === "string") return ogImage;
+  if (!Array.isArray(ogImage)) return undefined;
+  const withUrl = ogImage.find((image) => Boolean(image?.url));
+  return withUrl?.url;
+};
+
+const buildOgDataFromMetadata = (
+  url: string,
+  metadata?: EmbedUrlMetadata
+): OpenGraphData | null => {
+  const html = metadata?.html;
+  if (!html) return null;
+
+  const image = pickOgImage(html.ogImage);
+
+  return {
+    title: html.ogTitle || html.ogSiteName || html.title,
+    description: html.ogDescription || html.description,
+    image,
+    siteName: html.ogSiteName,
+    url: html.ogUrl || url,
+  };
+};
+
+const OpenGraphEmbed: React.FC<OpenGraphEmbedProps> = ({ url, metadata }) => {
   const [ogData, setOgData] = useState<OpenGraphData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +55,15 @@ const OpenGraphEmbed: React.FC<OpenGraphEmbedProps> = ({ url }) => {
       setIsLoading(false);
       return;
     }
+
+    const fromMetadata = buildOgDataFromMetadata(url, metadata);
+    if (fromMetadata) {
+      setOgData(fromMetadata);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
     let isMounted = true;
 
     const fetchOGData = async () => {
@@ -60,7 +100,7 @@ const OpenGraphEmbed: React.FC<OpenGraphEmbedProps> = ({ url }) => {
     return () => {
       isMounted = false;
     };
-  }, [url]);
+  }, [metadata, url]);
 
   const youtubeId = getYouTubeId(url);
   if (youtubeId) {
@@ -77,14 +117,14 @@ const OpenGraphEmbed: React.FC<OpenGraphEmbedProps> = ({ url }) => {
     );
   }
 
-  const domain = (() => {
+  const domain = useMemo(() => {
     try {
       return new URL(ogData?.url || url).hostname.replace(/^www\./, "");
     } catch (err) {
       console.debug("Failed to parse domain for OpenGraph embed", err);
       return "";
     }
-  })();
+  }, [ogData?.url, url]);
 
   const title = ogData?.title || ogData?.siteName || domain;
 

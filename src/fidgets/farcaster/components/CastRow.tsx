@@ -125,6 +125,29 @@ const extractUrlsFromText = (text: string): string[] => {
   return text.match(urlRegex) || [];
 };
 
+const formatUrlForDisplay = (rawUrl: string, maxLength = 60): string => {
+  try {
+    const parsed = new URL(rawUrl);
+    const hostname = parsed.hostname.replace(/^www\./, "");
+    const pathAndQuery =
+      (parsed.pathname === "/" ? "" : parsed.pathname) + parsed.search;
+
+    const combined = pathAndQuery ? `${hostname}${pathAndQuery}` : hostname;
+    if (combined.length <= maxLength) {
+      return combined;
+    }
+
+    const remaining = Math.max(maxLength - hostname.length - 1, 0);
+    if (remaining <= 0) {
+      return `${hostname.slice(0, maxLength - 1)}…`;
+    }
+
+    return `${hostname}${pathAndQuery.slice(0, remaining)}…`;
+  } catch (error) {
+    return rawUrl.length > maxLength ? `${rawUrl.slice(0, maxLength - 1)}…` : rawUrl;
+  }
+};
+
 // Helper: try to extract a tweet id from a URL
 const getTweetIdFromUrl = (u: string) => {
   try {
@@ -185,6 +208,7 @@ const isPriorityUrl = (url: string | undefined | null) => {
 
 const isPriorityEmbed = (embed: EmbedUrl | { cast_id?: { hash?: string | Uint8Array } }) => {
   if (!isEmbedUrl(embed)) return Boolean(embed.cast_id);
+  if (embed.metadata?.frame) return true;
   return isPriorityUrl(embed.url);
 };
 
@@ -220,6 +244,7 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
           ? {
               url: embed.url,
               key: embed.url,
+              metadata: embed.metadata,
             }
           : {
               castId: embed.cast_id as { fid: number; hash: string | Uint8Array } | undefined,
@@ -660,7 +685,7 @@ const EnhancedLinkify: React.FC<{ children: string; style?: React.CSSProperties 
               className="text-blue-500 hover:underline cursor-pointer break-all"
               onClick={(e) => e.stopPropagation()}
             >
-              {part}
+              {formatUrlForDisplay(part)}
             </a>
           );
         }
@@ -707,19 +732,8 @@ const EnhancedLinkify: React.FC<{ children: string; style?: React.CSSProperties 
       .filter(Boolean);
   };
 
-  // Remove links from Spotify in the rendered text
-  const SPOTIFY_TRACK_URL_REGEX = /https?:\/\/open\.spotify\.com\/track\/[A-Za-z0-9]+/;
-  function hasSpotifyHref(element: unknown): boolean {
-    if (!React.isValidElement(element)) return false;
-    const href = (element.props as { href?: string })?.href;
-    return typeof href === "string" && SPOTIFY_TRACK_URL_REGEX.test(href);
-  }
-  const filtered = linkifyText(children).filter((part) => {
-  if (typeof part === "string" && SPOTIFY_TRACK_URL_REGEX.test(part)) return false;
-  if (hasSpotifyHref(part) === true) return false;
-  return true;
-  });
-  return <span style={style}>{filtered}</span>;
+  const linked = linkifyText(children);
+  return <span style={style}>{linked}</span>;
 };
 
 const CastBodyComponent = ({
@@ -745,26 +759,7 @@ const CastBodyComponent = ({
     [onSelectCast]
   );
 
-  // Removes duplicate links from text if an embed already exists
-  const embedUrls = getEmbedUrls(cast);
-  let filteredText = cast.text || "";
-  try {
-    const textUrls = extractUrlsFromText(filteredText);
-    const textUrlsToRemove = new Set<string>();
-    textUrls.forEach((u) => {
-      if (isUrlAlreadyEmbedded(u, embedUrls)) {
-        textUrlsToRemove.add(u);
-      }
-    });
-
-    textUrlsToRemove.forEach((u) => {
-      filteredText = filteredText.replace(u, "");
-    });
-  // Normalizes whitespace after removing URLs
-    filteredText = filteredText.replace(/\n{3,}/g, "\n\n").trim();
-  } catch (e) {
-  // Error filtering URLs
-  }
+  const filteredText = (cast.text || "").replace(/\n{3,}/g, "\n\n").trim();
 
   return (
     <div className="flex flex-col grow">
