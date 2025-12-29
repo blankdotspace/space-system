@@ -8,6 +8,7 @@ import { ThemeSettingsTooltip } from "./components/ThemeSettingsTooltip";
 import { AnalyticsEvent } from "@/common/constants/analyticsEvents";
 import { analytics } from "@/common/providers/AnalyticsProvider";
 import { useTokenGate } from "@/common/lib/hooks/useTokenGate";
+import { MIN_SPACE_TOKENS_FOR_UNLOCK } from "@/common/constants/gates";
 import type { SystemConfig } from "@/config";
 
 interface BackgroundGeneratorProps {

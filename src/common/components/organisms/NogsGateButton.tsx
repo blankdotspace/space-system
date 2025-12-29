@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { useAppStore } from "@/common/data/stores/app";
 import { RECHECK_BACKOFF_FACTOR } from "@/common/data/stores/app/setup";
 import { ALCHEMY_API } from "@/constants/urls";
@@ -53,8 +53,8 @@ const NogsGateButton = ({ systemConfig, ...props }: NogsGateButtonProps) => {
   // Use token gate hook for ERC20 token gating
   const { erc20Token, gatingSatisfied, walletAddress } = useTokenGate(systemConfig);
   
-  // Extract NFT tokens from config
-  const nftTokens = getNftTokens(systemConfig);
+  // Extract NFT tokens from config - memoize to prevent infinite re-renders
+  const nftTokens = useMemo(() => getNftTokens(systemConfig), [systemConfig]);
 
   // Optional debug logs
   useEffect(() => {
@@ -62,7 +62,7 @@ const NogsGateButton = ({ systemConfig, ...props }: NogsGateButtonProps) => {
       console.log("[DEBUG] ERC20 contract address:", erc20Token.address);
       console.log("[DEBUG] Connected wallet:", walletAddress);
     }
-  }, [erc20Token?.address, walletAddress]);
+  }, [erc20Token, walletAddress]);
 
   // ----- nOGs gating / timers -----
 
@@ -133,6 +133,7 @@ const NogsGateButton = ({ systemConfig, ...props }: NogsGateButtonProps) => {
     }
   }, [
     user,
+    nftTokens, // Include nftTokens since isHoldingNogs uses it
     nogsTimeoutTimer,
     nogsRecheckCountDownTimer,
     nogsRecheckTimerLength,

@@ -187,20 +187,47 @@ async function tryLoadCommunityConfig(communityId: string): Promise<SystemConfig
     .maybeSingle();
 
   if (error) {
-    console.error('Failed to fetch community config', { communityId, error });
-    writeSystemConfigCache(communityId, null);
-    return null;
+    // Don't cache null for errors - allows retries for transient errors
+    // PGRST116 = no rows returned (legitimate not found)
+    // Other errors are likely transient (network, timeout, etc.)
+    const isNotFoundError = error.code === 'PGRST116';
+    
+    if (isNotFoundError) {
+      // Legitimate "not found" - return null without caching
+      return null;
+    } else {
+      // Transient/unknown error - don't cache null to avoid suppressing valid entries
+      console.error('Failed to fetch community config (transient error)', { 
+        communityId, 
+        error: error.message,
+        code: error.code 
+      });
+      return null;
+    }
   }
 
   if (!data) {
-    writeSystemConfigCache(communityId, null);
+    // No data returned but no error - legitimate not found
+    // Don't cache null to allow retries if config is added later
     return null;
   }
 
-  // Validate config structure
-  if (!data.brand_config || !data.assets_config) {
-    console.error('Invalid config structure', { communityId });
-    writeSystemConfigCache(communityId, null);
+  // Validate config structure - check all required fields
+  const requiredFields = ['brand_config', 'assets_config', 'community_config', 'fidgets_config'] as const;
+  const missingFields: string[] = [];
+  
+  for (const field of requiredFields) {
+    if (!data[field]) {
+      missingFields.push(field);
+    }
+  }
+  
+  if (missingFields.length > 0) {
+    // Invalid config structure - don't cache null, allow retries if config is fixed
+    console.error('Invalid config structure', { 
+      communityId, 
+      missingFields 
+    });
     return null;
   }
 
@@ -244,11 +271,20 @@ export async function loadSystemConfigById(
     );
   }
 
-  // Validate config structure
-  if (!data.brand_config || !data.assets_config) {
+  // Validate config structure - check all required fields
+  const requiredFields = ['brand_config', 'assets_config', 'community_config', 'fidgets_config'] as const;
+  const missingFields: string[] = [];
+  
+  for (const field of requiredFields) {
+    if (!data[field]) {
+      missingFields.push(field);
+    }
+  }
+  
+  if (missingFields.length > 0) {
     throw new Error(
       `❌ Invalid config structure from database. ` +
-      `Missing required fields: brand_config, assets_config. ` +
+      `Missing required fields: ${missingFields.join(', ')}. ` +
       `Ensure database is seeded correctly.`
     );
   }
