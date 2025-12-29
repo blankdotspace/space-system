@@ -44,6 +44,14 @@ export type EmbedInspection = {
   error?: string;
 };
 
+export enum CastReactionType {
+  likes = "likes",
+  recasts = "recasts",
+  replies = "replies",
+  quote = "quote",
+  links = "links",
+}
+
 export const isUrlEmbed = (embed: FarcasterEmbed): embed is UrlEmbed =>
   "url" in embed && typeof (embed as UrlEmbed).url === "string";
 
