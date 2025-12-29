@@ -228,18 +228,41 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
   const embedUrls = getEmbedUrls(cast);
   const textUrls = extractUrlsFromText(cast.text || "");
 
+  const isImageEmbed = (embed: EmbedUrl | { cast_id?: { hash?: string | Uint8Array } }) =>
+    isEmbedUrl(embed) &&
+    (isImageUrl(embed.url) || embed.url.includes("i.imgur.com") || embed.url.startsWith("https://imagedelivery.net"));
+
+  const imageEmbeds = embedUrls.filter(isImageEmbed);
+  const nonImageEmbeds = embedUrls.filter((embed) => !isImageEmbed(embed));
+
   // If no embeds from API and no URLs in text, return null
   if (!embedUrls.length && !textUrls.length) {
     return null;
   }
 
-  const hasPriorityEmbed = embedUrls.some((embed) => isPriorityEmbed(embed));
+  const hasPriorityEmbed = nonImageEmbeds.some((embed) => isPriorityEmbed(embed));
   let hasRenderedOpenGraph = false;
 
   return (
     <ErrorBoundary>
+      {/* Render image embeds as a horizontal scroller */}
+      {imageEmbeds.length > 0 && (
+        <div className="mt-4 flex w-full max-w-full gap-2 overflow-x-auto pb-2">
+          {imageEmbeds.map((embed, i) => {
+            if (!isEmbedUrl(embed)) return null;
+            const embedData: CastEmbed = { url: embed.url, key: embed.url };
+
+            return (
+              <div key={`image-embed-${i}`} className="flex-shrink-0 w-full max-w-[400px]">
+                {renderEmbedForUrl(embedData, false, false)}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Render embeds from API */}
-      {map(embedUrls, (embed, i) => {
+      {map(nonImageEmbeds, (embed, i) => {
         const embedData: CastEmbed = isEmbedUrl(embed)
           ? {
               url: embed.url,
@@ -271,7 +294,7 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
 
         const wrapperClass = classNames(
           "mt-4 w-full",
-          isFrameEmbed || isOgEmbed || isVideoEmbed ? "max-w-[680px]" : "max-w-full",
+          isFrameEmbed || isOgEmbed || isVideoEmbed ? "max-w-[400px]" : "max-w-full",
           !isTwitterEmbed && !isFrameEmbed && !isVideoEmbed ? "overflow-hidden max-h-[500px]" : "",
           isFrameEmbed || isOgEmbed || isVideoEmbed
             ? ""
@@ -321,7 +344,7 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
 
         const wrapperClass = classNames(
           "mt-4 w-full",
-          shouldAllowOpenGraph ? "max-w-[680px]" : "max-w-full",
+          shouldAllowOpenGraph ? "max-w-[400px]" : "max-w-full",
           !isTwitterTextUrl ? "overflow-hidden max-h-[500px]" : "",
           shouldAllowOpenGraph ? "" : "gap-y-4 border border-foreground/15 rounded-xl flex justify-center items-center bg-background/50"
         );
