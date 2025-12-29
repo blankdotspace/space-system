@@ -7,7 +7,6 @@ import {
 } from './systemConfig';
 import { 
   ConfigLoadContext,
-  DEFAULT_COMMUNITY_ID,
   getCommunityConfigForDomain,
   loadSystemConfigById,
 } from './loaders';
@@ -87,15 +86,12 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
     return await loadSystemConfigById(devCommunityId);
   }
 
-  // Priority 4: Final fallback to default (only when no domain/context available)
-  // This is a last resort for cases where we truly have no domain information
-  if (process.env.NODE_ENV === 'development') {
-    console.warn(
-      `⚠️  No domain or communityId provided, falling back to default "${DEFAULT_COMMUNITY_ID}". ` +
-      `This should only happen in edge cases (e.g., static generation without domain context).`
-    );
-  }
-  return await loadSystemConfigById(DEFAULT_COMMUNITY_ID);
+  // No domain or communityId provided - throw error (no default fallback)
+  throw new Error(
+    `❌ Cannot load system config: No domain or communityId provided. ` +
+    `Either provide a domain in the request context, or set NEXT_PUBLIC_TEST_COMMUNITY in development. ` +
+    `Check: Is the middleware setting the x-detected-domain header correctly?`
+  );
 }
 
 // Export SystemConfig type (configs are now database-backed, no static exports)

@@ -9,11 +9,10 @@ export const DEFAULT_COMMUNITY_ID = 'nounspace.com';
  * Special domain mappings
  * 
  * Maps specific domains to community IDs, overriding normal domain resolution.
- * Useful for staging environments, special domains, Vercel preview deployments, etc.
+ * Useful for staging environments, special domains, etc.
  * 
  * Examples:
  * - staging.nounspace.com -> nounspace.com
- * - *.vercel.app -> nounspace.com (handled separately for pattern matching)
  */
 const DOMAIN_TO_COMMUNITY_MAP: Record<string, string> = {
   'staging.nounspace.com': DEFAULT_COMMUNITY_ID,
@@ -38,29 +37,25 @@ const SYSTEM_CONFIG_CACHE_TTL_MS = 60_000;
 
 /**
  * Resolve community ID from domain.
- * Simple priority: special mapping → domain as-is → default fallback
+ * Simple priority: special mapping → domain as-is
+ * Throws error if domain cannot be resolved (no default fallback).
  */
 function resolveCommunityIdFromDomain(domain: string): string {
   const normalizedDomain = normalizeDomain(domain);
   
   if (!normalizedDomain) {
-    return DEFAULT_COMMUNITY_ID;
+    throw new Error(
+      `❌ Cannot resolve community ID: domain "${domain}" normalized to empty string. ` +
+      `Domain must be a valid, non-empty value.`
+    );
   }
   
-  // Priority 1: Handle Vercel preview deployments (e.g., nounspace.vercel.app, branch-nounspace.vercel.app)
-  // All Vercel preview deployments should point to nounspace.com community
-  // Match any .vercel.app domain (preview deployments have random branch names)
-  if (domain.endsWith('.vercel.app')) {
-    return DEFAULT_COMMUNITY_ID;
-  }
-  
-  // Priority 2: Special domain mappings (from DOMAIN_TO_COMMUNITY_MAP)
+  // Priority 1: Special domain mappings (from DOMAIN_TO_COMMUNITY_MAP)
   if (normalizedDomain in DOMAIN_TO_COMMUNITY_MAP) {
     return DOMAIN_TO_COMMUNITY_MAP[normalizedDomain];
   }
   
   // Priority 3: Domain as community ID (e.g., example.nounspace.com → example.nounspace.com)
-  // Priority 4: Default fallback (handled by caller if domain lookup fails)
   return normalizedDomain;
 }
 
@@ -140,8 +135,15 @@ export async function getCommunityConfigForDomain(
   // CRITICAL LOG - should definitely appear in Vercel
   console.error(`[getCommunityConfigForDomain] ENTRY - domain: "${domain}"`);
   
-  // Resolve community ID from domain (simple priority)
-  const communityId = resolveCommunityIdFromDomain(domain);
+  // Resolve community ID from domain (throws if cannot resolve)
+  let communityId: string;
+  try {
+    communityId = resolveCommunityIdFromDomain(domain);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`[Config] Failed to resolve community ID from domain "${domain}": ${errorMessage}`);
+    return null;
+  }
   
   // Always log domain resolution - use console.error for visibility in Vercel
   console.error(`[Config] Domain resolution: "${domain}" → communityId: "${communityId}"`);
