@@ -51,7 +51,7 @@ const NogsGateButton = ({ systemConfig, ...props }: NogsGateButtonProps) => {
   const { user } = usePrivy();
   
   // Use token gate hook for ERC20 token gating
-  const { gatingSatisfied, walletAddress } = useTokenGate(systemConfig);
+  const { erc20Token, gatingSatisfied, walletAddress } = useTokenGate(systemConfig);
   
   // Extract NFT tokens from config
   const nftTokens = getNftTokens(systemConfig);

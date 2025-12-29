@@ -9,11 +9,11 @@ type GateTokens = {
 };
 
 /**
- * Extract gate tokens from SystemConfig.
+ * Extract gate tokens from SystemConfig (internal helper).
  * Returns tokens configured in the community config.
  * If no tokens are configured, returns empty arrays.
  */
-export function getGateTokensFromConfig(config: SystemConfig): GateTokens {
+function getGateTokensFromConfig(config: SystemConfig): GateTokens {
   return {
     erc20Tokens: config.community.tokens?.erc20Tokens ?? [],
     nftTokens: config.community.tokens?.nftTokens ?? [],
@@ -54,7 +54,8 @@ export function getNftTokens(config?: SystemConfig): Array<{
   if (!config) return [];
   
   const tokens = getGateTokensFromConfig(config);
-  return (tokens.nftTokens || []).map((token) => ({
+  // tokens.nftTokens is already guaranteed to be an array by getGateTokensFromConfig
+  return tokens.nftTokens.map((token) => ({
     address: token.address,
     network: token.network,
   }));
