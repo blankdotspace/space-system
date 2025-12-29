@@ -56,14 +56,22 @@ import {
   FarcasterEmbed,
   fetchChannelsByName,
   fetchChannelsForUser,
-  isFarcasterUrlEmbed,
   submitCast,
 } from "../utils";
+import {
+  EmbedInspection,
+  isCastIdEmbed,
+  isUrlEmbed,
+} from "../types";
+import { normalizeToFarcasterEmbeds } from "../embedNormalization";
 import { ChannelPicker } from "./channelPicker";
 import { renderEmbedForUrl } from "./Embeds";
 
 
 import { getSpaceContractAddr } from "@/constants/spaceToken";
+import { useSharedData } from "@/common/providers/SharedDataProvider";
+import { fetchCastsByEmbed } from "../embedLookup";
+import { EmbedMetadata } from "../types";
 
 // SPACE_CONTRACT_ADDR will be loaded when needed (async)
 // For now, we'll use it in a way that handles the Promise
@@ -80,6 +88,17 @@ type FarcasterMention = {
 
 // Module-level cache of resolved usernames → FIDs
 const mentionFidCache = new Map<string, string>();
+const urlRegex =
+  /https?:\/\/[^\s)]+|www\.[^\s)]+/gi;
+
+const extractLastUrl = (textValue: string): string | null => {
+  if (!textValue) return null;
+  const matches = textValue.match(urlRegex);
+  if (!matches || !matches.length) return null;
+  const last = matches[matches.length - 1];
+  if (last.startsWith("www.")) return `https://${last}`;
+  return last;
+};
 
 const fetchNeynarMentions = async (
   query: string,
@@ -164,12 +183,18 @@ const CreateCast: React.FC<CreateCastProps> = ({
   const [submitStatus, setSubmitStatus] = useState<
     "idle" | "success" | "error"
   >("idle");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewMetadata, setPreviewMetadata] = useState<EmbedMetadata | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [embedLookupMessage, setEmbedLookupMessage] = useState<string | null>(null);
 
   const hasEmbeds = draft?.embeds && !!draft.embeds.length;
   const isReply = draft?.parentCastId !== undefined;
   const { signer, isLoadingSigner, fid } = useFarcasterSigner("create-cast");
   const [initialChannels, setInitialChannels] = useState() as any;
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const [embedInspections, setEmbedInspections] = useState<EmbedInspection[]>([]);
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -374,6 +399,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
 
   const { user } = usePrivy();
   const [spaceContractAddr, setSpaceContractAddr] = useState<Address | null>(null);
+  const { addRecentEmbed, getRecentEmbed } = useSharedData();
   
   // Load space contract address (async)
   useEffect(() => {
@@ -402,6 +428,35 @@ const CreateCast: React.FC<CreateCastProps> = ({
     };
     fetchInitialChannels();
   }, [fid]);
+
+  useEffect(() => {
+    const inspectEmbeds = async () => {
+      const allEmbeds = initialEmbeds ? [...embeds, ...initialEmbeds] : embeds;
+      const urls = allEmbeds
+        .filter((embed) => isUrlEmbed(embed))
+        .map((embed) => embed.url);
+
+      if (!urls.length) {
+        setEmbedInspections([]);
+        return;
+      }
+
+      try {
+        const params = new URLSearchParams();
+        urls.forEach((url) => params.append("url", url));
+        const response = await fetch(`/api/farcaster/neynar/embeds?${params.toString()}`);
+        if (!response.ok) throw new Error("Failed to inspect embeds");
+        const data = await response.json();
+        if (Array.isArray(data?.embeds)) {
+          setEmbedInspections(data.embeds as EmbedInspection[]);
+        }
+      } catch (error) {
+        console.error("Failed to inspect embeds", error);
+      }
+    };
+
+    inspectEmbeds();
+  }, [embeds, initialEmbeds]);
 
   const debouncedGetChannels = useCallback(
     debounce(
@@ -477,6 +532,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
     getText,
     addEmbed,
     getEmbeds,
+    setEmbeds,
     setChannel,
     getChannel,
     handleSubmit,
@@ -541,12 +597,89 @@ const CreateCast: React.FC<CreateCastProps> = ({
   const embeds = getEmbeds();
   const channel = getChannel();
   useEffect(() => {
+    const detectedUrl = extractLastUrl(text);
+
+    if (!detectedUrl) {
+      setPreviewUrl(null);
+      setPreviewMetadata(null);
+      setPreviewError(null);
+      setPreviewLoading(false);
+      setEmbedLookupMessage(null);
+      return;
+    }
+
+    if (detectedUrl === previewUrl && (previewMetadata || previewError)) {
+      return;
+    }
+
+    setPreviewUrl(detectedUrl);
+    const cachedEmbed = getRecentEmbed(detectedUrl);
+    if (cachedEmbed) {
+      setPreviewMetadata(cachedEmbed.metadata || null);
+      setPreviewError(null);
+      setPreviewLoading(false);
+      setEmbedLookupMessage(null);
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const fetchPreview = async () => {
+      setPreviewLoading(true);
+      setPreviewError(null);
+      try {
+        const response = await fetch(
+          `/api/farcaster/neynar/embedMetadata?url=${encodeURIComponent(detectedUrl)}`,
+          { signal: controller.signal },
+        );
+        if (!response.ok) {
+          throw new Error(`Failed to load embed preview (${response.status})`);
+        }
+        const data = await response.json();
+        const metadata = (data?.metadata ?? null) as EmbedMetadata | null;
+        if (!controller.signal.aborted) {
+          setPreviewMetadata(metadata);
+          addRecentEmbed(detectedUrl, {
+            embed: { url: detectedUrl },
+            metadata,
+          });
+        }
+
+        const lookup = await fetchCastsByEmbed(detectedUrl);
+        if (!controller.signal.aborted && lookup?.casts) {
+          if (lookup.casts.length === 0) {
+            setEmbedLookupMessage(
+              "Neynar could not find casts that embed this URL yet.",
+            );
+          } else {
+            setEmbedLookupMessage(null);
+          }
+        }
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          setPreviewError((err as Error).message);
+          setPreviewMetadata(null);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setPreviewLoading(false);
+        }
+      }
+    };
+
+    fetchPreview();
+
+    return () => {
+      controller.abort();
+    };
+  }, [text, previewUrl, previewMetadata, previewError, addRecentEmbed, getRecentEmbed]);
+  useEffect(() => {
     if (!editor) return;
     if (isPublishing) return;
 
     const fetchMentionsAndSetDraft = async () => {
       // console.group("Mention Parsing");
-      const newEmbeds = initialEmbeds ? [...embeds, ...initialEmbeds] : embeds;
+    const newEmbeds = initialEmbeds ? [...embeds, ...initialEmbeds] : embeds;
 
       // Updated regex: supports ENS-style usernames and extra trailing punctuation like . , ! ? ; :
       // Uses lookaheads instead of lookbehinds for better browser compatibility
@@ -646,11 +779,13 @@ const CreateCast: React.FC<CreateCastProps> = ({
       // console.groupEnd();
 
       // Update the draft regardless of mentions
+      const normalizedEmbeds = normalizeToFarcasterEmbeds(newEmbeds, embedInspections);
+
       setDraft((prevDraft) => {
         const updatedDraft = {
           ...prevDraft,
           text: mentionsText,
-          embeds: newEmbeds,
+          embeds: normalizedEmbeds,
           parentUrl: channel?.parent_url || undefined,
           mentionsToFids,
           mentionsPositions,
@@ -661,7 +796,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
     };
 
     fetchMentionsAndSetDraft();
-  }, [text, embeds, initialEmbeds, channel, isPublishing, editor]);
+  }, [text, embeds, initialEmbeds, channel, isPublishing, editor, embedInspections]);
 
   async function publishPost(
     draft: DraftType,
@@ -829,6 +964,101 @@ const CreateCast: React.FC<CreateCastProps> = ({
                 }
               }}
             />
+          </div>
+        )}
+
+        {previewUrl && (
+          <div className="mt-3 w-full rounded-md border border-slate-200 bg-white p-3 shadow-sm">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-slate-500">
+                  {previewMetadata?.frame ? "Mini-app / Frame" : "Neynar preview"}
+                </p>
+                <p className="font-semibold text-slate-900 break-all">
+                  {previewMetadata?.html?.ogTitle ||
+                    previewMetadata?.frame?.title ||
+                    previewUrl}
+                </p>
+                <p className="text-sm text-slate-600 line-clamp-2">
+                  {previewMetadata?.html?.ogDescription ||
+                    previewMetadata?.frame?.url ||
+                    previewError ||
+                    (!previewLoading && "Preview from Neynar embed crawl")}
+                </p>
+                {embedLookupMessage && (
+                  <p className="mt-1 text-xs text-amber-600">{embedLookupMessage}</p>
+                )}
+                {previewError && (
+                  <p className="mt-1 text-xs text-red-600">{previewError}</p>
+                )}
+              </div>
+              <div className="flex flex-col items-end gap-2">
+                {previewLoading && (
+                  <Spinner style={{ width: "24px", height: "24px" }} />
+                )}
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                    disabled={!previewUrl || previewLoading}
+                    onClick={() => {
+                      if (!previewUrl) return;
+                      if (
+                        embeds.some(
+                          (embed) => isUrlEmbed(embed) && embed.url === previewUrl,
+                        )
+                      ) {
+                        setEmbeds((existing) =>
+                          existing.filter(
+                            (embed) => !(isUrlEmbed(embed) && embed.url === previewUrl),
+                          ),
+                        );
+                        setDraft((prev) => ({
+                          ...prev,
+                          embeds: (prev.embeds || []).filter(
+                            (embed) =>
+                              !(isUrlEmbed(embed) && embed.url === previewUrl),
+                          ),
+                        }));
+                      } else {
+                        addEmbed({ url: previewUrl, status: "loaded" });
+                      }
+                    }}
+                  >
+                    {embeds.some(
+                      (embed) => isUrlEmbed(embed) && embed.url === previewUrl,
+                    )
+                      ? "Detach"
+                      : "Attach"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+            {previewMetadata?.frame?.image && (
+              <div className="mt-2 overflow-hidden rounded-md">
+                <img
+                  src={previewMetadata.frame.image}
+                  alt={previewMetadata.frame.title || "Frame preview"}
+                  className="h-40 w-full object-cover"
+                />
+              </div>
+            )}
+            {!previewMetadata?.frame?.image &&
+              (previewMetadata?.html?.ogImage?.[0]?.url ||
+                previewMetadata?.image?.url) && (
+                <div className="mt-2 overflow-hidden rounded-md">
+                  <img
+                    src={
+                      previewMetadata?.html?.ogImage?.[0]?.url ||
+                      previewMetadata?.image?.url ||
+                      ""
+                    }
+                    alt={previewMetadata?.html?.ogTitle || "Link preview"}
+                    className="h-40 w-full object-cover"
+                  />
+                </div>
+              )}
           </div>
         )}
 
@@ -1049,7 +1279,19 @@ const CreateCast: React.FC<CreateCastProps> = ({
         <div className="mt-8 rounded-md bg-muted p-2 w-full break-all">
           {map(draft.embeds, (embed) => (
             <div
-              key={`cast-embed-${isFarcasterUrlEmbed(embed) ? embed.url : (typeof embed.castId?.hash === 'string' ? embed.castId.hash : Array.from(embed.castId?.hash || []).join('-'))}`}
+              key={`cast-embed-${
+                isCastIdEmbed(embed)
+                  ? `${embed.castId.fid}-${Array.from(
+                      embed.castId.hash instanceof Uint8Array
+                        ? embed.castId.hash
+                        : typeof embed.castId.hash === "string"
+                          ? embed.castId.hash
+                          : Array.isArray(embed.castId.hash)
+                            ? embed.castId.hash
+                            : []
+                    ).join("-")}`
+                  : embed.url
+              }`}
             >
               {renderEmbedForUrl(embed, true)}
             </div>

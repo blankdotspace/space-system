@@ -26,22 +26,8 @@ import { Address, encodeAbiParameters } from "viem";
 import { mnemonicToAccount } from "viem/accounts";
 import { optimismChaninClient } from "@/constants/optimismChainClient";
 import axiosBackend from "@/common/data/api/backend";
-// import { ModProtocolCastAddBody } from "./components/CreateCast";
 import { type Channel } from "@mod-protocol/farcaster";
-
-type FarcasterUrlEmbed = {
-  url: string;
-};
-type FarcasterCastIdEmbed = {
-  castId: {
-    fid: number;
-    hash: Uint8Array;
-  };
-};
-export type FarcasterEmbed = FarcasterCastIdEmbed | FarcasterUrlEmbed;
-export function isFarcasterUrlEmbed(embed: FarcasterEmbed): embed is FarcasterUrlEmbed {
-  return (embed as FarcasterUrlEmbed).url !== undefined;
-}
+import { FarcasterEmbed, isUrlEmbed as isFarcasterUrlEmbed } from "./types";
 
 export const WARPCAST_RECOVERY_PROXY: `0x${string}` =
   "0x00000000FcB080a4D6c39a9354dA9EB9bC104cd7";
@@ -447,3 +433,5 @@ export async function fetchChannelsByName(
     return [] as Channel[];
   }
 }
+
+export type { FarcasterEmbed };

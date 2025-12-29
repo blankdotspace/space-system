@@ -7,8 +7,17 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { Channel, FarcasterEmbed } from '@mod-protocol/farcaster';
-import { useQueryClient } from '@tanstack/react-query';
+import { Channel } from "@mod-protocol/farcaster";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  EmbedMetadata,
+  FarcasterEmbed,
+} from "@/fidgets/farcaster/types";
+
+export type RecentEmbedEntry = {
+  embed: FarcasterEmbed;
+  metadata?: EmbedMetadata | null;
+};
 
 // Define the types of data that will be shared
 interface SharedDataContextType {
@@ -17,9 +26,9 @@ interface SharedDataContextType {
   addRecentChannel: (channel: Channel) => void;
   
   // Cache of recently processed embeds
-  recentEmbeds: Record<string, FarcasterEmbed>;
-  addRecentEmbed: (url: string, embed: FarcasterEmbed) => void;
-  getRecentEmbed: (url: string) => FarcasterEmbed | undefined;
+  recentEmbeds: Record<string, RecentEmbedEntry>;
+  addRecentEmbed: (url: string, embed: RecentEmbedEntry) => void;
+  getRecentEmbed: (url: string) => RecentEmbedEntry | undefined;
   
   // Method to invalidate specific caches
   invalidateCache: (cacheKey: string) => void;
@@ -39,7 +48,7 @@ export const SharedDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [recentChannels, setRecentChannels] = useState<Channel[]>([]);
   
   // Internal state for recent embeds
-  const [recentEmbeds, setRecentEmbeds] = useState<Record<string, FarcasterEmbed>>({});
+  const [recentEmbeds, setRecentEmbeds] = useState<Record<string, RecentEmbedEntry>>({});
   
   // Adds a channel to recent ones, avoiding duplicates
   const addRecentChannel = useCallback((channel: Channel) => {
@@ -51,7 +60,7 @@ export const SharedDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, []);
   
   // Adds an embed to the recent embeds cache
-  const addRecentEmbed = useCallback((url: string, embed: FarcasterEmbed) => {
+  const addRecentEmbed = useCallback((url: string, embed: RecentEmbedEntry) => {
     setRecentEmbeds((prev) => ({
       ...prev,
       [url]: embed,
