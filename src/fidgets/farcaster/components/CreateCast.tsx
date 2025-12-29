@@ -429,35 +429,6 @@ const CreateCast: React.FC<CreateCastProps> = ({
     fetchInitialChannels();
   }, [fid]);
 
-  useEffect(() => {
-    const inspectEmbeds = async () => {
-      const allEmbeds = initialEmbeds ? [...embeds, ...initialEmbeds] : embeds;
-      const urls = allEmbeds
-        .filter((embed) => isUrlEmbed(embed))
-        .map((embed) => embed.url);
-
-      if (!urls.length) {
-        setEmbedInspections([]);
-        return;
-      }
-
-      try {
-        const params = new URLSearchParams();
-        urls.forEach((url) => params.append("url", url));
-        const response = await fetch(`/api/farcaster/neynar/embeds?${params.toString()}`);
-        if (!response.ok) throw new Error("Failed to inspect embeds");
-        const data = await response.json();
-        if (Array.isArray(data?.embeds)) {
-          setEmbedInspections(data.embeds as EmbedInspection[]);
-        }
-      } catch (error) {
-        console.error("Failed to inspect embeds", error);
-      }
-    };
-
-    inspectEmbeds();
-  }, [embeds, initialEmbeds]);
-
   const debouncedGetChannels = useCallback(
     debounce(
       async (query: string) => {
@@ -596,6 +567,36 @@ const CreateCast: React.FC<CreateCastProps> = ({
   const text = getText();
   const embeds = getEmbeds();
   const channel = getChannel();
+
+  useEffect(() => {
+    const inspectEmbeds = async () => {
+      const allEmbeds = initialEmbeds ? [...embeds, ...initialEmbeds] : embeds;
+      const urls = allEmbeds
+        .filter((embed) => isUrlEmbed(embed))
+        .map((embed) => embed.url);
+
+      if (!urls.length) {
+        setEmbedInspections([]);
+        return;
+      }
+
+      try {
+        const params = new URLSearchParams();
+        urls.forEach((url) => params.append("url", url));
+        const response = await fetch(`/api/farcaster/neynar/embeds?${params.toString()}`);
+        if (!response.ok) throw new Error("Failed to inspect embeds");
+        const data = await response.json();
+        if (Array.isArray(data?.embeds)) {
+          setEmbedInspections(data.embeds as EmbedInspection[]);
+        }
+      } catch (error) {
+        console.error("Failed to inspect embeds", error);
+      }
+    };
+
+    inspectEmbeds();
+  }, [embeds, initialEmbeds]);
+
   useEffect(() => {
     const detectedUrl = extractLastUrl(text);
 
