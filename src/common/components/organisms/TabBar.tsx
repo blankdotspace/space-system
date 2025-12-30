@@ -34,8 +34,44 @@ interface TabBarProps {
   isEditable?: boolean;
 }
 
-const isEditableTab = (tabName: string, defaultTab: string) => 
+const isEditableTab = (tabName: string, defaultTab: string) =>
   tabName !== defaultTab;
+
+const clampAlpha = (alpha: number) => Math.min(1, Math.max(0, alpha));
+
+const applyAlphaToColor = (color: string, alpha: number) => {
+  const normalizedAlpha = clampAlpha(alpha);
+
+  if (!color) return color;
+
+  if (color.startsWith("#")) {
+    const hex = color.replace("#", "");
+    const expandedHex = hex.length === 3
+      ? hex
+          .split("")
+          .map((char) => char + char)
+          .join("")
+      : hex;
+
+    if (expandedHex.length === 6) {
+      const r = parseInt(expandedHex.slice(0, 2), 16);
+      const g = parseInt(expandedHex.slice(2, 4), 16);
+      const b = parseInt(expandedHex.slice(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${normalizedAlpha})`;
+    }
+  }
+
+  const rgbMatch = color.match(
+    /rgba?\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i,
+  );
+
+  if (rgbMatch) {
+    const [, r, g, b] = rgbMatch;
+    return `rgba(${r}, ${g}, ${b}, ${normalizedAlpha})`;
+  }
+
+  return color;
+};
 
 function TabBar({
   inHomebase,
@@ -57,6 +93,14 @@ function TabBar({
   const isMobile = useIsMobile();
   const { setEditMode } = useSidebarContext();
   const uiColors = useUIColors();
+  const customizeButtonBackgrounds = React.useMemo(
+    () => ({
+      base: applyAlphaToColor(uiColors.backgroundColor, 0.12),
+      hover: applyAlphaToColor(uiColors.backgroundColor, 0.18),
+      active: applyAlphaToColor(uiColors.backgroundColor, 0.24),
+    }),
+    [uiColors.backgroundColor],
+  );
 
   const { getIsLoggedIn, getIsInitializing, homebaseLoadTab, setCurrentTabName } = useAppStore((state) => ({
     setModalOpen: state.setup.setModalOpen,
@@ -300,10 +344,36 @@ function TabBar({
               {!inEditMode && (
                 <Button
                   onClick={() => setEditMode(true)}
-                  className="flex items-center rounded-xl p-2 bg-[#F3F4F6] hover:bg-sky-100 text-[#1C64F2] font-semibold shadow-md"
+                  className="flex items-center rounded-xl p-2 font-semibold shadow-md transition-colors"
+                  style={{
+                    backgroundColor: customizeButtonBackgrounds.base,
+                    color: uiColors.fontColor,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = customizeButtonBackgrounds.hover;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = customizeButtonBackgrounds.base;
+                  }}
+                  onMouseDown={(e) => {
+                    e.currentTarget.style.backgroundColor = customizeButtonBackgrounds.active;
+                  }}
+                  onMouseUp={(e) => {
+                    e.currentTarget.style.backgroundColor = customizeButtonBackgrounds.hover;
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.backgroundColor = customizeButtonBackgrounds.hover;
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.backgroundColor = customizeButtonBackgrounds.base;
+                  }}
                 >
-                  <FaPaintbrush />
-                  {!isMobile && <span className="ml-2">Customize</span>}
+                  <FaPaintbrush style={{ color: uiColors.fontColor }} />
+                  {!isMobile && (
+                    <span className="ml-2" style={{ color: uiColors.fontColor }}>
+                      Customize
+                    </span>
+                  )}
                 </Button>
               )}
               {(inEditMode) && (
