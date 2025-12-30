@@ -41,6 +41,7 @@ const Modal = ({
     fontFamily:
       "var(--ns-nav-font, var(--font-sans, Inter, system-ui, -apple-system, sans-serif))",
     color: "var(--ns-nav-font-color, #0f172a)",
+    backgroundColor: "var(--ns-background-color, #ffffff)",
   };
 
   const handleContentRef = React.useCallback((node: HTMLDivElement | null) => {
