@@ -131,9 +131,14 @@ const Profile: React.FC<FidgetArgs<ProfileFidgetSettings>> = ({
   const hasLocation = location.length > 0;
 
   const bioText = user.profile?.bio?.text || "";
+  const uiFontFamily =
+    "var(--ns-nav-font, var(--font-sans, Inter, system-ui, -apple-system, sans-serif))";
   
   return (
-    <div className={`flex flex-col h-full overflow-auto ${isMobile ? 'px-3 py-3' : 'px-4 py-4'}`}>
+    <div
+      className={`flex flex-col h-full overflow-auto ${isMobile ? 'px-3 py-3' : 'px-4 py-4'}`}
+      style={{ fontFamily: uiFontFamily }}
+    >
       <div className="flex flex-row items-center mb-4">
         <div className={`${isMobile ? 'h-12 w-12' : 'h-14 w-14'} mr-4`}>
           {user.pfp_url ? (

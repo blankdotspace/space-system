@@ -2,7 +2,7 @@ import React from "react";
 
 const LoginIcon = () => (
   <svg
-    className="w-[24px] h-[24px] text-gray-800 dark:text-white"
+    className="w-[24px] h-[24px] text-current"
     aria-hidden="true"
     xmlns="http://www.w3.org/2000/svg"
     width="24"

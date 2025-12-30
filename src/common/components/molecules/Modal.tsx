@@ -37,6 +37,11 @@ const Modal = ({
   onPointerDownOutside,
 }: ModalProps) => {
   const [contentNode, setContentNode] = React.useState<HTMLDivElement | null>(null);
+  const dialogFontStyles: React.CSSProperties = {
+    fontFamily:
+      "var(--ns-nav-font, var(--font-sans, Inter, system-ui, -apple-system, sans-serif))",
+    color: "var(--ns-nav-font-color, #0f172a)",
+  };
 
   const handleContentRef = React.useCallback((node: HTMLDivElement | null) => {
     setContentNode(node);
@@ -57,6 +62,7 @@ const Modal = ({
               "shadow-[hsl(206_22%_7%_/_35%)_0px_10px_38px_-10px,_hsl(206_22%_7%_/_20%)_0px_10px_20px_-15px] focus:outline-none",
               "relative overflow-visible",
             )}
+            style={dialogFontStyles}
             // Fixes issue causing grid items to remain draggable behind open modal
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}

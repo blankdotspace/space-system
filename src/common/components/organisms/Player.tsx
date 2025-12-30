@@ -36,7 +36,13 @@ type ContentMetadata = {
 export type PlayerProps = {
   url: string | string[];
   shrunk?: boolean;
+  fontColor?: string;
+  fontFamily?: string;
 };
+
+const DEFAULT_UI_FONT_COLOR = "var(--ns-nav-font-color, #0f172a)";
+const DEFAULT_UI_FONT_FAMILY =
+  "var(--ns-nav-font, var(--font-sans, Inter, system-ui, -apple-system, sans-serif))";
 
 const getToggleIcon = ({ playing, started, ready }): [IconType, string] => {
   if ((playing && !started) || !ready) {
@@ -48,7 +54,12 @@ const getToggleIcon = ({ playing, started, ready }): [IconType, string] => {
   }
 };
 
-export const Player: React.FC<PlayerProps> = ({ url, shrunk = false }) => {
+export const Player: React.FC<PlayerProps> = ({
+  url,
+  shrunk = false,
+  fontColor = DEFAULT_UI_FONT_COLOR,
+  fontFamily = DEFAULT_UI_FONT_FAMILY,
+}) => {
   const hasWindow = useHasWindow();
   const playerRef = useRef<ReactPlayer | null>(null);
   const [muted, setMuted] = useState(true);
@@ -148,6 +159,11 @@ export const Player: React.FC<PlayerProps> = ({ url, shrunk = false }) => {
     onUnstarted: onUnstarted,
   };
 
+  const baseTextStyles: React.CSSProperties = {
+    color: fontColor,
+    fontFamily,
+  };
+
   if (shrunk) {
     return (
       <>
@@ -215,7 +231,10 @@ export const Player: React.FC<PlayerProps> = ({ url, shrunk = false }) => {
 
   return (
     <>
-      <div className="flex items-center border border-gray-200 rounded-full md:rounded-lg overflow-hidden">
+      <div
+        className="flex items-center border border-gray-200 rounded-full md:rounded-lg overflow-hidden"
+        style={{ fontFamily }}
+      >
         <div className="overflow-hidden relative w-8 h-8 md:w-16 md:h-auto ml-2 md:ml-auto flex-shrink-0 self-center md:self-stretch rounded-lg md:rounded-none">
           {metadata?.thumbnail && (
             <Image src={metadata?.thumbnail} alt="poster" fill sizes="64px" />
@@ -223,19 +242,26 @@ export const Player: React.FC<PlayerProps> = ({ url, shrunk = false }) => {
         </div>
         <div className="flex items-center pl-2 p-1 md:p-2 gap-2 flex-auto overflow-hidden">
           <div className="flex-auto">
-            <p className="text-gray-800 text-[12px]/[1.4] font-bold line-clamp-1 md:line-clamp-2">
+            <p
+              className="text-[12px]/[1.4] font-bold line-clamp-1 md:line-clamp-2"
+              style={baseTextStyles}
+            >
               {metadata?.title || ""}
             </p>
-            <p className="text-gray-500 text-[10px]/[1.5] font-semibold line-clamp-1 md:mt-1">
+            <p
+              className="text-[10px]/[1.5] font-semibold line-clamp-1 md:mt-1"
+              style={{ ...baseTextStyles, opacity: 0.7 }}
+            >
               {metadata?.channel || ""}
             </p>
           </div>
           <Button
             onClick={playing ? onPause : onPlay}
             aria-label="Play/Pause"
-            className="flex items-center justify-center flex-none rounded-full h-9 w-9 md:h-7 md:w-7 p-0 text-gray-500 bg-gray-300"
+            className="flex items-center justify-center flex-none rounded-full h-9 w-9 md:h-7 md:w-7 p-0 bg-gray-300"
             disabled={!ready}
             variant="secondary"
+            style={baseTextStyles}
           >
             <ToggleIcon className={iconClassNames} size={20} />
           </Button>
