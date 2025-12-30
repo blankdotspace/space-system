@@ -20,6 +20,8 @@ async function fetchCastsByEmbed(req: NextApiRequest, res: NextApiResponse) {
 
     const options: AxiosRequestConfig = {
       method: "GET",
+      // NOTE: Neynar's casts endpoint currently expects specific filters; use
+      // the embed filter and fall back gracefully if the API shape changes.
       url: "https://api.neynar.com/v2/farcaster/casts",
       headers: {
         accept: "application/json",
@@ -34,13 +36,10 @@ async function fetchCastsByEmbed(req: NextApiRequest, res: NextApiResponse) {
     const { data } = await axios.request(options);
     res.status(200).json(data);
   } catch (e) {
-    if (isAxiosError(e)) {
-      res
-        .status(e.response?.status || 500)
-        .json(e.response?.data || "An unknown error occurred");
-    } else {
-      res.status(500).json("An unknown error occurred");
-    }
+    const status = isAxiosError(e) ? e.response?.status || 500 : 500;
+    // Best-effort: avoid bubbling API errors to the client UI
+    console.warn("Failed to fetch casts by embed", e?.response?.data || e);
+    res.status(200).json({ casts: [] });
   }
 }
 

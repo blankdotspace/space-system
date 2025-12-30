@@ -188,6 +188,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [embedLookupMessage, setEmbedLookupMessage] = useState<string | null>(null);
+  const [dismissedEmbeds, setDismissedEmbeds] = useState<Set<string>>(new Set());
 
   const hasEmbeds = draft?.embeds && !!draft.embeds.length;
   const isReply = draft?.parentCastId !== undefined;
@@ -614,6 +615,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
     }
 
     setPreviewUrl(detectedUrl);
+    setEmbedLookupMessage(null);
     const cachedEmbed = getRecentEmbed(detectedUrl);
     if (cachedEmbed) {
       setPreviewMetadata(cachedEmbed.metadata || null);
@@ -644,6 +646,16 @@ const CreateCast: React.FC<CreateCastProps> = ({
             embed: { url: detectedUrl },
             metadata,
           });
+          setPreviewLoading(false);
+        }
+
+        if (!controller.signal.aborted && !dismissedEmbeds.has(detectedUrl)) {
+          const alreadyAttached = embeds.some(
+            (embed) => isUrlEmbed(embed) && embed.url === detectedUrl,
+          );
+          if (!alreadyAttached) {
+            addEmbed({ url: detectedUrl, status: "loaded" });
+          }
         }
 
         const lookup = await fetchCastsByEmbed(detectedUrl);
@@ -972,9 +984,6 @@ const CreateCast: React.FC<CreateCastProps> = ({
           <div className="mt-3 w-full rounded-md border border-slate-200 bg-white p-3 shadow-sm">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <p className="text-xs uppercase tracking-wide text-slate-500">
-                  {previewMetadata?.frame ? "Mini-app / Frame" : "Neynar preview"}
-                </p>
                 <p className="font-semibold text-slate-900 break-all">
                   {previewMetadata?.html?.ogTitle ||
                     previewMetadata?.frame?.title ||
@@ -997,42 +1006,35 @@ const CreateCast: React.FC<CreateCastProps> = ({
                 {previewLoading && (
                   <Spinner style={{ width: "24px", height: "24px" }} />
                 )}
-                <div className="flex gap-2">
+                {embeds.some((embed) => isUrlEmbed(embed) && embed.url === previewUrl) && (
                   <Button
-                    size="sm"
+                    size="icon"
                     type="button"
-                    variant="outline"
+                    variant="ghost"
+                    aria-label="Remove embed"
                     disabled={!previewUrl || previewLoading}
                     onClick={() => {
                       if (!previewUrl) return;
-                      if (
-                        embeds.some(
-                          (embed) => isUrlEmbed(embed) && embed.url === previewUrl,
-                        )
-                      ) {
-                        const nextEmbeds = getEmbeds().filter(
+                      const nextEmbeds = getEmbeds().filter(
+                        (embed) => !(isUrlEmbed(embed) && embed.url === previewUrl),
+                      );
+                      setEmbeds(nextEmbeds);
+                      setDraft((prev) => ({
+                        ...prev,
+                        embeds: (prev.embeds || []).filter(
                           (embed) => !(isUrlEmbed(embed) && embed.url === previewUrl),
-                        );
-                        setEmbeds(nextEmbeds);
-                        setDraft((prev) => ({
-                          ...prev,
-                          embeds: (prev.embeds || []).filter(
-                            (embed) =>
-                              !(isUrlEmbed(embed) && embed.url === previewUrl),
-                          ),
-                        }));
-                      } else {
-                        addEmbed({ url: previewUrl, status: "loaded" });
-                      }
+                        ),
+                      }));
+                      setDismissedEmbeds((prev) => {
+                        const updated = new Set(prev);
+                        updated.add(previewUrl);
+                        return updated;
+                      });
                     }}
                   >
-                    {embeds.some(
-                      (embed) => isUrlEmbed(embed) && embed.url === previewUrl,
-                    )
-                      ? "Detach"
-                      : "Attach"}
+                    ✕
                   </Button>
-                </div>
+                )}
               </div>
             </div>
             {previewMetadata?.frame?.image && (
