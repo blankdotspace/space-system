@@ -148,9 +148,28 @@ type EmbedPreview = {
   sourceUrl: string;
 };
 
+const urlRegex =
+  /(https?:\/\/[^\s.,;:!?)}\]><"']+?)(?=([\s.,;:!?)}\]><"']|$))/gi;
+
+const createUrlRegex = () => new RegExp(urlRegex.source, urlRegex.flags);
+
 const extractUrlsFromText = (text: string): string[] => {
-  const urlRegex = /(https?:\/\/[^\s]+)/gi;
-  return Array.from(new Set(text.match(urlRegex) || []));
+  return Array.from(
+    new Set(Array.from(text.matchAll(createUrlRegex()), (match) => match[1])),
+  );
+};
+
+const getUrlDelimiters = (text: string): Map<string, string | undefined> => {
+  const delimiters = new Map<string, string | undefined>();
+
+  for (const match of text.matchAll(createUrlRegex())) {
+    const url = match[1];
+    if (!delimiters.has(url)) {
+      delimiters.set(url, match[2]);
+    }
+  }
+
+  return delimiters;
 };
 
 const getHostnameFromUrl = (value?: string) => {
@@ -197,10 +216,17 @@ const CreateCast: React.FC<CreateCastProps> = ({
   const loadingEmbedsRef = useRef<Set<string>>(loadingEmbeds);
   const [embedErrors, setEmbedErrors] = useState<Record<string, string>>({});
   const { addRecentEmbed, getRecentEmbed } = useSharedData();
+  const isComponentMountedRef = useRef(true);
 
   useEffect(() => {
     loadingEmbedsRef.current = loadingEmbeds;
   }, [loadingEmbeds]);
+
+  useEffect(() => {
+    return () => {
+      isComponentMountedRef.current = false;
+    };
+  }, []);
 
   const isTargetInsideEmojiPicker = useCallback(
     (event?: Event | CustomEvent<{ originalEvent?: Event }>, fallbackTarget?: EventTarget | null) => {
@@ -392,7 +418,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
     return () => {
       el.removeEventListener("paste", handler as any);
     };
-  }, [editorContentRef.current]);
+  }, [debouncedPasteUpload]);
 
   const { isBannerClosed, closeBanner } = useBannerStore();
   const sparklesBannerClosed = isBannerClosed(SPARKLES_BANNER_KEY);
@@ -686,7 +712,11 @@ const CreateCast: React.FC<CreateCastProps> = ({
 
   useEffect(() => {
     const urlsInText = extractUrlsFromText(text || "");
+    const urlDelimiters = getUrlDelimiters(text || "");
     const timers: Array<ReturnType<typeof setTimeout>> = [];
+    const abortControllers: AbortController[] = [];
+    const inFlightUrls: string[] = [];
+    let isCancelled = false;
 
     urlsInText.forEach((rawUrl) => {
       let normalizedUrl = rawUrl;
@@ -730,7 +760,9 @@ const CreateCast: React.FC<CreateCastProps> = ({
         return;
       }
 
-      const timer = setTimeout(() => {
+      const startFetch = () => {
+        if (isCancelled) return;
+
         setLoadingEmbeds((prev) => new Set(prev).add(normalizedUrl));
         setEmbedErrors((prev) => {
           const next = { ...prev };
@@ -738,12 +770,22 @@ const CreateCast: React.FC<CreateCastProps> = ({
           return next;
         });
 
-        fetch(`/api/farcaster/neynar/embedMetadata?url=${encodeURIComponent(normalizedUrl)}`)
+        const controller = new AbortController();
+        abortControllers.push(controller);
+        inFlightUrls.push(normalizedUrl);
+
+        fetch(`/api/farcaster/neynar/embedMetadata?url=${encodeURIComponent(normalizedUrl)}`, {
+          signal: controller.signal,
+        })
           .then(async (res) => {
             const payload = await res.json();
             if (!res.ok) {
               const message = payload?.message || "Failed to crawl URL";
               throw new Error(message);
+            }
+
+            if (isCancelled || controller.signal.aborted) {
+              return;
             }
 
             const metadata = (payload?.metadata || undefined) as EmbedUrlMetadata | undefined;
@@ -759,22 +801,45 @@ const CreateCast: React.FC<CreateCastProps> = ({
             }));
           })
           .catch((error) => {
+            if (isCancelled || controller.signal.aborted) {
+              return;
+            }
             setEmbedErrors((prev) => ({ ...prev, [normalizedUrl]: error.message }));
           })
           .finally(() => {
+            if (isCancelled) {
+              return;
+            }
             setLoadingEmbeds((prev) => {
               const next = new Set(prev);
               next.delete(normalizedUrl);
               return next;
             });
           });
-      }, 500);
+      };
 
-      timers.push(timer);
+      const delimiter = urlDelimiters.get(rawUrl);
+      const fetchDelay = delimiter && /\s/.test(delimiter) ? 0 : 500;
+
+      if (fetchDelay === 0) {
+        startFetch();
+      } else {
+        const timer = setTimeout(startFetch, fetchDelay);
+        timers.push(timer);
+      }
     });
 
     return () => {
+      isCancelled = true;
       timers.forEach((timer) => clearTimeout(timer));
+      abortControllers.forEach((controller) => controller.abort());
+      if (isComponentMountedRef.current && inFlightUrls.length > 0) {
+        setLoadingEmbeds((prev) => {
+          const next = new Set(prev);
+          inFlightUrls.forEach((url) => next.delete(url));
+          return next;
+        });
+      }
     };
   }, [text, embedPreviews, addRecentEmbed, getRecentEmbed, removedEmbeds]);
 
