@@ -610,21 +610,8 @@ const CreateCast: React.FC<CreateCastProps> = ({
         return <EmbededCast castId={item.embed.castId} />;
       }
 
-      const embedUrl = item.metadata?.frame?.frames_url || item.embed.url;
+      const embedUrl = item.embed.url;
       const domain = getHostnameFromUrl(embedUrl);
-
-      if (item.metadata?.frame) {
-        const frameTitle = item.metadata.frame.title || domain || "Mini app";
-        return (
-          <div className="space-y-2 rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
-            <div className="flex items-center justify-between text-xs text-gray-700">
-              <span className="font-semibold line-clamp-1">{frameTitle}</span>
-              {domain && <span className="text-gray-500">{domain}</span>}
-            </div>
-            <FrameV2Embed url={embedUrl} />
-          </div>
-        );
-      }
 
       if (item.metadata?.video && embedUrl) {
         return <VideoEmbed url={embedUrl} />;
@@ -1297,18 +1284,44 @@ const CreateCast: React.FC<CreateCastProps> = ({
             </div>
           ))}
 
-          {activeEmbedList.map((item) => (
-            <div key={`cast-embed-${item.key}`} className="relative">
-              <button
-                type="button"
-                className="absolute right-2 top-2 rounded-full bg-white/80 px-2 py-1 text-xs font-semibold text-gray-700 shadow hover:bg-white"
-                onClick={() => handleRemoveEmbed(item.embed)}
-              >
-                ✕
-              </button>
-              {renderPreviewForEmbed(item)}
-            </div>
-          ))}
+          {activeEmbedList.map((item) => {
+            const isFrameEmbed =
+              isFarcasterUrlEmbed(item.embed) && Boolean(item.metadata?.frame);
+            const frameUrl =
+              isFrameEmbed && item.metadata?.frame?.frames_url
+                ? item.metadata.frame.frames_url
+                : isFarcasterUrlEmbed(item.embed)
+                  ? item.embed.url
+                  : undefined;
+
+            if (isFrameEmbed && frameUrl) {
+              return (
+                <div key={`cast-embed-${item.key}`} className="relative">
+                  <button
+                    type="button"
+                    className="absolute right-3 top-3 z-10 rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-gray-700 shadow hover:bg-white"
+                    onClick={() => handleRemoveEmbed(item.embed)}
+                  >
+                    ✕
+                  </button>
+                  <FrameV2Embed url={frameUrl} />
+                </div>
+              );
+            }
+
+            return (
+              <div key={`cast-embed-${item.key}`} className="relative">
+                <button
+                  type="button"
+                  className="absolute right-2 top-2 z-10 rounded-full bg-white/80 px-2 py-1 text-xs font-semibold text-gray-700 shadow hover:bg-white"
+                  onClick={() => handleRemoveEmbed(item.embed)}
+                >
+                  ✕
+                </button>
+                {renderPreviewForEmbed(item)}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
