@@ -45,19 +45,18 @@ import { FarcasterCastIdEmbed, FarcasterEmbed, isFarcasterUrlEmbed } from "../ut
 import { ChannelPicker } from "./channelPicker";
 import FrameV2Embed from "./Embeds/FrameV2Embed";
 import VideoEmbed from "./Embeds/VideoEmbed";
-import CreateCastImage from "./Embeds/createCastImage";
 import EmbededCast from "./Embeds/EmbededCast";
 import { useSharedData } from "@/common/providers/SharedDataProvider";
 import {
   FARCASTER_EMBED_LIMIT,
   createEmbedKey,
   mapEmbedMetadataToUrlMetadata,
-  resolveEmbedUrlFromMetadata,
   sanitizeFarcasterEmbeds,
 } from "../utils/embedNormalization";
 import type { EmbedUrlMetadata } from "@neynar/nodejs-sdk/build/api/models/embed-url-metadata";
 import type { Embed as ModEmbed } from "@mod-protocol/core/src/embeds";
-import { isImageUrl } from "@/common/lib/utils/urls";
+import { isImageUrl, isWebUrl } from "@/common/lib/utils/urls";
+import Image from "next/image";
 
 import { useTokenGate } from "@/common/lib/hooks/useTokenGate";
 import { type SystemConfig } from "@/config";
@@ -151,6 +150,15 @@ type EmbedPreview = {
 const extractUrlsFromText = (text: string): string[] => {
   const urlRegex = /(https?:\/\/[^\s]+)/gi;
   return Array.from(new Set(text.match(urlRegex) || []));
+};
+
+const getHostnameFromUrl = (value?: string) => {
+  if (!value) return undefined;
+  try {
+    return new URL(value).hostname;
+  } catch (error) {
+    return undefined;
+  }
 };
 
 const CreateCast: React.FC<CreateCastProps> = ({
@@ -603,9 +611,19 @@ const CreateCast: React.FC<CreateCastProps> = ({
       }
 
       const embedUrl = item.metadata?.frame?.frames_url || item.embed.url;
+      const domain = getHostnameFromUrl(embedUrl);
 
       if (item.metadata?.frame) {
-        return <FrameV2Embed url={embedUrl} />;
+        const frameTitle = item.metadata.frame.title || domain || "Mini app";
+        return (
+          <div className="space-y-2 rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
+            <div className="flex items-center justify-between text-xs text-gray-700">
+              <span className="font-semibold line-clamp-1">{frameTitle}</span>
+              {domain && <span className="text-gray-500">{domain}</span>}
+            </div>
+            <FrameV2Embed url={embedUrl} />
+          </div>
+        );
       }
 
       if (item.metadata?.video && embedUrl) {
@@ -616,40 +634,37 @@ const CreateCast: React.FC<CreateCastProps> = ({
         item.metadata?.html?.ogImage?.[0]?.url ||
         (isImageUrl(embedUrl) ? embedUrl : undefined);
 
-      if (imageUrl) {
-        return <CreateCastImage url={imageUrl} />;
-      }
-
-      const title =
-        item.metadata?.html?.ogTitle || embedUrl;
+      const title = item.metadata?.html?.ogTitle || embedUrl;
       const description = item.metadata?.html?.ogDescription;
-      const siteName = item.metadata?.html?.ogSiteName;
-      const hostname = (() => {
-        try {
-          return new URL(embedUrl).hostname;
-        } catch (error) {
-          return undefined;
-        }
-      })();
+      const siteName = item.metadata?.html?.ogSiteName || domain;
 
       return (
         <a
           href={embedUrl}
           target="_blank"
-          rel="noreferrer"
-          className="block w-full max-w-2xl rounded-lg border border-gray-200 bg-white p-3 shadow-sm transition hover:border-gray-300"
+          rel="noreferrer noopener"
+          className="block w-full max-w-2xl overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition hover:border-gray-300"
         >
-          <div className="space-y-1">
+          {imageUrl && (
+            <div className="relative h-48 w-full">
+              <Image
+                src={imageUrl}
+                alt={title || "Link preview"}
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 600px"
+              />
+            </div>
+          )}
+          <div className="space-y-1 p-3">
             <div className="text-sm font-semibold text-gray-900 line-clamp-2">
               {title}
             </div>
             {description && (
-              <p className="text-xs text-gray-600 line-clamp-3">{description}</p>
+              <p className="text-xs text-gray-600 line-clamp-2">{description}</p>
             )}
-            {(hostname || siteName) && (
-              <div className="text-xs text-gray-500">
-                {siteName || hostname}
-              </div>
+            {siteName && (
+              <div className="text-xs text-gray-500">{siteName}</div>
             )}
           </div>
         </a>
@@ -674,6 +689,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
 
   useEffect(() => {
     const urlsInText = extractUrlsFromText(text || "");
+    const timers: Array<ReturnType<typeof setTimeout>> = [];
 
     urlsInText.forEach((rawUrl) => {
       let normalizedUrl = rawUrl;
@@ -681,6 +697,10 @@ const CreateCast: React.FC<CreateCastProps> = ({
         normalizedUrl = new URL(rawUrl).toString();
       } catch (error) {
         // Keep raw value if URL constructor fails
+      }
+
+      if (!isWebUrl(normalizedUrl)) {
+        return;
       }
 
       const cachedRemovalKey = `url:${normalizedUrl}`;
@@ -709,48 +729,57 @@ const CreateCast: React.FC<CreateCastProps> = ({
         return;
       }
 
-      setLoadingEmbeds((prev) => new Set(prev).add(normalizedUrl));
-      setEmbedErrors((prev) => {
-        const next = { ...prev };
-        delete next[normalizedUrl];
-        return next;
-      });
+      if (loadingEmbeds.has(normalizedUrl)) {
+        return;
+      }
 
-      fetch(`/api/farcaster/neynar/embedMetadata?url=${encodeURIComponent(normalizedUrl)}`)
-        .then(async (res) => {
-          const payload = await res.json();
-          if (!res.ok) {
-            const message = payload?.message || "Failed to crawl URL";
-            throw new Error(message);
-          }
-
-          const metadata = (payload?.metadata || undefined) as EmbedUrlMetadata | undefined;
-          const embedUrl =
-            metadata?.frame?.frames_url ||
-            resolveEmbedUrlFromMetadata(normalizedUrl, metadata) ||
-            normalizedUrl;
-
-          const embed: FarcasterEmbed = { url: embedUrl };
-          const key = createEmbedKey(embed);
-
-          addRecentEmbed(normalizedUrl, embed, metadata);
-          setEmbedPreviews((prev) => ({
-            ...prev,
-            [key]: { embed, metadata, sourceUrl: normalizedUrl },
-          }));
-        })
-        .catch((error) => {
-          setEmbedErrors((prev) => ({ ...prev, [normalizedUrl]: error.message }));
-        })
-        .finally(() => {
-          setLoadingEmbeds((prev) => {
-            const next = new Set(prev);
-            next.delete(normalizedUrl);
-            return next;
-          });
+      const timer = setTimeout(() => {
+        setLoadingEmbeds((prev) => new Set(prev).add(normalizedUrl));
+        setEmbedErrors((prev) => {
+          const next = { ...prev };
+          delete next[normalizedUrl];
+          return next;
         });
+
+        fetch(`/api/farcaster/neynar/embedMetadata?url=${encodeURIComponent(normalizedUrl)}`)
+          .then(async (res) => {
+            const payload = await res.json();
+            if (!res.ok) {
+              const message = payload?.message || "Failed to crawl URL";
+              throw new Error(message);
+            }
+
+            const metadata = (payload?.metadata || undefined) as EmbedUrlMetadata | undefined;
+            const embedUrl = metadata?.frame?.frames_url || normalizedUrl;
+
+            const embed: FarcasterEmbed = { url: embedUrl };
+            const key = createEmbedKey(embed);
+
+            addRecentEmbed(normalizedUrl, embed, metadata);
+            setEmbedPreviews((prev) => ({
+              ...prev,
+              [key]: { embed, metadata, sourceUrl: normalizedUrl },
+            }));
+          })
+          .catch((error) => {
+            setEmbedErrors((prev) => ({ ...prev, [normalizedUrl]: error.message }));
+          })
+          .finally(() => {
+            setLoadingEmbeds((prev) => {
+              const next = new Set(prev);
+              next.delete(normalizedUrl);
+              return next;
+            });
+          });
+      }, 500);
+
+      timers.push(timer);
     });
-  }, [text, embedPreviews, addRecentEmbed, getRecentEmbed, removedEmbeds]);
+
+    return () => {
+      timers.forEach((timer) => clearTimeout(timer));
+    };
+  }, [text, embedPreviews, addRecentEmbed, getRecentEmbed, removedEmbeds, loadingEmbeds]);
 
   useEffect(() => {
     if (!editor) return;
@@ -876,11 +905,12 @@ const CreateCast: React.FC<CreateCastProps> = ({
       ? Object.values(draft.mentionsToFids).map(Number)
       : [];
     const mentionsPositions = draft.mentionsPositions || [];
+    const embedsForCast = sanitizedEmbeds.length ? sanitizedEmbeds : draft.embeds || [];
 
     const castBody: CastAddBody = {
       type: CastType.CAST,
       text: draft.text,
-      embeds: draft.embeds || [],
+      embeds: embedsForCast,
       embedsDeprecated: [],
       parentUrl: draft.parentUrl || undefined,
       parentCastId: draft.parentCastId,
