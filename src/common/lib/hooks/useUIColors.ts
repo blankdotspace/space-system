@@ -18,6 +18,7 @@ export const useUIColors = ({ systemConfig }: UseUIColorsProps = {}) => {
     let cssFontColor: string | undefined;
     let cssFontFamily: string | undefined;
     let cssCastButtonFontColor: string | undefined;
+    let cssBackgroundColor: string | undefined;
 
     if (typeof document !== "undefined") {
       const styles = getComputedStyle(document.body);
@@ -25,6 +26,8 @@ export const useUIColors = ({ systemConfig }: UseUIColorsProps = {}) => {
       cssFontFamily = styles.getPropertyValue("--ns-nav-font")?.trim() || undefined;
       cssCastButtonFontColor =
         styles.getPropertyValue("--ns-cast-button-font-color")?.trim() || undefined;
+      cssBackgroundColor =
+        styles.getPropertyValue("--ns-background-color")?.trim() || undefined;
     }
 
     const parsedFontFamily = extractFontFamilyFromUrl(ui?.url);
@@ -36,6 +39,7 @@ export const useUIColors = ({ systemConfig }: UseUIColorsProps = {}) => {
         ? `${parsedFontFamily}, var(--font-sans, sans-serif)`
         : cssFontFamily || "var(--font-sans, Inter, system-ui, -apple-system, sans-serif)",
       fontUrl: ui?.url,
+      backgroundColor: ui?.backgroundColor || cssBackgroundColor || "#ffffff",
       primaryColor: ui?.primaryColor || "rgb(37, 99, 235)",
       primaryHoverColor: ui?.primaryHoverColor || "rgb(29, 78, 216)",
       primaryActiveColor: ui?.primaryActiveColor || "rgb(30, 64, 175)",
