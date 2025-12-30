@@ -45,6 +45,7 @@ import { FarcasterCastIdEmbed, FarcasterEmbed, isFarcasterUrlEmbed } from "../ut
 import { ChannelPicker } from "./channelPicker";
 import FrameV2Embed from "./Embeds/FrameV2Embed";
 import VideoEmbed from "./Embeds/VideoEmbed";
+import CreateCastImage from "./Embeds/createCastImage";
 import EmbededCast from "./Embeds/EmbededCast";
 import { useSharedData } from "@/common/providers/SharedDataProvider";
 import {
@@ -612,6 +613,10 @@ const CreateCast: React.FC<CreateCastProps> = ({
 
       const embedUrl = item.embed.url;
       const domain = getHostnameFromUrl(embedUrl);
+
+      if (isImageUrl(embedUrl)) {
+        return <CreateCastImage url={embedUrl} />;
+      }
 
       if (item.metadata?.video && embedUrl) {
         return <VideoEmbed url={embedUrl} />;
