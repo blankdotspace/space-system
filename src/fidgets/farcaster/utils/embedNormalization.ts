@@ -104,11 +104,17 @@ export const validateFarcasterEmbeds = (embeds: unknown[]) => {
   };
 };
 
+type SanitizeOptions = {
+  removedKeys?: Set<string>;
+  limit?: number;
+  normalized?: FarcasterEmbed[];
+};
+
 export const sanitizeFarcasterEmbeds = (
   embeds: unknown[],
-  options?: { removedKeys?: Set<string>; limit?: number },
+  options?: SanitizeOptions,
 ) => {
-  const { normalized } = validateFarcasterEmbeds(embeds);
+  const normalized = options?.normalized ?? validateFarcasterEmbeds(embeds).normalized;
   const limit = options?.limit ?? FARCASTER_EMBED_LIMIT;
   const removedKeys = options?.removedKeys ?? new Set<string>();
 

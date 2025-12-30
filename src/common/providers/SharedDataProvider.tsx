@@ -13,6 +13,8 @@ import type { EmbedUrlMetadata } from "@neynar/nodejs-sdk/build/api/models/embed
 import type { Channel } from "@mod-protocol/farcaster";
 import type { FarcasterEmbed } from "@/fidgets/farcaster/utils/embedTypes";
 
+const MAX_RECENT_EMBEDS = 50;
+
 // Define the types of data that will be shared
 interface SharedDataContextType {
   // Cache of recently accessed channels
@@ -58,10 +60,17 @@ export const SharedDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // Adds an embed to the recent embeds cache
   const addRecentEmbed = useCallback(
     (url: string, embed: FarcasterEmbed, metadata?: EmbedUrlMetadata) => {
-      setRecentEmbeds((prev) => ({
-        ...prev,
-        [url]: { embed, metadata },
-      }));
+      setRecentEmbeds((prev) => {
+        const updated = { ...prev, [url]: { embed, metadata } };
+        const keys = Object.keys(updated);
+
+        if (keys.length > MAX_RECENT_EMBEDS) {
+          const [oldestKey] = keys;
+          delete updated[oldestKey];
+        }
+
+        return updated;
+      });
     },
     [],
   );
