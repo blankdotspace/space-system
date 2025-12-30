@@ -42,7 +42,9 @@ export const SharedDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [recentChannels, setRecentChannels] = useState<Channel[]>([]);
   
   // Internal state for recent embeds
-  const [recentEmbeds, setRecentEmbeds] = useState<Record<string, { embed: FarcasterEmbed; metadata?: EmbedUrlMetadata }>>({});
+  const [recentEmbeds, setRecentEmbeds] = useState<
+    Record<string, { embed: FarcasterEmbed; metadata?: EmbedUrlMetadata }>
+  >({});
   
   // Adds a channel to recent ones, avoiding duplicates
   const addRecentChannel = useCallback((channel: Channel) => {
