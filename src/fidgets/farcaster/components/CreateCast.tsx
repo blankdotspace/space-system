@@ -1295,7 +1295,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
       )}
 
       {hasEmbeds && (() => {
-        const visibleEmbeds = previewUrl && previewMetadata
+        const visibleEmbeds = previewUrl
           ? (draft.embeds || []).filter(
               (embed) => !(isUrlEmbed(embed) && embed.url === previewUrl),
             )
