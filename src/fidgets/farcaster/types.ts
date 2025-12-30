@@ -20,6 +20,20 @@ export type EmbedMetadata = {
     version?: string | null;
     title?: string | null;
     image?: string | null;
+    manifest?: {
+      miniapp?: {
+        splash_image_url?: string | null;
+        hero_image_url?: string | null;
+        description?: string | null;
+        name?: string | null;
+      } | null;
+      frame?: {
+        hero_image_url?: string | null;
+        og_image_url?: string | null;
+        description?: string | null;
+        name?: string | null;
+      } | null;
+    } | null;
   } | null;
   html?: {
     ogTitle?: string | null;
