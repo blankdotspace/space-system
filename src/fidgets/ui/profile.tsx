@@ -133,12 +133,14 @@ const Profile: React.FC<FidgetArgs<ProfileFidgetSettings>> = ({
   const bioText = user.profile?.bio?.text || "";
   const uiFontFamily =
     "var(--ns-nav-font, var(--font-sans, Inter, system-ui, -apple-system, sans-serif))";
+  const uiFontColor = "var(--ns-nav-font-color, #0f172a)";
   
   return (
     <div
       className={`flex flex-col h-full overflow-auto ${isMobile ? 'px-3 py-3' : 'px-4 py-4'}`}
       style={{
         fontFamily: uiFontFamily,
+        color: uiFontColor,
         backgroundColor: "var(--ns-background-color, #ffffff)",
       }}
     >
