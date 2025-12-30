@@ -500,6 +500,8 @@ const Navigation = React.memo(
                 <Player
                   url={userTheme?.properties?.musicURL || NOUNISH_LOWFI_URL}
                   shrunk={shrunk}
+                  fontColor={uiColors.fontColor}
+                  fontFamily={uiColors.fontFamily}
                 />
               </div>
             )}
