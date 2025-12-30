@@ -1046,7 +1046,6 @@ const CreateCast: React.FC<CreateCastProps> = ({
                       setPreviewUrl(null);
                       setPreviewMetadata(null);
                       setPreviewError(null);
-                      setEmbedLookupMessage(null);
                     }}
                   >
                     ✕
