@@ -7,8 +7,11 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { Channel, FarcasterEmbed } from '@mod-protocol/farcaster';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from "@tanstack/react-query";
+import type { EmbedUrlMetadata } from "@neynar/nodejs-sdk/build/api/models/embed-url-metadata";
+
+import type { Channel } from "@mod-protocol/farcaster";
+import type { FarcasterEmbed } from "@/fidgets/farcaster/utils/embedTypes";
 
 // Define the types of data that will be shared
 interface SharedDataContextType {
@@ -17,9 +20,9 @@ interface SharedDataContextType {
   addRecentChannel: (channel: Channel) => void;
   
   // Cache of recently processed embeds
-  recentEmbeds: Record<string, FarcasterEmbed>;
-  addRecentEmbed: (url: string, embed: FarcasterEmbed) => void;
-  getRecentEmbed: (url: string) => FarcasterEmbed | undefined;
+  recentEmbeds: Record<string, { embed: FarcasterEmbed; metadata?: EmbedUrlMetadata }>;
+  addRecentEmbed: (url: string, embed: FarcasterEmbed, metadata?: EmbedUrlMetadata) => void;
+  getRecentEmbed: (url: string) => { embed: FarcasterEmbed; metadata?: EmbedUrlMetadata } | undefined;
   
   // Method to invalidate specific caches
   invalidateCache: (cacheKey: string) => void;
@@ -39,7 +42,7 @@ export const SharedDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [recentChannels, setRecentChannels] = useState<Channel[]>([]);
   
   // Internal state for recent embeds
-  const [recentEmbeds, setRecentEmbeds] = useState<Record<string, FarcasterEmbed>>({});
+  const [recentEmbeds, setRecentEmbeds] = useState<Record<string, { embed: FarcasterEmbed; metadata?: EmbedUrlMetadata }>>({});
   
   // Adds a channel to recent ones, avoiding duplicates
   const addRecentChannel = useCallback((channel: Channel) => {
@@ -51,12 +54,15 @@ export const SharedDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, []);
   
   // Adds an embed to the recent embeds cache
-  const addRecentEmbed = useCallback((url: string, embed: FarcasterEmbed) => {
-    setRecentEmbeds((prev) => ({
-      ...prev,
-      [url]: embed,
-    }));
-  }, []);
+  const addRecentEmbed = useCallback(
+    (url: string, embed: FarcasterEmbed, metadata?: EmbedUrlMetadata) => {
+      setRecentEmbeds((prev) => ({
+        ...prev,
+        [url]: { embed, metadata },
+      }));
+    },
+    [],
+  );
   
   // Retrieves an embed from the cache
   const getRecentEmbed = useCallback(
