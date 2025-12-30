@@ -35,10 +35,12 @@ async function fetchCastsByEmbed(req: NextApiRequest, res: NextApiResponse) {
 
     const { data } = await axios.request(options);
     res.status(200).json(data);
-  } catch (e) {
-    const status = isAxiosError(e) ? e.response?.status || 500 : 500;
-    // Best-effort: avoid bubbling API errors to the client UI
-    console.warn("Failed to fetch casts by embed", e?.response?.data || e);
+  } catch (e: unknown) {
+    if (isAxiosError(e)) {
+      console.warn("Failed to fetch casts by embed", e.response?.data || e.message);
+    } else {
+      console.warn("Failed to fetch casts by embed", e);
+    }
     res.status(200).json({ casts: [] });
   }
 }
