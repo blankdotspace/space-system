@@ -11,7 +11,6 @@ import useIsMobile from "@/common/lib/hooks/useIsMobile";
 
 import {
   ModManifest,
-  fetchUrlMetadata,
   handleAddEmbed,
   handleOpenFile,
   handleSetInput,
@@ -127,7 +126,19 @@ const debouncedGetMentions = debounce(fetchNeynarMentions, 200, {
   leading: true,
   trailing: false,
 });
-const getUrlMetadata = fetchUrlMetadata(API_URL);
+const fetchUrlMetadataForEditor = async (url: string) => {
+  const response = await fetch(
+    `/api/farcaster/neynar/embedMetadata?url=${encodeURIComponent(url)}`,
+  );
+  if (!response.ok) {
+    throw new Error("Failed to fetch embed metadata");
+  }
+  const data = await response.json();
+  return {
+    url,
+    metadata: data?.metadata ?? null,
+  } as any;
+};
 
 const onError = (err) => {
   console.error(err);
@@ -189,6 +200,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [embedLookupMessage, setEmbedLookupMessage] = useState<string | null>(null);
   const [dismissedEmbeds, setDismissedEmbeds] = useState<Set<string>>(new Set());
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const hasEmbeds = draft?.embeds && !!draft.embeds.length;
   const isReply = draft?.parentCastId !== undefined;
@@ -510,7 +522,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
     handleSubmit,
     setText,
   } = useEditor({
-    fetchUrlMetadata: getUrlMetadata,
+    fetchUrlMetadata: fetchUrlMetadataForEditor,
     onError,
     onSubmit: onSubmitPost,
     linkClassName: "text-blue-800",
@@ -599,93 +611,113 @@ const CreateCast: React.FC<CreateCastProps> = ({
   }, [embeds, initialEmbeds]);
 
   useEffect(() => {
-    const detectedUrl = extractLastUrl(text);
-
-    if (!detectedUrl) {
-      setPreviewUrl(null);
-      setPreviewMetadata(null);
-      setPreviewError(null);
-      setPreviewLoading(false);
-      setEmbedLookupMessage(null);
-      return;
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
     }
 
-    if (detectedUrl === previewUrl && (previewMetadata || previewError)) {
-      return;
-    }
+    debounceTimerRef.current = setTimeout(() => {
+      const detectedUrl = extractLastUrl(text);
 
-    setPreviewUrl(detectedUrl);
-    setEmbedLookupMessage(null);
-    const cachedEmbed = getRecentEmbed(detectedUrl);
-    if (cachedEmbed) {
-      setPreviewMetadata(cachedEmbed.metadata || null);
-      setPreviewError(null);
-      setPreviewLoading(false);
-      setEmbedLookupMessage(null);
-      return;
-    }
-
-    const controller = new AbortController();
-
-    const fetchPreview = async () => {
-      setPreviewLoading(true);
-      setPreviewError(null);
-      try {
-        const response = await fetch(
-          `/api/farcaster/neynar/embedMetadata?url=${encodeURIComponent(detectedUrl)}`,
-          { signal: controller.signal },
-        );
-        if (!response.ok) {
-          throw new Error(`Failed to load embed preview (${response.status})`);
-        }
-        const data = await response.json();
-        const metadata = (data?.metadata ?? null) as EmbedMetadata | null;
-        if (!controller.signal.aborted) {
-          setPreviewMetadata(metadata);
-          addRecentEmbed(detectedUrl, {
-            embed: { url: detectedUrl },
-            metadata,
-          });
-          setPreviewLoading(false);
-        }
-
-        if (!controller.signal.aborted && !dismissedEmbeds.has(detectedUrl)) {
-          const alreadyAttached = embeds.some(
-            (embed) => isUrlEmbed(embed) && embed.url === detectedUrl,
-          );
-          if (!alreadyAttached) {
-            addEmbed({ url: detectedUrl, status: "loaded" });
-          }
-        }
-
-        const lookup = await fetchCastsByEmbed(detectedUrl);
-        if (!controller.signal.aborted && lookup?.casts) {
-          if (lookup.casts.length === 0) {
-            setEmbedLookupMessage(
-              "Neynar could not find casts that embed this URL yet.",
-            );
-          } else {
-            setEmbedLookupMessage(null);
-          }
-        }
-      } catch (err) {
-        if (!controller.signal.aborted) {
-          setPreviewError((err as Error).message);
-          setPreviewMetadata(null);
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setPreviewLoading(false);
-        }
+      if (!detectedUrl) {
+        setPreviewUrl(null);
+        setPreviewMetadata(null);
+        setPreviewError(null);
+        setPreviewLoading(false);
+        setEmbedLookupMessage(null);
+        return;
       }
-    };
 
-    fetchPreview();
+      if (dismissedEmbeds.has(detectedUrl)) {
+        setPreviewUrl(detectedUrl);
+        setPreviewLoading(false);
+        setPreviewMetadata(null);
+        setEmbedLookupMessage(null);
+        return;
+      }
+
+      if (detectedUrl === previewUrl && (previewMetadata || previewError)) {
+        return;
+      }
+
+      setPreviewUrl(detectedUrl);
+      setEmbedLookupMessage(null);
+      const cachedEmbed = getRecentEmbed(detectedUrl);
+      if (cachedEmbed) {
+        setPreviewMetadata(cachedEmbed.metadata || null);
+        setPreviewError(null);
+        setPreviewLoading(false);
+        setEmbedLookupMessage(null);
+        return;
+      }
+
+      const controller = new AbortController();
+
+      const fetchPreview = async () => {
+        setPreviewLoading(true);
+        setPreviewError(null);
+        try {
+          const response = await fetch(
+            `/api/farcaster/neynar/embedMetadata?url=${encodeURIComponent(detectedUrl)}`,
+            { signal: controller.signal },
+          );
+          if (!response.ok) {
+            throw new Error(`Failed to load embed preview (${response.status})`);
+          }
+          const data = await response.json();
+          const metadata = (data?.metadata ?? null) as EmbedMetadata | null;
+          if (!controller.signal.aborted) {
+            setPreviewMetadata(metadata);
+            addRecentEmbed(detectedUrl, {
+              embed: { url: detectedUrl },
+              metadata,
+            });
+            setPreviewLoading(false);
+          }
+
+          if (!controller.signal.aborted && !dismissedEmbeds.has(detectedUrl)) {
+            const alreadyAttached = embeds.some(
+              (embed) => isUrlEmbed(embed) && embed.url === detectedUrl,
+            );
+            if (!alreadyAttached) {
+              addEmbed({ url: detectedUrl, status: "loaded" });
+            }
+          }
+
+          const lookup = await fetchCastsByEmbed(detectedUrl);
+          if (!controller.signal.aborted && lookup?.casts) {
+            if (lookup.casts.length === 0) {
+              setEmbedLookupMessage(
+                "Neynar could not find casts that embed this URL yet.",
+              );
+            } else {
+              setEmbedLookupMessage(null);
+            }
+          }
+        } catch (err) {
+          if (!controller.signal.aborted) {
+            setPreviewError((err as Error).message);
+            setPreviewMetadata(null);
+          }
+        } finally {
+          if (!controller.signal.aborted) {
+            setPreviewLoading(false);
+          }
+        }
+      };
+
+      fetchPreview();
+
+      return () => {
+        controller.abort();
+      };
+    }, 400);
 
     return () => {
-      controller.abort();
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
     };
-  }, [text, previewUrl, previewMetadata, previewError, addRecentEmbed, getRecentEmbed]);
+  }, [text, previewUrl, previewMetadata, previewError, addRecentEmbed, getRecentEmbed, dismissedEmbeds]);
   useEffect(() => {
     if (!editor) return;
     if (isPublishing) return;

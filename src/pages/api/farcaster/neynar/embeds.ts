@@ -19,35 +19,35 @@ async function fetchEmbeds(req: NextApiRequest, res: NextApiResponse) {
       ? parsed.data.url
       : [parsed.data.url];
 
-    const options: AxiosRequestConfig = {
-      method: "GET",
-      url: "https://api.neynar.com/v2/farcaster/embeds",
-      headers: {
-        accept: "application/json",
-        api_key: process.env.NEYNAR_API_KEY!,
-      },
-      params: { url: urls },
-      paramsSerializer: {
-        encode: (params) => {
-          const searchParams = new URLSearchParams();
-          (params.url as string[]).forEach((value) => {
-            searchParams.append("url", value);
-          });
-          return searchParams.toString();
-        },
-      },
-    };
+    const results = await Promise.all(
+      urls.map(async (url) => {
+        const options: AxiosRequestConfig = {
+          method: "GET",
+          url: "https://api.neynar.com/v2/farcaster/cast/embed/crawl",
+          headers: {
+            accept: "application/json",
+            api_key: process.env.NEYNAR_API_KEY!,
+          },
+          params: { url },
+        };
+        try {
+          const { data } = await axios.request(options);
+          return { url, metadata: data?.metadata };
+        } catch (err) {
+          if (isAxiosError(err)) {
+            console.warn("Failed to crawl embed", url, err.response?.data || err.message);
+          } else {
+            console.warn("Failed to crawl embed", url, err);
+          }
+          return { url, metadata: null };
+        }
+      }),
+    );
 
-    const { data } = await axios.request(options);
-    res.status(200).json(data);
+    res.status(200).json({ embeds: results });
   } catch (e) {
-    if (isAxiosError(e)) {
-      res
-        .status(e.response?.status || 500)
-        .json(e.response?.data || "An unknown error occurred");
-    } else {
-      res.status(500).json("An unknown error occurred");
-    }
+    console.error("Unexpected error in fetchEmbeds", e);
+    res.status(500).json("An unknown error occurred");
   }
 }
 
