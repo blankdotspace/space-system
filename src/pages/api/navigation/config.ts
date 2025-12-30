@@ -11,6 +11,7 @@ import { isArray, isString } from "lodash";
 import { NextApiRequest, NextApiResponse } from "next/types";
 import { NavigationConfig } from "@/config/systemConfig";
 import { SPACE_TYPES } from "@/common/types/spaceData";
+import { Json } from "@/supabase/database";
 
 export type UnsignedUpdateNavigationConfigRequest = {
   communityId: string;
@@ -167,7 +168,7 @@ async function updateNavigationConfig(
   const { error: updateError } = await supabase
     .from("community_configs")
     .update({
-      navigation_config: mergedNavigationConfig,
+      navigation_config: mergedNavigationConfig as Json,
       updated_at: new Date().toISOString(),
     })
     .eq("community_id", updateRequest.communityId)
