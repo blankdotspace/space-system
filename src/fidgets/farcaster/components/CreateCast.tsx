@@ -1064,7 +1064,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
                     previewMetadata.frame.manifest?.frame?.hero_image_url ||
                     previewMetadata.frame.manifest?.miniapp?.hero_image_url ||
                     previewMetadata.frame.manifest?.frame?.og_image_url ||
-                    previewMetadata.frame.image
+                    undefined
                   }
                   alt={previewMetadata.frame.title || "Mini app preview"}
                   className="w-full object-cover"
