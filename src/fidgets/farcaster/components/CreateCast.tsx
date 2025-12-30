@@ -1006,9 +1006,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
                     previewUrl}
                 </p>
                 <p className="text-sm text-slate-600 line-clamp-2">
-                  {previewMetadata?.frame?.manifest?.miniapp?.description ||
-                    previewMetadata?.frame?.manifest?.frame?.description ||
-                    previewMetadata?.frame?.manifest?.frame?.name ||
+                  {previewMetadata?.frame?.html?.ogDescription ||
                     (!previewMetadata?.frame && previewMetadata?.html?.ogDescription) ||
                     previewError ||
                     (!previewLoading && "Preview from Neynar embed crawl")}
