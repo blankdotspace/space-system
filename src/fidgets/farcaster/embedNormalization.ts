@@ -90,10 +90,15 @@ export const normalizeToFarcasterEmbeds = (
     if (typeof candidate.url === "string") {
       const inspection = findInspectionForUrl(candidate.url, inspections);
       if (inspection?.castId) {
-        const castEmbed = normaliseCastId({
-          fid: inspection.castId.fid,
-          hash: inspection.castId.hash,
-        });
+        const hash = toUint8Array(inspection.castId.hash);
+        const castEmbed = normaliseCastId(
+          hash
+            ? {
+                fid: inspection.castId.fid,
+                hash,
+              }
+            : undefined,
+        );
         if (castEmbed) {
           normalized.push(castEmbed);
           return;
