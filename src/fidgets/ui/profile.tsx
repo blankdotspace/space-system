@@ -14,7 +14,6 @@ import { followUser, unfollowUser } from "../farcaster/utils";
 import { useIsMobile } from "@/common/lib/hooks/useIsMobile";
 import { BsPerson, BsPersonFill } from "react-icons/bs";
 import { IoLocationOutline } from "react-icons/io5";
-import { useUIColors } from "@/common/lib/hooks/useUIColors";
 
 export type ProfileFidgetSettings = {
   fid: number;
@@ -134,14 +133,13 @@ const Profile: React.FC<FidgetArgs<ProfileFidgetSettings>> = ({
   const bioText = user.profile?.bio?.text || "";
   const uiFontFamily =
     "var(--ns-nav-font, var(--font-sans, Inter, system-ui, -apple-system, sans-serif))";
-  const { backgroundColor: uiBackgroundColor } = useUIColors();
   
   return (
     <div
       className={`flex flex-col h-full overflow-auto ${isMobile ? 'px-3 py-3' : 'px-4 py-4'}`}
       style={{
         fontFamily: uiFontFamily,
-        backgroundColor: uiBackgroundColor,
+        backgroundColor: "var(--ns-background-color, #ffffff)",
       }}
     >
       <div className="flex flex-row items-center mb-4">
