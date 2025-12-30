@@ -120,6 +120,7 @@ export default async function RootLayout({
       : "var(--font-sans, Inter, system-ui, -apple-system, sans-serif)";
   const navFontColor = systemConfig.ui?.fontColor || "#0f172a";
   const castButtonFontColor = systemConfig.ui?.castButtonFontColor || "#ffffff";
+  const navBackgroundColor = systemConfig.ui?.backgroundColor || "#ffffff";
   
   return (
     <html lang="en" suppressHydrationWarning>
@@ -134,6 +135,7 @@ export default async function RootLayout({
             ["--ns-nav-font" as string]: navFontStack,
             ["--ns-nav-font-color" as string]: navFontColor,
             ["--ns-cast-button-font-color" as string]: castButtonFontColor,
+            ["--ns-background-color" as string]: navBackgroundColor,
           } as React.CSSProperties
         }
       >

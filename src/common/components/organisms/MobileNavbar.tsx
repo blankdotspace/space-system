@@ -5,6 +5,7 @@ import { UserTheme } from "@/common/lib/theme";
 import { MdGridView } from "react-icons/md";
 import { BsImage, BsImageFill, BsFillPinFill, BsPin } from "react-icons/bs";
 import { CompleteFidgets } from "@/fidgets";
+import { useUIColors } from "@/common/lib/hooks/useUIColors";
 
 export interface TabItem {
   id: string;
@@ -311,17 +312,19 @@ const MobileNavbar: React.FC<MobileNavbarProps> = ({
   // Get theme colors for active tab indicators
   const navFontColor = "var(--ns-nav-font-color, #0f172a)";
   const navFontFamily = "var(--ns-nav-font, var(--font-sans, Inter, system-ui, -apple-system, sans-serif))";
+  const uiColors = useUIColors();
+  const backgroundColor = uiColors.backgroundColor || theme?.properties?.background || "white";
 
   return (
     <Tabs
       value={selected}
       onValueChange={onSelect}
       className={mergeClasses(
-        "fixed bottom-0 left-0 right-0 w-full h-[72px] bg-white border-t border-gray-200 z-30",
+        "fixed bottom-0 left-0 right-0 w-full h-[72px] border-t border-gray-200 z-30",
         className
       )}
       style={{
-          backgroundColor: theme?.properties?.background || "white",
+          backgroundColor,
           borderColor: theme?.properties?.fidgetBorderColor || "rgb(229 231 235)",
       }}
     >
@@ -333,7 +336,7 @@ const MobileNavbar: React.FC<MobileNavbarProps> = ({
         <div 
           className="absolute left-0 top-0 bottom-0 w-8 h-full z-10 pointer-events-none"
           style={{
-              background: `linear-gradient(to right, ${theme?.properties?.background || "white"}, transparent)`,
+              background: `linear-gradient(to right, ${backgroundColor}, transparent)`,
             opacity: scrollState.leftGradientOpacity,
             transition: 'opacity 0.3s ease'
           }}
@@ -367,7 +370,7 @@ const MobileNavbar: React.FC<MobileNavbarProps> = ({
         <div 
           className="absolute right-0 top-0 bottom-0 w-8 h-full z-10 pointer-events-none"
           style={{
-              background: `linear-gradient(to left, ${theme?.properties?.background || "white"}, transparent)`,
+              background: `linear-gradient(to left, ${backgroundColor}, transparent)`,
             opacity: scrollState.rightGradientOpacity,
             transition: 'opacity 0.3s ease'
           }}

@@ -266,7 +266,14 @@ const MobileHeader = ({ systemConfig }: MobileHeaderProps) => {
   }, [shouldConfirmCastClose]);
 
   return (
-    <header className="z-30 flex items-center justify-between h-14 px-4 bg-white overflow-hidden sticky top-0">
+    <header
+      className="z-30 flex items-center justify-between h-14 px-4 overflow-hidden sticky top-0"
+      style={{
+        backgroundColor: uiColors.backgroundColor,
+        color: uiColors.fontColor,
+        fontFamily: uiColors.fontFamily,
+      }}
+    >
       <div className="flex items-center gap-2">{isLoggedIn ? userAvatar : menuButton}</div>
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
         <BrandHeader systemConfig={systemConfig} />
