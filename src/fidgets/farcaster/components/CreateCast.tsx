@@ -999,14 +999,16 @@ const CreateCast: React.FC<CreateCastProps> = ({
         {previewUrl && (
           <div className="mt-3 w-full rounded-md border border-slate-200 bg-white p-3 shadow-sm">
             <div className="flex items-start justify-between gap-2">
-              <div>
+              <div className="flex-1">
                 <p className="font-semibold text-slate-900 break-all">
                   {previewMetadata?.frame?.title ||
                     previewMetadata?.html?.ogTitle ||
                     previewUrl}
                 </p>
                 <p className="text-sm text-slate-600 line-clamp-2">
-                  {previewMetadata?.frame?.url ||
+                  {previewMetadata?.frame?.manifest?.miniapp?.description ||
+                    previewMetadata?.frame?.manifest?.frame?.description ||
+                    previewMetadata?.frame?.manifest?.frame?.name ||
                     (!previewMetadata?.frame && previewMetadata?.html?.ogDescription) ||
                     previewError ||
                     (!previewLoading && "Preview from Neynar embed crawl")}
@@ -1053,17 +1055,35 @@ const CreateCast: React.FC<CreateCastProps> = ({
                 )}
               </div>
             </div>
-            {previewMetadata?.frame?.image && (
-              <div className="mt-2 overflow-hidden rounded-md">
+            {previewMetadata?.frame ? (
+              <div className="mt-2 overflow-hidden rounded-md border border-slate-200">
                 <img
-                  src={previewMetadata.frame.image}
-                  alt={previewMetadata.frame.title || "Frame preview"}
-                  className="h-40 w-full object-cover"
+                  src={
+                    previewMetadata.frame.image ||
+                    previewMetadata.frame.manifest?.miniapp?.splash_image_url ||
+                    previewMetadata.frame.manifest?.frame?.hero_image_url ||
+                    previewMetadata.frame.manifest?.miniapp?.hero_image_url ||
+                    previewMetadata.frame.manifest?.frame?.og_image_url ||
+                    previewMetadata.frame.image
+                  }
+                  alt={previewMetadata.frame.title || "Mini app preview"}
+                  className="w-full object-cover"
+                  style={{ maxHeight: 280 }}
                 />
+                {previewMetadata.frame.manifest?.miniapp?.name && (
+                  <div className="px-3 py-2">
+                    <p className="text-sm font-semibold">
+                      {previewMetadata.frame.manifest.miniapp.name}
+                    </p>
+                    {previewMetadata.frame.manifest.miniapp.description && (
+                      <p className="text-xs text-slate-600 line-clamp-2">
+                        {previewMetadata.frame.manifest.miniapp.description}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
-            {!previewMetadata?.frame?.image &&
-              !previewMetadata?.frame &&
+            ) : (
               (previewMetadata?.html?.ogImage?.[0]?.url ||
                 previewMetadata?.image?.url) && (
                 <div className="mt-2 overflow-hidden rounded-md">
@@ -1077,7 +1097,8 @@ const CreateCast: React.FC<CreateCastProps> = ({
                     className="h-40 w-full object-cover"
                   />
                 </div>
-              )}
+              )
+            )}
           </div>
         )}
 
