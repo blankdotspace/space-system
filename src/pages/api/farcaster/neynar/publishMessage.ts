@@ -30,10 +30,10 @@ async function publishMessage(req: NextApiRequest, res: NextApiResponse) {
         });
       }
 
-      message.embeds = sanitizeFarcasterEmbeds(message.embeds);
+      message.embeds = sanitizeFarcasterEmbeds(message.embeds, { normalized });
     }
 
-    const response = await neynar.publishMessageToFarcaster({body: message});
+    const response = await neynar.publishMessageToFarcaster({ body: message });
     res.status(200).json(response);
   } catch (e: any) {
     if (e.response?.data) {

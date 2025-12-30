@@ -194,8 +194,13 @@ const CreateCast: React.FC<CreateCastProps> = ({
   const [embedPreviews, setEmbedPreviews] = useState<Record<string, EmbedPreview>>({});
   const [removedEmbeds, setRemovedEmbeds] = useState<Set<string>>(new Set());
   const [loadingEmbeds, setLoadingEmbeds] = useState<Set<string>>(new Set());
+  const loadingEmbedsRef = useRef<Set<string>>(loadingEmbeds);
   const [embedErrors, setEmbedErrors] = useState<Record<string, string>>({});
   const { addRecentEmbed, getRecentEmbed } = useSharedData();
+
+  useEffect(() => {
+    loadingEmbedsRef.current = loadingEmbeds;
+  }, [loadingEmbeds]);
 
   const isTargetInsideEmojiPicker = useCallback(
     (event?: Event | CustomEvent<{ originalEvent?: Event }>, fallbackTarget?: EventTarget | null) => {
@@ -721,7 +726,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
         return;
       }
 
-      if (loadingEmbeds.has(normalizedUrl)) {
+      if (loadingEmbedsRef.current.has(normalizedUrl)) {
         return;
       }
 
@@ -771,7 +776,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
     return () => {
       timers.forEach((timer) => clearTimeout(timer));
     };
-  }, [text, embedPreviews, addRecentEmbed, getRecentEmbed, removedEmbeds, loadingEmbeds]);
+  }, [text, embedPreviews, addRecentEmbed, getRecentEmbed, removedEmbeds]);
 
   useEffect(() => {
     if (!editor) return;
