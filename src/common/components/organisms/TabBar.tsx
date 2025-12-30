@@ -14,6 +14,7 @@ import ClaimButtonWithModal from "../molecules/ClaimButtonWithModal";
 import { useSidebarContext } from "./Sidebar";
 import TokenDataHeader from "./TokenDataHeader";
 import { validateTabName } from "@/common/utils/tabUtils";
+import { useUIColors } from "@/common/lib/hooks/useUIColors";
 
 interface TabBarProps {
   inHomebase: boolean;
@@ -55,6 +56,7 @@ function TabBar({
 }: TabBarProps) {
   const isMobile = useIsMobile();
   const { setEditMode } = useSidebarContext();
+  const uiColors = useUIColors();
 
   const { getIsLoggedIn, getIsInitializing, homebaseLoadTab, setCurrentTabName } = useAppStore((state) => ({
     setModalOpen: state.setup.setModalOpen,
@@ -243,13 +245,22 @@ function TabBar({
 
   return (
     <TooltipProvider>
-      <div className="flex flex-col md:flex-row justify-start md:h-16 z-30 bg-white w-full"> 
+      <div
+        className="flex flex-col md:flex-row justify-start md:h-16 z-30 w-full"
+        style={{ backgroundColor: uiColors.backgroundColor }}
+      > 
         {isTokenPage && contractAddress && (
-          <div className="flex flex-row justify-start h-16 w-full md:w-fit z-20 bg-white">
+          <div
+            className="flex flex-row justify-start h-16 w-full md:w-fit z-20"
+            style={{ backgroundColor: uiColors.backgroundColor }}
+          >
             <TokenDataHeader />
           </div>
         )}
-        <div className="flex w-full h-16 bg-white items-center justify-between"> 
+        <div
+          className="flex w-full h-16 items-center justify-between"
+          style={{ backgroundColor: uiColors.backgroundColor }}
+        > 
           {/* Tabs Section - grows until it hits buttons */}
           <div className="flex-1 min-w-0 overflow-hidden">
             <div className="overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>

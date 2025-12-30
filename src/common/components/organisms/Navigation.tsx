@@ -116,6 +116,7 @@ const Navigation = React.memo(
   const navTextStyle: React.CSSProperties = {
     color: uiColors.fontColor,
     fontFamily: uiColors.fontFamily,
+    backgroundColor: uiColors.backgroundColor,
   };
 
   const [shrunk, setShrunk] = useState(mobile ? false : true);
@@ -363,7 +364,7 @@ const Navigation = React.memo(
     <nav
       id="logo-sidebar"
       className={mergeClasses(
-        "border-r-2 bg-white",
+        "border-r-2",
         mobile
           ? "w-[270px]"
           : "w-full transition-transform -translate-x-full sm:translate-x-0"
@@ -414,7 +415,8 @@ const Navigation = React.memo(
           {!mobile && (
             <button
               onClick={toggleSidebar}
-              className="absolute right-0 top-4 transform translate-x-1/2 bg-white rounded-full border border-gray-200 shadow-sm p-2 hover:bg-gray-50 sidebar-expand-button z-50"
+              className="absolute right-0 top-4 transform translate-x-1/2 rounded-full border border-gray-200 shadow-sm p-2 sidebar-expand-button z-50"
+              style={{ backgroundColor: uiColors.backgroundColor }}
               aria-label={shrunk ? "Expand sidebar" : "Collapse sidebar"}
             >
               {shrunk ? (
