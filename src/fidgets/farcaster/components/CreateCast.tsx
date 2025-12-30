@@ -1010,11 +1010,10 @@ const CreateCast: React.FC<CreateCastProps> = ({
                           (embed) => isUrlEmbed(embed) && embed.url === previewUrl,
                         )
                       ) {
-                        setEmbeds((existing) =>
-                          existing.filter(
-                            (embed) => !(isUrlEmbed(embed) && embed.url === previewUrl),
-                          ),
+                        const nextEmbeds = getEmbeds().filter(
+                          (embed) => !(isUrlEmbed(embed) && embed.url === previewUrl),
                         );
+                        setEmbeds(nextEmbeds);
                         setDraft((prev) => ({
                           ...prev,
                           embeds: (prev.embeds || []).filter(
