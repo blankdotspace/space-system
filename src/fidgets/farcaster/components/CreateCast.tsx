@@ -985,13 +985,13 @@ const CreateCast: React.FC<CreateCastProps> = ({
             <div className="flex items-start justify-between gap-2">
               <div>
                 <p className="font-semibold text-slate-900 break-all">
-                  {previewMetadata?.html?.ogTitle ||
-                    previewMetadata?.frame?.title ||
+                  {previewMetadata?.frame?.title ||
+                    previewMetadata?.html?.ogTitle ||
                     previewUrl}
                 </p>
                 <p className="text-sm text-slate-600 line-clamp-2">
-                  {previewMetadata?.html?.ogDescription ||
-                    previewMetadata?.frame?.url ||
+                  {previewMetadata?.frame?.url ||
+                    (!previewMetadata?.frame && previewMetadata?.html?.ogDescription) ||
                     previewError ||
                     (!previewLoading && "Preview from Neynar embed crawl")}
                 </p>
@@ -1006,7 +1006,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
                 {previewLoading && (
                   <Spinner style={{ width: "24px", height: "24px" }} />
                 )}
-                {embeds.some((embed) => isUrlEmbed(embed) && embed.url === previewUrl) && (
+                {previewUrl && (
                   <Button
                     size="icon"
                     type="button"
@@ -1030,6 +1030,10 @@ const CreateCast: React.FC<CreateCastProps> = ({
                         updated.add(previewUrl);
                         return updated;
                       });
+                      setPreviewUrl(null);
+                      setPreviewMetadata(null);
+                      setPreviewError(null);
+                      setEmbedLookupMessage(null);
                     }}
                   >
                     ✕
@@ -1047,6 +1051,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
               </div>
             )}
             {!previewMetadata?.frame?.image &&
+              !previewMetadata?.frame &&
               (previewMetadata?.html?.ogImage?.[0]?.url ||
                 previewMetadata?.image?.url) && (
                 <div className="mt-2 overflow-hidden rounded-md">

@@ -31,6 +31,19 @@ async function fetchCastsByEmbed(req: NextApiRequest, res: NextApiResponse) {
         "embeds[]": url,
         limit: limit ? Number(limit) : undefined,
       },
+      paramsSerializer: {
+        encode: (params) => {
+          const searchParams = new URLSearchParams();
+          const values = Array.isArray(params["embeds[]"])
+            ? (params["embeds[]"] as string[])
+            : [params["embeds[]"] as string];
+          values.forEach((value) => searchParams.append("embeds[]", value));
+          if (params.limit) {
+            searchParams.append("limit", String(params.limit));
+          }
+          return searchParams.toString();
+        },
+      },
     };
 
     const { data } = await axios.request(options);
