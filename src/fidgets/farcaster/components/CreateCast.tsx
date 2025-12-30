@@ -69,7 +69,6 @@ import { renderEmbedForUrl } from "./Embeds";
 
 import { getSpaceContractAddr } from "@/constants/spaceToken";
 import { useSharedData } from "@/common/providers/SharedDataProvider";
-import { fetchCastsByEmbed } from "../embedLookup";
 import { EmbedMetadata } from "../types";
 
 // SPACE_CONTRACT_ADDR will be loaded when needed (async)
@@ -198,7 +197,6 @@ const CreateCast: React.FC<CreateCastProps> = ({
   const [previewMetadata, setPreviewMetadata] = useState<EmbedMetadata | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
-  const [embedLookupMessage, setEmbedLookupMessage] = useState<string | null>(null);
   const [dismissedEmbeds, setDismissedEmbeds] = useState<Set<string>>(new Set());
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -623,7 +621,6 @@ const CreateCast: React.FC<CreateCastProps> = ({
         setPreviewMetadata(null);
         setPreviewError(null);
         setPreviewLoading(false);
-        setEmbedLookupMessage(null);
         return;
       }
 
@@ -631,7 +628,6 @@ const CreateCast: React.FC<CreateCastProps> = ({
         setPreviewUrl(detectedUrl);
         setPreviewLoading(false);
         setPreviewMetadata(null);
-        setEmbedLookupMessage(null);
         return;
       }
 
@@ -640,13 +636,11 @@ const CreateCast: React.FC<CreateCastProps> = ({
       }
 
       setPreviewUrl(detectedUrl);
-      setEmbedLookupMessage(null);
       const cachedEmbed = getRecentEmbed(detectedUrl);
       if (cachedEmbed) {
         setPreviewMetadata(cachedEmbed.metadata || null);
         setPreviewError(null);
         setPreviewLoading(false);
-        setEmbedLookupMessage(null);
         return;
       }
 
@@ -683,16 +677,6 @@ const CreateCast: React.FC<CreateCastProps> = ({
             }
           }
 
-          const lookup = await fetchCastsByEmbed(detectedUrl);
-          if (!controller.signal.aborted && lookup?.casts) {
-            if (lookup.casts.length === 0) {
-              setEmbedLookupMessage(
-                "Neynar could not find casts that embed this URL yet.",
-              );
-            } else {
-              setEmbedLookupMessage(null);
-            }
-          }
         } catch (err) {
           if (!controller.signal.aborted) {
             setPreviewError((err as Error).message);
@@ -1027,9 +1011,6 @@ const CreateCast: React.FC<CreateCastProps> = ({
                     previewError ||
                     (!previewLoading && "Preview from Neynar embed crawl")}
                 </p>
-                {embedLookupMessage && (
-                  <p className="mt-1 text-xs text-amber-600">{embedLookupMessage}</p>
-                )}
                 {previewError && (
                   <p className="mt-1 text-xs text-red-600">{previewError}</p>
                 )}
@@ -1314,9 +1295,16 @@ const CreateCast: React.FC<CreateCastProps> = ({
         </div>
       )}
 
-      {hasEmbeds && (
+      {hasEmbeds && (() => {
+        const visibleEmbeds = previewUrl && previewMetadata
+          ? (draft.embeds || []).filter(
+              (embed) => !(isUrlEmbed(embed) && embed.url === previewUrl),
+            )
+          : draft.embeds;
+        if (!visibleEmbeds || visibleEmbeds.length === 0) return null;
+        return (
         <div className="mt-8 rounded-md bg-muted p-2 w-full break-all">
-          {map(draft.embeds, (embed) => (
+          {map(visibleEmbeds, (embed) => (
             <div
               key={`cast-embed-${
                 isCastIdEmbed(embed)
@@ -1336,7 +1324,8 @@ const CreateCast: React.FC<CreateCastProps> = ({
             </div>
           ))}
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 };
