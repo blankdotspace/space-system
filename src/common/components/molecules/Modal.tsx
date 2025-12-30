@@ -54,6 +54,7 @@ const Modal = ({
             className={mergeClasses(
               "pointer-events-auto data-[state=open]:animate-contentShow bg-background",
               "w-[100vw] max-w-[600px] rounded-[10px] p-[25px]",
+              "max-h-[90vh] overflow-y-auto",
               "shadow-[hsl(206_22%_7%_/_35%)_0px_10px_38px_-10px,_hsl(206_22%_7%_/_20%)_0px_10px_20px_-15px] focus:outline-none",
               "relative overflow-visible",
             )}
