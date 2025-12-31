@@ -39,18 +39,12 @@ export type PlayerProps = {
   fontColor?: string;
   fontFamily?: string;
   borderColor?: string;
-  accentColor?: string;
-  accentIconColor?: string;
-  collapsedAccentColor?: string;
-  collapsedIconColor?: string;
 };
 
 const DEFAULT_UI_FONT_COLOR = "var(--ns-nav-font-color, #0f172a)";
 const DEFAULT_UI_FONT_FAMILY =
   "var(--ns-nav-font, var(--font-sans, Inter, system-ui, -apple-system, sans-serif))";
 const DEFAULT_BORDER_COLOR = "rgba(128, 128, 128, 0.5)";
-const DEFAULT_ACCENT_COLOR = "var(--ns-cast-button-background-color, rgb(37, 99, 235))";
-const DEFAULT_ACCENT_ICON_COLOR = "var(--ns-cast-button-font-color, #ffffff)";
 
 const getToggleIcon = ({ playing, started, ready }): [IconType, string] => {
   if ((playing && !started) || !ready) {
@@ -68,10 +62,6 @@ export const Player: React.FC<PlayerProps> = ({
   fontColor = DEFAULT_UI_FONT_COLOR,
   fontFamily = DEFAULT_UI_FONT_FAMILY,
   borderColor = DEFAULT_BORDER_COLOR,
-  accentColor = DEFAULT_ACCENT_COLOR,
-  accentIconColor = DEFAULT_ACCENT_ICON_COLOR,
-  collapsedAccentColor,
-  collapsedIconColor,
 }) => {
   const hasWindow = useHasWindow();
   const playerRef = useRef<ReactPlayer | null>(null);
@@ -177,11 +167,6 @@ export const Player: React.FC<PlayerProps> = ({
     fontFamily,
   };
 
-  const collapsedButtonStyles: React.CSSProperties = {
-    backgroundColor: collapsedAccentColor || accentColor,
-    color: collapsedIconColor || accentIconColor,
-  };
-
   if (shrunk) {
     return (
       <>
@@ -212,15 +197,22 @@ export const Player: React.FC<PlayerProps> = ({
             ) : (
               <div
                 className={mergeClasses(
-                  "transition-transform duration-200 flex items-center justify-center w-10 h-10 rounded-full drop-shadow-md",
+                  "transition-transform duration-200",
                   isHovering ? "scale-110" : "scale-100"
                 )}
-                style={collapsedButtonStyles}
               >
                 {playing ? (
-                  <FaPause size={20} />
+                  <FaPause
+                    className="drop-shadow-md"
+                    size={24}
+                    style={{ color: "rgba(128, 128, 128, 0.5)" }}
+                  />
                 ) : (
-                  <FaPlay size={20} />
+                  <FaPlay
+                    className="drop-shadow-md"
+                    size={24}
+                    style={{ color: "rgba(128, 128, 128, 0.5)" }}
+                  />
                 )}
               </div>
             )}
@@ -282,8 +274,8 @@ export const Player: React.FC<PlayerProps> = ({
             variant="secondary"
             style={{
               ...baseTextStyles,
-              backgroundColor: accentColor,
-              color: accentIconColor,
+              backgroundColor: "rgba(128, 128, 128, 0.5)",
+              color: "rgba(128, 128, 128, 0.5)",
             }}
           >
             <ToggleIcon className={iconClassNames} size={20} />

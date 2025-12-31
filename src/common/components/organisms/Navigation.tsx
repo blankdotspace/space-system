@@ -516,8 +516,6 @@ const Navigation = React.memo(
                   fontColor={uiColors.fontColor}
                   fontFamily={uiColors.fontFamily}
                   borderColor={NAV_BORDER_COLOR}
-                  accentColor={castButtonColors.backgroundColor}
-                  accentIconColor={castButtonColors.fontColor}
                 />
               </div>
             )}
