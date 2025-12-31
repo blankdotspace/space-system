@@ -205,13 +205,13 @@ export const Player: React.FC<PlayerProps> = ({
                   <FaPause
                     className="drop-shadow-md"
                     size={24}
-                    style={{ color: "rgba(128, 128, 128, 0.5)" }}
+                    style={{ color: "rgba(128, 128, 128, 0.8)" }}
                   />
                 ) : (
                   <FaPlay
                     className="drop-shadow-md"
                     size={24}
-                    style={{ color: "rgba(128, 128, 128, 0.5)" }}
+                    style={{ color: "rgba(255, 255, 255, 0.5)" }}
                   />
                 )}
               </div>
