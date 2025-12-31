@@ -113,6 +113,7 @@ const Navigation = React.memo(
     activeColor: uiColors.castButton.activeColor,
     fontColor: uiColors.castButtonFontColor,
   };
+  const NAV_BORDER_COLOR = "rgba(128, 128, 128, 0.2)";
   const navTextStyle: React.CSSProperties = {
     color: uiColors.fontColor,
     fontFamily: uiColors.fontFamily,
@@ -370,7 +371,7 @@ const Navigation = React.memo(
           : "w-full transition-transform -translate-x-full sm:translate-x-0"
       )}
       aria-label="Sidebar"
-      style={navTextStyle}
+      style={{ ...navTextStyle, borderColor: NAV_BORDER_COLOR }}
     >
       <Modal
         open={showCastModal}
@@ -416,7 +417,10 @@ const Navigation = React.memo(
             <button
               onClick={toggleSidebar}
               className="absolute right-0 top-4 transform translate-x-1/2 rounded-full border border-gray-200 shadow-sm p-2 sidebar-expand-button z-50"
-              style={{ backgroundColor: uiColors.backgroundColor }}
+              style={{
+                backgroundColor: uiColors.backgroundColor,
+                borderColor: NAV_BORDER_COLOR,
+              }}
               aria-label={shrunk ? "Expand sidebar" : "Collapse sidebar"}
             >
               {shrunk ? (
@@ -494,7 +498,10 @@ const Navigation = React.memo(
               </ul>
             </div>
           </div>
-          <div className="flex flex-col flex-auto justify-between border-t px-4">
+          <div
+            className="flex flex-col flex-auto justify-between border-t px-4"
+            style={{ borderColor: NAV_BORDER_COLOR }}
+          >
             {navigation?.showMusicPlayer !== false && (
               <div
                 className={mergeClasses("mt-8 px-2", shrunk ? "px-0" : "px-2")}
