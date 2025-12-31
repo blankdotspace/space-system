@@ -17,7 +17,7 @@ import {
   tabTriggerClasses,
 } from "@/common/lib/theme/helpers";
 import { mergeClasses } from "@/common/lib/utils/mergeClasses";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FaCircleInfo, FaTrashCan } from "react-icons/fa6";
 import BackArrowIcon from "../atoms/icons/BackArrow";
 import { AnalyticsEvent } from "@/common/constants/analyticsEvents";
@@ -132,13 +132,15 @@ export const FidgetSettingsGroup: React.FC<{
   state: FidgetSettings;
   setState: (state: FidgetSettings) => void;
   onSave: (state: FidgetSettings) => void;
-}> = ({ fields, state, setState, onSave, fidgetId }) => {
+  isActive?: () => boolean;
+}> = ({ fields, state, setState, onSave, fidgetId, isActive }) => {
   return (
     <>
       {fields.map((field, i) => {
         const value =
           (field.fieldName in state && state[field.fieldName]) || "";
         const updateSettings = (partial: FidgetSettings) => {
+          if (isActive && !isActive()) return;
           const data = { ...state, ...partial };
           setState(data);
           onSave(data);
@@ -150,6 +152,7 @@ export const FidgetSettingsGroup: React.FC<{
             id={`${fidgetId}-${i}-${field.fieldName}`}
             value={value}
             onChange={(val) => {
+              if (isActive && !isActive()) return;
               const data = {
                 ...state,
                 [field.fieldName]: val,
@@ -175,16 +178,41 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
   unselect,
   removeFidget,
 }) => {
+  const fillWithDefaults = (input: FidgetSettings) =>
+    properties.fields.reduce((acc, field) => {
+      const value =
+        input && typeof input === "object"
+          ? (input as any)[field.fieldName]
+          : undefined;
+      const hasValue =
+        value !== undefined &&
+        value !== null &&
+        (typeof value !== "string" || value.trim() !== "");
+      acc[field.fieldName] = hasValue ? value : field.default ?? "";
+      return acc;
+    }, {} as FidgetSettings);
+
   const [state, setState] = useState<FidgetSettings>(settings);
+  const activeIdRef = useRef(fidgetId);
   const uiColors = useUIColors();
 
   useEffect(() => {
-    setState(settings);
-  }, [settings, fidgetId]);
+    setState(fillWithDefaults(settings));
+  }, [settings, fidgetId, properties.fields]);
+
+  useEffect(() => {
+    activeIdRef.current = fidgetId;
+  }, [fidgetId]);
+
+  const safeOnSave = (nextState: FidgetSettings) => {
+    if (activeIdRef.current !== fidgetId) return;
+    onSave(fillWithDefaults(nextState));
+  };
 
   const _onSave = (e) => {
     e.preventDefault();
-    onSave(state, true);
+    if (activeIdRef.current !== fidgetId) return;
+    onSave(fillWithDefaults(state), true);
     analytics.track(AnalyticsEvent.EDIT_FIDGET, {
       fidgetType: properties.fidgetName,
     });
@@ -233,7 +261,8 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
                 fields={groupedFields.settings}
                 state={state}
                 setState={setState}
-                onSave={onSave}
+                onSave={safeOnSave}
+                isActive={() => activeIdRef.current === fidgetId}
               />
             </TabsContent>
             {groupedFields.style.length > 0 && (
@@ -243,7 +272,8 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
                   fields={groupedFields.style}
                   state={state}
                   setState={setState}
-                  onSave={onSave}
+                  onSave={safeOnSave}
+                  isActive={() => activeIdRef.current === fidgetId}
                 />
               </TabsContent>
             )}
@@ -254,7 +284,8 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
                   fields={groupedFields.code}
                   state={state}
                   setState={setState}
-                  onSave={onSave}
+                  onSave={safeOnSave}
+                  isActive={() => activeIdRef.current === fidgetId}
                 />
               </TabsContent>
             )}
