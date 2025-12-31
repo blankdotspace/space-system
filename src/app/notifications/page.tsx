@@ -462,7 +462,7 @@ function NotificationsPageContent() {
                   value={TAB_OPTIONS.ALL}
                   className="data-[state=active]:bg-[var(--tab-active-bg)] data-[state=active]:text-[var(--tab-active-color)]"
                   style={{
-                    color: uiColors.fontColor,
+                    color: tab === TAB_OPTIONS.ALL ? castButtonColors.fontColor : uiColors.fontColor,
                     fontFamily: uiColors.fontFamily,
                     ["--tab-active-bg" as string]: castButtonColors.backgroundColor,
                     ["--tab-active-color" as string]: castButtonColors.fontColor,
@@ -474,7 +474,7 @@ function NotificationsPageContent() {
                   value={TAB_OPTIONS.MENTIONS}
                   className="data-[state=active]:bg-[var(--tab-active-bg)] data-[state=active]:text-[var(--tab-active-color)]"
                   style={{
-                    color: uiColors.fontColor,
+                    color: tab === TAB_OPTIONS.MENTIONS ? castButtonColors.fontColor : uiColors.fontColor,
                     fontFamily: uiColors.fontFamily,
                     ["--tab-active-bg" as string]: castButtonColors.backgroundColor,
                     ["--tab-active-color" as string]: castButtonColors.fontColor,
@@ -486,7 +486,7 @@ function NotificationsPageContent() {
                   value={TAB_OPTIONS.FOLLOWS}
                   className="data-[state=active]:bg-[var(--tab-active-bg)] data-[state=active]:text-[var(--tab-active-color)]"
                   style={{
-                    color: uiColors.fontColor,
+                    color: tab === TAB_OPTIONS.FOLLOWS ? castButtonColors.fontColor : uiColors.fontColor,
                     fontFamily: uiColors.fontFamily,
                     ["--tab-active-bg" as string]: castButtonColors.backgroundColor,
                     ["--tab-active-color" as string]: castButtonColors.fontColor,
@@ -498,7 +498,7 @@ function NotificationsPageContent() {
                   value={TAB_OPTIONS.RECASTS}
                   className="data-[state=active]:bg-[var(--tab-active-bg)] data-[state=active]:text-[var(--tab-active-color)]"
                   style={{
-                    color: uiColors.fontColor,
+                    color: tab === TAB_OPTIONS.RECASTS ? castButtonColors.fontColor : uiColors.fontColor,
                     fontFamily: uiColors.fontFamily,
                     ["--tab-active-bg" as string]: castButtonColors.backgroundColor,
                     ["--tab-active-color" as string]: castButtonColors.fontColor,
@@ -510,7 +510,7 @@ function NotificationsPageContent() {
                   value={TAB_OPTIONS.REPLIES}
                   className="data-[state=active]:bg-[var(--tab-active-bg)] data-[state=active]:text-[var(--tab-active-color)]"
                   style={{
-                    color: uiColors.fontColor,
+                    color: tab === TAB_OPTIONS.REPLIES ? castButtonColors.fontColor : uiColors.fontColor,
                     fontFamily: uiColors.fontFamily,
                     ["--tab-active-bg" as string]: castButtonColors.backgroundColor,
                     ["--tab-active-color" as string]: castButtonColors.fontColor,
@@ -522,7 +522,7 @@ function NotificationsPageContent() {
                   value={TAB_OPTIONS.LIKES}
                   className="data-[state=active]:bg-[var(--tab-active-bg)] data-[state=active]:text-[var(--tab-active-color)]"
                   style={{
-                    color: uiColors.fontColor,
+                    color: tab === TAB_OPTIONS.LIKES ? castButtonColors.fontColor : uiColors.fontColor,
                     fontFamily: uiColors.fontFamily,
                     ["--tab-active-bg" as string]: castButtonColors.backgroundColor,
                     ["--tab-active-color" as string]: castButtonColors.fontColor,
