@@ -73,7 +73,7 @@ export function ChannelPicker(props: Props) {
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="flex items-center px-4 py-2"
+          className="flex items-center px-4 py-2 border-[rgba(128,128,128,0.2)]"
         >
           <img
             src={value.image_url ?? ""}
