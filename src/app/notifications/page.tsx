@@ -5,7 +5,7 @@ import { useNotifications } from "@/common/lib/hooks/useNotifications";
 import { useCurrentFid } from "@/common/lib/hooks/useCurrentFid";
 import { FaCircleExclamation } from "react-icons/fa6";
 import { FaReply } from "react-icons/fa6";
-import { 
+import {
   HeartIcon,
   UserPlusIcon,
   ArrowPathRoundedSquareIcon,
@@ -25,6 +25,7 @@ import {
 import moment from "moment";
 import useDelayedValueChange from "@/common/lib/hooks/useDelayedValueChange";
 import { useRouter } from "next/navigation";
+import { useUIColors } from "@/common/lib/hooks/useUIColors";
 
 const TAB_OPTIONS = {
   ALL: "all",
@@ -39,6 +40,10 @@ export type NotificationRowProps = React.FC<{
   notification: Notification;
   onSelect: (castHash: string, username: string) => void;
   isUnseen?: boolean;
+  fontColor: string;
+  secondaryTextColor: string;
+  borderColor: string;
+  fontFamily: string;
 }>;
 
 // Type guard to safely extract error message
@@ -64,13 +69,17 @@ const ErrorPanel = ({ message }: { message: string }) => {
   );
 };
 
-const FormattedUsersText = ({ users }: { users: User[] }) => {
+const FormattedUsersText = ({ users, fontColor }: { users: User[]; fontColor: string }) => {
   if (users.length === 0) {
     return "Nobody";
   }
 
   const firstUserLink = (
-    <PriorityLink href={`/s/${users[0].username}`} className="hover:underline text-foreground font-semibold">
+    <PriorityLink
+      href={`/s/${users[0].username}`}
+      className="hover:underline font-semibold"
+      style={{ color: fontColor }}
+    >
       {users[0].display_name}
     </PriorityLink>
   );
@@ -125,7 +134,15 @@ const getNotificationIcon = (type: NotificationTypeEnum): React.ReactNode => {
   }
 };
 
-const NotificationRow: NotificationRowProps = ({ notification, onSelect, isUnseen = false }) => {
+const NotificationRow: NotificationRowProps = ({
+  notification,
+  onSelect,
+  isUnseen = false,
+  fontColor,
+  secondaryTextColor,
+  borderColor,
+  fontFamily,
+}) => {
   const handleClick = useCallback(() => {
     if (notification.cast?.hash && notification.cast?.author?.username) {
       onSelect(notification.cast.hash, notification.cast.author.username);
@@ -160,11 +177,18 @@ const NotificationRow: NotificationRowProps = ({ notification, onSelect, isUnsee
   return (
     <div
       className={`
-        px-4 py-3 border-b border-border/20 cursor-pointer transition-all duration-200
-        hover:bg-accent/50
+        px-4 py-3 border-b cursor-pointer transition-all duration-200 hover:bg-[rgba(128,128,128,0.08)]
         ${isUnseen ? "bg-blue-50/30 border-l-4 border-l-blue-500" : ""}
       `}
       onClick={handleClick}
+      style={{
+        borderTopColor: borderColor,
+        borderRightColor: borderColor,
+        borderBottomColor: borderColor,
+        borderLeftColor: isUnseen ? undefined : borderColor,
+        color: fontColor,
+        fontFamily,
+      }}
     >
       {/* Avatars row (for all notification types) */}
       {showAvatars && relatedUsers.length > 0 && (
@@ -213,7 +237,10 @@ const NotificationRow: NotificationRowProps = ({ notification, onSelect, isUnsee
             ))}
             {/* Show overflow indicator */}
             {relatedUsers.length > maxAvatarsToShow && (
-              <div className="w-8 h-8 bg-muted border-2 border-background rounded-full flex items-center justify-center text-xs font-medium text-muted-foreground">
+              <div
+                className="w-8 h-8 bg-muted border-2 border-background rounded-full flex items-center justify-center text-xs font-medium"
+                style={{ color: secondaryTextColor, borderColor }}
+              >
                 +{relatedUsers.length - maxAvatarsToShow}
               </div>
             )}
@@ -228,25 +255,30 @@ const NotificationRow: NotificationRowProps = ({ notification, onSelect, isUnsee
           {/* Header with users and action */}
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <div className="flex items-center gap-1.5">
-              <FormattedUsersText users={relatedUsers} />
+              <FormattedUsersText users={relatedUsers} fontColor={fontColor} />
             </div>
-            <span className="text-muted-foreground text-sm">{getNotificationActionText(notification.type)}</span>
-            <span className="text-muted-foreground text-xs">•</span>
-            <span className="text-muted-foreground text-xs">
+            <span className="text-sm opacity-80" style={{ color: secondaryTextColor }}>
+              {getNotificationActionText(notification.type)}
+            </span>
+            <span className="text-xs opacity-80" style={{ color: secondaryTextColor }}>
+              •
+            </span>
+            <span className="text-xs opacity-80" style={{ color: secondaryTextColor }}>
               {moment(notification.most_recent_timestamp).fromNow()}
             </span>
           </div>
 
           {/* Cast content if present */}
           {notification.cast && (
-            <div className="mt-2 text-sm text-muted-foreground">
+            <div className="mt-2 text-sm opacity-90" style={{ color: secondaryTextColor }}>
               <CastBody
                 cast={notification.cast}
                 castTextStyle={{
                   fontSize: "14px",
                   lineHeight: "1.4",
-                  color: "rgb(100 116 139)",
+                  color: fontColor,
                   fontWeight: "400",
+                  fontFamily,
                 }}
               />
             </div>
@@ -294,6 +326,17 @@ function NotificationsPageContent() {
   const { mutate: updateLastSeenCursor } = useMutateNotificationsLastSeenCursor(fid, identityPublicKey);
 
   const router = useRouter();
+  const uiColors = useUIColors();
+  const castButtonColors = useMemo(
+    () => ({
+      backgroundColor: uiColors.castButton.backgroundColor,
+      fontColor: uiColors.castButtonFontColor,
+    }),
+    [uiColors.castButton.backgroundColor, uiColors.castButtonFontColor]
+  );
+  const tabBarBackground = "rgba(128, 128, 128, 0.2)";
+  const borderColor = "rgba(128, 128, 128, 0.2)";
+  const secondaryTextColor = uiColors.fontColor;
 
   const onTabChange = useCallback((value: string) => {
     setTab(value);
@@ -385,47 +428,105 @@ function NotificationsPageContent() {
   );
 
   return (
-    <div className="w-full min-h-screen bg-background">
+    <div
+      className="w-full min-h-screen"
+      style={{
+        backgroundColor: uiColors.backgroundColor,
+        color: uiColors.fontColor,
+        fontFamily: uiColors.fontFamily,
+      }}
+    >
       <Tabs value={tab} onValueChange={onTabChange} className="min-h-full">
         <div className="max-w-2xl mx-auto">
           {/* Header */}
-          <div className="px-4 py-4 border-b border-border/40 bg-background sticky top-0 z-10">
-            <h1 className="text-xl font-semibold text-foreground mb-4">Notifications</h1>
+          <div
+            className="px-4 py-4 border-b sticky top-0 z-10"
+            style={{ borderColor, backgroundColor: uiColors.backgroundColor }}
+          >
+            <h1
+              className="text-xl font-semibold mb-4"
+              style={{ color: uiColors.fontColor, fontFamily: uiColors.fontFamily }}
+            >
+              Notifications
+            </h1>
             <div className="overflow-x-auto pb-2 -mx-4 px-4 md:overflow-visible md:pb-0 md:mx-0 md:px-0">
-              <TabsList className="grid min-w-[600px] md:min-w-fit w-full grid-cols-6 max-w-2xl bg-muted">
+              <TabsList
+                className="grid min-w-[600px] md:min-w-fit w-full grid-cols-6 max-w-2xl"
+                style={{
+                  backgroundColor: tabBarBackground,
+                  fontFamily: uiColors.fontFamily,
+                  borderColor,
+                }}
+              >
                 <TabsTrigger
                   value={TAB_OPTIONS.ALL}
-                  className="data-[state=active]:bg-background data-[state=active]:text-foreground"
+                  className="data-[state=active]:bg-[var(--tab-active-bg)] data-[state=active]:text-[var(--tab-active-color)]"
+                  style={{
+                    color: tab === TAB_OPTIONS.ALL ? castButtonColors.fontColor : uiColors.fontColor,
+                    fontFamily: uiColors.fontFamily,
+                    ["--tab-active-bg" as string]: castButtonColors.backgroundColor,
+                    ["--tab-active-color" as string]: castButtonColors.fontColor,
+                  }}
                 >
                   All
                 </TabsTrigger>
                 <TabsTrigger
                   value={TAB_OPTIONS.MENTIONS}
-                  className="data-[state=active]:bg-background data-[state=active]:text-foreground"
+                  className="data-[state=active]:bg-[var(--tab-active-bg)] data-[state=active]:text-[var(--tab-active-color)]"
+                  style={{
+                    color: tab === TAB_OPTIONS.MENTIONS ? castButtonColors.fontColor : uiColors.fontColor,
+                    fontFamily: uiColors.fontFamily,
+                    ["--tab-active-bg" as string]: castButtonColors.backgroundColor,
+                    ["--tab-active-color" as string]: castButtonColors.fontColor,
+                  }}
                 >
                   Mentions
                 </TabsTrigger>
                 <TabsTrigger
                   value={TAB_OPTIONS.FOLLOWS}
-                  className="data-[state=active]:bg-background data-[state=active]:text-foreground"
+                  className="data-[state=active]:bg-[var(--tab-active-bg)] data-[state=active]:text-[var(--tab-active-color)]"
+                  style={{
+                    color: tab === TAB_OPTIONS.FOLLOWS ? castButtonColors.fontColor : uiColors.fontColor,
+                    fontFamily: uiColors.fontFamily,
+                    ["--tab-active-bg" as string]: castButtonColors.backgroundColor,
+                    ["--tab-active-color" as string]: castButtonColors.fontColor,
+                  }}
                 >
                   Follows
                 </TabsTrigger>
                 <TabsTrigger
                   value={TAB_OPTIONS.RECASTS}
-                  className="data-[state=active]:bg-background data-[state=active]:text-foreground"
+                  className="data-[state=active]:bg-[var(--tab-active-bg)] data-[state=active]:text-[var(--tab-active-color)]"
+                  style={{
+                    color: tab === TAB_OPTIONS.RECASTS ? castButtonColors.fontColor : uiColors.fontColor,
+                    fontFamily: uiColors.fontFamily,
+                    ["--tab-active-bg" as string]: castButtonColors.backgroundColor,
+                    ["--tab-active-color" as string]: castButtonColors.fontColor,
+                  }}
                 >
                   Recasts
                 </TabsTrigger>
                 <TabsTrigger
                   value={TAB_OPTIONS.REPLIES}
-                  className="data-[state=active]:bg-background data-[state=active]:text-foreground"
+                  className="data-[state=active]:bg-[var(--tab-active-bg)] data-[state=active]:text-[var(--tab-active-color)]"
+                  style={{
+                    color: tab === TAB_OPTIONS.REPLIES ? castButtonColors.fontColor : uiColors.fontColor,
+                    fontFamily: uiColors.fontFamily,
+                    ["--tab-active-bg" as string]: castButtonColors.backgroundColor,
+                    ["--tab-active-color" as string]: castButtonColors.fontColor,
+                  }}
                 >
                   Replies
                 </TabsTrigger>
                 <TabsTrigger
                   value={TAB_OPTIONS.LIKES}
-                  className="data-[state=active]:bg-background data-[state=active]:text-foreground"
+                  className="data-[state=active]:bg-[var(--tab-active-bg)] data-[state=active]:text-[var(--tab-active-color)]"
+                  style={{
+                    color: tab === TAB_OPTIONS.LIKES ? castButtonColors.fontColor : uiColors.fontColor,
+                    fontFamily: uiColors.fontFamily,
+                    ["--tab-active-bg" as string]: castButtonColors.backgroundColor,
+                    ["--tab-active-color" as string]: castButtonColors.fontColor,
+                  }}
                 >
                   Likes
                 </TabsTrigger>
@@ -436,7 +537,7 @@ function NotificationsPageContent() {
           <TabsContent value={tab} className="mt-0">
             {/* Notifications List */}
             <div className="relative">
-              <Suspense fallback={<div className="p-4 text-center text-muted-foreground">Loading...</div>}>
+              <Suspense fallback={<div className="p-4 text-center" style={{ color: secondaryTextColor }}>Loading...</div>}>
                 {data?.pages?.map((page, pageIndex) => (
                   <React.Fragment key={pageIndex}>
                     {filterByType(page?.notifications ?? []).map((notification, pageItemIndex) => {
@@ -451,6 +552,10 @@ function NotificationsPageContent() {
                           notification={notification}
                           onSelect={onSelectNotification}
                           isUnseen={isUnseen}
+                          fontColor={uiColors.fontColor}
+                          secondaryTextColor={secondaryTextColor}
+                          borderColor={borderColor}
+                          fontFamily={uiColors.fontFamily}
                           key={notificationKey}
                         />
                       );
@@ -473,7 +578,11 @@ function NotificationsPageContent() {
                     <Loading />
                   </div>
                 )}
-                {!isFetching && !hasNextPage && <p className="text-muted-foreground text-sm">No more notifications</p>}
+                {!isFetching && !hasNextPage && (
+                  <p className="text-sm" style={{ color: secondaryTextColor }}>
+                    No more notifications
+                  </p>
+                )}
               </div>
             )}
           </TabsContent>
