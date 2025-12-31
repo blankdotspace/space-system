@@ -44,6 +44,7 @@ export type NotificationRowProps = React.FC<{
   secondaryTextColor: string;
   borderColor: string;
   fontFamily: string;
+  castButtonBackgroundColor: string;
 }>;
 
 // Type guard to safely extract error message
@@ -142,6 +143,7 @@ const NotificationRow: NotificationRowProps = ({
   secondaryTextColor,
   borderColor,
   fontFamily,
+  castButtonBackgroundColor,
 }) => {
   const handleClick = useCallback(() => {
     if (notification.cast?.hash && notification.cast?.author?.username) {
@@ -178,14 +180,15 @@ const NotificationRow: NotificationRowProps = ({
     <div
       className={`
         px-4 py-3 border-b cursor-pointer transition-all duration-200 hover:bg-[rgba(128,128,128,0.08)]
-        ${isUnseen ? "bg-blue-50/30 border-l-4 border-l-blue-500" : ""}
+        ${isUnseen ? "border-l-4" : ""}
       `}
       onClick={handleClick}
       style={{
         borderTopColor: borderColor,
         borderRightColor: borderColor,
         borderBottomColor: borderColor,
-        borderLeftColor: isUnseen ? undefined : borderColor,
+        borderLeftColor: isUnseen ? castButtonBackgroundColor : borderColor,
+        backgroundColor: isUnseen ? "rgba(128, 128, 128, 0.2)" : undefined,
         color: fontColor,
         fontFamily,
       }}
@@ -556,6 +559,7 @@ function NotificationsPageContent() {
                           secondaryTextColor={secondaryTextColor}
                           borderColor={borderColor}
                           fontFamily={uiColors.fontFamily}
+                          castButtonBackgroundColor={castButtonColors.backgroundColor}
                           key={notificationKey}
                         />
                       );
