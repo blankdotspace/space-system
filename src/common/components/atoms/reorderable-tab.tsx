@@ -33,6 +33,10 @@ export const Tab = ({
   preloadTabData,
 }: Props) => {
   const uiColors = useUIColors();
+  const activeTabColor = uiColors.castButton.backgroundColor;
+  const tabTextColor = isSelected ? activeTabColor : uiColors.fontColor;
+  const underlineColor = isSelected ? activeTabColor : uiColors.primaryColor;
+
   return (
     <Reorder.Item
       value={tabName}
@@ -65,7 +69,7 @@ export const Tab = ({
         <div
           className={`static flex md:p-2 items-center transition-colors duration-300 group`}
           style={{
-            color: uiColors.fontColor,
+            color: tabTextColor,
             fontFamily: uiColors.fontFamily,
             fontWeight: isSelected ? 'bold' : undefined,
             cursor: isSelected && inEditMode ? 'grab' : isSelected ? undefined : 'pointer',
@@ -102,7 +106,7 @@ export const Tab = ({
           {/* Selection Underline */}
           <span
             className={`absolute left-50 bottom-0 inset-x-0 origin-center h-0.5 transition-scale duration-300 z-20 ${isSelected ? "scale-50" : "scale-0"} group-hover:scale-25`}
-            style={{ backgroundColor: uiColors.primaryColor }}
+            style={{ backgroundColor: underlineColor }}
           />
         </div>
       </Link>

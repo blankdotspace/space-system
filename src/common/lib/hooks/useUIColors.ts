@@ -18,6 +18,9 @@ export const useUIColors = ({ systemConfig }: UseUIColorsProps = {}) => {
     let cssFontColor: string | undefined;
     let cssFontFamily: string | undefined;
     let cssCastButtonFontColor: string | undefined;
+    let cssCastButtonBackgroundColor: string | undefined;
+    let cssCastButtonHoverColor: string | undefined;
+    let cssCastButtonActiveColor: string | undefined;
     let cssBackgroundColor: string | undefined;
 
     if (typeof document !== "undefined") {
@@ -26,6 +29,12 @@ export const useUIColors = ({ systemConfig }: UseUIColorsProps = {}) => {
       cssFontFamily = styles.getPropertyValue("--ns-nav-font")?.trim() || undefined;
       cssCastButtonFontColor =
         styles.getPropertyValue("--ns-cast-button-font-color")?.trim() || undefined;
+      cssCastButtonBackgroundColor =
+        styles.getPropertyValue("--ns-cast-button-background-color")?.trim() || undefined;
+      cssCastButtonHoverColor =
+        styles.getPropertyValue("--ns-cast-button-hover-color")?.trim() || undefined;
+      cssCastButtonActiveColor =
+        styles.getPropertyValue("--ns-cast-button-active-color")?.trim() || undefined;
       cssBackgroundColor =
         styles.getPropertyValue("--ns-background-color")?.trim() || undefined;
     }
@@ -34,7 +43,11 @@ export const useUIColors = ({ systemConfig }: UseUIColorsProps = {}) => {
 
     return {
       fontColor: ui?.fontColor || cssFontColor || "#0f172a",
-      castButtonFontColor: ui?.castButtonFontColor || cssCastButtonFontColor || "#ffffff",
+      castButtonFontColor:
+        ui?.castButton?.fontColor ||
+        ui?.castButtonFontColor ||
+        cssCastButtonFontColor ||
+        "#ffffff",
       fontFamily: parsedFontFamily
         ? `${parsedFontFamily}, var(--font-sans, sans-serif)`
         : cssFontFamily || "var(--font-sans, Inter, system-ui, -apple-system, sans-serif)",
@@ -44,9 +57,18 @@ export const useUIColors = ({ systemConfig }: UseUIColorsProps = {}) => {
       primaryHoverColor: ui?.primaryHoverColor || "rgb(29, 78, 216)",
       primaryActiveColor: ui?.primaryActiveColor || "rgb(30, 64, 175)",
       castButton: ui?.castButton || {
-        backgroundColor: ui?.primaryColor || "rgb(37, 99, 235)",
-        hoverColor: ui?.primaryHoverColor || "rgb(29, 78, 216)",
-        activeColor: ui?.primaryActiveColor || "rgb(30, 64, 175)",
+        backgroundColor:
+          cssCastButtonBackgroundColor ||
+          ui?.primaryColor ||
+          "rgb(37, 99, 235)",
+        hoverColor:
+          cssCastButtonHoverColor ||
+          ui?.primaryHoverColor ||
+          "rgb(29, 78, 216)",
+        activeColor:
+          cssCastButtonActiveColor ||
+          ui?.primaryActiveColor ||
+          "rgb(30, 64, 175)",
       },
     };
   }, [systemConfig]);

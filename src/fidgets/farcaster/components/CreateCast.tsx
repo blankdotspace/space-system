@@ -60,6 +60,7 @@ import { renderEmbedForUrl } from "./Embeds";
 
 import { useTokenGate } from "@/common/lib/hooks/useTokenGate";
 import { type SystemConfig } from "@/config";
+import { useUIColors } from "@/common/lib/hooks/useUIColors";
 
 // SPACE_CONTRACT_ADDR will be loaded when needed (async)
 // For now, we'll use it in a way that handles the Promise
@@ -150,6 +151,23 @@ const CreateCast: React.FC<CreateCastProps> = ({
   onShouldConfirmCloseChange,
   systemConfig,
 }) => {
+  const uiColors = useUIColors({ systemConfig });
+  const castButtonColors = useMemo(
+    () => ({
+      backgroundColor: uiColors.castButton.backgroundColor,
+      hoverColor: uiColors.castButton.hoverColor,
+      activeColor: uiColors.castButton.activeColor,
+      fontColor: uiColors.castButtonFontColor,
+      fontFamily: uiColors.fontFamily,
+    }),
+    [
+      uiColors.castButton.backgroundColor,
+      uiColors.castButton.hoverColor,
+      uiColors.castButton.activeColor,
+      uiColors.castButtonFontColor,
+      uiColors.fontFamily,
+    ],
+  );
   const castModalPortalContainer = useCastModalPortalContainer();
   const isMobile = useIsMobile();
   const [currentMod, setCurrentMod] = useState<ModManifest | null>(null);
@@ -930,7 +948,30 @@ const CreateCast: React.FC<CreateCastProps> = ({
               <Button
                 size="lg"
                 type="submit"
-                className="line-clamp-1 w-full"
+                className="line-clamp-1 w-full rounded-md font-semibold transition-colors"
+                style={{
+                  backgroundColor: castButtonColors.backgroundColor,
+                  color: castButtonColors.fontColor,
+                  fontFamily: castButtonColors.fontFamily,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = castButtonColors.backgroundColor;
+                }}
+                onMouseDown={(e) => {
+                  e.currentTarget.style.backgroundColor = castButtonColors.activeColor;
+                }}
+                onMouseUp={(e) => {
+                  e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.backgroundColor = castButtonColors.backgroundColor;
+                }}
                 disabled={isPublishing || isLoadingSigner}
               >
                 {getButtonText()}
@@ -976,9 +1017,31 @@ const CreateCast: React.FC<CreateCastProps> = ({
               <div className="flex flex-row pt-0 justify-end">
                 <Button
                   size="lg"
-                  variant="primary"
                   type="submit"
-                  className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white line-clamp-1 min-w-40 max-w-xs truncate"
+                  className="line-clamp-1 min-w-40 max-w-xs truncate rounded-md font-semibold transition-colors"
+                  style={{
+                    backgroundColor: castButtonColors.backgroundColor,
+                    color: castButtonColors.fontColor,
+                    fontFamily: castButtonColors.fontFamily,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = castButtonColors.backgroundColor;
+                  }}
+                  onMouseDown={(e) => {
+                    e.currentTarget.style.backgroundColor = castButtonColors.activeColor;
+                  }}
+                  onMouseUp={(e) => {
+                    e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.backgroundColor = castButtonColors.backgroundColor;
+                  }}
                   disabled={isPublishing || isLoadingSigner}
                 >
                   {getButtonText()}
