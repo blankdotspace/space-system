@@ -88,6 +88,7 @@ function transformRowToSystemConfig(row: CommunityConfigRow): SystemConfig {
     fidgets: row.fidgets_config as unknown as SystemConfig['fidgets'],
     navigation: (row.navigation_config ?? null) as unknown as SystemConfig['navigation'],
     ui: (row.ui_config ?? null) as unknown as SystemConfig['ui'],
+    adminIdentityPublicKeys: row.admin_identity_public_keys ?? [],
     theme: themes, // Themes come from shared file, not database
   };
 }
@@ -259,4 +260,3 @@ export async function loadSystemConfigById(
   
   return config;
 }
-
