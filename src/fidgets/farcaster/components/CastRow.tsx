@@ -291,6 +291,8 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
 
         const isFrameEmbed = isEmbedUrl(embed) && Boolean(embed.metadata?.frame);
         const isOgEmbed = isEmbedUrl(embed) && shouldAllowOpenGraph && !isFrameEmbed;
+        const isCastEmbed = Boolean(embedData.castId);
+        const isImageEmbed = !!(embedData.url && isImageUrl(embedData.url));
 
         const wrapperClass = classNames(
           "mt-4 w-full",
@@ -301,10 +303,20 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
             : "gap-y-4 border border-foreground/15 rounded-xl flex justify-center items-center bg-background/50"
         );
 
+        // Apply UI config styling for cast embeds and image embeds
+        const embedContainerStyle: React.CSSProperties | undefined =
+          isCastEmbed || isImageEmbed
+            ? {
+                backgroundColor: isCastEmbed ? "rgba(128, 128, 128, 0.5)" : undefined,
+                borderColor: "rgba(128, 128, 128, 0.2)",
+              }
+            : undefined;
+
         return (
           <div
             key={`embed-${i}`}
             className={wrapperClass}
+            style={embedContainerStyle}
             onClick={(event) => {
               event.stopPropagation();
               if (embedData?.castId?.hash) {
@@ -330,6 +342,10 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
         };
 
         const isTwitterTextUrl = isTwitterUrl(url);
+        const isImageEmbed = isImageUrl(url);
+        const embedContainerStyle: React.CSSProperties | undefined = isImageEmbed
+          ? { borderColor: "rgba(128, 128, 128, 0.2)" }
+          : undefined;
 
         const shouldAllowOpenGraph = !hasPriorityEmbed && !hasRenderedOpenGraph && !isPriorityUrl(url);
         const renderedEmbed = renderEmbedForUrl(embedData, false, shouldAllowOpenGraph);
@@ -350,7 +366,7 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
         );
 
         return (
-          <div key={`text-url-${i}`} className={wrapperClass}>
+          <div key={`text-url-${i}`} className={wrapperClass} style={embedContainerStyle}>
             {renderedEmbed}
           </div>
         );
