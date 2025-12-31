@@ -113,7 +113,7 @@ const Navigation = React.memo(
     activeColor: uiColors.castButton.activeColor,
     fontColor: uiColors.castButtonFontColor,
   };
-  const NAV_BORDER_COLOR = "rgba(128, 128, 128, 0.5)";
+  const NAV_BORDER_COLOR = "rgba(128, 128, 128, 0.2)";
   const navTextStyle: React.CSSProperties = {
     color: uiColors.fontColor,
     fontFamily: uiColors.fontFamily,
