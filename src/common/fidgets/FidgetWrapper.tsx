@@ -44,13 +44,20 @@ export const getSettingsWithDefaults = (
 ): FidgetSettings => {
   return reduce(
     config.fields,
-    (acc, f) => ({
-      ...acc,
-      [f.fieldName]:
-        settings && typeof settings === 'object' && f.fieldName in settings
-          ? settings[f.fieldName]
-          : f.default || undefined,
-    }),
+    (acc, f) => {
+      const value =
+        settings && typeof settings === "object" && f.fieldName in settings
+          ? (settings as any)[f.fieldName]
+          : undefined;
+
+      const hasValue =
+        value !== undefined &&
+        value !== null &&
+        (typeof value !== "string" || value.trim() !== "");
+
+      acc[f.fieldName] = hasValue ? value : f.default ?? "";
+      return acc;
+    },
     {},
   );
 };
@@ -66,23 +73,11 @@ export function FidgetWrapper({
   minimizeFidget,
   borderRadius,
 }: FidgetWrapperProps) {
+  const [localSettingsOverride, setLocalSettingsOverride] =
+    React.useState<FidgetSettings | null>(null);
   const { homebaseConfig } = useAppStore((state) => ({
     homebaseConfig: state.homebase.homebaseConfig,
   }));
-
-  function onClickEdit() {
-    setSelectedFidgetID(bundle.id);
-    setCurrentFidgetSettings(
-      <FidgetSettingsEditor
-        fidgetId={bundle.id}
-        properties={bundle.properties}
-        settings={settingsWithDefaults}
-        onSave={onSave}
-        unselect={unselect}
-        removeFidget={removeFidget}
-      />,
-    );
-  }
 
   const Fidget = fidget;
 
@@ -94,7 +89,9 @@ export function FidgetWrapper({
   } | undefined)?.lastFetchSettings;
 
   const derivedSettings = useMemo<FidgetSettings>(() => {
-    const baseSettings = (bundle.config.settings ?? {}) as FidgetSettings;
+    const baseSettings = (localSettingsOverride ??
+      bundle.config.settings ??
+      {}) as FidgetSettings;
     if (!lastFetchSettings || typeof lastFetchSettings !== "object") {
       return baseSettings;
     }
@@ -130,7 +127,7 @@ export function FidgetWrapper({
     });
 
     return changed ? nextSettings : baseSettings;
-  }, [bundle.config.settings, lastFetchSettings]);
+  }, [bundle.config.settings, lastFetchSettings, localSettingsOverride]);
 
   const settingsWithDefaults = useMemo(
     () => getSettingsWithDefaults(derivedSettings, bundle.properties),
@@ -177,32 +174,78 @@ export function FidgetWrapper({
     [bundle.config, saveConfig],
   );
 
-  const onSave = async (
-    newSettings: FidgetSettings,
-    shouldUnselect?: boolean,
-  ) => {
-    try {
-      await saveConfig({
-        ...bundle.config,
-        settings: newSettings,
-      });
-    } catch (e) {
-      toast.error("Failed to save fidget settings", { duration: 1000 });
-    }
-
-    if (shouldUnselect) {
-      unselect();
-    }
-  };
-
-  function unselect() {
+  const unselect = useCallback(() => {
     setSelectedFidgetID("");
     setCurrentFidgetSettings(<></>);
+  }, [setSelectedFidgetID, setCurrentFidgetSettings]);
+
+  const onSave = useCallback(
+    async (newSettings: FidgetSettings, shouldUnselect?: boolean) => {
+      try {
+        await saveConfig({
+          ...bundle.config,
+          settings: newSettings,
+        });
+        setLocalSettingsOverride(newSettings);
+      } catch (e) {
+        toast.error("Failed to save fidget settings", { duration: 1000 });
+      }
+
+      if (shouldUnselect) {
+        unselect();
+      }
+    },
+    [bundle.config, saveConfig, unselect],
+  );
+
+  const updateSettingsPanel = useCallback(
+    (settingsToUse: FidgetSettings) => {
+      setCurrentFidgetSettings(
+        <FidgetSettingsEditor
+          fidgetId={bundle.id}
+          properties={bundle.properties}
+          settings={settingsToUse}
+          onSave={onSave}
+          unselect={unselect}
+          removeFidget={removeFidget}
+        />,
+      );
+    },
+    [
+      bundle.id,
+      bundle.properties,
+      onSave,
+      removeFidget,
+      setCurrentFidgetSettings,
+      unselect,
+    ],
+  );
+
+  function onClickEdit() {
+    setSelectedFidgetID(bundle.id);
+    updateSettingsPanel(settingsWithDefaults);
   }
 
   const userStyles = bundle.properties.fields
     .filter((f) => f.inputSelector === CSSInput)
     .map((f) => settingsWithDefaults[f.fieldName]);
+
+  // Keep the settings panel in sync with the latest settings while selected
+  const lastSettingsSignatureRef = useRef<string>("");
+  useEffect(() => {
+    // Reset local overrides when switching to a different fidget bundle
+    setLocalSettingsOverride(null);
+  }, [bundle.id]);
+
+  useEffect(() => {
+    if (selectedFidgetID !== bundle.id) return;
+
+    const signature = JSON.stringify(settingsWithDefaults);
+    if (lastSettingsSignatureRef.current === signature) return;
+
+    lastSettingsSignatureRef.current = signature;
+    updateSettingsPanel(settingsWithDefaults);
+  }, [selectedFidgetID, bundle.id, settingsWithDefaults, updateSettingsPanel]);
 
   return (
     <>
