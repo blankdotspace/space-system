@@ -68,6 +68,7 @@ type NavProps = {
   onNavigate?: () => void;
 };
 
+const NAV_BORDER_COLOR = "rgba(128, 128, 128, 0.5)";
 const Navigation = React.memo(
 ({
   systemConfig,
@@ -122,7 +123,6 @@ const Navigation = React.memo(
     activeColor: uiColors.castButton.activeColor,
     fontColor: uiColors.castButtonFontColor,
   };
-  const NAV_BORDER_COLOR = "rgba(128, 128, 128, 0.2)";
   const navTextStyle: React.CSSProperties = {
     color: uiColors.fontColor,
     fontFamily: uiColors.fontFamily,
@@ -471,7 +471,7 @@ const Navigation = React.memo(
     <nav
       id="logo-sidebar"
       className={mergeClasses(
-        "border-r-2",
+        "border-r",
         mobile
           ? "w-[270px]"
           : "w-full transition-transform -translate-x-full sm:translate-x-0"
@@ -692,6 +692,7 @@ const Navigation = React.memo(
                   shrunk={shrunk}
                   fontColor={uiColors.fontColor}
                   fontFamily={uiColors.fontFamily}
+                  borderColor={NAV_BORDER_COLOR}
                 />
               </div>
             )}
