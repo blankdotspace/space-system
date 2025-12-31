@@ -32,6 +32,7 @@ import CreateCast, { DraftType } from "./CreateCast";
 import { renderEmbedForUrl, type CastEmbed } from "./Embeds";
 import { AnalyticsEvent } from "@/common/constants/analyticsEvents";
 import { useToastStore } from "@/common/data/stores/toastStore";
+import { isImageUrl } from "@/common/lib/utils/urls";
 
 function isEmbedUrl(maybe: unknown): maybe is EmbedUrl {
   return isObject(maybe) && typeof maybe["url"] === "string";
@@ -198,6 +199,15 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
             };
 
         const isTwitterEmbed = isTwitterUrl(isEmbedUrl(embed) ? embed.url : embedData.url);
+        const isCastEmbed = Boolean(embedData.castId);
+        const isImageEmbed = !!(embedData.url && isImageUrl(embedData.url));
+        const embedContainerStyle: React.CSSProperties | undefined =
+          isCastEmbed || isImageEmbed
+            ? {
+                backgroundColor: isCastEmbed ? "rgba(128, 128, 128, 0.5)" : undefined,
+                borderColor: "rgba(128, 128, 128, 0.2)",
+              }
+            : undefined;
 
         return (
           <div
@@ -208,6 +218,7 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
               !isTwitterEmbed ? "overflow-hidden max-h-[500px]" : "",
               embedData.castId ? "max-w-[100%]" : "max-w-max"
             )}
+            style={embedContainerStyle}
             onClick={(event) => {
               event.stopPropagation();
               if (embedData?.castId?.hash) {
@@ -233,6 +244,10 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
         };
 
         const isTwitterTextUrl = isTwitterUrl(url);
+        const isImageEmbed = isImageUrl(url);
+        const embedContainerStyle: React.CSSProperties | undefined = isImageEmbed
+          ? { borderColor: "rgba(128, 128, 128, 0.2)" }
+          : undefined;
 
         return (
           <div
@@ -242,6 +257,7 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
               !isTwitterTextUrl ? "overflow-hidden max-h-[500px]" : "",
               "max-w-max"
             )}
+            style={embedContainerStyle}
           >
             {renderEmbedForUrl(embedData, false)}
           </div>
