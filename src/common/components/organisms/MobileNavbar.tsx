@@ -135,8 +135,10 @@ const MobileNavbar: React.FC<MobileNavbarProps> = ({
     rightGradientOpacity: 1,
   });
 
-  // Early return if there are no tabs
-  if (!tabs || tabs.length === 0) return null;
+  const uiColors = useUIColors();
+  const navFontColor = "var(--ns-nav-font-color, #0f172a)";
+  const navFontFamily = "var(--ns-nav-font, var(--font-sans, Inter, system-ui, -apple-system, sans-serif))";
+  const backgroundColor = uiColors.backgroundColor || theme?.properties?.background || "white";
 
   /**
    * Gets the appropriate display name for a tab, using custom tab names if available
@@ -309,11 +311,7 @@ const MobileNavbar: React.FC<MobileNavbarProps> = ({
     }
   }, [tabs, selected, onSelect]);
 
-  // Get theme colors for active tab indicators
-  const navFontColor = "var(--ns-nav-font-color, #0f172a)";
-  const navFontFamily = "var(--ns-nav-font, var(--font-sans, Inter, system-ui, -apple-system, sans-serif))";
-  const uiColors = useUIColors();
-  const backgroundColor = uiColors.backgroundColor || theme?.properties?.background || "white";
+  if (!tabs || tabs.length === 0) return null;
 
   return (
     <Tabs
