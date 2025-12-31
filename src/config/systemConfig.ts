@@ -44,6 +44,7 @@ export interface UIConfig {
   primaryHoverColor: string;
   primaryActiveColor: string;
   castButton: {
+    fontColor?: string;
     backgroundColor: string;
     hoverColor: string;
     activeColor: string;

@@ -34,7 +34,7 @@ interface TabBarProps {
   isEditable?: boolean;
 }
 
-const isEditableTab = (tabName: string, defaultTab: string) => 
+const isEditableTab = (tabName: string, defaultTab: string) =>
   tabName !== defaultTab;
 
 function TabBar({
@@ -57,6 +57,20 @@ function TabBar({
   const isMobile = useIsMobile();
   const { setEditMode } = useSidebarContext();
   const uiColors = useUIColors();
+  const castButtonColors = React.useMemo(
+    () => ({
+      backgroundColor: uiColors.castButton.backgroundColor,
+      hoverColor: uiColors.castButton.hoverColor,
+      activeColor: uiColors.castButton.activeColor,
+      fontColor: uiColors.castButtonFontColor,
+    }),
+    [
+      uiColors.castButton.backgroundColor,
+      uiColors.castButton.hoverColor,
+      uiColors.castButton.activeColor,
+      uiColors.castButtonFontColor,
+    ],
+  );
 
   const { getIsLoggedIn, getIsInitializing, homebaseLoadTab, setCurrentTabName } = useAppStore((state) => ({
     setModalOpen: state.setup.setModalOpen,
@@ -300,10 +314,38 @@ function TabBar({
               {!inEditMode && (
                 <Button
                   onClick={() => setEditMode(true)}
-                  className="flex items-center rounded-xl p-2 bg-[#F3F4F6] hover:bg-sky-100 text-[#1C64F2] font-semibold shadow-md"
+                  className="flex items-center rounded-md p-2 font-semibold transition-colors"
+                  style={{
+                    backgroundColor: castButtonColors.backgroundColor,
+                    color: castButtonColors.fontColor,
+                    fontFamily: uiColors.fontFamily,
+                    boxShadow: "none",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = castButtonColors.backgroundColor;
+                  }}
+                  onMouseDown={(e) => {
+                    e.currentTarget.style.backgroundColor = castButtonColors.activeColor;
+                  }}
+                  onMouseUp={(e) => {
+                    e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.backgroundColor = castButtonColors.backgroundColor;
+                  }}
                 >
-                  <FaPaintbrush />
-                  {!isMobile && <span className="ml-2">Customize</span>}
+                  <FaPaintbrush style={{ color: castButtonColors.fontColor }} />
+                  {!isMobile && (
+                    <span className="ml-2" style={{ color: castButtonColors.fontColor }}>
+                      Customize
+                    </span>
+                  )}
                 </Button>
               )}
               {(inEditMode) && (
