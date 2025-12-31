@@ -1,21 +1,10 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-// import neynar from "@/common/data/api/neynar";
-import {
-  CastAddBody,
-  FarcasterNetwork,
-  makeCastAdd,
-} from "@farcaster/core";
+import { CastAddBody, FarcasterNetwork, makeCastAdd } from "@farcaster/core";
 import useIsMobile from "@/common/lib/hooks/useIsMobile";
 
-import {
-  ModManifest,
-  fetchUrlMetadata,
-  handleAddEmbed,
-  handleOpenFile,
-  handleSetInput,
-} from "@mod-protocol/core";
+import { ModManifest, handleAddEmbed, handleOpenFile, handleSetInput } from "@mod-protocol/core";
 import { CreationMod } from "@mod-protocol/react";
 import { EditorContent, useEditor } from "@mod-protocol/react-editor";
 import { CastLengthUIIndicator } from "@mod-protocol/react-ui-shadcn/dist/components/cast-length-ui-indicator";
@@ -23,7 +12,7 @@ import { ChannelList } from "@mod-protocol/react-ui-shadcn/dist/components/chann
 import { createRenderMentionsSuggestionConfig } from "@mod-protocol/react-ui-shadcn/dist/lib/mentions";
 import { renderers } from "@mod-protocol/react-ui-shadcn/dist/renderers";
 import { Button } from "@/common/components/atoms/button";
-import { debounce, isEmpty, isUndefined, map } from "lodash";
+import { debounce, isEmpty, isUndefined } from "lodash";
 import { MentionList } from "./mentionList";
 
 import {
@@ -48,15 +37,27 @@ import { GoSmiley } from "react-icons/go";
 import { HiOutlineSparkles } from "react-icons/hi2";
 import { useFarcasterSigner } from "..";
 import {
-  FarcasterEmbed,
   fetchChannelsByName,
   fetchChannelsForUser,
-  isFarcasterUrlEmbed,
   submitCast,
 } from "../utils";
+import { FarcasterCastIdEmbed, FarcasterEmbed, isFarcasterUrlEmbed } from "../utils/embedTypes";
 import { ChannelPicker } from "./channelPicker";
-import { renderEmbedForUrl } from "./Embeds";
-
+import FrameV2Embed from "./Embeds/FrameV2Embed";
+import VideoEmbed from "./Embeds/VideoEmbed";
+import CreateCastImage from "./Embeds/createCastImage";
+import EmbededCast from "./Embeds/EmbededCast";
+import { useSharedData } from "@/common/providers/SharedDataProvider";
+import {
+  FARCASTER_EMBED_LIMIT,
+  createEmbedKey,
+  mapEmbedMetadataToUrlMetadata,
+  sanitizeFarcasterEmbeds,
+} from "../utils/embedNormalization";
+import type { EmbedUrlMetadata } from "@neynar/nodejs-sdk/build/api/models/embed-url-metadata";
+import type { Embed as ModEmbed } from "@mod-protocol/core/src/embeds";
+import { isImageUrl, isWebUrl } from "@/common/lib/utils/urls";
+import Image from "next/image";
 
 import { useTokenGate } from "@/common/lib/hooks/useTokenGate";
 import { type SystemConfig } from "@/config";
@@ -104,8 +105,6 @@ const debouncedGetMentions = debounce(fetchNeynarMentions, 200, {
   leading: true,
   trailing: false,
 });
-const getUrlMetadata = fetchUrlMetadata(API_URL);
-
 const onError = (err) => {
   console.error(err);
   if (process.env.NEXT_PUBLIC_VERCEL_ENV === "development") {
@@ -143,6 +142,25 @@ type CreateCastProps = {
 };
 
 const SPARKLES_BANNER_KEY = "sparkles-banner-v1";
+type EmbedPreview = {
+  embed: FarcasterEmbed;
+  metadata?: EmbedUrlMetadata;
+  sourceUrl: string;
+};
+
+const extractUrlsFromText = (text: string): string[] => {
+  const urlRegex = /(https?:\/\/[^\s]+)/gi;
+  return Array.from(new Set(text.match(urlRegex) || []));
+};
+
+const getHostnameFromUrl = (value?: string) => {
+  if (!value) return undefined;
+  try {
+    return new URL(value).hostname;
+  } catch (error) {
+    return undefined;
+  }
+};
 
 const CreateCast: React.FC<CreateCastProps> = ({
   initialDraft,
@@ -163,7 +181,6 @@ const CreateCast: React.FC<CreateCastProps> = ({
     "idle" | "success" | "error"
   >("idle");
 
-  const hasEmbeds = draft?.embeds && !!draft.embeds.length;
   const isReply = draft?.parentCastId !== undefined;
   const { signer, isLoadingSigner, fid } = useFarcasterSigner("create-cast");
   const [initialChannels, setInitialChannels] = useState() as any;
@@ -174,6 +191,16 @@ const CreateCast: React.FC<CreateCastProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiTriggerRef = useRef<HTMLButtonElement | null>(null);
   const emojiContentRef = useRef<HTMLDivElement | null>(null);
+  const [embedPreviews, setEmbedPreviews] = useState<Record<string, EmbedPreview>>({});
+  const [removedEmbeds, setRemovedEmbeds] = useState<Set<string>>(new Set());
+  const [loadingEmbeds, setLoadingEmbeds] = useState<Set<string>>(new Set());
+  const loadingEmbedsRef = useRef<Set<string>>(loadingEmbeds);
+  const [embedErrors, setEmbedErrors] = useState<Record<string, string>>({});
+  const { addRecentEmbed, getRecentEmbed } = useSharedData();
+
+  useEffect(() => {
+    loadingEmbedsRef.current = loadingEmbeds;
+  }, [loadingEmbeds]);
 
   const isTargetInsideEmojiPicker = useCallback(
     (event?: Event | CustomEvent<{ originalEvent?: Event }>, fallbackTarget?: EventTarget | null) => {
@@ -451,6 +478,19 @@ const CreateCast: React.FC<CreateCastProps> = ({
   const isPublished = draft?.status === DraftStatus.published;
   const submissionError = submitStatus === "error";
 
+  const fetchMetadataForEditor = useCallback(async (url: string) => {
+    const response = await fetch(
+      `/api/farcaster/neynar/embedMetadata?url=${encodeURIComponent(url)}`,
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch embed metadata");
+    }
+
+    const payload = await response.json();
+    return mapEmbedMetadataToUrlMetadata(payload?.metadata);
+  }, []);
+
   const {
     editor,
     getText,
@@ -461,7 +501,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
     handleSubmit,
     setText,
   } = useEditor({
-    fetchUrlMetadata: getUrlMetadata,
+    fetchUrlMetadata: fetchMetadataForEditor,
     onError,
     onSubmit: onSubmitPost,
     linkClassName: "text-blue-800",
@@ -519,55 +559,262 @@ const CreateCast: React.FC<CreateCastProps> = ({
   const text = getText();
   const embeds = getEmbeds();
   const channel = getChannel();
+
+  const normalizeEditorEmbeds = useCallback((editorEmbeds: ModEmbed[]): FarcasterEmbed[] => {
+    return editorEmbeds
+      .map((embed) => {
+        const castId = (embed as { castId?: FarcasterCastIdEmbed["castId"] }).castId;
+        if (castId) {
+          return { castId };
+        }
+
+        const url = (embed as { url?: string }).url;
+        if (url) {
+          return { url };
+        }
+
+        return null;
+      })
+      .filter(Boolean) as FarcasterEmbed[];
+  }, []);
+
+  const normalizedEditorEmbeds = useMemo(
+    () => normalizeEditorEmbeds(embeds as ModEmbed[]),
+    [embeds, normalizeEditorEmbeds],
+  );
+
+  const previewEmbeds = useMemo(
+    () => Object.values(embedPreviews).map((preview) => preview.embed),
+    [embedPreviews],
+  );
+
+  const sanitizedEmbeds = useMemo(() => {
+    const candidates = initialEmbeds
+      ? [...previewEmbeds, ...normalizedEditorEmbeds, ...initialEmbeds]
+      : [...previewEmbeds, ...normalizedEditorEmbeds];
+
+    return sanitizeFarcasterEmbeds(candidates, { removedKeys: removedEmbeds });
+  }, [initialEmbeds, normalizedEditorEmbeds, previewEmbeds, removedEmbeds]);
+
+  const activeEmbedList = useMemo(
+    () =>
+      sanitizedEmbeds.map((embed) => {
+        const key = createEmbedKey(embed);
+        const preview = embedPreviews[key];
+        return {
+          key,
+          embed,
+          metadata: preview?.metadata,
+        };
+      }),
+    [embedPreviews, sanitizedEmbeds],
+  );
+
+  const renderPreviewForEmbed = useCallback(
+    (item: { embed: FarcasterEmbed; metadata?: EmbedUrlMetadata }) => {
+      if (!isFarcasterUrlEmbed(item.embed)) {
+        return <EmbededCast castId={item.embed.castId} />;
+      }
+
+      const embedUrl = item.embed.url;
+      const domain = getHostnameFromUrl(embedUrl);
+
+      if (isImageUrl(embedUrl)) {
+        return <CreateCastImage url={embedUrl} />;
+      }
+
+      if (item.metadata?.video && embedUrl) {
+        return <VideoEmbed url={embedUrl} />;
+      }
+
+      const imageUrl =
+        item.metadata?.html?.ogImage?.[0]?.url ||
+        (isImageUrl(embedUrl) ? embedUrl : undefined);
+
+      const title = item.metadata?.html?.ogTitle || embedUrl;
+      const description = item.metadata?.html?.ogDescription;
+      const siteName = item.metadata?.html?.ogSiteName || domain;
+
+      return (
+        <a
+          href={embedUrl}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="block w-full max-w-2xl overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition hover:border-gray-300"
+        >
+          {imageUrl && (
+            <div className="relative h-48 w-full">
+              <Image
+                src={imageUrl}
+                alt={title || "Link preview"}
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 600px"
+              />
+            </div>
+          )}
+          <div className="space-y-1 p-3">
+            <div className="text-sm font-semibold text-gray-900 line-clamp-2">
+              {title}
+            </div>
+            {description && (
+              <p className="text-xs text-gray-600 line-clamp-2">{description}</p>
+            )}
+            {siteName && (
+              <div className="text-xs text-gray-500">{siteName}</div>
+            )}
+          </div>
+        </a>
+      );
+    },
+    [],
+  );
+
+  const handleRemoveEmbed = useCallback((embed: FarcasterEmbed) => {
+    const key = createEmbedKey(embed);
+    setRemovedEmbeds((prev) => {
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+    setEmbedPreviews((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const urlsInText = extractUrlsFromText(text || "");
+    const timers: Array<ReturnType<typeof setTimeout>> = [];
+
+    urlsInText.forEach((rawUrl) => {
+      let normalizedUrl = rawUrl;
+      try {
+        normalizedUrl = new URL(rawUrl).toString();
+      } catch (error) {
+        // Keep raw value if URL constructor fails
+      }
+
+      if (!isWebUrl(normalizedUrl)) {
+        return;
+      }
+
+      const cachedRemovalKey = `url:${normalizedUrl}`;
+      if (removedEmbeds.has(cachedRemovalKey)) {
+        return;
+      }
+
+      const existingPreview = Object.values(embedPreviews).find(
+        (preview) => preview.sourceUrl === normalizedUrl,
+      );
+      if (existingPreview) {
+        return;
+      }
+
+      const cachedEmbed = getRecentEmbed(normalizedUrl);
+      if (cachedEmbed) {
+        const key = createEmbedKey(cachedEmbed.embed);
+        setEmbedPreviews((prev) => ({
+          ...prev,
+          [key]: {
+            embed: cachedEmbed.embed,
+            metadata: cachedEmbed.metadata,
+            sourceUrl: normalizedUrl,
+          },
+        }));
+        return;
+      }
+
+      if (loadingEmbedsRef.current.has(normalizedUrl)) {
+        return;
+      }
+
+      const timer = setTimeout(() => {
+        setLoadingEmbeds((prev) => new Set(prev).add(normalizedUrl));
+        setEmbedErrors((prev) => {
+          const next = { ...prev };
+          delete next[normalizedUrl];
+          return next;
+        });
+
+        fetch(`/api/farcaster/neynar/embedMetadata?url=${encodeURIComponent(normalizedUrl)}`)
+          .then(async (res) => {
+            const payload = await res.json();
+            if (!res.ok) {
+              const message = payload?.message || "Failed to crawl URL";
+              throw new Error(message);
+            }
+
+            const metadata = (payload?.metadata || undefined) as EmbedUrlMetadata | undefined;
+            const embedUrl = metadata?.frame?.frames_url || normalizedUrl;
+
+            const embed: FarcasterEmbed = { url: embedUrl };
+            const key = createEmbedKey(embed);
+
+            addRecentEmbed(normalizedUrl, embed, metadata);
+            setEmbedPreviews((prev) => ({
+              ...prev,
+              [key]: { embed, metadata, sourceUrl: normalizedUrl },
+            }));
+          })
+          .catch((error) => {
+            setEmbedErrors((prev) => ({ ...prev, [normalizedUrl]: error.message }));
+          })
+          .finally(() => {
+            setLoadingEmbeds((prev) => {
+              const next = new Set(prev);
+              next.delete(normalizedUrl);
+              return next;
+            });
+          });
+      }, 500);
+
+      timers.push(timer);
+    });
+
+    return () => {
+      timers.forEach((timer) => clearTimeout(timer));
+    };
+  }, [text, embedPreviews, addRecentEmbed, getRecentEmbed, removedEmbeds]);
+
   useEffect(() => {
     if (!editor) return;
     if (isPublishing) return;
 
     const fetchMentionsAndSetDraft = async () => {
-      // console.group("Mention Parsing");
-      const newEmbeds = initialEmbeds ? [...embeds, ...initialEmbeds] : embeds;
-
-      // Updated regex: supports ENS-style usernames and extra trailing punctuation like . , ! ? ; :
-      // Uses lookaheads instead of lookbehinds for better browser compatibility
       const usernamePattern =
-        /(?:^|[\s(])@([a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?)(?=[\s.,!?;:)]|$)/g;
+        /(?:^|[\\s(])@([a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?)(?=[\\s.,!?;:)]|$)/g;
 
-      // The working copy of the text for position calculation
       const workingText = text;
 
-      // Extract mentions and their positions from the original text
       const usernamesWithPositions = [
         ...workingText.matchAll(usernamePattern),
       ].map((match) => ({
         username: match[1],
-        position: match.index! + match[0].indexOf("@"), // Adjust position to '@'
+        position: match.index! + match[0].indexOf("@"),
       }));
 
       const uniqueUsernames = Array.from(
         new Set(usernamesWithPositions.map((u) => u.username)),
       );
 
-      // console.log("Parsed mentions from text:", usernamesWithPositions);
-
       const mentionsToFids: { [key: string]: string } = {};
       const mentionsPositions: number[] = [];
-      let mentionsText = text; // Initialize mentionsText with current text
+      let mentionsText = text;
 
       if (uniqueUsernames.length > 0) {
-        // Filter out usernames that are already in cache with valid FIDs
         const uncachedUsernames = uniqueUsernames.filter(
-          username => !mentionFidCache.has(username) || !mentionFidCache.get(username)
+          (username) => !mentionFidCache.has(username) || !mentionFidCache.get(username),
         );
 
-        // Add cached usernames to mentionsToFids only if they have valid FIDs
-        uniqueUsernames.forEach(username => {
+        uniqueUsernames.forEach((username) => {
           const cachedFid = mentionFidCache.get(username);
           if (cachedFid) {
             mentionsToFids[username] = cachedFid;
           }
         });
 
-        // Only make API call if there are uncached usernames
         if (uncachedUsernames.length > 0) {
           try {
             const query = encodeURIComponent(uncachedUsernames.join(","));
@@ -575,13 +822,12 @@ const CreateCast: React.FC<CreateCastProps> = ({
             const fetchedMentions = await res.json();
 
             if (Array.isArray(fetchedMentions)) {
-              fetchedMentions.forEach(mention => {
+              fetchedMentions.forEach((mention) => {
                 if (mention && mention.username && mention.fid) {
                   const fid = mention.fid.toString();
                   mentionsToFids[mention.username] = fid;
                   mentionFidCache.set(mention.username, fid);
                 }
-                // Remove caching of invalid usernames
               });
             }
           } catch (err) {
@@ -593,21 +839,19 @@ const CreateCast: React.FC<CreateCastProps> = ({
         const mentionMatches = [...text.matchAll(usernamePattern)];
 
         for (const match of mentionMatches) {
-          const fullMatch = match[0]; // e.g. " @bob"
-          const username = match[1];  // "bob"
+          const fullMatch = match[0];
+          const username = match[1];
           const atIndex = match.index! + fullMatch.indexOf("@");
 
-          // Adjust position based on previous removals
           const adjustedPosition = atIndex - cumulativeOffset;
 
           if (mentionsToFids[username]) {
             mentionsPositions.push(adjustedPosition);
 
-            // Remove `@username` from mentionsText
-            mentionsText = mentionsText.slice(0, adjustedPosition) +
-              mentionsText.slice(adjustedPosition + username.length + 1); // +1 for "@"
+            mentionsText =
+              mentionsText.slice(0, adjustedPosition) +
+              mentionsText.slice(adjustedPosition + username.length + 1);
 
-            // Update offset so future positions shift correctly
             cumulativeOffset += username.length + 1;
           }
         }
@@ -622,25 +866,22 @@ const CreateCast: React.FC<CreateCastProps> = ({
           }
       }
 
-      // console.groupEnd();
-
-      // Update the draft regardless of mentions
       setDraft((prevDraft) => {
         const updatedDraft = {
           ...prevDraft,
           text: mentionsText,
-          embeds: newEmbeds,
+          embeds: sanitizedEmbeds,
           parentUrl: channel?.parent_url || undefined,
           mentionsToFids,
           mentionsPositions,
         };
-        // console.log("Updated Draft before posting:", updatedDraft);
+
         return updatedDraft;
       });
     };
 
     fetchMentionsAndSetDraft();
-  }, [text, embeds, initialEmbeds, channel, isPublishing, editor]);
+  }, [text, sanitizedEmbeds, channel, isPublishing, editor]);
 
   async function publishPost(
     draft: DraftType,
@@ -661,11 +902,12 @@ const CreateCast: React.FC<CreateCastProps> = ({
       ? Object.values(draft.mentionsToFids).map(Number)
       : [];
     const mentionsPositions = draft.mentionsPositions || [];
+    const embedsForCast = sanitizedEmbeds.length ? sanitizedEmbeds : draft.embeds || [];
 
     const castBody: CastAddBody = {
       type: CastType.CAST,
       text: draft.text,
-      embeds: draft.embeds || [],
+      embeds: embedsForCast,
       embedsDeprecated: [],
       parentUrl: draft.parentUrl || undefined,
       parentCastId: draft.parentCastId,
@@ -1024,15 +1266,72 @@ const CreateCast: React.FC<CreateCastProps> = ({
         </div>
       )}
 
-      {hasEmbeds && (
-        <div className="mt-8 rounded-md bg-muted p-2 w-full break-all">
-          {map(draft.embeds, (embed) => (
-            <div
-              key={`cast-embed-${isFarcasterUrlEmbed(embed) ? embed.url : (typeof embed.castId?.hash === 'string' ? embed.castId.hash : Array.from(embed.castId?.hash || []).join('-'))}`}
-            >
-              {renderEmbedForUrl(embed, true)}
+      {(activeEmbedList.length > 0 || loadingEmbeds.size > 0 || Object.keys(embedErrors).length > 0) && (
+        <div className="mt-8 rounded-md bg-muted p-2 w-full break-all space-y-2">
+          {Array.from(loadingEmbeds).map((url) => (
+            <div key={`loading-${url}`} className="flex items-center gap-2 text-sm text-gray-600">
+              <Spinner style={{ width: "20px", height: "20px" }} />
+              <span>Fetching preview for {url}</span>
             </div>
           ))}
+
+          {Object.entries(embedErrors).map(([url, message]) => (
+            <div key={`error-${url}`} className="flex items-center justify-between rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+              <span>{message || `Unable to fetch metadata for ${url}`}</span>
+              <button
+                type="button"
+                className="text-xs font-semibold underline"
+                onClick={() =>
+                  setEmbedErrors((prev) => {
+                    const next = { ...prev };
+                    delete next[url];
+                    return next;
+                  })
+                }
+              >
+                Dismiss
+              </button>
+            </div>
+          ))}
+
+          {activeEmbedList.map((item) => {
+            const isFrameEmbed =
+              isFarcasterUrlEmbed(item.embed) && Boolean(item.metadata?.frame);
+            const frameUrl =
+              isFrameEmbed && item.metadata?.frame?.frames_url
+                ? item.metadata.frame.frames_url
+                : isFarcasterUrlEmbed(item.embed)
+                  ? item.embed.url
+                  : undefined;
+
+            if (isFrameEmbed && frameUrl) {
+              return (
+                <div key={`cast-embed-${item.key}`} className="relative">
+                  <button
+                    type="button"
+                    className="absolute right-3 top-3 z-10 rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-gray-700 shadow hover:bg-white"
+                    onClick={() => handleRemoveEmbed(item.embed)}
+                  >
+                    ✕
+                  </button>
+                  <FrameV2Embed url={frameUrl} />
+                </div>
+              );
+            }
+
+            return (
+              <div key={`cast-embed-${item.key}`} className="relative">
+                <button
+                  type="button"
+                  className="absolute right-2 top-2 z-10 rounded-full bg-white/80 px-2 py-1 text-xs font-semibold text-gray-700 shadow hover:bg-white"
+                  onClick={() => handleRemoveEmbed(item.embed)}
+                >
+                  ✕
+                </button>
+                {renderPreviewForEmbed(item)}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
