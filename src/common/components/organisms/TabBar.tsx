@@ -37,42 +37,6 @@ interface TabBarProps {
 const isEditableTab = (tabName: string, defaultTab: string) =>
   tabName !== defaultTab;
 
-const clampAlpha = (alpha: number) => Math.min(1, Math.max(0, alpha));
-
-const applyAlphaToColor = (color: string, alpha: number) => {
-  const normalizedAlpha = clampAlpha(alpha);
-
-  if (!color) return color;
-
-  if (color.startsWith("#")) {
-    const hex = color.replace("#", "");
-    const expandedHex = hex.length === 3
-      ? hex
-          .split("")
-          .map((char) => char + char)
-          .join("")
-      : hex;
-
-    if (expandedHex.length === 6) {
-      const r = parseInt(expandedHex.slice(0, 2), 16);
-      const g = parseInt(expandedHex.slice(2, 4), 16);
-      const b = parseInt(expandedHex.slice(4, 6), 16);
-      return `rgba(${r}, ${g}, ${b}, ${normalizedAlpha})`;
-    }
-  }
-
-  const rgbMatch = color.match(
-    /rgba?\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i,
-  );
-
-  if (rgbMatch) {
-    const [, r, g, b] = rgbMatch;
-    return `rgba(${r}, ${g}, ${b}, ${normalizedAlpha})`;
-  }
-
-  return color;
-};
-
 function TabBar({
   inHomebase,
   inEditMode,
@@ -93,13 +57,19 @@ function TabBar({
   const isMobile = useIsMobile();
   const { setEditMode } = useSidebarContext();
   const uiColors = useUIColors();
-  const customizeButtonBackgrounds = React.useMemo(
+  const castButtonColors = React.useMemo(
     () => ({
-      base: applyAlphaToColor(uiColors.backgroundColor, 0.12),
-      hover: applyAlphaToColor(uiColors.backgroundColor, 0.18),
-      active: applyAlphaToColor(uiColors.backgroundColor, 0.24),
+      backgroundColor: uiColors.castButton.backgroundColor,
+      hoverColor: uiColors.castButton.hoverColor,
+      activeColor: uiColors.castButton.activeColor,
+      fontColor: uiColors.castButtonFontColor,
     }),
-    [uiColors.backgroundColor],
+    [
+      uiColors.castButton.backgroundColor,
+      uiColors.castButton.hoverColor,
+      uiColors.castButton.activeColor,
+      uiColors.castButtonFontColor,
+    ],
   );
 
   const { getIsLoggedIn, getIsInitializing, homebaseLoadTab, setCurrentTabName } = useAppStore((state) => ({
@@ -344,33 +314,35 @@ function TabBar({
               {!inEditMode && (
                 <Button
                   onClick={() => setEditMode(true)}
-                  className="flex items-center rounded-xl p-2 font-semibold shadow-md transition-colors"
+                  className="flex items-center rounded-xl p-2 font-semibold transition-colors"
                   style={{
-                    backgroundColor: customizeButtonBackgrounds.base,
-                    color: uiColors.fontColor,
+                    backgroundColor: castButtonColors.backgroundColor,
+                    color: castButtonColors.fontColor,
+                    fontFamily: uiColors.fontFamily,
+                    boxShadow: "none",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = customizeButtonBackgrounds.hover;
+                    e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = customizeButtonBackgrounds.base;
+                    e.currentTarget.style.backgroundColor = castButtonColors.backgroundColor;
                   }}
                   onMouseDown={(e) => {
-                    e.currentTarget.style.backgroundColor = customizeButtonBackgrounds.active;
+                    e.currentTarget.style.backgroundColor = castButtonColors.activeColor;
                   }}
                   onMouseUp={(e) => {
-                    e.currentTarget.style.backgroundColor = customizeButtonBackgrounds.hover;
+                    e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
                   }}
                   onFocus={(e) => {
-                    e.currentTarget.style.backgroundColor = customizeButtonBackgrounds.hover;
+                    e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
                   }}
                   onBlur={(e) => {
-                    e.currentTarget.style.backgroundColor = customizeButtonBackgrounds.base;
+                    e.currentTarget.style.backgroundColor = castButtonColors.backgroundColor;
                   }}
                 >
-                  <FaPaintbrush style={{ color: uiColors.fontColor }} />
+                  <FaPaintbrush style={{ color: castButtonColors.fontColor }} />
                   {!isMobile && (
-                    <span className="ml-2" style={{ color: uiColors.fontColor }}>
+                    <span className="ml-2" style={{ color: castButtonColors.fontColor }}>
                       Customize
                     </span>
                   )}
