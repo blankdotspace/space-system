@@ -454,7 +454,7 @@ const Feed: React.FC<FidgetArgs<FeedFidgetSettings, FeedFidgetData>> = ({
     if (initialData?.initialHash) {
       push(initialData.initialHash);
     }
-  }, [settings, initialData?.initialHash, clear, push]);
+  }, [initialData?.initialHash, clear, push]);
 
   const onSelectCast = useCallback(
     (hash: string, username: string) => {
