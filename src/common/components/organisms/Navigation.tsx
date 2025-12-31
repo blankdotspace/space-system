@@ -365,7 +365,7 @@ const Navigation = React.memo(
     <nav
       id="logo-sidebar"
       className={mergeClasses(
-        "border-r-2",
+        "border-r",
         mobile
           ? "w-[270px]"
           : "w-full transition-transform -translate-x-full sm:translate-x-0"
