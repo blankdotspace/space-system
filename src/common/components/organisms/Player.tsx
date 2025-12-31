@@ -38,11 +38,19 @@ export type PlayerProps = {
   shrunk?: boolean;
   fontColor?: string;
   fontFamily?: string;
+  borderColor?: string;
+  accentColor?: string;
+  accentIconColor?: string;
+  collapsedAccentColor?: string;
+  collapsedIconColor?: string;
 };
 
 const DEFAULT_UI_FONT_COLOR = "var(--ns-nav-font-color, #0f172a)";
 const DEFAULT_UI_FONT_FAMILY =
   "var(--ns-nav-font, var(--font-sans, Inter, system-ui, -apple-system, sans-serif))";
+const DEFAULT_BORDER_COLOR = "rgba(128, 128, 128, 0.5)";
+const DEFAULT_ACCENT_COLOR = "var(--ns-cast-button-background-color, rgb(37, 99, 235))";
+const DEFAULT_ACCENT_ICON_COLOR = "var(--ns-cast-button-font-color, #ffffff)";
 
 const getToggleIcon = ({ playing, started, ready }): [IconType, string] => {
   if ((playing && !started) || !ready) {
@@ -59,6 +67,11 @@ export const Player: React.FC<PlayerProps> = ({
   shrunk = false,
   fontColor = DEFAULT_UI_FONT_COLOR,
   fontFamily = DEFAULT_UI_FONT_FAMILY,
+  borderColor = DEFAULT_BORDER_COLOR,
+  accentColor = DEFAULT_ACCENT_COLOR,
+  accentIconColor = DEFAULT_ACCENT_ICON_COLOR,
+  collapsedAccentColor,
+  collapsedIconColor,
 }) => {
   const hasWindow = useHasWindow();
   const playerRef = useRef<ReactPlayer | null>(null);
@@ -164,6 +177,11 @@ export const Player: React.FC<PlayerProps> = ({
     fontFamily,
   };
 
+  const collapsedButtonStyles: React.CSSProperties = {
+    backgroundColor: collapsedAccentColor || accentColor,
+    color: collapsedIconColor || accentIconColor,
+  };
+
   if (shrunk) {
     return (
       <>
@@ -194,14 +212,15 @@ export const Player: React.FC<PlayerProps> = ({
             ) : (
               <div
                 className={mergeClasses(
-                  "transition-transform duration-200",
+                  "transition-transform duration-200 flex items-center justify-center w-10 h-10 rounded-full drop-shadow-md",
                   isHovering ? "scale-110" : "scale-100"
                 )}
+                style={collapsedButtonStyles}
               >
                 {playing ? (
-                  <FaPause className="text-white drop-shadow-md" size={24} />
+                  <FaPause size={20} />
                 ) : (
-                  <FaPlay className="text-white drop-shadow-md" size={24} />
+                  <FaPlay size={20} />
                 )}
               </div>
             )}
@@ -232,8 +251,8 @@ export const Player: React.FC<PlayerProps> = ({
   return (
     <>
       <div
-        className="flex items-center border border-gray-200 rounded-full md:rounded-lg overflow-hidden"
-        style={{ fontFamily }}
+        className="flex items-center border rounded-full md:rounded-lg overflow-hidden"
+        style={{ fontFamily, borderColor }}
       >
         <div className="overflow-hidden relative w-8 h-8 md:w-16 md:h-auto ml-2 md:ml-auto flex-shrink-0 self-center md:self-stretch rounded-lg md:rounded-none">
           {metadata?.thumbnail && (
@@ -258,10 +277,14 @@ export const Player: React.FC<PlayerProps> = ({
           <Button
             onClick={playing ? onPause : onPlay}
             aria-label="Play/Pause"
-            className="flex items-center justify-center flex-none rounded-full h-9 w-9 md:h-7 md:w-7 p-0 bg-gray-300"
+            className="flex items-center justify-center flex-none rounded-full h-9 w-9 md:h-7 md:w-7 p-0"
             disabled={!ready}
             variant="secondary"
-            style={baseTextStyles}
+            style={{
+              ...baseTextStyles,
+              backgroundColor: accentColor,
+              color: accentIconColor,
+            }}
           >
             <ToggleIcon className={iconClassNames} size={20} />
           </Button>

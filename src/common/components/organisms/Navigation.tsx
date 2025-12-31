@@ -73,8 +73,11 @@ const NavIconBadge: React.FC<{
   const uiColors = useUIColors({ systemConfig });
   return (
     <Badge
-      className="justify-center text-[11px]/[12px] min-w-[18px] min-h-[18px] font-medium shadow-md px-[3px] rounded-full absolute left-[19px] top-[4px] border-white text-white"
-      style={{ backgroundColor: uiColors.primaryColor }}
+      className="justify-center text-[11px]/[12px] min-w-[18px] min-h-[18px] font-medium shadow-md px-[3px] rounded-full absolute left-[19px] top-[4px] border text-white"
+      style={{
+        backgroundColor: uiColors.primaryColor,
+        borderColor: NAV_BORDER_COLOR,
+      }}
     >
       {children}
     </Badge>
@@ -113,7 +116,7 @@ const Navigation = React.memo(
     activeColor: uiColors.castButton.activeColor,
     fontColor: uiColors.castButtonFontColor,
   };
-  const NAV_BORDER_COLOR = "rgba(128, 128, 128, 0.2)";
+  const NAV_BORDER_COLOR = "rgba(128, 128, 128, 0.5)";
   const navTextStyle: React.CSSProperties = {
     color: uiColors.fontColor,
     fontFamily: uiColors.fontFamily,
@@ -511,6 +514,9 @@ const Navigation = React.memo(
                   shrunk={shrunk}
                   fontColor={uiColors.fontColor}
                   fontFamily={uiColors.fontFamily}
+                  borderColor={NAV_BORDER_COLOR}
+                  accentColor={castButtonColors.backgroundColor}
+                  accentIconColor={castButtonColors.fontColor}
                 />
               </div>
             )}
