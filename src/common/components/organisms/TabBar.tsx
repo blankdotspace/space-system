@@ -314,7 +314,7 @@ function TabBar({
               {!inEditMode && (
                 <Button
                   onClick={() => setEditMode(true)}
-                  className="flex items-center rounded-xl p-2 font-semibold transition-colors"
+                  className="flex items-center rounded-md p-2 font-semibold transition-colors"
                   style={{
                     backgroundColor: castButtonColors.backgroundColor,
                     color: castButtonColors.fontColor,
