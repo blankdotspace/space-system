@@ -23,6 +23,9 @@ import BackArrowIcon from "../atoms/icons/BackArrow";
 import { AnalyticsEvent } from "@/common/constants/analyticsEvents";
 import { analytics } from "@/common/providers/AnalyticsProvider";
 import { useUIColors } from "@/common/lib/hooks/useUIColors";
+import { FeedType } from "@neynar/nodejs-sdk/build/api";
+import { toast } from "sonner";
+import { FilterType as FarcasterFilterType } from "@/fidgets/farcaster/Feed";
 
 export type FidgetSettingsEditorProps = {
   fidgetId: string;
@@ -170,6 +173,22 @@ export const FidgetSettingsGroup: React.FC<{
   );
 };
 
+const hasFilterTarget = (settings: FidgetSettings) => {
+  const candidates = [
+    settings.users,
+    settings.username,
+    settings.channel,
+    settings.keyword,
+  ];
+
+  return candidates.some(
+    (value) => typeof value === "string" && value.trim().length > 0,
+  );
+};
+
+const isInvalidFeedFilter = (settings: FidgetSettings) =>
+  settings.feedType === FeedType.Filter && !hasFilterTarget(settings);
+
 export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
   fidgetId,
   properties,
@@ -192,30 +211,65 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
       return acc;
     }, {} as FidgetSettings);
 
+  const normalizeFilterType = (input: FidgetSettings) => {
+    if (input.feedType !== FeedType.Filter) return input;
+    const allowed = new Set([
+      FarcasterFilterType.Users,
+      FarcasterFilterType.Channel,
+      FarcasterFilterType.Keyword,
+    ]);
+    if (!allowed.has(input.filterType)) {
+      return { ...input, filterType: FarcasterFilterType.Users };
+    }
+    return input;
+  };
+
   const [state, setState] = useState<FidgetSettings>(settings);
   const activeIdRef = useRef(fidgetId);
   const uiColors = useUIColors();
 
   useEffect(() => {
-    setState(fillWithDefaults(settings));
+    setState(normalizeFilterType(fillWithDefaults(settings)));
   }, [settings, fidgetId, properties.fields]);
 
   useEffect(() => {
     activeIdRef.current = fidgetId;
   }, [fidgetId]);
 
+  const saveWithValidation = (
+    nextState: FidgetSettings,
+    shouldUnselect?: boolean,
+    showAlert?: boolean,
+  ) => {
+    const filledState = normalizeFilterType(fillWithDefaults(nextState));
+
+    if (isInvalidFeedFilter(filledState)) {
+      if (showAlert) {
+        toast.error(
+          "Add a user/FID, channel, or keyword before saving a Filter feed.",
+        );
+      }
+      return false;
+    }
+
+    onSave(filledState, shouldUnselect);
+    return true;
+  };
+
   const safeOnSave = (nextState: FidgetSettings) => {
     if (activeIdRef.current !== fidgetId) return;
-    onSave(fillWithDefaults(nextState));
+    saveWithValidation(nextState);
   };
 
   const _onSave = (e) => {
     e.preventDefault();
     if (activeIdRef.current !== fidgetId) return;
-    onSave(fillWithDefaults(state), true);
-    analytics.track(AnalyticsEvent.EDIT_FIDGET, {
-      fidgetType: properties.fidgetName,
-    });
+    const didSave = saveWithValidation(state, true, true);
+    if (didSave) {
+      analytics.track(AnalyticsEvent.EDIT_FIDGET, {
+        fidgetType: properties.fidgetName,
+      });
+    }
   };
 
   const groupedFields = useMemo(
