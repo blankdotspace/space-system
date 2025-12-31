@@ -119,8 +119,23 @@ export default async function RootLayout({
       ? `${navFontFamily}, var(--font-sans, Inter, system-ui, -apple-system, sans-serif)`
       : "var(--font-sans, Inter, system-ui, -apple-system, sans-serif)";
   const navFontColor = systemConfig.ui?.fontColor || "#0f172a";
-  const castButtonFontColor = systemConfig.ui?.castButtonFontColor || "#ffffff";
+  const castButtonFontColor =
+    systemConfig.ui?.castButton?.fontColor ||
+    systemConfig.ui?.castButtonFontColor ||
+    "#ffffff";
   const navBackgroundColor = systemConfig.ui?.backgroundColor || "#ffffff";
+  const castButtonBackgroundColor =
+    systemConfig.ui?.castButton?.backgroundColor ||
+    systemConfig.ui?.primaryColor ||
+    "rgb(37, 99, 235)";
+  const castButtonHoverColor =
+    systemConfig.ui?.castButton?.hoverColor ||
+    systemConfig.ui?.primaryHoverColor ||
+    "rgb(29, 78, 216)";
+  const castButtonActiveColor =
+    systemConfig.ui?.castButton?.activeColor ||
+    systemConfig.ui?.primaryActiveColor ||
+    "rgb(30, 64, 175)";
   
   return (
     <html lang="en" suppressHydrationWarning>
@@ -136,6 +151,9 @@ export default async function RootLayout({
             ["--ns-nav-font-color" as string]: navFontColor,
             ["--ns-cast-button-font-color" as string]: castButtonFontColor,
             ["--ns-background-color" as string]: navBackgroundColor,
+            ["--ns-cast-button-background-color" as string]: castButtonBackgroundColor,
+            ["--ns-cast-button-hover-color" as string]: castButtonHoverColor,
+            ["--ns-cast-button-active-color" as string]: castButtonActiveColor,
           } as React.CSSProperties
         }
       >
