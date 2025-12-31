@@ -40,6 +40,24 @@ export const useUIColors = ({ systemConfig }: UseUIColorsProps = {}) => {
     }
 
     const parsedFontFamily = extractFontFamilyFromUrl(ui?.url);
+    const castButton = {
+      ...(ui?.castButton || {}),
+      backgroundColor:
+        ui?.castButton?.backgroundColor ??
+        cssCastButtonBackgroundColor ??
+        ui?.primaryColor ??
+        "rgb(37, 99, 235)",
+      hoverColor:
+        ui?.castButton?.hoverColor ??
+        cssCastButtonHoverColor ??
+        ui?.primaryHoverColor ??
+        "rgb(29, 78, 216)",
+      activeColor:
+        ui?.castButton?.activeColor ??
+        cssCastButtonActiveColor ??
+        ui?.primaryActiveColor ??
+        "rgb(30, 64, 175)",
+    };
 
     return {
       fontColor: ui?.fontColor || cssFontColor || "#0f172a",
@@ -56,20 +74,7 @@ export const useUIColors = ({ systemConfig }: UseUIColorsProps = {}) => {
       primaryColor: ui?.primaryColor || "rgb(37, 99, 235)",
       primaryHoverColor: ui?.primaryHoverColor || "rgb(29, 78, 216)",
       primaryActiveColor: ui?.primaryActiveColor || "rgb(30, 64, 175)",
-      castButton: ui?.castButton || {
-        backgroundColor:
-          cssCastButtonBackgroundColor ||
-          ui?.primaryColor ||
-          "rgb(37, 99, 235)",
-        hoverColor:
-          cssCastButtonHoverColor ||
-          ui?.primaryHoverColor ||
-          "rgb(29, 78, 216)",
-        activeColor:
-          cssCastButtonActiveColor ||
-          ui?.primaryActiveColor ||
-          "rgb(30, 64, 175)",
-      },
+      castButton,
     };
   }, [systemConfig]);
 };

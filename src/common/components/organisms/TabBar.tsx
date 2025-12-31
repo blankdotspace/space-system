@@ -71,6 +71,24 @@ function TabBar({
       uiColors.castButtonFontColor,
     ],
   );
+  const customizeButtonStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      "--cast-bg-color": castButtonColors.backgroundColor,
+      "--cast-hover-color": castButtonColors.hoverColor,
+      "--cast-active-color": castButtonColors.activeColor,
+      backgroundColor: "var(--cast-bg-color)",
+      color: castButtonColors.fontColor,
+      fontFamily: uiColors.fontFamily,
+      boxShadow: "none",
+    }),
+    [
+      castButtonColors.activeColor,
+      castButtonColors.backgroundColor,
+      castButtonColors.fontColor,
+      castButtonColors.hoverColor,
+      uiColors.fontFamily,
+    ],
+  );
 
   const { getIsLoggedIn, getIsInitializing, homebaseLoadTab, setCurrentTabName } = useAppStore((state) => ({
     setModalOpen: state.setup.setModalOpen,
@@ -307,35 +325,12 @@ function TabBar({
               {!inEditMode && (
                 <Button
                   onClick={() => setEditMode(true)}
-                  className="flex items-center rounded-md p-2 font-semibold transition-colors"
-                  style={{
-                    backgroundColor: castButtonColors.backgroundColor,
-                    color: castButtonColors.fontColor,
-                    fontFamily: uiColors.fontFamily,
-                    boxShadow: "none",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = castButtonColors.backgroundColor;
-                  }}
-                  onMouseDown={(e) => {
-                    e.currentTarget.style.backgroundColor = castButtonColors.activeColor;
-                  }}
-                  onMouseUp={(e) => {
-                    e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.backgroundColor = castButtonColors.backgroundColor;
-                  }}
+                  className="flex items-center rounded-md p-2 font-semibold transition-colors bg-[var(--cast-bg-color)] hover:bg-[var(--cast-hover-color)] active:bg-[var(--cast-active-color)] focus:bg-[var(--cast-hover-color)] focus-visible:outline-none focus-visible:ring-0"
+                  style={customizeButtonStyle}
                 >
-                  <FaPaintbrush style={{ color: castButtonColors.fontColor }} />
+                  <FaPaintbrush />
                   {!isMobile && (
-                    <span className="ml-2" style={{ color: castButtonColors.fontColor }}>
+                    <span className="ml-2">
                       Customize
                     </span>
                   )}
