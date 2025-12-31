@@ -791,7 +791,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
           <div className="w-full h-full min-h-[150px]">{draft.text}</div>
         ) : (
           <div
-            className={`p-2 border-slate-200 rounded-lg border relative ${isDragging ? "ring-2 ring-blue-400 bg-blue-50" : ""}`}
+            className={`p-2 border border-[rgba(128,128,128,0.2)] rounded-lg relative ${isDragging ? "ring-2 ring-blue-400 bg-blue-50" : ""}`}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -860,7 +860,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
               {/* Add media button moved to left side on mobile */}
               {isMobile && (
                 <Button
-                  className="h-10"
+                  className="h-10 border-[rgba(128,128,128,0.2)]"
                   type="button"
                   variant="outline"
                   disabled={isPublishing}
@@ -877,7 +877,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
               {/* Only show Add button here for desktop */}
               {!isMobile && (
                 <Button
-                  className="h-10"
+                  className="h-10 border-[rgba(128,128,128,0.2)]"
                   type="button"
                   variant="outline"
                   disabled={isPublishing}
