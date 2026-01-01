@@ -312,6 +312,7 @@ const MobileHeader = ({ systemConfig }: MobileHeaderProps) => {
               open={showCastDiscardPrompt}
               onClose={handleCancelDiscard}
               onDiscard={handleDiscardCast}
+              systemConfig={systemConfig}
             />
           </>
         </CastModalPortalBoundary>
