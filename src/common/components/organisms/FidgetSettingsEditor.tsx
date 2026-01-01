@@ -189,6 +189,17 @@ const hasFilterTarget = (settings: FidgetSettings) => {
 const isInvalidFeedFilter = (settings: FidgetSettings) =>
   settings.feedType === FeedType.Filter && !hasFilterTarget(settings);
 
+const FILTER_SETTING_FIELDS: Array<keyof FidgetSettings> = [
+  "filterType",
+  "username",
+  "users",
+  "channel",
+  "keyword",
+];
+
+const hasValue = (value: unknown) =>
+  typeof value === "string" && value.trim().length > 0;
+
 export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
   fidgetId,
   properties,
@@ -224,13 +235,57 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
     return input;
   };
 
-  const [state, setState] = useState<FidgetSettings>(settings);
+  const normalizedSettings = useMemo(
+    () => normalizeFilterType(fillWithDefaults(settings)),
+    [settings, properties.fields],
+  );
+  const [state, setState] = useState<FidgetSettings>(normalizedSettings);
   const activeIdRef = useRef(fidgetId);
   const uiColors = useUIColors();
 
+  const appliedSettingsSignatureRef = useRef<string>(
+    JSON.stringify(normalizedSettings),
+  );
+  const pendingSaveSignatureRef = useRef<string | null>(null);
+  const lastStateRef = useRef<FidgetSettings>(state);
+
   useEffect(() => {
-    setState(normalizeFilterType(fillWithDefaults(settings)));
-  }, [settings, fidgetId, properties.fields]);
+    lastStateRef.current = state;
+  }, [state]);
+
+  useEffect(() => {
+    appliedSettingsSignatureRef.current = "";
+    pendingSaveSignatureRef.current = null;
+  }, [fidgetId]);
+
+  useEffect(() => {
+    const signature = JSON.stringify(normalizedSettings);
+
+    if (pendingSaveSignatureRef.current === signature) {
+      pendingSaveSignatureRef.current = null;
+      appliedSettingsSignatureRef.current = signature;
+      setState(normalizedSettings);
+      return;
+    }
+
+    const hasIncomingFilters = FILTER_SETTING_FIELDS.some((field) =>
+      hasValue(normalizedSettings[field]),
+    );
+    const hasLocalFilters = FILTER_SETTING_FIELDS.some((field) =>
+      hasValue(lastStateRef.current[field]),
+    );
+
+    if (!hasIncomingFilters && hasLocalFilters) {
+      return;
+    }
+
+    if (appliedSettingsSignatureRef.current === signature) {
+      return;
+    }
+
+    appliedSettingsSignatureRef.current = signature;
+    setState(normalizedSettings);
+  }, [normalizedSettings]);
 
   useEffect(() => {
     activeIdRef.current = fidgetId;
@@ -252,6 +307,10 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
       return false;
     }
 
+    const signature = JSON.stringify(filledState);
+    pendingSaveSignatureRef.current = signature;
+    appliedSettingsSignatureRef.current = signature;
+    setState(filledState);
     onSave(filledState, shouldUnselect);
     return true;
   };
