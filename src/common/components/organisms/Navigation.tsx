@@ -498,6 +498,7 @@ const Navigation = React.memo(
               open={showCastDiscardPrompt}
               onClose={handleCancelDiscard}
               onDiscard={handleDiscardCast}
+              systemConfig={systemConfig}
             />
           </>
         </CastModalPortalBoundary>
