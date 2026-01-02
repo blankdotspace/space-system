@@ -32,6 +32,7 @@ export type FidgetSettingsEditorProps = {
   readonly properties: FidgetProperties;
   settings: FidgetSettings;
   onSave: (settings: FidgetSettings, shouldUnselect?: boolean) => void;
+  onStateChange?: (settings: FidgetSettings) => void;
   unselect: () => void;
   removeFidget: (fidgetId: string) => void;
 };
@@ -205,6 +206,7 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
   properties,
   settings,
   onSave,
+  onStateChange,
   unselect,
   removeFidget,
 }) => {
@@ -242,21 +244,32 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
   const [state, setState] = useState<FidgetSettings>(normalizedSettings);
   const activeIdRef = useRef(fidgetId);
   const uiColors = useUIColors();
+  const notifyStateChange = (nextState: FidgetSettings) => {
+    onStateChange?.(normalizeFilterType(fillWithDefaults(nextState)));
+  };
+  const setStateWithNotify = (nextState: FidgetSettings) => {
+    setState(nextState);
+    notifyStateChange(nextState);
+  };
 
   const appliedSettingsSignatureRef = useRef<string>(
     JSON.stringify(normalizedSettings),
   );
   const pendingSaveSignatureRef = useRef<string | null>(null);
   const lastStateRef = useRef<FidgetSettings>(state);
+  const lastFidgetIdRef = useRef(fidgetId);
 
   useEffect(() => {
     lastStateRef.current = state;
   }, [state]);
 
   useEffect(() => {
+    if (lastFidgetIdRef.current === fidgetId) return;
+    lastFidgetIdRef.current = fidgetId;
     appliedSettingsSignatureRef.current = "";
     pendingSaveSignatureRef.current = null;
-  }, [fidgetId]);
+    lastStateRef.current = normalizedSettings;
+  }, [fidgetId, normalizedSettings]);
 
   useEffect(() => {
     const signature = JSON.stringify(normalizedSettings);
@@ -265,6 +278,7 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
       pendingSaveSignatureRef.current = null;
       appliedSettingsSignatureRef.current = signature;
       setState(normalizedSettings);
+      onStateChange?.(normalizedSettings);
       return;
     }
 
@@ -285,6 +299,7 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
 
     appliedSettingsSignatureRef.current = signature;
     setState(normalizedSettings);
+    onStateChange?.(normalizedSettings);
   }, [normalizedSettings]);
 
   useEffect(() => {
@@ -311,6 +326,7 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
     pendingSaveSignatureRef.current = signature;
     appliedSettingsSignatureRef.current = signature;
     setState(filledState);
+    onStateChange?.(filledState);
     onSave(filledState, shouldUnselect);
     return true;
   };
@@ -373,7 +389,7 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
                 fidgetId={fidgetId}
                 fields={groupedFields.settings}
                 state={state}
-                setState={setState}
+                setState={setStateWithNotify}
                 onSave={safeOnSave}
                 isActive={() => activeIdRef.current === fidgetId}
               />
@@ -384,7 +400,7 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
                   fidgetId={fidgetId}
                   fields={groupedFields.style}
                   state={state}
-                  setState={setState}
+                  setState={setStateWithNotify}
                   onSave={safeOnSave}
                   isActive={() => activeIdRef.current === fidgetId}
                 />
@@ -396,7 +412,7 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
                   fidgetId={fidgetId}
                   fields={groupedFields.code}
                   state={state}
-                  setState={setState}
+                  setState={setStateWithNotify}
                   onSave={safeOnSave}
                   isActive={() => activeIdRef.current === fidgetId}
                 />
