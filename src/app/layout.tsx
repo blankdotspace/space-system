@@ -7,6 +7,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { loadSystemConfig, SystemConfig } from "@/config";
 import ClientMobileHeaderWrapper from "@/common/components/organisms/ClientMobileHeaderWrapper";
 import ClientSidebarWrapper from "@/common/components/organisms/ClientSidebarWrapper";
+import BotIdProtectionLoader from "@/common/components/BotIdProtectionLoader";
 import type { Metadata } from 'next' // Migrating next/head
 import { extractFontFamilyFromUrl } from "@/common/lib/utils/fontUtils";
 
@@ -127,6 +128,7 @@ export default async function RootLayout({
         {validatedUiStylesheet && (
           <link rel="stylesheet" href={validatedUiStylesheet} />
         )}
+        <BotIdProtectionLoader />
       </head>
       <body
         style={

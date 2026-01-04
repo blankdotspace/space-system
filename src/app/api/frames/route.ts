@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFrame } from "frames.js";
+import {
+  applyBotIdHeaders,
+  enforceBotIdProtection,
+} from "@/common/utils/botIdProtection";
 
 // TODO: FIX BUTTON LABELS
 
@@ -231,18 +235,30 @@ async function parseFrameFallback(url: string): Promise<FrameData> {
 
 // GET handler
 export async function GET(request: NextRequest): Promise<Response> {
+  const botCheck = await enforceBotIdProtection(request);
+  if (botCheck instanceof NextResponse) {
+    return botCheck;
+  }
+
+  const verification = botCheck;
+  const respond = (body: unknown, init?: Parameters<typeof NextResponse.json>[1]) => {
+    const response = NextResponse.json(body, init);
+    applyBotIdHeaders(response, verification);
+    return response;
+  };
+
   const url = request.nextUrl.searchParams.get("url");
   const specification = normalizeSpecification(request.nextUrl.searchParams.get("specification"));
   const fid = request.nextUrl.searchParams.get("fid");
 
   if (!url) {
-    return NextResponse.json({ message: "Missing URL parameter" }, { status: 400 });
+    return respond({ message: "Missing URL parameter" }, { status: 400 });
   }
   if (typeof url !== "string" || !url.startsWith("http")) {
-    return NextResponse.json({ message: "Invalid URL. Must start with http(s)://" }, { status: 400 });
+    return respond({ message: "Invalid URL. Must start with http(s)://" }, { status: 400 });
   }
   if (isInternalUrl(url)) {
-    return NextResponse.json({ message: "Invalid URL. Internal URLs are not allowed." }, { status: 400 });
+    return respond({ message: "Invalid URL. Internal URLs are not allowed." }, { status: 400 });
   }
 
   try {
@@ -295,7 +311,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       }
     }
 
-    return NextResponse.json(frameData);
+    return respond(frameData);
   } catch (err) {
     console.error("Frames API - Error fetching frame:", {
       url,
@@ -303,28 +319,40 @@ export async function GET(request: NextRequest): Promise<Response> {
       errorMessage: err instanceof Error ? err.message : "Unknown error",
       stack: err instanceof Error ? err.stack : undefined,
     });
-    return NextResponse.json(
+    return respond(
       { message: err instanceof Error ? err.message : "Unknown error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 // POST handler
 export async function POST(request: NextRequest): Promise<Response> {
+  const botCheck = await enforceBotIdProtection(request);
+  if (botCheck instanceof NextResponse) {
+    return botCheck;
+  }
+
+  const verification = botCheck;
+  const respond = (body: unknown, init?: Parameters<typeof NextResponse.json>[1]) => {
+    const response = NextResponse.json(body, init);
+    applyBotIdHeaders(response, verification);
+    return response;
+  };
+
   try {
     const body = await request.json();
     const { frameUrl } = body;
     const specification = normalizeSpecification(request.nextUrl.searchParams.get("specification"));
 
     if (!frameUrl) {
-      return NextResponse.json({ message: "Missing frameUrl in request body" }, { status: 400 });
+      return respond({ message: "Missing frameUrl in request body" }, { status: 400 });
     }
     if (typeof frameUrl !== "string" || !frameUrl.startsWith("http")) {
-      return NextResponse.json({ message: "Invalid URL. Must start with http(s)://" }, { status: 400 });
+      return respond({ message: "Invalid URL. Must start with http(s)://" }, { status: 400 });
     }
     if (isInternalUrl(frameUrl)) {
-      return NextResponse.json({ message: "Invalid URL. Internal URLs are not allowed." }, { status: 400 });
+      return respond({ message: "Invalid URL. Internal URLs are not allowed." }, { status: 400 });
     }
 
     let html: string;
@@ -369,14 +397,14 @@ export async function POST(request: NextRequest): Promise<Response> {
       frameData.buttons = [{ label: "Open", action: "post" }];
     }
 
-    return NextResponse.json(frameData);
+    return respond(frameData);
   } catch (error) {
     console.error("Error processing frame action:", error);
-    return NextResponse.json(
+    return respond(
       {
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

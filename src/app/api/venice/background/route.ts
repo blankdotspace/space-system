@@ -1,17 +1,35 @@
+import { NextResponse } from "next/server";
+import {
+  applyBotIdHeaders,
+  enforceBotIdProtection,
+} from "@/common/utils/botIdProtection";
+
 const VENICE_API_KEY = process.env.VENICE_API_KEY;
 
 export const maxDuration = 300;
 
 export async function POST(request: Request) {
+  const botCheck = await enforceBotIdProtection(request);
+  if (botCheck instanceof NextResponse) {
+    return botCheck;
+  }
+
+  const verification = botCheck;
+  const respond = (body: unknown, init?: Parameters<typeof NextResponse.json>[1]) => {
+    const response = NextResponse.json(body, init);
+    applyBotIdHeaders(response, verification);
+    return response;
+  };
+
   if (!VENICE_API_KEY) {
-    return new Response("API key is missing", { status: 400 });
+    return respond({ error: "API key is missing" }, { status: 400 });
   }
 
   const res = await request.json();
 
   const userInput = res.text;
   if (!userInput) {
-    return new Response("User input is missing", { status: 400 });
+    return respond({ error: "User input is missing" }, { status: 400 });
   }
 
   // Models in the order requested by the user
@@ -57,7 +75,7 @@ export async function POST(request: Request) {
         continue;
       }
       const htmlMatch = choice.match(/(<html[\s\S]*<\/html>)/i);
-      return Response.json({ response: htmlMatch ? htmlMatch[1] : choice, model });
+      return respond({ response: htmlMatch ? htmlMatch[1] : choice, model });
     } catch (error) {
       console.error(`Error fetching data for model ${model}:`, error);
       lastError = error;
@@ -65,7 +83,10 @@ export async function POST(request: Request) {
     }
   }
   console.error("All models failed:", lastError);
-  return new Response("All models failed", { status: 500 });
+  return respond(
+    { error: "All models failed", details: lastError },
+    { status: 500 },
+  );
 }
 
 const PROMPT = `\
