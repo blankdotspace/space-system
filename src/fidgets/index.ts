@@ -53,7 +53,6 @@ export const CompleteFidgets = {
   governance: NounishGovernance,
   nounsHome: NounsHome,
   links: Links,
-  // zora: zoraEmbed, -> 500 server error -Frame ancestors block
   zoraCoins: ZoraCoins,
   SnapShot: snapShot,
   Swap: Swap,
