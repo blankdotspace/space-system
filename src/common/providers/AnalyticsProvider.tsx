@@ -1,137 +1,77 @@
 "use client";
-import React, { ReactNode, useEffect, Suspense } from "react";
+import React, { ReactNode, Suspense, useEffect } from "react";
+import Script from "next/script";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCurrentSpaceIdentityPublicKey } from "@/common/lib/hooks/useCurrentSpaceIdentityPublicKey";
 import { useCurrentFid } from "@/common/lib/hooks/useCurrentFid";
 import { AnalyticsEvent } from "@/common/constants/analyticsEvents";
 
-type Mixpanel = {
-  init: (token: string, config?: Record<string, any>) => void;
-  track: (eventName: string, properties?: Record<string, any>) => void;
-  identify: (id: string) => void;
-  register?: (properties: Record<string, any>) => void;
-  people?: {
-    set?: (properties: Record<string, any>) => void;
-  };
-};
-
 declare global {
   interface Window {
-    mixpanel?: Mixpanel & { __loaded?: boolean };
+    mixpanel?: {
+      init: (token: string, config?: Record<string, any>) => void;
+      track: (eventName: string, properties?: Record<string, any>) => void;
+      identify: (id: string) => void;
+      people?: {
+        set?: (properties: Record<string, any>) => void;
+      };
+      __isInitialized?: boolean;
+    };
   }
 }
 
-const MIXPANEL_SCRIPT_ID = "mixpanel-browser";
-const MIXPANEL_LIB_URL = "https://cdn.mxpnl.com/libs/mixpanel-2-latest.min.js";
 const MIXPANEL_TOKEN = process.env.NEXT_PUBLIC_MIXPANEL_TOKEN;
 
-let mixpanel: Mixpanel | null = null;
-let mixpanelLoader: Promise<Mixpanel | null> | null = null;
-const mixpanelQueue: Array<(mp: Mixpanel) => void> = [];
-
-const flushMixpanelQueue = (instance: Mixpanel) => {
-  while (mixpanelQueue.length) {
-    const action = mixpanelQueue.shift();
-    action?.(instance);
-  }
-};
-
-const loadMixpanelScript = async (): Promise<Mixpanel | null> => {
-  if (typeof window === "undefined") return null;
-  if (window.mixpanel?.init) return window.mixpanel;
-
-  if (document.getElementById(MIXPANEL_SCRIPT_ID)) {
-    return new Promise((resolve) => {
-      const existingScript = document.getElementById(MIXPANEL_SCRIPT_ID);
-      existingScript?.addEventListener("load", () => resolve(window.mixpanel ?? null));
-      existingScript?.addEventListener("error", () => resolve(null));
-    });
-  }
-
-  return new Promise((resolve) => {
-    const script = document.createElement("script");
-    script.id = MIXPANEL_SCRIPT_ID;
-    script.src = MIXPANEL_LIB_URL;
-    script.async = true;
-    script.onload = () => resolve(window.mixpanel ?? null);
-    script.onerror = () => resolve(null);
-    document.head.appendChild(script);
-  });
-};
-
-const loadMixpanel = async (token?: string) => {
-  if (!token || typeof window === "undefined") return null;
-  if (mixpanel) return mixpanel;
-  if (mixpanelLoader) return mixpanelLoader;
-
-  mixpanelLoader = loadMixpanelScript()
-    .then((instance) => {
-      if (!instance) return null;
-      instance.init(token, {
-        api_host: "https://api-js.mixpanel.com",
-        track_pageview: false,
-      });
-      mixpanel = instance;
-      flushMixpanelQueue(instance);
-      return instance;
-    })
-    .catch((error) => {
-      console.error(error);
-      return null;
-    });
-
-  return mixpanelLoader;
-};
-
-const enqueueMixpanelAction = (action: (instance: Mixpanel) => void) => {
+const initMixpanel = () => {
+  if (typeof window === "undefined") return;
   if (!MIXPANEL_TOKEN) return;
-  if (mixpanel) {
-    action(mixpanel);
-    return;
-  }
-  mixpanelQueue.push(action);
-  void loadMixpanel(MIXPANEL_TOKEN);
+  if (!window.mixpanel?.init) return;
+  if (window.mixpanel.__isInitialized) return;
+
+  window.mixpanel.init(MIXPANEL_TOKEN, {
+    debug: process.env.NODE_ENV !== "production",
+    track_pageview: true,
+    persistence: "localStorage",
+    autocapture: true,
+    record_replay_sample_rate: 1,
+  });
+  window.mixpanel.__isInitialized = true;
 };
+
+const analyticsReady = () =>
+  typeof window !== "undefined" && window.mixpanel && window.mixpanel.__isInitialized;
 
 export const analytics = {
   track: (eventName: AnalyticsEvent, properties?: Record<string, any>) => {
-    enqueueMixpanelAction((instance) => {
-      try {
-        instance.track(eventName, properties);
-      } catch (e) {
-        console.error(e);
-      }
-    });
+    if (!analyticsReady()) return;
+    try {
+      window.mixpanel?.track(eventName, properties);
+    } catch (e) {
+      console.error(e);
+    }
   },
   identify: (id?: string, properties?: any) => {
-    if (!id) return;
-    enqueueMixpanelAction((instance) => {
-      try {
-        instance.identify(id);
-        if (properties) {
-          instance.register?.(properties);
-          instance.people?.set?.(properties);
-        }
-      } catch (e) {
-        console.error(e);
+    if (!analyticsReady() || !id) return;
+    try {
+      window.mixpanel?.identify(id);
+      if (properties) {
+        window.mixpanel?.people?.set?.(properties);
       }
-    });
+    } catch (e) {
+      console.error(e);
+    }
   },
   page: () => {
-    enqueueMixpanelAction((instance) => {
-      try {
-        instance.track("Page Viewed", {
-          pathname: window.location.pathname,
-          search: window.location.search,
-        });
-      } catch (e) {
-        console.error(e);
-      }
-    });
-  },
-  initialize: () => {
-    if (!MIXPANEL_TOKEN) return;
-    void loadMixpanel(MIXPANEL_TOKEN);
+    if (!analyticsReady()) return;
+    try {
+      window.mixpanel?.track("Page View", {
+        page_url: window.location.href,
+        pathname: window.location.pathname,
+        search: window.location.search,
+      });
+    } catch (e) {
+      console.error(e);
+    }
   },
 };
 
@@ -140,6 +80,13 @@ export const AnalyticsProvider: React.FC<{ children: ReactNode }> = ({
 }) => {
   return (
     <Suspense fallback={null}>
+      <Script
+        id="mixpanel-loader"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: `(function (f, b) { if (!b.__SV) { var e, g, i, h; window.mixpanel = b; b._i = []; b.init = function (e, f, c) { function g(a, d) { var b = d.split("."); 2 == b.length && ((a = b[b[0]]), (d = b[1])); a[d] = function () { a.push([d].concat(Array.prototype.slice.call(arguments, 0))); }; } var a = b; "undefined" !== typeof c ? (a = b[c] = []) : (c = "mixpanel"); a.people = a.people || []; a.toString = function (a) { var d = "mixpanel"; "mixpanel" !== c && (d += "." + c); a || (d += " (stub)"); return d; }; a.people.toString = function () { return a.toString(1) + ".people (stub)"; }; i = "disable time_event track track_pageview track_links track_forms track_with_groups add_group set_group remove_group register register_once alias unregister identify name_tag set_config reset opt_in_tracking opt_out_tracking has_opted_in_tracking has_opted_out_tracking clear_opt_in_out_tracking start_batch_senders people.set people.set_once people.unset people.increment people.append people.union people.track_charge people.clear_charges people.delete_user people.remove".split(" "); for (h = 0; h < i.length; h++) g(a, i[h]); var j = "set set_once union unset remove delete".split(" "); a.get_group = function () { function b(c) { d[c] = function () { call2_args = arguments; call2 = [c].concat(Array.prototype.slice.call(call2_args, 0)); a.push([e, call2]); }; } for ( var d = {}, e = ["get_group"].concat( Array.prototype.slice.call(arguments, 0)), c = 0; c < j.length; c++) b(j[c]); return d; }; b._i.push([e, f, c]); }; b.__SV = 1.2; e = f.createElement("script"); e.type = "text/javascript"; e.async = !0; e.src = "undefined" !== typeof MIXPANEL_CUSTOM_LIB_URL ? MIXPANEL_CUSTOM_LIB_URL : "file:" === f.location.protocol && "//cdn.mxpnl.com/libs/mixpanel-2-latest.min.js".match(/^\\/\\//) ? "https://cdn.mxpnl.com/libs/mixpanel-2-latest.min.js" : "//cdn.mxpnl.com/libs/mixpanel-2-latest.min.js"; g = f.getElementsByTagName("script")[0]; g.parentNode.insertBefore(e, g); } })(document, window.mixpanel || []);`,
+        }}
+      />
       <AnalyticsProviderContent>{children}</AnalyticsProviderContent>
     </Suspense>
   );
@@ -155,7 +102,8 @@ const AnalyticsProviderContent: React.FC<{ children: ReactNode }> = ({
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    analytics.initialize();
+    initMixpanel();
+    analytics.page();
   }, []);
 
   useEffect(() => {
