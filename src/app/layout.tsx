@@ -124,12 +124,6 @@ export default async function RootLayout({
   
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        {validatedUiStylesheet && (
-          <link rel="stylesheet" href={validatedUiStylesheet} />
-        )}
-        <BotIdProtectionLoader />
-      </head>
       <body
         style={
           {
@@ -139,6 +133,7 @@ export default async function RootLayout({
           } as React.CSSProperties
         }
       >
+        <BotIdProtectionLoader /> 
         <SpeedInsights />
         <Providers>{sidebarLayout(children, systemConfig)}</Providers>
       </body>
