@@ -122,11 +122,15 @@ export class FidgetOptionsService {
             primaryCategory = 'clanker';
             specificTags.push('token');
             break;
-            
+
           // DeFi
           case 'swap':
+          case 'Swap':
           case 'market':
+          case 'Market':
           case 'portfolio':
+          case 'Portfolio':
+          case 'Katana':
             primaryCategory = 'defi';
             specificTags.push('token');
             break;

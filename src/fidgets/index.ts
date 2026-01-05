@@ -23,6 +23,7 @@ import ClankerManager from "./token/ClankerManager";
 import Levr from "./token/Levr";
 import Directory from "./token/Directory/Directory";
 import EmpireBuilder from "./token/EmpireBuilder";
+import Katana from "./token/Katana";
 import chat from "./ui/chat";
 import BuilderScore from "./farcaster/BuilderScore";
 import MobileStack from "./layout/tabFullScreen";
@@ -64,6 +65,7 @@ export const CompleteFidgets = {
   Levr: Levr,
   Directory: Directory,
   EmpireBuilder: EmpireBuilder,
+  Katana: Katana,
   Chat: chat,
   Top8: Top8,
   BuilderScore: BuilderScore,
