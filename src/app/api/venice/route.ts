@@ -1,4 +1,5 @@
 import neynar from "@/common/data/api/neynar";
+import { NextResponse } from "next/server";
 
 import {
   MAX_TRENDING_CASTS,
@@ -10,6 +11,10 @@ import {
   VENICE_MODEL,
 } from "./config";
 import { CREATE_PROMPT, ENHANCE_PROMPT, SYSTEM_PROMPT } from "./prompts";
+import {
+  applyBotIdHeaders,
+  enforceBotIdProtection,
+} from "@/common/utils/botIdProtection";
 // TrendingTimeWindow type is no longer exported, using string literal type
 type TrendingTimeWindow = "1h" | "6h" | "24h" | "7d";
 
@@ -28,15 +33,27 @@ function processTrendingCasts(casts: any) {
 }
 
 export async function POST(request: Request) {
+  const botCheck = await enforceBotIdProtection(request);
+  if (botCheck instanceof NextResponse) {
+    return botCheck;
+  }
+
+  const verification = botCheck;
+  const respond = (body: unknown, init?: Parameters<typeof NextResponse.json>[1]) => {
+    const response = NextResponse.json(body, init);
+    applyBotIdHeaders(response, verification);
+    return response;
+  };
+
   const res = await request.json();
   const userFid = res.fid;
 
   if (!VENICE_API_KEY) {
-    return new Response("API key is missing", { status: 400 });
+    return respond({ error: "API key is missing" }, { status: 400 });
   }
 
   if (!userFid) {
-    return new Response("User fid is missing", { status: 400 });
+    return respond({ error: "User fid is missing" }, { status: 400 });
   }
 
   // get values
@@ -150,10 +167,15 @@ ${exampleCastsText}
       .replace(/<\/think>.*?<\/think>/gs, "") // remove <think> tags
       .replace(/^['"]|['"]$/g, ""); // remove quotes marks
 
-    //return to frontend clear response
-    return Response.json({ response: result });
+    return respond({ response: result });
   } catch (error) {
-    // console.error("Error fetching data:", error);
-    throw new Error("Failed to fetch data: " + error);
+    console.error("Venice API error:", error);
+    return respond(
+      {
+        error: "Failed to fetch data",
+        details: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
+    );
   }
 }

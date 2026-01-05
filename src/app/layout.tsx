@@ -7,6 +7,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { loadSystemConfig, SystemConfig } from "@/config";
 import ClientMobileHeaderWrapper from "@/common/components/organisms/ClientMobileHeaderWrapper";
 import ClientSidebarWrapper from "@/common/components/organisms/ClientSidebarWrapper";
+import BotIdProtectionLoader from "@/common/components/BotIdProtectionLoader";
 import type { Metadata } from 'next' // Migrating next/head
 import { extractFontFamilyFromUrl } from "@/common/lib/utils/fontUtils";
 
@@ -123,11 +124,6 @@ export default async function RootLayout({
   
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        {validatedUiStylesheet && (
-          <link rel="stylesheet" href={validatedUiStylesheet} />
-        )}
-      </head>
       <body
         style={
           {
@@ -137,6 +133,7 @@ export default async function RootLayout({
           } as React.CSSProperties
         }
       >
+        <BotIdProtectionLoader /> 
         <SpeedInsights />
         <Providers>{sidebarLayout(children, systemConfig)}</Providers>
       </body>

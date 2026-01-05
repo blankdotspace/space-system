@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import RSSParser from "rss-parser";
 import { isIP } from "node:net";
+import {
+  applyBotIdHeaders,
+  enforceBotIdProtection,
+} from "@/common/utils/botIdProtection";
 
 // Instantiate RSSParser once with a timeout
 const parser: RSSParser = (globalThis as any).__rssParser ??
@@ -70,19 +74,30 @@ function isInternalUrl(url: string): boolean {
 }
 
 export async function GET(request: NextRequest): Promise<Response> {
+  const botCheck = await enforceBotIdProtection(request);
+  if (botCheck instanceof NextResponse) {
+    return botCheck;
+  }
+
+  const verification = botCheck;
+  const respond = (body: unknown, init?: Parameters<typeof NextResponse.json>[1]) => {
+    const response = NextResponse.json(body, init);
+    applyBotIdHeaders(response, verification);
+    return response;
+  };
   const url = request.nextUrl.searchParams.get("url");
 
   if (!url) {
-    return NextResponse.json({ message: "Missing URL parameter" }, { status: 400 });
+    return respond({ message: "Missing URL parameter" }, { status: 400 });
   }
   if (typeof url !== "string" || !url.startsWith("http")) {
-    return NextResponse.json(
+    return respond(
       { message: "Invalid URL. Must start with http(s)://" },
       { status: 400 },
     );
   }
   if (isInternalUrl(url)) {
-    return NextResponse.json(
+    return respond(
       { message: "Invalid URL. Internal URLs are not allowed." },
       { status: 400 },
     );
@@ -91,7 +106,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   try {
     const feed = await parser.parseURL(url);
 
-    return NextResponse.json({
+    return respond({
       title: feed.title || null,
       description: feed.description || null,
       link: feed.link || null,
@@ -100,7 +115,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     });
   } catch (err) {
     console.error("Error fetching RSS feed:", err);
-    return NextResponse.json(
+    return respond(
       { message: err instanceof Error ? err.message : "Unknown error" },
       { status: 500 },
     );

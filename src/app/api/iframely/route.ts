@@ -1,13 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  applyBotIdHeaders,
+  enforceBotIdProtection,
+} from "@/common/utils/botIdProtection";
 
 export const revalidate = 3600; // Cache responses for 1 hour
 
 export async function GET(req: NextRequest) {
+  const botCheck = await enforceBotIdProtection(req);
+  if (botCheck instanceof NextResponse) {
+    return botCheck;
+  }
+
+  const verification = botCheck;
+  const respond = (body: unknown, init?: Parameters<typeof NextResponse.json>[1]) => {
+    const response = NextResponse.json(body, init);
+    applyBotIdHeaders(response, verification);
+    return response;
+  };
+
   const { searchParams } = new URL(req.url);
   const url = searchParams.get("url");
 
   if (!url) {
-    return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
+    return respond({ error: "Invalid URL" }, { status: 400 });
   }
 
   try {
@@ -16,21 +32,21 @@ export async function GET(req: NextRequest) {
 
     if (canBeEmbedded) {
       // URL can be embedded directly
-      return NextResponse.json({
+      return respond({
         directEmbed: true,
         url: url,
       });
     } else {
       // URL cannot be embedded directly, try Iframely
       const iframelyHtml = await getIframelyEmbed(url);
-      return NextResponse.json({
+      return respond({
         directEmbed: false,
         iframelyHtml: iframelyHtml,
       });
     }
   } catch (error) {
     console.error("Error processing embed request:", error);
-    return NextResponse.json(
+    return respond(
       {
         error: "Error processing embed request",
         message: error instanceof Error ? error.message : "Unknown error",

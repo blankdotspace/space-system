@@ -1,4 +1,5 @@
 import bundlerAnalyzer from "@next/bundle-analyzer";
+import { withBotId } from "botid/next/config";
 import packageInfo from "./package.json" with { type: "json" };
 import { createRequire } from "node:module";
 
@@ -141,4 +142,4 @@ const nextConfig = {
   },
 };
 
-export default withBundleAnalyzer(nextConfig);
+export default withBotId(withBundleAnalyzer(nextConfig));

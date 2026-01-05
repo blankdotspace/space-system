@@ -1,40 +1,59 @@
 import { NextRequest, NextResponse } from "next/server";
 import { JSDOM } from "jsdom";
+import {
+  applyBotIdHeaders,
+  enforceBotIdProtection,
+} from "@/common/utils/botIdProtection";
 
 export async function GET(request: NextRequest) {
+  const botCheck = await enforceBotIdProtection(request);
+  if (botCheck instanceof NextResponse) {
+    return botCheck;
+  }
+
+  const verification = botCheck;
+  const respond = (body: unknown, init?: Parameters<typeof NextResponse.json>[1]) => {
+    const response = NextResponse.json(body, init);
+    applyBotIdHeaders(response, verification);
+    return response;
+  };
+
   const { searchParams } = new URL(request.url);
   const url = searchParams.get("url");
 
   if (!url) {
-    return NextResponse.json({ error: "URL parameter is required" }, { status: 400 });
+    return respond({ error: "URL parameter is required" }, { status: 400 });
   }
 
-  // Only allow http and https URLs
   let parsedUrl: URL | null = null;
   try {
     parsedUrl = new URL(url);
   } catch (e) {
-    // If URL constructor fails, treat as unsupported
-    return NextResponse.json({
-      title: url,
-      description: null,
-      image: null,
-      siteName: url,
-      url,
-      error: "Unsupported or invalid URL scheme"
-    });
+    return respond(
+      {
+        title: url,
+        description: null,
+        image: null,
+        siteName: url,
+        url,
+        error: "Unsupported or invalid URL scheme",
+      },
+      { status: 400 },
+    );
   }
 
   if (parsedUrl.protocol !== "https:") {
-    // Only allow https URLs for security; reject http and other protocols
-    return NextResponse.json({
-      title: parsedUrl.hostname || url,
-      description: null,
-      image: null,
-      siteName: parsedUrl.hostname || url,
-      url,
-      error: `Only https URLs are allowed. Unsupported URL protocol: ${parsedUrl.protocol}`
-    });
+    return respond(
+      {
+        title: parsedUrl.hostname || url,
+        description: null,
+        image: null,
+        siteName: parsedUrl.hostname || url,
+        url,
+        error: `Only https URLs are allowed. Unsupported URL protocol: ${parsedUrl.protocol}`,
+      },
+      { status: 400 },
+    );
   }
 
   try {
@@ -50,11 +69,10 @@ export async function GET(request: NextRequest) {
         "Sec-Fetch-Mode": "navigate",
         "Sec-Fetch-Site": "cross-site",
       },
-      signal: AbortSignal.timeout(10000), // 10 second timeout
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!response.ok) {
-      // Handle common HTTP errors gracefully
       if (response.status === 403) {
         throw new Error(`Access denied by ${parsedUrl.hostname}. Site may be blocking automated requests.`);
       } else if (response.status === 404) {
@@ -70,28 +88,26 @@ export async function GET(request: NextRequest) {
     const dom = new JSDOM(html);
     const document = dom.window.document;
 
-    // Extract OpenGraph metadata
     const getMetaContent = (property: string): string | null => {
       const element = document.querySelector(`meta[property="${property}"], meta[name="${property}"]`);
       return element?.getAttribute("content") || null;
     };
 
-    const title = getMetaContent("og:title") || 
-                  getMetaContent("twitter:title") || 
-                  document.querySelector("title")?.textContent || 
-                  null;
+    const title = getMetaContent("og:title") ||
+      getMetaContent("twitter:title") ||
+      document.querySelector("title")?.textContent ||
+      null;
 
-    const description = getMetaContent("og:description") || 
-                       getMetaContent("twitter:description") || 
-                       getMetaContent("description") || 
-                       null;
+    const description = getMetaContent("og:description") ||
+      getMetaContent("twitter:description") ||
+      getMetaContent("description") ||
+      null;
 
-    const image = getMetaContent("og:image") || 
-                  getMetaContent("twitter:image") || 
-                  null;
+    const image = getMetaContent("og:image") ||
+      getMetaContent("twitter:image") ||
+      null;
 
-    const siteName = getMetaContent("og:site_name") || 
-                     new URL(url).hostname;
+    const siteName = getMetaContent("og:site_name") || new URL(url).hostname;
 
     const ogData = {
       title,
@@ -101,18 +117,18 @@ export async function GET(request: NextRequest) {
       url,
     };
 
-    // ...existing code...
-
-    return NextResponse.json(ogData);
+    return respond(ogData);
   } catch (error) {
-    
-    // Return minimal fallback data
-    return NextResponse.json({
-      title: new URL(url).hostname,
-      description: null,
-      image: null,
-      siteName: new URL(url).hostname,
-      url,
-    });
+    console.error("OpenGraph API error:", error);
+    return respond(
+      {
+        title: new URL(url).hostname,
+        description: null,
+        image: null,
+        siteName: new URL(url).hostname,
+        url,
+      },
+      { status: 500 },
+    );
   }
 }

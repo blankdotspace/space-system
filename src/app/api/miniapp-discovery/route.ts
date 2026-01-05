@@ -1,7 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { NeynarMiniAppService } from '@/common/data/services/neynarMiniAppService';
+import {
+  applyBotIdHeaders,
+  enforceBotIdProtection,
+} from '@/common/utils/botIdProtection';
 
 export async function GET(request: NextRequest): Promise<Response> {
+  const botCheck = await enforceBotIdProtection(request);
+  if (botCheck instanceof NextResponse) {
+    return botCheck;
+  }
+
+  const verification = botCheck;
+  const respond = (body: unknown, init?: Parameters<typeof NextResponse.json>[1]) => {
+    const response = NextResponse.json(body, init);
+    applyBotIdHeaders(response, verification);
+    return response;
+  };
+
   try {
     const { searchParams } = new URL(request.url);
     const neynarService = NeynarMiniAppService.getInstance();
@@ -27,7 +43,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 
     const stats = neynarService.getStats();
 
-    return NextResponse.json({
+    return respond({
       success: true,
       stats: {
         totalDiscovered: apps.length,
@@ -67,14 +83,26 @@ export async function GET(request: NextRequest): Promise<Response> {
     });
   } catch (error) {
     console.error('Error in miniapp-discovery GET:', error);
-    return NextResponse.json(
+    return respond(
       { success: false, error: 'Internal server error' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function POST(request: NextRequest): Promise<Response> {
+  const botCheck = await enforceBotIdProtection(request);
+  if (botCheck instanceof NextResponse) {
+    return botCheck;
+  }
+
+  const verification = botCheck;
+  const respond = (body: unknown, init?: Parameters<typeof NextResponse.json>[1]) => {
+    const response = NextResponse.json(body, init);
+    applyBotIdHeaders(response, verification);
+    return response;
+  };
+
   try {
     const body = await request.json();
     const { action, filters } = body;
@@ -86,7 +114,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         // Clear cache to force fresh data fetch
         neynarService.clearCache();
         const refreshedApps = await neynarService.fetchMiniApps(filters || {});
-        return NextResponse.json({
+        return respond({
           success: true,
           message: 'Cache refreshed',
           count: refreshedApps.length,
@@ -96,13 +124,13 @@ export async function POST(request: NextRequest): Promise<Response> {
       case 'search': {
         const { query } = body;
         if (!query) {
-          return NextResponse.json(
+          return respond(
             { success: false, error: 'Search query required' },
-            { status: 400 }
+            { status: 400 },
           );
         }
         const searchResults = await neynarService.searchMiniApps(query);
-        return NextResponse.json({
+        return respond({
           success: true,
           results: searchResults,
           count: searchResults.length,
@@ -112,7 +140,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       case 'trending': {
         const { timeWindow = '7d', limit = 50 } = body;
         const trendingApps = await neynarService.getTrendingMiniApps(timeWindow, limit);
-        return NextResponse.json({
+        return respond({
           success: true,
           apps: trendingApps,
           count: trendingApps.length,
@@ -122,7 +150,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       case 'discover': {
         // Backward compatibility with existing tests
         const discoveredApps = await neynarService.fetchMiniApps({ limit: 50 });
-        return NextResponse.json({
+        return respond({
           success: true,
           message: 'Discovery started',
           count: discoveredApps.length,
@@ -130,17 +158,17 @@ export async function POST(request: NextRequest): Promise<Response> {
       }
 
       default:
-        return NextResponse.json(
+        return respond(
           { success: false, error: 'Invalid action. Supported: refresh, search, trending, discover' },
-          { status: 400 }
+          { status: 400 },
         );
     }
     
   } catch (error) {
     console.error('Error in miniapp-discovery POST:', error);
-    return NextResponse.json(
+    return respond(
       { success: false, error: 'Invalid JSON or server error' },
-      { status: 400 }
+      { status: 400 },
     );
   }
 }
