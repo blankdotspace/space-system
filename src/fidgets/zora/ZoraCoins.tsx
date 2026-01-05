@@ -95,6 +95,8 @@ interface CoinData {
   mediaContent?: {
     originalUri: string;
     mimeType: string;
+    videoPreviewUrl?: string;
+    videoHlsUrl?: string;
     previewImage?: {
       small?: string;
       medium?: string;
@@ -106,11 +108,82 @@ interface CoinData {
   };
 }
 
+// Utility function to detect mime type from URI if not provided
+const detectMimeType = (uri: string, providedMimeType?: string): string => {
+  if (providedMimeType && providedMimeType !== "application/octet-stream" && !providedMimeType.includes('image')) {
+    return providedMimeType;
+  }
+  
+  // If we have an IPFS URI, we should assume it might be video until proven otherwise
+  // since IPFS doesn't always provide accurate mime types
+  const url = uri.toLowerCase();
+  
+  // Video formats
+  if (url.includes('.mp4') || url.includes('.webm') || url.includes('.mov') || url.includes('.avi') || url.includes('.m4v')) {
+    return 'video/mp4';
+  }
+  
+  // Image formats
+  if (url.includes('.jpg') || url.includes('.jpeg') || url.includes('.png') || url.includes('.gif') || url.includes('.webp')) {
+    return 'image/jpeg';
+  }
+  
+  // For IPFS URIs without clear extensions, let's try as video first
+  // since the error handling will fall back to image if it fails
+  if (uri.startsWith('ipfs://') || uri.startsWith('ipfs:/')) {
+    return 'video/mp4';
+  }
+  
+  // Default to image for unknown types
+  return providedMimeType || 'image/jpeg';
+};
+
+// Utility function to get the best video URL
+const getBestVideoUrl = (mediaContent: any): string => {
+  // Prefer the optimized video URLs over raw IPFS
+  if (mediaContent.videoPreviewUrl) {
+    return mediaContent.videoPreviewUrl;
+  }
+  
+  if (mediaContent.videoHlsUrl) {
+    return mediaContent.videoHlsUrl;
+  }
+  
+  // Fallback to IPFS if no optimized URLs available
+  return formatIpfsUri(mediaContent.originalUri);
+};
+
+// Utility function to convert IPFS URIs to public gateway format
+const formatIpfsUri = (uri: string): string => {
+  if (!uri) return uri;
+  
+  if (uri.startsWith('ipfs://')) {
+    const cid = uri.replace('ipfs://', '');
+    return `https://ipfs.io/ipfs/${cid}`;
+  }
+  
+  // Also handle ipfs:/ (single slash) format
+  if (uri.startsWith('ipfs:/') && !uri.startsWith('ipfs://')) {
+    const cid = uri.replace('ipfs:/', '');
+    return `https://ipfs.io/ipfs/${cid}`;
+  }
+  
+  return uri;
+};
+
 const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) => {
   const [coinData, setCoinData] = useState<CoinData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [videoError, setVideoError] = useState(false);
+  console.log("original uri", coinData?.mediaContent?.originalUri);
+  console.log("formatted uri", coinData?.mediaContent?.originalUri ? formatIpfsUri(coinData.mediaContent.originalUri) : null);
+  console.log("mimeType", coinData?.mediaContent?.mimeType);
+  console.log("videoPreviewUrl", coinData?.mediaContent?.videoPreviewUrl);
+  console.log("best video url", coinData?.mediaContent ? getBestVideoUrl(coinData.mediaContent) : null);
+  console.log("isVideo", coinData?.mediaContent?.mimeType?.startsWith("video/"));
+  console.log("videoError", videoError);
 
   useEffect(() => {
     const fetchCoinData = async () => {
@@ -126,13 +199,12 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) 
 
       setLoading(true);
       setError(null);
+      setVideoError(false);
 
       try {
         if (settings.displayMode === "single" && settings.coinContract) {
           // Use server-side API route to keep API key secure
-          const response = await fetch(
-            `/api/zora/coin?address=${settings.coinContract}&chain=8453`
-          );
+          const response = await fetch(`/api/zora/coin?address=${settings.coinContract}&chain=8453`);
 
           if (!response.ok) {
             const errorData = await response.json();
@@ -154,7 +226,10 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) 
               mediaContent: token.mediaContent
                 ? {
                     originalUri: token.mediaContent.originalUri,
-                    mimeType: token.mediaContent.mimeType || "image/jpeg",
+                    mimeType: detectMimeType(token.mediaContent.originalUri, token.mediaContent.mimeType),
+                    videoPreviewUrl: token.mediaContent.videoPreviewUrl,
+                    videoHlsUrl: token.mediaContent.videoHlsUrl,
+                    previewImage: token.mediaContent.previewImage,
                   }
                 : undefined,
               creatorProfile: token.creatorProfile
@@ -189,6 +264,7 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) 
   }, [settings.coinContract, settings.creatorContract, settings.displayMode]);
 
   const handleTrade = () => {
+    // TODO: implement trade modal integration
     // Mock trade button - will implement real modal later
     alert("Trade modal coming soon!");
   };
@@ -234,17 +310,28 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) 
       {/* Media Section */}
       <div className="relative flex-1 min-h-0">
         {coinData.mediaContent ? (
-          isVideo ? (
+          isVideo && !videoError ? (
             <div className="relative w-full h-full">
               <video
-                src={coinData.mediaContent.originalUri}
+                src={getBestVideoUrl(coinData.mediaContent)}
                 className="w-full h-full object-cover"
                 controls={isVideoPlaying}
                 loop
                 playsInline
+                preload="metadata"
+                poster={coinData.mediaContent.previewImage?.medium || coinData.mediaContent.previewImage?.small}
                 onClick={() => setIsVideoPlaying(!isVideoPlaying)}
                 onPlay={() => setIsVideoPlaying(true)}
                 onPause={() => setIsVideoPlaying(false)}
+                onError={(e) => {
+                  console.error("Video error:", e);
+                  const videoElement = e.target as HTMLVideoElement;
+                  console.error("Video error details:", videoElement.error);
+                  setVideoError(true);
+                }}
+                onLoadedMetadata={() => {
+                  console.log("Video metadata loaded successfully");
+                }}
               />
               {!isVideoPlaying && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
@@ -266,7 +353,15 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) 
               )}
             </div>
           ) : (
-            <img src={coinData.mediaContent.originalUri} alt={coinData.name} className="w-full h-full object-cover" />
+            <img 
+              src={
+                coinData.mediaContent.previewImage?.medium || 
+                coinData.mediaContent.previewImage?.small || 
+                formatIpfsUri(coinData.mediaContent.originalUri)
+              } 
+              alt={coinData.name} 
+              className="w-full h-full object-cover" 
+            />
           )
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gray-100">

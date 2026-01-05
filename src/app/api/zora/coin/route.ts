@@ -43,6 +43,13 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
+    
+    // Debug logging to see what Zora API returns
+    console.log("[Zora API] Response data:", JSON.stringify(data, null, 2));
+    if (data?.zora20Token?.mediaContent) {
+      console.log("[Zora API] Media content:", data.zora20Token.mediaContent);
+    }
+    
     return NextResponse.json(data);
   } catch (error) {
     console.error("[Zora API] Error fetching coin:", error);
