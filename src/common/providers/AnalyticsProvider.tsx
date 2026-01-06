@@ -77,24 +77,28 @@ const initMixpanel = async () => {
     return;
   }
 
-  mp.init(
-    MIXPANEL_TOKEN,
-    {
+  const loadedHandler = () => {
+    mixpanelReady = true;
+    mp.__isInitialized = true;
+    flushQueue(mp);
+    analytics.page();
+  };
+
+  try {
+    mp.init(MIXPANEL_TOKEN, {
       debug: process.env.NODE_ENV !== "production",
       track_pageview: false,
       persistence: "localStorage",
       autocapture: true,
       record_replay_sample_rate: 1,
-    },
-    {
-      loaded: (loadedInstance) => {
-        mixpanelReady = true;
-        loadedInstance.__isInitialized = true;
-        flushQueue(loadedInstance);
-        analytics.page();
-      },
-    },
-  );
+      loaded: loadedHandler,
+    });
+    if (mp.__isInitialized && !mixpanelReady) {
+      loadedHandler();
+    }
+  } catch (error) {
+    console.error(error);
+  }
 };
 
 const enqueue = (action: (mp: NonNullable<typeof window.mixpanel>) => void) => {
