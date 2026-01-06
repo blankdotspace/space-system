@@ -407,7 +407,7 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
     appliedSettingsSignatureRef.current = signature;
     setState(normalizedWithFallback);
     onStateChange?.(normalizedWithFallback);
-  }, [normalizedSettings, withFilterTypeFallback]);
+  }, [normalizedSettings, withFilterTypeFallback, onStateChange]);
 
   useEffect(() => {
     activeIdRef.current = fidgetId;

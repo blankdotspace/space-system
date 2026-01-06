@@ -198,12 +198,11 @@ export function FidgetWrapper({
         });
         setLocalSettingsOverride(newSettings);
         lastSavedSettingsByFidget.set(bundle.id, newSettings);
+        if (shouldUnselect) {
+          unselect();
+        }
       } catch (e) {
         toast.error("Failed to save fidget settings", { duration: 1000 });
-      }
-
-      if (shouldUnselect) {
-        unselect();
       }
     },
     [bundle.config, bundle.id, saveConfig, unselect],
