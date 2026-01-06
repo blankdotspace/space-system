@@ -2,6 +2,7 @@
 
 import { Avatar, AvatarImage } from "@/common/components/atoms/avatar";
 import Modal from "@/common/components/molecules/Modal";
+import { CastDiscardPrompt } from "@/common/components/molecules/CastModalHelpers";
 import { trackAnalyticsEvent } from "@/common/lib/utils/analyticsUtils";
 import { useAppStore } from "@/common/data/stores/app";
 import { formatTimeAgo } from "@/common/lib/utils/date";
@@ -439,6 +440,8 @@ const CastReactions = ({ cast }: { cast: CastWithInteractions }) => {
   const [replyCastDraft, setReplyCastDraft] = useState<Partial<DraftType>>();
   type ReplyCastType = "reply" | "quote";
   const [replyCastType, setReplyCastType] = useState<ReplyCastType>();
+  const [shouldConfirmCastClose, setShouldConfirmCastClose] = useState(false);
+  const [showCastDiscardPrompt, setShowCastDiscardPrompt] = useState(false);
 
   const getReactions = () => {
     const repliesCount = cast.replies?.count || 0;
@@ -591,16 +594,45 @@ const CastReactions = ({ cast }: { cast: CastWithInteractions }) => {
     setShowModal(true);
   };
 
+  const handleCloseReplyModal = (open: boolean) => {
+    if (!open && shouldConfirmCastClose) {
+      setShowCastDiscardPrompt(true);
+    } else {
+      setShowModal(open);
+    }
+  };
+
+  const handleDiscardDraft = () => {
+    setShouldConfirmCastClose(false);
+    setShowModal(false);
+    setReplyCastDraft(undefined);
+    setReplyCastType(undefined);
+  };
+
   const reactions = getReactions();
 
   return (
     <>
-      <Modal open={showModal} setOpen={setShowModal} focusMode showClose={false}>
+      <Modal open={showModal} setOpen={handleCloseReplyModal} focusMode showClose={false}>
         <div className="mb-4">{replyCastType === "reply" ? <CastRowExport cast={cast} isEmbed /> : null}</div>
         <div className="flex">
-          <CreateCast initialDraft={replyCastDraft} />
+          <CreateCast 
+            initialDraft={replyCastDraft} 
+            onShouldConfirmCloseChange={setShouldConfirmCastClose}
+            afterSubmit={() => {
+              setShouldConfirmCastClose(false);
+              setShowModal(false);
+              setReplyCastDraft(undefined);
+              setReplyCastType(undefined);
+            }}
+          />
         </div>
       </Modal>
+      <CastDiscardPrompt
+        open={showCastDiscardPrompt}
+        onClose={() => setShowCastDiscardPrompt(false)}
+        onDiscard={handleDiscardDraft}
+      />
       <div className="-ml-1.5 flex items-center space-x-3 w-full">
         {Object.entries(reactions).map(([key, reactionInfo]) => {
           const isActive = get(reactionInfo, "isActive", false);

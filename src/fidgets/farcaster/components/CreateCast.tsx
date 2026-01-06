@@ -227,7 +227,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
         return composedPath.some((node: EventTarget) => isInside(node));
       });
     },
-    [],
+    [emojiContentRef, emojiTriggerRef],
   );
 
   const handleEmojiPickerOpenChange = useCallback((nextOpen: boolean) => {
@@ -248,12 +248,21 @@ const CreateCast: React.FC<CreateCastProps> = ({
         fallbackTarget,
       )
     ) {
-      event.preventDefault();
+      // Prevent the popover from closing when interacting with the emoji picker
+      if (originalEvent) {
+        originalEvent.stopPropagation();
+        originalEvent.preventDefault();
+      }
+      if (event instanceof Event) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
       return;
     }
 
+    // Only close picker on interactions outside it
     setIsEmojiPickerOpen(false);
-  }, []);
+  }, [isTargetInsideEmojiPicker]);
 
   const shouldConfirmClose = useMemo(() => {
     const hasText = (draft.text ?? "").trim().length > 0;
@@ -715,8 +724,10 @@ const CreateCast: React.FC<CreateCastProps> = ({
     event: MouseEvent,
   ) => {
     event.stopPropagation();
+    event.preventDefault();
     editor?.chain().focus().insertContent(emojiObject.emoji).run();
-    setIsEmojiPickerOpen(false);
+    // Keep the emoji picker open so user can select more emojis
+    // They can close it by clicking outside or pressing Escape
   };
 
   const handleEnhanceCast = async (text: string) => {
@@ -901,25 +912,24 @@ const CreateCast: React.FC<CreateCastProps> = ({
                   </Button>
                 </PopoverTrigger>
                 <CastModalInteractiveBranch asChild>
-                  <PopoverContent
-                    ref={emojiContentRef}
-                    container={castModalPortalContainer ?? undefined}
-                    side="top"
-                    align="end"
-                    sideOffset={8}
-                    className="z-[60] w-auto border-none bg-transparent p-0 shadow-none"
-                    {...{ [CAST_MODAL_INTERACTIVE_ATTR]: "true" }}
-                    onInteractOutside={handleEmojiPickerInteraction}
-                    onPointerDownOutside={handleEmojiPickerInteraction}
-                    onEscapeKeyDown={() => setIsEmojiPickerOpen(false)}
-                  >
-                    <EmojiPicker
-                      theme={"light" as Theme}
-                      onEmojiClick={handleEmojiClick}
-                      open={isEmojiPickerOpen}
-                    />
-                  </PopoverContent>
-                </CastModalInteractiveBranch>
+                   <PopoverContent
+                     ref={emojiContentRef}
+                     container={castModalPortalContainer ?? undefined}
+                     side="top"
+                     align="end"
+                     sideOffset={8}
+                     className="z-[60] w-auto border-none bg-transparent p-0 shadow-none pointer-events-auto"
+                     {...{ [CAST_MODAL_INTERACTIVE_ATTR]: "true" }}
+                     onInteractOutside={handleEmojiPickerInteraction}
+                     onEscapeKeyDown={() => setIsEmojiPickerOpen(false)}
+                   >
+                     <EmojiPicker
+                       theme={"light" as Theme}
+                       onEmojiClick={handleEmojiClick}
+                       open={isEmojiPickerOpen}
+                     />
+                   </PopoverContent>
+                 </CastModalInteractiveBranch>
               </Popover>
             </div>
           </div>
