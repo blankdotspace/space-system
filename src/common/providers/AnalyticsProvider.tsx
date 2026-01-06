@@ -1,6 +1,5 @@
 "use client";
 import React, { ReactNode, Suspense, useEffect } from "react";
-import Script from "next/script";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCurrentSpaceIdentityPublicKey } from "@/common/lib/hooks/useCurrentSpaceIdentityPublicKey";
 import { useCurrentFid } from "@/common/lib/hooks/useCurrentFid";
@@ -21,63 +20,123 @@ declare global {
 }
 
 const MIXPANEL_TOKEN = process.env.NEXT_PUBLIC_MIXPANEL_TOKEN;
+const MIXPANEL_SCRIPT_ID = "mixpanel-browser";
+const MIXPANEL_SRC = "https://cdn.mxpnl.com/libs/mixpanel-2-latest.min.js";
 
 let mixpanelReady = false;
+let mixpanelLoader: Promise<typeof window.mixpanel | null> | null = null;
+const queuedActions: Array<(mp: NonNullable<typeof window.mixpanel>) => void> = [];
 
-const initMixpanel = () => {
-  if (typeof window === "undefined") return;
-  if (!MIXPANEL_TOKEN) return;
-  if (!window.mixpanel?.init) return;
-  if (window.mixpanel.__isInitialized || mixpanelReady) return;
+const loadMixpanelScript = async (): Promise<typeof window.mixpanel | null> => {
+  if (typeof window === "undefined") return null;
+  if (window.mixpanel?.init) return window.mixpanel;
 
-  window.mixpanel.init(MIXPANEL_TOKEN, {
-    debug: process.env.NODE_ENV !== "production",
-    track_pageview: true,
-    persistence: "localStorage",
-    autocapture: true,
-    record_replay_sample_rate: 1,
+  if (mixpanelLoader) return mixpanelLoader;
+
+  mixpanelLoader = new Promise((resolve) => {
+    const existingScript = document.getElementById(MIXPANEL_SCRIPT_ID) as
+      | HTMLScriptElement
+      | null;
+    if (existingScript) {
+      existingScript.addEventListener("load", () => resolve(window.mixpanel ?? null), {
+        once: true,
+      });
+      existingScript.addEventListener("error", () => resolve(null), { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = MIXPANEL_SCRIPT_ID;
+    script.src = MIXPANEL_SRC;
+    script.async = true;
+    script.onload = () => resolve(window.mixpanel ?? null);
+    script.onerror = () => resolve(null);
+    document.head.appendChild(script);
   });
-  window.mixpanel.__isInitialized = true;
-  mixpanelReady = true;
-  analytics.page();
+
+  return mixpanelLoader;
 };
 
-const analyticsReady = () =>
-  typeof window !== "undefined" &&
-  window.mixpanel &&
-  (window.mixpanel.__isInitialized || mixpanelReady);
+const flushQueue = (mp: NonNullable<typeof window.mixpanel>) => {
+  while (queuedActions.length) {
+    const action = queuedActions.shift();
+    action?.(mp);
+  }
+};
+
+const initMixpanel = async () => {
+  if (typeof window === "undefined") return;
+  if (!MIXPANEL_TOKEN) return;
+  if (mixpanelReady) return;
+
+  const mp = await loadMixpanelScript();
+  if (!mp?.init) return;
+  if (mp.__isInitialized) {
+    mixpanelReady = true;
+    flushQueue(mp);
+    return;
+  }
+
+  mp.init(
+    MIXPANEL_TOKEN,
+    {
+      debug: process.env.NODE_ENV !== "production",
+      track_pageview: false,
+      persistence: "localStorage",
+      autocapture: true,
+      record_replay_sample_rate: 1,
+    },
+    {
+      loaded: (loadedInstance) => {
+        mixpanelReady = true;
+        loadedInstance.__isInitialized = true;
+        flushQueue(loadedInstance);
+        analytics.page();
+      },
+    },
+  );
+};
+
+const enqueue = (action: (mp: NonNullable<typeof window.mixpanel>) => void) => {
+  queuedActions.push(action);
+  void initMixpanel();
+};
 
 export const analytics = {
   track: (eventName: AnalyticsEvent, properties?: Record<string, any>) => {
-    if (!analyticsReady()) return;
-    try {
-      window.mixpanel?.track(eventName, properties);
-    } catch (e) {
-      console.error(e);
-    }
+    enqueue((mp) => {
+      try {
+        mp.track(eventName, properties);
+      } catch (e) {
+        console.error(e);
+      }
+    });
   },
   identify: (id?: string, properties?: any) => {
-    if (!analyticsReady() || !id) return;
-    try {
-      window.mixpanel?.identify(id);
-      if (properties) {
-        window.mixpanel?.people?.set?.(properties);
+    if (!id) return;
+    enqueue((mp) => {
+      try {
+        mp.identify(id);
+        if (properties) {
+          mp.people?.set?.(properties);
+        }
+      } catch (e) {
+        console.error(e);
       }
-    } catch (e) {
-      console.error(e);
-    }
+    });
   },
   page: () => {
-    if (!analyticsReady()) return;
-    try {
-      window.mixpanel?.track("Page View", {
-        page_url: window.location.href,
-        pathname: window.location.pathname,
-        search: window.location.search,
-      });
-    } catch (e) {
-      console.error(e);
-    }
+    enqueue((mp) => {
+      try {
+        mp.track("Page View", {
+          page_url: window.location.href,
+          pathname: window.location.pathname,
+          search: window.location.search,
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    });
   },
 };
 
@@ -86,12 +145,6 @@ export const AnalyticsProvider: React.FC<{ children: ReactNode }> = ({
 }) => {
   return (
     <Suspense fallback={null}>
-      <Script
-        id="mixpanel-loader"
-        src="https://cdn.mxpnl.com/libs/mixpanel-2-latest.min.js"
-        strategy="afterInteractive"
-        onLoad={initMixpanel}
-      />
       <AnalyticsProviderContent>{children}</AnalyticsProviderContent>
     </Suspense>
   );
@@ -107,8 +160,7 @@ const AnalyticsProviderContent: React.FC<{ children: ReactNode }> = ({
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    initMixpanel();
-    analytics.page();
+    void initMixpanel();
   }, []);
 
   useEffect(() => {
