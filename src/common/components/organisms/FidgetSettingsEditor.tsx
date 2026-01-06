@@ -6,26 +6,26 @@ import {
   TabsTrigger,
 } from "@/common/components/atoms/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/common/components/atoms/tooltip";
+import { AnalyticsEvent } from "@/common/constants/analyticsEvents";
 import {
   FidgetFieldConfig,
   FidgetProperties,
   FidgetSettings,
 } from "@/common/fidgets";
+import { useUIColors } from "@/common/lib/hooks/useUIColors";
 import {
   tabContentClasses,
   tabListClasses,
   tabTriggerClasses,
 } from "@/common/lib/theme/helpers";
 import { mergeClasses } from "@/common/lib/utils/mergeClasses";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { FaCircleInfo, FaTrashCan } from "react-icons/fa6";
-import BackArrowIcon from "../atoms/icons/BackArrow";
-import { AnalyticsEvent } from "@/common/constants/analyticsEvents";
 import { analytics } from "@/common/providers/AnalyticsProvider";
-import { useUIColors } from "@/common/lib/hooks/useUIColors";
-import { FeedType } from "@neynar/nodejs-sdk/build/api";
-import { toast } from "sonner";
 import { FilterType as FarcasterFilterType } from "@/fidgets/farcaster/Feed";
+import { FeedType } from "@neynar/nodejs-sdk/build/api";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FaCircleInfo, FaTrashCan } from "react-icons/fa6";
+import { toast } from "sonner";
+import BackArrowIcon from "../atoms/icons/BackArrow";
 
 export type FidgetSettingsEditorProps = {
   fidgetId: string;
@@ -138,6 +138,38 @@ export const FidgetSettingsGroup: React.FC<{
   onSave: (state: FidgetSettings) => void;
   isActive?: () => boolean;
 }> = ({ fields, state, setState, onSave, fidgetId, isActive }) => {
+  const applyFilterTypeChange = (
+    current: FidgetSettings,
+    nextFilterType: string,
+  ): FidgetSettings => {
+    const nextState: FidgetSettings = {
+      ...current,
+      filterType: nextFilterType,
+    };
+
+    if (nextFilterType === FarcasterFilterType.Users) {
+      nextState.channel = "";
+      nextState.keyword = "";
+      return nextState;
+    }
+
+    if (nextFilterType === FarcasterFilterType.Channel) {
+      nextState.users = "";
+      nextState.username = "";
+      nextState.keyword = "";
+      return nextState;
+    }
+
+    if (nextFilterType === FarcasterFilterType.Keyword) {
+      nextState.users = "";
+      nextState.username = "";
+      nextState.channel = "";
+      return nextState;
+    }
+
+    return nextState;
+  };
+
   return (
     <>
       {fields.map((field, i) => {
@@ -157,6 +189,12 @@ export const FidgetSettingsGroup: React.FC<{
             value={value}
             onChange={(val) => {
               if (isActive && !isActive()) return;
+              if (field.fieldName === "filterType" && typeof val === "string") {
+                const nextState = applyFilterTypeChange(state, val);
+                setState(nextState);
+                onSave(nextState);
+                return;
+              }
               const data = {
                 ...state,
                 [field.fieldName]: val,
@@ -198,8 +236,26 @@ const FILTER_SETTING_FIELDS: Array<keyof FidgetSettings> = [
   "keyword",
 ];
 
+const FILTER_TARGET_FIELDS: Array<keyof FidgetSettings> = [
+  "username",
+  "users",
+  "channel",
+  "keyword",
+];
+
 const hasValue = (value: unknown) =>
   typeof value === "string" && value.trim().length > 0;
+
+const inferFilterType = (
+  settings: FidgetSettings,
+): FarcasterFilterType | undefined => {
+  if (hasValue(settings.channel)) return FarcasterFilterType.Channel;
+  if (hasValue(settings.keyword)) return FarcasterFilterType.Keyword;
+  if (hasValue(settings.username) || hasValue(settings.users)) {
+    return FarcasterFilterType.Users;
+  }
+  return undefined;
+};
 
 export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
   fidgetId,
@@ -210,7 +266,10 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
   unselect,
   removeFidget,
 }) => {
-  const fillWithDefaults = (input: FidgetSettings) =>
+  const fillWithDefaults = (
+    input: FidgetSettings,
+    options?: { skipDefaults?: string[] },
+  ) =>
     properties.fields.reduce((acc, field) => {
       const value =
         input && typeof input === "object"
@@ -220,32 +279,79 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
         value !== undefined &&
         value !== null &&
         (typeof value !== "string" || value.trim() !== "");
-      acc[field.fieldName] = hasValue ? value : field.default ?? "";
+      const skipDefault = options?.skipDefaults?.includes(field.fieldName);
+      acc[field.fieldName] = hasValue
+        ? value
+        : skipDefault
+        ? undefined
+        : field.default ?? "";
       return acc;
     }, {} as FidgetSettings);
 
-  const normalizeFilterType = (input: FidgetSettings) => {
+  const normalizeFilterType = (
+    input: FidgetSettings,
+    allowDefault = true,
+    allowInference = true,
+  ) => {
     if (input.feedType !== FeedType.Filter) return input;
     const allowed = new Set([
       FarcasterFilterType.Users,
       FarcasterFilterType.Channel,
       FarcasterFilterType.Keyword,
     ]);
-    if (!allowed.has(input.filterType)) {
-      return { ...input, filterType: FarcasterFilterType.Users };
+    const isValidType =
+      typeof input.filterType === "string" && allowed.has(input.filterType as FarcasterFilterType);
+
+    if (allowInference) {
+      const inferredType = inferFilterType(input);
+      if (inferredType && (!isValidType || input.filterType !== inferredType)) {
+        return { ...input, filterType: inferredType };
+      }
     }
-    return input;
+
+    if (isValidType) {
+      return input;
+    }
+
+    if (!allowDefault) {
+      if (input.filterType && !allowed.has(input.filterType)) {
+        return { ...input, filterType: undefined };
+      }
+      return input;
+    }
+
+    return { ...input, filterType: FarcasterFilterType.Users };
   };
 
   const normalizedSettings = useMemo(
-    () => normalizeFilterType(fillWithDefaults(settings)),
+    () =>
+      normalizeFilterType(
+        fillWithDefaults(settings, { skipDefaults: ["filterType"] }),
+        false,
+        true,
+      ),
     [settings, properties.fields],
+  );
+
+  // When incoming settings lack filterType (e.g., defaults or partial loads),
+  // reuse the last known filterType to avoid reverting to "Users".
+  const withFilterTypeFallback = useCallback(
+    (incoming: FidgetSettings): FidgetSettings => {
+      if (incoming.feedType !== FeedType.Filter) return incoming;
+      if (incoming.filterType) return incoming;
+      const previous = lastStateRef.current?.filterType;
+      if (previous) {
+        return { ...incoming, filterType: previous };
+      }
+      return incoming;
+    },
+    [],
   );
   const [state, setState] = useState<FidgetSettings>(normalizedSettings);
   const activeIdRef = useRef(fidgetId);
   const uiColors = useUIColors();
   const notifyStateChange = (nextState: FidgetSettings) => {
-    onStateChange?.(normalizeFilterType(fillWithDefaults(nextState)));
+    onStateChange?.(normalizeFilterType(fillWithDefaults(nextState), true, true));
   };
   const setStateWithNotify = (nextState: FidgetSettings) => {
     setState(nextState);
@@ -272,20 +378,21 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
   }, [fidgetId, normalizedSettings]);
 
   useEffect(() => {
-    const signature = JSON.stringify(normalizedSettings);
+    const normalizedWithFallback = withFilterTypeFallback(normalizedSettings);
+    const signature = JSON.stringify(normalizedWithFallback);
 
     if (pendingSaveSignatureRef.current === signature) {
       pendingSaveSignatureRef.current = null;
       appliedSettingsSignatureRef.current = signature;
-      setState(normalizedSettings);
-      onStateChange?.(normalizedSettings);
+      setState(normalizedWithFallback);
+      onStateChange?.(normalizedWithFallback);
       return;
     }
 
-    const hasIncomingFilters = FILTER_SETTING_FIELDS.some((field) =>
-      hasValue(normalizedSettings[field]),
+    const hasIncomingFilters = FILTER_TARGET_FIELDS.some((field) =>
+      hasValue(normalizedWithFallback[field]),
     );
-    const hasLocalFilters = FILTER_SETTING_FIELDS.some((field) =>
+    const hasLocalFilters = FILTER_TARGET_FIELDS.some((field) =>
       hasValue(lastStateRef.current[field]),
     );
 
@@ -298,9 +405,9 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
     }
 
     appliedSettingsSignatureRef.current = signature;
-    setState(normalizedSettings);
-    onStateChange?.(normalizedSettings);
-  }, [normalizedSettings]);
+    setState(normalizedWithFallback);
+    onStateChange?.(normalizedWithFallback);
+  }, [normalizedSettings, withFilterTypeFallback]);
 
   useEffect(() => {
     activeIdRef.current = fidgetId;
@@ -310,10 +417,15 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
     nextState: FidgetSettings,
     shouldUnselect?: boolean,
     showAlert?: boolean,
+    enforceFilterTarget: boolean = true,
   ) => {
-    const filledState = normalizeFilterType(fillWithDefaults(nextState));
+    const filledState = normalizeFilterType(
+      fillWithDefaults(nextState),
+      true,
+      true,
+    );
 
-    if (isInvalidFeedFilter(filledState)) {
+    if (enforceFilterTarget && isInvalidFeedFilter(filledState)) {
       if (showAlert) {
         toast.error(
           "Add a user/FID, channel, or keyword before saving a Filter feed.",
@@ -333,13 +445,15 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
 
   const safeOnSave = (nextState: FidgetSettings) => {
     if (activeIdRef.current !== fidgetId) return;
-    saveWithValidation(nextState);
+    // For inline edits, persist without enforcing target so the chosen filter type
+    // sticks while the user is still filling fields. Final submit still validates.
+    saveWithValidation(nextState, false, false, false);
   };
 
   const _onSave = (e) => {
     e.preventDefault();
     if (activeIdRef.current !== fidgetId) return;
-    const didSave = saveWithValidation(state, true, true);
+    const didSave = saveWithValidation(state, true, true, true);
     if (didSave) {
       analytics.track(AnalyticsEvent.EDIT_FIDGET, {
         fidgetType: properties.fidgetName,
