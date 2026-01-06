@@ -41,6 +41,8 @@ const cspHeader = `
       https://auth.privy.io/api/v1/analytics_events
       https://cdn.mxpnl.com
       https://api-js.mixpanel.com
+      https://api.mixpanel.com
+      https://decide.mixpanel.com
       https://edge.fullstory.com
       https://rs.fullstory.com
       https://api.imgbb.com
