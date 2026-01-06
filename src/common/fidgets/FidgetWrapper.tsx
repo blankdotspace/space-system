@@ -62,6 +62,8 @@ export const getSettingsWithDefaults = (
   );
 };
 
+const lastSavedSettingsByFidget = new Map<string, FidgetSettings>();
+
 export function FidgetWrapper({
   fidget,
   bundle,
@@ -89,7 +91,9 @@ export function FidgetWrapper({
   } | undefined)?.lastFetchSettings;
 
   const derivedSettings = useMemo<FidgetSettings>(() => {
+    const cachedSettings = lastSavedSettingsByFidget.get(bundle.id);
     const baseSettings = (localSettingsOverride ??
+      cachedSettings ??
       bundle.config.settings ??
       {}) as FidgetSettings;
     if (!lastFetchSettings || typeof lastFetchSettings !== "object") {
@@ -165,6 +169,12 @@ export function FidgetWrapper({
     })();
   }, [shouldAttemptBackfill, derivedSettings, bundle.config, saveConfig]);
 
+  useEffect(() => {
+    if (bundle.config.settings) {
+      lastSavedSettingsByFidget.set(bundle.id, bundle.config.settings);
+    }
+  }, [bundle.id, bundle.config.settings]);
+
   const saveData = useCallback(
     (data: FidgetData) =>
       saveConfig({
@@ -187,6 +197,7 @@ export function FidgetWrapper({
           settings: newSettings,
         });
         setLocalSettingsOverride(newSettings);
+        lastSavedSettingsByFidget.set(bundle.id, newSettings);
       } catch (e) {
         toast.error("Failed to save fidget settings", { duration: 1000 });
       }
@@ -195,7 +206,7 @@ export function FidgetWrapper({
         unselect();
       }
     },
-    [bundle.config, saveConfig, unselect],
+    [bundle.config, bundle.id, saveConfig, unselect],
   );
 
   const updateSettingsPanel = useCallback(
