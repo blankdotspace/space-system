@@ -43,6 +43,7 @@ const cspHeader = `
       https://api-js.mixpanel.com
       https://api.mixpanel.com
       https://decide.mixpanel.com
+      https://replay.mixpanel.com
       https://edge.fullstory.com
       https://rs.fullstory.com
       https://api.imgbb.com
