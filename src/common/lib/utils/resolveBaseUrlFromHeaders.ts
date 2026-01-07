@@ -10,6 +10,11 @@ type ResolveBaseUrlFromHeadersOptions = {
   fallbackUrl?: string;
 };
 
+type ParsedHost = {
+  host: string;
+  protocol?: string;
+};
+
 function getHeaderValue(headers: HeaderInput | undefined, name: string): string | undefined {
   if (!headers) {
     return undefined;
@@ -25,6 +30,29 @@ function getHeaderValue(headers: HeaderInput | undefined, name: string): string 
     return value[0];
   }
   return value ?? undefined;
+}
+
+function parseHostCandidate(value: string): ParsedHost | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  if (trimmed.includes("://")) {
+    try {
+      const parsed = new URL(trimmed);
+      return { host: parsed.host, protocol: parsed.protocol.replace(":", "") };
+    } catch {
+      return undefined;
+    }
+  }
+
+  const host = trimmed.split("/")[0]?.trim();
+  return host ? { host } : undefined;
+}
+
+function isVercelDotCom(host: string): boolean {
+  return host === "vercel.com" || host.endsWith(".vercel.com");
 }
 
 function normalizeBaseUrl(rawUrl: string): string {
@@ -45,17 +73,31 @@ export function resolveBaseUrlFromHeaders(
 ): string {
   const { headers, systemConfig, fallbackUrl } = options;
 
-  const forwardedHost = getHeaderValue(headers, "x-forwarded-host");
-  const host = forwardedHost || getHeaderValue(headers, "host");
+  const rawCandidates = [
+    getHeaderValue(headers, "x-detected-domain"),
+    getHeaderValue(headers, "x-vercel-forwarded-host"),
+    getHeaderValue(headers, "x-vercel-deployment-url"),
+    getHeaderValue(headers, "x-forwarded-host"),
+    getHeaderValue(headers, "host"),
+  ].filter((value): value is string => Boolean(value));
+  const candidateHosts = rawCandidates
+    .flatMap((value) => value.split(","))
+    .map((value) => parseHostCandidate(value))
+    .filter((value): value is ParsedHost => Boolean(value));
+  const selectedHost =
+    candidateHosts.find((candidate) => !isVercelDotCom(candidate.host)) ??
+    candidateHosts[0];
   const forwardedProto = getHeaderValue(headers, "x-forwarded-proto");
 
-  if (host) {
+  if (selectedHost?.host) {
     const protocol = forwardedProto
       ? forwardedProto.split(",")[0].trim()
-      : host.includes("localhost") || host.startsWith("127.0.0.1")
+      : selectedHost.protocol
+      ? selectedHost.protocol
+      : selectedHost.host.includes("localhost") || selectedHost.host.startsWith("127.0.0.1")
       ? "http"
       : "https";
-    return normalizeBaseUrl(`${protocol}://${host}`);
+    return normalizeBaseUrl(`${protocol}://${selectedHost.host}`);
   }
 
   const configWebsite = systemConfig?.community?.urls?.website;
