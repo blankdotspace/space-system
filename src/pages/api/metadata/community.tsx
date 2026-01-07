@@ -2,6 +2,7 @@ import React from "react";
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
 import { resolveMetadataBranding } from "@/common/lib/utils/resolveMetadataBranding";
+import { getOgFonts } from "@/common/lib/utils/ogFonts";
 
 export const config = {
   runtime: "edge",
@@ -9,10 +10,13 @@ export const config = {
 
 export default async function handler(req: NextRequest) {
   const branding = await resolveMetadataBranding(req.headers);
+  const fonts = await getOgFonts();
 
   return new ImageResponse(<CommunityCard branding={branding} />, {
     width: 1200,
     height: 630,
+    fonts,
+    emoji: "twemoji",
   });
 }
 
@@ -34,7 +38,7 @@ const CommunityCard = ({
         background: "linear-gradient(135deg, #0f172a, #1f2937)",
         color: "#FFFFFF",
         gap: "36px",
-        fontFamily: "Arial, sans-serif",
+        fontFamily: "Noto Sans, Noto Sans Symbols 2",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: "28px" }}>

@@ -3,6 +3,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { ImageResponse } from "next/og";
 import { toFarcasterCdnUrl } from "@/common/lib/utils/farcasterCdn";
 import { resolveMetadataBranding } from "@/common/lib/utils/resolveMetadataBranding";
+import { getOgFonts } from "@/common/lib/utils/ogFonts";
 
 export const config = {
   runtime: "edge",
@@ -13,6 +14,7 @@ interface CastCardData {
   displayName: string;
   pfpUrl: string;
   text: string;
+  imageUrl?: string;
 }
 
 export default async function GET(
@@ -30,11 +32,16 @@ export default async function GET(
     displayName: params.get("displayName") || "",
     pfpUrl: params.get("pfpUrl") || "",
     text: params.get("text") || "",
+    imageUrl: params.get("imageUrl") || "",
   };
+
+  const fonts = await getOgFonts();
 
   return new ImageResponse(<CastCard data={data} branding={branding} />, {
     width: 1200,
     height: 630,
+    fonts,
+    emoji: "twemoji",
   });
 }
 
@@ -53,13 +60,13 @@ const CastCard = ({
       display: "flex",
       flexDirection: "column",
       background: "white",
-      fontFamily: "Arial, sans-serif",
+      fontFamily: "Noto Sans, Noto Sans Symbols 2",
     }}
   >
     <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
       {data.pfpUrl && (
         <img
-          src={toFarcasterCdnUrl(data.pfpUrl || "")}
+          src={toFarcasterCdnUrl(data.pfpUrl || "", "anim=false,fit=contain,f=png,w=576")}
           width="120"
           height="120"
           style={{ borderRadius: "60px" }}
@@ -80,6 +87,18 @@ const CastCard = ({
     >
       {data.text}
     </p>
+    {data.imageUrl ? (
+      <img
+        src={data.imageUrl}
+        width="720"
+        height="360"
+        style={{
+          marginTop: "32px",
+          borderRadius: "24px",
+          objectFit: "cover",
+        }}
+      />
+    ) : null}
     <div
       style={{
         marginTop: "auto",
