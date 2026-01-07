@@ -10,7 +10,7 @@ function withValidProperties(properties: Record<string, undefined | string | str
 
 export async function GET() {
   const systemConfig = await loadSystemConfig();
-  const baseUrl = resolveBaseUrl({ systemConfig });
+  const baseUrl = await resolveBaseUrl({ systemConfig });
   const metadata = await getMetadata({ systemConfig, baseUrl });
   const URL = baseUrl || (process.env.NEXT_PUBLIC_URL as string);
   const envTags = process.env.NEXT_PUBLIC_APP_TAGS

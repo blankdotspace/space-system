@@ -20,7 +20,7 @@ export async function generateMetadata({
   params: Promise<{ proposalId: string }> 
 }): Promise<Metadata> {
   const systemConfig = await loadSystemConfig();
-  const baseUrl = resolveBaseUrl({ systemConfig });
+  const baseUrl = await resolveBaseUrl({ systemConfig });
   const brandName = systemConfig.brand.displayName;
   const { proposalId } = await params;
   const defaultMetadata = await buildDefaultMetadata(systemConfig, baseUrl);
