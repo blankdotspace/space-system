@@ -1,4 +1,6 @@
 import { getMetadata } from '../../../constants/metadata';
+import { loadSystemConfig } from "@/config";
+import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
 
 function withValidProperties(properties: Record<string, undefined | string | string[]>) {
   return Object.fromEntries(
@@ -7,8 +9,10 @@ function withValidProperties(properties: Record<string, undefined | string | str
 }
 
 export async function GET() {
-  const metadata = await getMetadata();
-  const URL = process.env.NEXT_PUBLIC_URL as string;
+  const systemConfig = await loadSystemConfig();
+  const baseUrl = resolveBaseUrl({ systemConfig });
+  const metadata = await getMetadata({ systemConfig, baseUrl });
+  const URL = baseUrl || (process.env.NEXT_PUBLIC_URL as string);
   const envTags = process.env.NEXT_PUBLIC_APP_TAGS
     ?.split(',')
     .map(tag => tag.trim())
