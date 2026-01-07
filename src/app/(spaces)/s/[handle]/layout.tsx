@@ -61,10 +61,13 @@ export async function generateMetadata({
     userMetadata?.displayName || userMetadata?.username || handle;
 
   // Build Open Graph image URL matching the dynamic metadata
-  const encodedDisplayName = encodeURIComponent(displayName || "");
-  const encodedPfpUrl = encodeURIComponent(userMetadata?.pfpUrl || "");
-  const encodedBio = encodeURIComponent(userMetadata?.bio || "");
-  const ogImageUrl = `${baseUrl}/api/metadata/spaces?username=${canonicalHandle}&displayName=${encodedDisplayName}&pfpUrl=${encodedPfpUrl}&bio=${encodedBio}`;
+  const ogParams = new URLSearchParams({
+    username: canonicalHandle,
+    displayName: displayName || "",
+    pfpUrl: userMetadata?.pfpUrl || "",
+    bio: userMetadata?.bio || "",
+  });
+  const ogImageUrl = `${baseUrl}/api/metadata/spaces?${ogParams.toString()}`;
 
   const spaceFrame = {
     version: "next",

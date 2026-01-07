@@ -39,21 +39,27 @@ export default async function GET(
   };
 
   const fonts = await getOgFonts();
+  const fontFamily = fonts ? "Noto Sans, Noto Sans Symbols 2" : "sans-serif";
 
-  return new ImageResponse(<ProposalCard data={data} branding={branding} />, {
+  return new ImageResponse(
+    <ProposalCard data={data} branding={branding} fontFamily={fontFamily} />,
+    {
     width: 1200,
     height: 630,
-    fonts,
+    ...(fonts ? { fonts } : {}),
     emoji: "twemoji",
-  });
+    },
+  );
 }
 
 const ProposalCard = ({
   data,
   branding,
+  fontFamily,
 }: {
   data: ProposalCardData;
   branding: Awaited<ReturnType<typeof resolveMetadataBranding>>;
+  fontFamily: string;
 }) => {
   // Simple vote formatting
   const formatVotes = (votes: string) => {
@@ -84,7 +90,7 @@ const ProposalCard = ({
         background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
         color: "white",
         gap: "32px",
-        fontFamily: "Noto Sans, Noto Sans Symbols 2",
+        fontFamily,
       }}
     >
       <div
