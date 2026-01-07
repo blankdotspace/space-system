@@ -39,11 +39,12 @@ export default async function GET(
   };
 
   const fonts = await getOgFonts();
+  const fontFamily = fonts ? "Noto Sans, Noto Sans Symbols 2" : "sans-serif";
 
-  return new ImageResponse(<TokenCard data={data} branding={branding} />, {
+  return new ImageResponse(<TokenCard data={data} branding={branding} fontFamily={fontFamily} />, {
     width: 1200,
     height: 630,
-    fonts,
+    ...(fonts ? { fonts } : {}),
     emoji: "twemoji",
   });
 }
@@ -51,9 +52,11 @@ export default async function GET(
 const TokenCard = ({
   data,
   branding,
+  fontFamily,
 }: {
   data: TokenCardData;
   branding: Awaited<ReturnType<typeof resolveMetadataBranding>>;
+  fontFamily: string;
 }) => {
   const marketCapNumber = Number(data.marketCap);
   const formattedMarketCap = Number.isFinite(marketCapNumber)
@@ -93,7 +96,7 @@ const TokenCard = ({
         background: "black",
         color: "white",
         gap: "32px",
-        fontFamily: "Noto Sans, Noto Sans Symbols 2",
+        fontFamily,
       }}
     >
       <div

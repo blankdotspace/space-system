@@ -11,19 +11,22 @@ export const config = {
 export default async function handler(req: NextRequest) {
   const branding = await resolveMetadataBranding(req.headers);
   const fonts = await getOgFonts();
+  const fontFamily = fonts ? "Noto Sans, Noto Sans Symbols 2" : "sans-serif";
 
-  return new ImageResponse(<CommunityCard branding={branding} />, {
+  return new ImageResponse(<CommunityCard branding={branding} fontFamily={fontFamily} />, {
     width: 1200,
     height: 630,
-    fonts,
+    ...(fonts ? { fonts } : {}),
     emoji: "twemoji",
   });
 }
 
 const CommunityCard = ({
   branding,
+  fontFamily,
 }: {
   branding: Awaited<ReturnType<typeof resolveMetadataBranding>>;
+  fontFamily: string;
 }) => {
   const fallbackInitial = branding.brandName?.charAt(0).toUpperCase() || "C";
 
@@ -38,7 +41,7 @@ const CommunityCard = ({
         background: "linear-gradient(135deg, #0f172a, #1f2937)",
         color: "#FFFFFF",
         gap: "36px",
-        fontFamily: "Noto Sans, Noto Sans Symbols 2",
+        fontFamily,
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: "28px" }}>
