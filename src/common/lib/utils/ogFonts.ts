@@ -1,3 +1,5 @@
+import type { SatoriOptions } from "satori";
+
 const FONT_CACHE = new Map<string, Promise<ArrayBuffer>>();
 
 const GOOGLE_FONTS_USER_AGENT =
@@ -48,7 +50,7 @@ async function loadGoogleFont(family: string, weight: number): Promise<ArrayBuff
   return fontPromise;
 }
 
-export async function getOgFonts() {
+export async function getOgFonts(): Promise<NonNullable<SatoriOptions["fonts"]>> {
   const [notoSans, notoSymbols] = await Promise.all([
     loadGoogleFont("Noto Sans", 400),
     loadGoogleFont("Noto Sans Symbols 2", 400),
@@ -58,14 +60,14 @@ export async function getOgFonts() {
     {
       name: "Noto Sans",
       data: notoSans,
-      weight: 400,
-      style: "normal",
+      weight: 400 as const,
+      style: "normal" as const,
     },
     {
       name: "Noto Sans Symbols 2",
       data: notoSymbols,
-      weight: 400,
-      style: "normal",
+      weight: 400 as const,
+      style: "normal" as const,
     },
   ];
 }
