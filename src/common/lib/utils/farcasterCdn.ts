@@ -26,7 +26,7 @@ export const toFarcasterCdnUrl = (
       const imageId = segments[1];
       const variant = segments[2];
       if (account && imageId) {
-        const transformation = params && params.length > 0 ? params : variant || "";
+        const transformation = variant || (params && params.length > 0 ? params : "");
         const wrpcdBase = `https://wrpcd.net/cdn-cgi/imagedelivery/${account}/${imageId}`;
         return transformation ? `${wrpcdBase}/${transformation}` : wrpcdBase;
       }

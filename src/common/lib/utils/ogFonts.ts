@@ -22,8 +22,12 @@ async function fetchFontCss(family: string, weight: number): Promise<string> {
 }
 
 function extractFontUrl(fontCss: string): string | null {
-  const match = fontCss.match(/src: url\(([^)]+)\) format\('woff2'\)/);
-  return match?.[1] ?? null;
+  const matches = Array.from(fontCss.matchAll(/url\(([^)]+)\)/g));
+  const urls = matches
+    .map((match) => match[1]?.replace(/['"]/g, "").trim())
+    .filter((url): url is string => Boolean(url));
+  const woff2Url = urls.find((url) => url.includes(".woff2"));
+  return woff2Url ?? urls[0] ?? null;
 }
 
 async function loadGoogleFont(family: string, weight: number): Promise<ArrayBuffer> {
@@ -50,24 +54,36 @@ async function loadGoogleFont(family: string, weight: number): Promise<ArrayBuff
   return fontPromise;
 }
 
-export async function getOgFonts(): Promise<NonNullable<SatoriOptions["fonts"]>> {
-  const [notoSans, notoSymbols] = await Promise.all([
-    loadGoogleFont("Noto Sans", 400),
-    loadGoogleFont("Noto Sans Symbols 2", 400),
-  ]);
+export async function getOgFonts(): Promise<NonNullable<SatoriOptions["fonts"]> | undefined> {
+  try {
+    const results = await Promise.allSettled([
+      loadGoogleFont("Noto Sans", 400),
+      loadGoogleFont("Noto Sans Symbols 2", 400),
+    ]);
 
-  return [
-    {
-      name: "Noto Sans",
-      data: notoSans,
-      weight: 400 as const,
-      style: "normal" as const,
-    },
-    {
-      name: "Noto Sans Symbols 2",
-      data: notoSymbols,
-      weight: 400 as const,
-      style: "normal" as const,
-    },
-  ];
+    const fonts: NonNullable<SatoriOptions["fonts"]> = [];
+
+    if (results[0].status === "fulfilled") {
+      fonts.push({
+        name: "Noto Sans",
+        data: results[0].value,
+        weight: 400 as const,
+        style: "normal" as const,
+      });
+    }
+
+    if (results[1].status === "fulfilled") {
+      fonts.push({
+        name: "Noto Sans Symbols 2",
+        data: results[1].value,
+        weight: 400 as const,
+        style: "normal" as const,
+      });
+    }
+
+    return fonts.length > 0 ? fonts : undefined;
+  } catch (error) {
+    console.warn("OG font loading failed; falling back to defaults.", error);
+    return undefined;
+  }
 }

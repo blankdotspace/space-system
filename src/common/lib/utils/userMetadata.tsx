@@ -31,11 +31,14 @@ export const getUserMetadataStructure = (
   const title = `${displayName} (@${username}) on ${brandName}`;
   const spaceUrl = username ? `${baseUrl}/s/${username}` : undefined;
 
-  const encodedDisplayName = encodeURIComponent(displayName || "");
-  const encodedPfpUrl = encodeURIComponent(pfpUrl || "");
-  const encodedBio = encodeURIComponent(bio || "");
+  const params = new URLSearchParams({
+    username: username || "",
+    displayName: displayName || "",
+    pfpUrl: pfpUrl || "",
+    bio: bio || "",
+  });
 
-  const ogImageUrl = `${baseUrl}/api/metadata/spaces?username=${username}&displayName=${encodedDisplayName}&pfpUrl=${encodedPfpUrl}&bio=${encodedBio}`;
+  const ogImageUrl = `${baseUrl}/api/metadata/spaces?${params.toString()}`;
   const ogImage = {
     url: ogImageUrl,
     width: 1200,
