@@ -2,6 +2,7 @@ import React from "react";
 import { NextApiRequest, NextApiResponse } from "next";
 import { ImageResponse } from "next/og";
 import { resolveMetadataBranding } from "@/common/lib/utils/resolveMetadataBranding";
+import { getOgFonts } from "@/common/lib/utils/ogFonts";
 
 export const config = {
   runtime: "edge",
@@ -37,9 +38,13 @@ export default async function GET(
     priceChange: params.get("priceChange") || "",
   };
 
+  const fonts = await getOgFonts();
+
   return new ImageResponse(<TokenCard data={data} branding={branding} />, {
     width: 1200,
     height: 630,
+    fonts,
+    emoji: "twemoji",
   });
 }
 
@@ -88,7 +93,7 @@ const TokenCard = ({
         background: "black",
         color: "white",
         gap: "32px",
-        fontFamily: "Arial, sans-serif",
+        fontFamily: "Noto Sans, Noto Sans Symbols 2",
       }}
     >
       <div

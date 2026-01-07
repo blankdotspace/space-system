@@ -13,6 +13,7 @@ export type CastMetadata = {
   displayName?: string;
   pfpUrl?: string;
   text?: string;
+  embedImageUrl?: string;
 };
 
 export const getCastMetadataStructure = (
@@ -23,7 +24,7 @@ export const getCastMetadataStructure = (
     return {};
   }
 
-  const { hash, username, displayName, pfpUrl, text } = cast;
+  const { hash, username, displayName, pfpUrl, text, embedImageUrl } = cast;
   const baseUrl = context?.baseUrl ?? WEBSITE_URL;
 
   const title = displayName
@@ -43,6 +44,9 @@ export const getCastMetadataStructure = (
     pfpUrl: pfpUrl || "",
     text: text || "",
   });
+  if (embedImageUrl) {
+    params.set("imageUrl", embedImageUrl);
+  }
 
   const ogImageUrl = `${baseUrl}/api/metadata/cast?${params.toString()}`;
 

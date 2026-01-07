@@ -8,6 +8,7 @@ import { getDefaultFrame } from "@/constants/metadata";
 import { loadSystemConfig, type SystemConfig } from "@/config";
 import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
 import { resolveAssetUrl } from "@/common/lib/utils/resolveAssetUrl";
+import type { Embed } from "@neynar/nodejs-sdk/build/api";
 
 async function buildDefaultMetadata(systemConfig: SystemConfig, baseUrl: string): Promise<Metadata> {
   const defaultFrame = await getDefaultFrame({ systemConfig, baseUrl });
@@ -16,6 +17,27 @@ async function buildDefaultMetadata(systemConfig: SystemConfig, baseUrl: string)
       "fc:frame": JSON.stringify(defaultFrame),
     },
   };
+}
+
+function resolveCastEmbedImageUrl(embeds?: Embed[]): string | undefined {
+  if (!embeds || embeds.length === 0) {
+    return undefined;
+  }
+
+  for (const embed of embeds) {
+    if ("url" in embed) {
+      const ogImageUrl = embed.metadata?.html?.ogImage?.[0]?.url;
+      if (ogImageUrl) {
+        return ogImageUrl;
+      }
+
+      if (embed.metadata?.content_type?.startsWith("image/")) {
+        return embed.url;
+      }
+    }
+  }
+
+  return undefined;
 }
 
 export async function generateMetadata({ params }): Promise<Metadata> {
@@ -46,6 +68,7 @@ export async function generateMetadata({ params }): Promise<Metadata> {
       identifier: castHash,
       type: CastParamType.Hash,
     });
+    const embedImageUrl = resolveCastEmbedImageUrl(cast.embeds);
 
     const baseMetadata = getCastMetadataStructure({
       hash: cast.hash,
@@ -53,6 +76,7 @@ export async function generateMetadata({ params }): Promise<Metadata> {
       displayName: cast.author.display_name,
       pfpUrl: cast.author.pfp_url,
       text: cast.text,
+      embedImageUrl,
     }, { baseUrl, brandName });
 
     const castUrl = `${baseUrl}/homebase/c/${cast.author.username}/${cast.hash}`;
