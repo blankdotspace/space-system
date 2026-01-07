@@ -1,6 +1,7 @@
 import React from "react";
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
+import { resolveMetadataBranding } from "@/common/lib/utils/resolveMetadataBranding";
 
 export const config = {
   runtime: "edge",
@@ -38,6 +39,7 @@ const formatFollowerCount = (count?: number) => {
 
 export default async function handler(req: NextRequest) {
   const { searchParams } = new URL(req.url);
+  const branding = await resolveMetadataBranding(req.headers);
 
   const channelId = searchParams.get("channelId");
   const channelName = searchParams.get("channelName");
@@ -57,13 +59,19 @@ export default async function handler(req: NextRequest) {
     followerCount: Number.isNaN(followerCount) ? undefined : followerCount,
   };
 
-  return new ImageResponse(<ChannelCard metadata={channelMetadata} />, {
+  return new ImageResponse(<ChannelCard metadata={channelMetadata} branding={branding} />, {
     width: 1200,
     height: 630,
   });
 }
 
-const ChannelCard = ({ metadata }: { metadata: ChannelMetadata }) => {
+const ChannelCard = ({
+  metadata,
+  branding,
+}: {
+  metadata: ChannelMetadata;
+  branding: Awaited<ReturnType<typeof resolveMetadataBranding>>;
+}) => {
   const { channelId, channelName, description, imageUrl, followerCount } = metadata;
 
   const displayName = channelName || channelId || "Channel";
@@ -128,12 +136,15 @@ const ChannelCard = ({ metadata }: { metadata: ChannelMetadata }) => {
           opacity: 0.9,
         }}
       >
-        {description || `Join /${channelId} on Nounspace.`}
+        {description || `Join /${channelId} on ${branding.brandName}.`}
       </div>
 
       <div
         style={{
           display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          width: "100%",
           marginTop: "auto",
           fontSize: "28px",
           letterSpacing: "0.08em",
@@ -141,7 +152,18 @@ const ChannelCard = ({ metadata }: { metadata: ChannelMetadata }) => {
           opacity: 0.7,
         }}
       >
-        nounspace.com
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          {branding.logoUrl ? (
+            <img src={branding.logoUrl} width="40" height="40" />
+          ) : null}
+          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            <span>{branding.brandName}</span>
+            <span style={{ fontSize: "18px", opacity: 0.7, textTransform: "none" }}>
+              {branding.brandDescription}
+            </span>
+          </div>
+        </div>
+        <span>{branding.domain}</span>
       </div>
     </div>
   );

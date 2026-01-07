@@ -1,7 +1,9 @@
-import { WEBSITE_URL } from "@/constants/app";
 import { getDefaultFrame } from "@/constants/metadata";
 import type { Metadata } from "next/types";
 import { getChannelMetadata } from "./utils";
+import { loadSystemConfig, type SystemConfig } from "@/config";
+import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
+import { resolveAssetUrl } from "@/common/lib/utils/resolveAssetUrl";
 
 const resolveDomain = (url: string): string => {
   try {
@@ -11,55 +13,57 @@ const resolveDomain = (url: string): string => {
   }
 };
 
-const MINI_APP_DOMAIN = resolveDomain(WEBSITE_URL);
-
-const DEFAULT_DESCRIPTION = "Explore Farcaster channel spaces on Nounspace.";
-const DEFAULT_IMAGE = `${WEBSITE_URL}/images/nounspace_og_low.png`;
-const DEFAULT_SPLASH_IMAGE = `${WEBSITE_URL}/images/nounspace_logo.png`;
-
-const DEFAULT_MINI_APP_METADATA = {
-  version: "1" as const,
-  imageUrl: DEFAULT_IMAGE,
-  button: {
-    title: "Open Channel Space",
-    action: {
-      type: "launch_miniapp" as const,
-      name: "Nounspace",
-      url: WEBSITE_URL,
-      splashImageUrl: DEFAULT_SPLASH_IMAGE,
-      splashBackgroundColor: "#FFFFFF",
+async function buildDefaultMetadata(
+  systemConfig: SystemConfig,
+  baseUrl: string,
+  brandName: string,
+  miniAppDomain: string,
+  defaultImage: string,
+  defaultSplashImage: string,
+): Promise<Metadata> {
+  const defaultFrame = await getDefaultFrame({ systemConfig, baseUrl });
+  const defaultDescription = `Explore Farcaster channel spaces on ${brandName}.`;
+  const defaultMiniAppMetadata = {
+    version: "1" as const,
+    imageUrl: defaultImage,
+    button: {
+      title: "Open Channel Space",
+      action: {
+        type: "launch_miniapp" as const,
+        name: brandName,
+        url: baseUrl,
+        splashImageUrl: defaultSplashImage,
+        splashBackgroundColor: "#FFFFFF",
+      },
     },
-  },
-};
+  };
 
-async function buildDefaultMetadata(): Promise<Metadata> {
-  const defaultFrame = await getDefaultFrame();
   return {
-    title: "Channel | Nounspace",
-    description: DEFAULT_DESCRIPTION,
+    title: `Channel | ${brandName}`,
+    description: defaultDescription,
     openGraph: {
-      title: "Channel | Nounspace",
-      description: DEFAULT_DESCRIPTION,
-      url: WEBSITE_URL,
+      title: `Channel | ${brandName}`,
+      description: defaultDescription,
+      url: baseUrl,
       images: [
         {
-          url: DEFAULT_IMAGE,
+          url: defaultImage,
           width: 1200,
           height: 630,
-          alt: "Nounspace channel preview",
+          alt: `${brandName} channel preview`,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title: "Channel | Nounspace",
-      description: DEFAULT_DESCRIPTION,
-      images: [DEFAULT_IMAGE],
+      title: `Channel | ${brandName}`,
+      description: defaultDescription,
+      images: [defaultImage],
     },
     other: {
       "fc:frame": JSON.stringify(defaultFrame),
-      "fc:miniapp": JSON.stringify(DEFAULT_MINI_APP_METADATA),
-      "fc:miniapp:domain": MINI_APP_DOMAIN,
+      "fc:miniapp": JSON.stringify(defaultMiniAppMetadata),
+      "fc:miniapp:domain": miniAppDomain,
     },
   };
 }
@@ -74,8 +78,24 @@ export async function generateMetadata({
 }: {
   params: Promise<{ channelId: string; tabName?: string }>;
 }): Promise<Metadata> {
+  const systemConfig = await loadSystemConfig();
+  const baseUrl = resolveBaseUrl({ systemConfig });
+  const brandName = systemConfig.brand.displayName;
+  const miniAppDomain = resolveDomain(baseUrl);
+  const defaultImage =
+    resolveAssetUrl(systemConfig.assets.logos.og, baseUrl) ?? systemConfig.assets.logos.og;
+  const defaultSplashImage =
+    resolveAssetUrl(systemConfig.assets.logos.splash, baseUrl) ??
+    systemConfig.assets.logos.splash;
   const { channelId, tabName } = await params;
-  const defaultMetadata = await buildDefaultMetadata();
+  const defaultMetadata = await buildDefaultMetadata(
+    systemConfig,
+    baseUrl,
+    brandName,
+    miniAppDomain,
+    defaultImage,
+    defaultSplashImage,
+  );
 
   if (!channelId) {
     return defaultMetadata;
@@ -86,29 +106,30 @@ export async function generateMetadata({
   if (!channel) {
     return {
       ...defaultMetadata,
-      title: `${channelId} | Nounspace`,
+      title: `${channelId} | ${brandName}`,
       openGraph: {
         ...defaultMetadata.openGraph,
-        title: `${channelId} | Nounspace`,
-        url: `${WEBSITE_URL}/c/${channelId}`,
+        title: `${channelId} | ${brandName}`,
+        url: `${baseUrl}/c/${channelId}`,
       },
       twitter: {
         ...defaultMetadata.twitter,
-        title: `${channelId} | Nounspace`,
+        title: `${channelId} | ${brandName}`,
       },
     };
   }
 
   const name = channel.name || channel.id;
-  const description = channel.description?.trim() || `Farcaster channel /${channel.id} on Nounspace.`;
+  const description =
+    channel.description?.trim() || `Farcaster channel /${channel.id} on ${brandName}.`;
   const decodedTabName = tabName ? decodeURIComponent(tabName) : undefined;
   const pageUrl = decodedTabName
-    ? `${WEBSITE_URL}/c/${channel.id}/${encodeURIComponent(decodedTabName)}`
-    : `${WEBSITE_URL}/c/${channel.id}`;
+    ? `${baseUrl}/c/${channel.id}/${encodeURIComponent(decodedTabName)}`
+    : `${baseUrl}/c/${channel.id}`;
 
   const buttonTitle = truncateButtonTitle(`Visit ${name}`);
-  const frameName = `${name} on Nounspace`;
-  const splashImageUrl = DEFAULT_SPLASH_IMAGE;
+  const frameName = `${name} on ${brandName}`;
+  const splashImageUrl = defaultSplashImage;
 
   const metadataParams = new URLSearchParams({
     channelId: channel.id,
@@ -127,7 +148,7 @@ export async function generateMetadata({
     metadataParams.set("followerCount", channel.follower_count.toString());
   }
 
-  const ogImageUrl = `${WEBSITE_URL}/api/metadata/channel?${metadataParams.toString()}`;
+  const ogImageUrl = `${baseUrl}/api/metadata/channel?${metadataParams.toString()}`;
 
   const channelFrame = {
     version: "next" as const,
@@ -160,10 +181,10 @@ export async function generateMetadata({
   };
 
   return {
-    title: `${name} | Nounspace`,
+    title: `${name} | ${brandName}`,
     description,
     openGraph: {
-      title: `${name} | Nounspace`,
+      title: `${name} | ${brandName}`,
       description,
       url: pageUrl,
       images: [
@@ -171,20 +192,20 @@ export async function generateMetadata({
           url: ogImageUrl,
           width: 1200,
           height: 630,
-          alt: `${name} channel on Nounspace`,
+          alt: `${name} channel on ${brandName}`,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title: `${name} | Nounspace`,
+      title: `${name} | ${brandName}`,
       description,
       images: [ogImageUrl],
     },
     other: {
       "fc:frame": JSON.stringify(channelFrame),
       "fc:miniapp": JSON.stringify(miniAppMetadata),
-      "fc:miniapp:domain": MINI_APP_DOMAIN,
+      "fc:miniapp:domain": miniAppDomain,
     },
   };
 }

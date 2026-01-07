@@ -1,6 +1,7 @@
 import React from "react";
 import { NextApiRequest, NextApiResponse } from "next";
 import { ImageResponse } from "next/og";
+import { resolveMetadataBranding } from "@/common/lib/utils/resolveMetadataBranding";
 
 export const config = {
   runtime: "edge",
@@ -24,6 +25,7 @@ export default async function GET(
     return res.status(404).send("Url not found");
   }
 
+  const branding = await resolveMetadataBranding(req.headers);
   const params = new URLSearchParams(req.url.split("?")[1]);
   const data: TokenCardData = {
     name: params.get("name") || "",
@@ -35,13 +37,19 @@ export default async function GET(
     priceChange: params.get("priceChange") || "",
   };
 
-  return new ImageResponse(<TokenCard data={data} />, {
+  return new ImageResponse(<TokenCard data={data} branding={branding} />, {
     width: 1200,
     height: 630,
   });
 }
 
-const TokenCard = ({ data }: { data: TokenCardData }) => {
+const TokenCard = ({
+  data,
+  branding,
+}: {
+  data: TokenCardData;
+  branding: Awaited<ReturnType<typeof resolveMetadataBranding>>;
+}) => {
   const marketCapNumber = Number(data.marketCap);
   const formattedMarketCap = Number.isFinite(marketCapNumber)
     ? `$${marketCapNumber.toLocaleString(undefined, {
@@ -83,6 +91,31 @@ const TokenCard = ({ data }: { data: TokenCardData }) => {
         fontFamily: "Arial, sans-serif",
       }}
     >
+      <div
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          fontSize: "24px",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          opacity: 0.75,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          {branding.logoUrl ? (
+            <img src={branding.logoUrl} width="36" height="36" />
+          ) : null}
+          <span>{branding.brandName}</span>
+        </div>
+        <span>{branding.domain}</span>
+      </div>
+      {branding.brandDescription ? (
+        <div style={{ fontSize: "20px", opacity: 0.7, maxWidth: "800px" }}>
+          {branding.brandDescription}
+        </div>
+      ) : null}
       {data.imageUrl && (
         <img
           src={data.imageUrl}
