@@ -1,6 +1,11 @@
-import { WEBSITE_URL } from "@/constants/app";
 import { merge } from "lodash";
 import { Metadata } from "next";
+import { WEBSITE_URL } from "@/constants/app";
+
+type MetadataContext = {
+  baseUrl: string;
+  brandName: string;
+};
 
 export type TokenMetadata = {
   name?: string;
@@ -15,6 +20,7 @@ export type TokenMetadata = {
 
 export const getTokenMetadataStructure = (
   token: TokenMetadata,
+  context?: MetadataContext,
 ): Metadata => {
   if (!token) {
     return {};
@@ -31,11 +37,14 @@ export const getTokenMetadataStructure = (
     network,
   } = token;
 
+  const baseUrl = context?.baseUrl ?? WEBSITE_URL;
+  const brandName = context?.brandName ?? "Nounspace";
+
   const spaceUrl =
     network && contractAddress
-      ? `https://nounspace.com/t/${network}/${contractAddress}`
+      ? `${baseUrl}/t/${network}/${contractAddress}`
       : undefined;
-  const title = symbol ? `${symbol} on Nounspace` : "Token Space on Nounspace";
+  const title = symbol ? `${symbol} on ${brandName}` : `Token Space on ${brandName}`;
 
   const params = new URLSearchParams({
     name: name || "",
@@ -47,7 +56,7 @@ export const getTokenMetadataStructure = (
     priceChange: priceChange || "",
   });
 
-  const ogImageUrl = `${WEBSITE_URL}/api/metadata/token?${params.toString()}`;
+  const ogImageUrl = `${baseUrl}/api/metadata/token?${params.toString()}`;
 
   const metadata: Metadata = {
     title,
@@ -58,7 +67,7 @@ export const getTokenMetadataStructure = (
     },
     twitter: {
       title,
-      site: "https://nounspace.com/",
+      site: baseUrl,
       images: [ogImageUrl],
       card: "summary_large_image",
     },

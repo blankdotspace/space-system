@@ -1,6 +1,7 @@
 import React from "react";
 import { NextApiRequest, NextApiResponse } from "next";
 import { ImageResponse } from "next/og";
+import { resolveMetadataBranding } from "@/common/lib/utils/resolveMetadataBranding";
 
 export const config = {
   runtime: "edge",
@@ -24,6 +25,7 @@ export default async function GET(
     return res.status(404).send("Url not found");
   }
 
+  const branding = await resolveMetadataBranding(req.headers);
   const params = new URLSearchParams(req.url.split("?")[1]);
   const data: ProposalCardData = {
     id: params.get("id") || "Unknown",
@@ -35,13 +37,19 @@ export default async function GET(
     timeRemaining: params.get("timeRemaining") || "",
   };
 
-  return new ImageResponse(<ProposalCard data={data} />, {
+  return new ImageResponse(<ProposalCard data={data} branding={branding} />, {
     width: 1200,
     height: 630,
   });
 }
 
-const ProposalCard = ({ data }: { data: ProposalCardData }) => {
+const ProposalCard = ({
+  data,
+  branding,
+}: {
+  data: ProposalCardData;
+  branding: Awaited<ReturnType<typeof resolveMetadataBranding>>;
+}) => {
   // Simple vote formatting
   const formatVotes = (votes: string) => {
     const num = Number(votes) || 0;
@@ -74,6 +82,31 @@ const ProposalCard = ({ data }: { data: ProposalCardData }) => {
         fontFamily: "Arial, sans-serif",
       }}
     >
+      <div
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          fontSize: "22px",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          opacity: 0.85,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          {branding.logoUrl ? (
+            <img src={branding.logoUrl} width="36" height="36" />
+          ) : null}
+          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            <span>{branding.brandName}</span>
+            <span style={{ fontSize: "16px", opacity: 0.8, textTransform: "none" }}>
+              {branding.brandDescription}
+            </span>
+          </div>
+        </div>
+        <span>{branding.domain}</span>
+      </div>
       <div
         style={{
           display: "flex",
