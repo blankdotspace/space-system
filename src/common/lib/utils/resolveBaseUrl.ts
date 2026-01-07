@@ -8,8 +8,8 @@ type ResolveBaseUrlOptions = {
   fallbackUrl?: string;
 };
 
-export function resolveBaseUrl(options: ResolveBaseUrlOptions = {}): string {
-  const headerStore = headers();
+export async function resolveBaseUrl(options: ResolveBaseUrlOptions = {}): Promise<string> {
+  const headerStore = await headers();
   return resolveBaseUrlFromHeaders({
     headers: headerStore,
     systemConfig: options.systemConfig,

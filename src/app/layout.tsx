@@ -48,7 +48,7 @@ export const dynamic = 'force-dynamic';
 // This ensures metadata matches the actual domain/community config
 export async function generateMetadata(): Promise<Metadata> {
   const config = await loadSystemConfig();
-  const baseUrl = resolveBaseUrl({ systemConfig: config });
+  const baseUrl = await resolveBaseUrl({ systemConfig: config });
   const ogImageUrl = resolveAssetUrl(config.assets.logos.og, baseUrl) ?? config.assets.logos.og;
   const splashImageUrl =
     resolveAssetUrl(config.assets.logos.splash, baseUrl) ?? config.assets.logos.splash;
