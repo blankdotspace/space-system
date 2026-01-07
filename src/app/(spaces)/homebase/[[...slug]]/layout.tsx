@@ -20,7 +20,7 @@ async function buildDefaultMetadata(systemConfig: SystemConfig, baseUrl: string)
 
 export async function generateMetadata({ params }): Promise<Metadata> {
   const systemConfig = await loadSystemConfig();
-  const baseUrl = resolveBaseUrl({ systemConfig });
+  const baseUrl = await resolveBaseUrl({ systemConfig });
   const brandName = systemConfig.brand.displayName;
   const splashImageUrl =
     resolveAssetUrl(systemConfig.assets.logos.splash, baseUrl) ??

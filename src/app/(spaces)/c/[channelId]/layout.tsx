@@ -79,7 +79,7 @@ export async function generateMetadata({
   params: Promise<{ channelId: string; tabName?: string }>;
 }): Promise<Metadata> {
   const systemConfig = await loadSystemConfig();
-  const baseUrl = resolveBaseUrl({ systemConfig });
+  const baseUrl = await resolveBaseUrl({ systemConfig });
   const brandName = systemConfig.brand.displayName;
   const miniAppDomain = resolveDomain(baseUrl);
   const defaultImage =
