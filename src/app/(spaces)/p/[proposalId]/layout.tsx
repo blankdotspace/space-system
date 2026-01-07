@@ -1,11 +1,12 @@
 import { Metadata } from "next/types";
 import React from "react";
-import { WEBSITE_URL } from "@/constants/app";
 import { loadProposalData, calculateTimeRemaining } from "./utils";
 import { getDefaultFrame } from "@/constants/metadata";
+import { loadSystemConfig, type SystemConfig } from "@/config";
+import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
 
-const buildDefaultMetadata = async () => {
-  const defaultFrame = await getDefaultFrame();
+const buildDefaultMetadata = async (systemConfig: SystemConfig, baseUrl: string) => {
+  const defaultFrame = await getDefaultFrame({ systemConfig, baseUrl });
   return {
     other: {
       'fc:frame': JSON.stringify(defaultFrame),
@@ -18,8 +19,11 @@ export async function generateMetadata({
 }: { 
   params: Promise<{ proposalId: string }> 
 }): Promise<Metadata> {
+  const systemConfig = await loadSystemConfig();
+  const baseUrl = resolveBaseUrl({ systemConfig });
+  const brandName = systemConfig.brand.displayName;
   const { proposalId } = await params;
-  const defaultMetadata = await buildDefaultMetadata();
+  const defaultMetadata = await buildDefaultMetadata(systemConfig, baseUrl);
   
   if (!proposalId) {
     return defaultMetadata;
@@ -42,7 +46,7 @@ export async function generateMetadata({
       return defaultMetadata;
     }
 
-    const frameUrl = `${WEBSITE_URL}/p/${proposalId}`;
+    const frameUrl = `${baseUrl}/p/${proposalId}`;
     
     // Generate beautiful thumbnail URL with all voting data
     const thumbnailParams = new URLSearchParams({
@@ -66,7 +70,7 @@ export async function generateMetadata({
       thumbnailParams.set("timeRemaining", "Voting ended");
     }
     
-    const dynamicThumbnailUrl = `${WEBSITE_URL}/api/metadata/proposal-thumbnail?${thumbnailParams.toString()}`;
+    const dynamicThumbnailUrl = `${baseUrl}/api/metadata/proposal-thumbnail?${thumbnailParams.toString()}`;
 
   const proposalFrame = {
     version: "next",
@@ -76,7 +80,7 @@ export async function generateMetadata({
       action: {
         type: "launch_frame",
         url: frameUrl,
-        name: `Proposal ${proposalData.id} on Nounspace`,
+        name: `Proposal ${proposalData.id} on ${brandName}`,
         splashImageUrl: dynamicThumbnailUrl,
         splashBackgroundColor: "#FFFFFF",
       },
@@ -99,11 +103,11 @@ export async function generateMetadata({
   };
 
   const metadataWithFrame = {
-    title: `Proposal: ${proposalData.title} | Nounspace`,
-    description: `Proposal by ${getProposerDisplay()} on Nounspace. Explore the details and discussions around this proposal.`,
+    title: `Proposal: ${proposalData.title} | ${brandName}`,
+    description: `Proposal by ${getProposerDisplay()} on ${brandName}. Explore the details and discussions around this proposal.`,
     openGraph: {
       title: `Prop ${proposalData.id}: ${proposalData.title}`,
-      description: `Proposal by ${getProposerDisplay()} on Nounspace. View voting details and participate in the discussion.`,
+      description: `Proposal by ${getProposerDisplay()} on ${brandName}. View voting details and participate in the discussion.`,
       images: [
         {
           url: dynamicThumbnailUrl,
@@ -117,7 +121,7 @@ export async function generateMetadata({
     twitter: {
       card: "summary_large_image",
       title: `Prop ${proposalData.id}: ${proposalData.title}`,
-      description: `Proposal by ${getProposerDisplay()} on Nounspace. View voting details and participate in the discussion.`,
+      description: `Proposal by ${getProposerDisplay()} on ${brandName}. View voting details and participate in the discussion.`,
       images: [dynamicThumbnailUrl],
     },
     other: {

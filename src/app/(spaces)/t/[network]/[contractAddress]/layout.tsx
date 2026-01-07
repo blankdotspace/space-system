@@ -1,14 +1,16 @@
-import { WEBSITE_URL } from "@/constants/app";
 import { Metadata } from "next/types";
 import React from "react";
 import { getTokenMetadataStructure } from "@/common/lib/utils/tokenMetadata";
 import { getDefaultFrame } from "@/constants/metadata";
 import { fetchMasterTokenServer } from "@/common/data/queries/serverTokenData";
 import { EtherScanChainName } from "@/constants/etherscanChainIds";
+import { loadSystemConfig, type SystemConfig } from "@/config";
+import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
+import { resolveAssetUrl } from "@/common/lib/utils/resolveAssetUrl";
 
 // Default metadata (used as fallback)
-async function buildDefaultMetadata(): Promise<Metadata> {
-  const defaultFrame = await getDefaultFrame();
+async function buildDefaultMetadata(systemConfig: SystemConfig, baseUrl: string): Promise<Metadata> {
+  const defaultFrame = await getDefaultFrame({ systemConfig, baseUrl });
   return {
     other: {
       "fc:frame": JSON.stringify(defaultFrame),
@@ -19,8 +21,14 @@ async function buildDefaultMetadata(): Promise<Metadata> {
 export async function generateMetadata({
   params,
 }): Promise<Metadata> {
+  const systemConfig = await loadSystemConfig();
+  const baseUrl = resolveBaseUrl({ systemConfig });
+  const brandName = systemConfig.brand.displayName;
+  const splashImageUrl =
+    resolveAssetUrl(systemConfig.assets.logos.splash, baseUrl) ??
+    systemConfig.assets.logos.splash;
   const { network, contractAddress, tabName: tabNameParam } = await params;
-  const defaultMetadata = await buildDefaultMetadata();
+  const defaultMetadata = await buildDefaultMetadata(systemConfig, baseUrl);
   
   if (!network || !contractAddress) {
     return defaultMetadata; // Return default metadata if no network/contractAddress
@@ -67,8 +75,8 @@ export async function generateMetadata({
   
   // Create Frame metadata for Farcaster with the correct path
   const frameUrl = tabName 
-    ? `${WEBSITE_URL}/t/${network}/${contractAddress}/${encodeURIComponent(tabName)}`
-    : `${WEBSITE_URL}/t/${network}/${contractAddress}`;
+    ? `${baseUrl}/t/${network}/${contractAddress}/${encodeURIComponent(tabName)}`
+    : `${baseUrl}/t/${network}/${contractAddress}`;
     
   // Create token frame with the symbol if available
   const queryParams = new URLSearchParams({
@@ -81,7 +89,7 @@ export async function generateMetadata({
     priceChange,
   });
 
-  const ogImageUrl = `${WEBSITE_URL}/api/metadata/token?${queryParams.toString()}`;
+  const ogImageUrl = `${baseUrl}/api/metadata/token?${queryParams.toString()}`;
 
   const tokenFrame = {
     version: "next",
@@ -91,8 +99,8 @@ export async function generateMetadata({
       action: {
         type: "launch_frame",
         url: frameUrl,
-        name: symbol ? `${symbol} on Nounspace` : "Token Space on Nounspace",
-        splashImageUrl: `${WEBSITE_URL}/images/nounspace_logo.png`,
+        name: symbol ? `${symbol} on ${brandName}` : `Token Space on ${brandName}`,
+        splashImageUrl,
         splashBackgroundColor: "#FFFFFF",
       }
     }
@@ -108,14 +116,14 @@ export async function generateMetadata({
     price,
     priceChange,
     network,
-  });
+  }, { baseUrl, brandName });
 
   const metadataWithFrame = {
     ...tokenMetadata,
-    title: symbol ? `${symbol} ${price ? `- ${price}` : ""} | Nounspace` : "Token Space | Nounspace",
+    title: symbol ? `${symbol} ${price ? `- ${price}` : ""} | ${brandName}` : `Token Space | ${brandName}`,
     description: symbol
-      ? `${symbol} ${price ? `(${price})` : ""} token information and trading on Nounspace, the customizable web3 social app built on Farcaster.`
-      : "Token information and trading on Nounspace, the customizable web3 social app built on Farcaster.",
+      ? `${symbol} ${price ? `(${price})` : ""} token information and trading on ${brandName}, the customizable web3 social app built on Farcaster.`
+      : `Token information and trading on ${brandName}, the customizable web3 social app built on Farcaster.`,
     other: {
       "fc:frame": JSON.stringify(tokenFrame),
     },

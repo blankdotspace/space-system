@@ -2,6 +2,7 @@ import React from "react";
 import { NextApiRequest, NextApiResponse } from "next";
 import { ImageResponse } from "next/og";
 import { toFarcasterCdnUrl } from "@/common/lib/utils/farcasterCdn";
+import { resolveMetadataBranding } from "@/common/lib/utils/resolveMetadataBranding";
 
 export const config = {
   runtime: "edge",
@@ -22,6 +23,7 @@ export default async function GET(
     return res.status(404).send("Url not found");
   }
 
+  const branding = await resolveMetadataBranding(req.headers);
   const params = new URLSearchParams(req.url.split("?")[1]);
   const data: CastCardData = {
     username: params.get("username") || "",
@@ -30,13 +32,19 @@ export default async function GET(
     text: params.get("text") || "",
   };
 
-  return new ImageResponse(<CastCard data={data} />, {
+  return new ImageResponse(<CastCard data={data} branding={branding} />, {
     width: 1200,
     height: 630,
   });
 }
 
-const CastCard = ({ data }: { data: CastCardData }) => (
+const CastCard = ({
+  data,
+  branding,
+}: {
+  data: CastCardData;
+  branding: Awaited<ReturnType<typeof resolveMetadataBranding>>;
+}) => (
   <div
     style={{
       width: "100%",
@@ -72,5 +80,29 @@ const CastCard = ({ data }: { data: CastCardData }) => (
     >
       {data.text}
     </p>
+    <div
+      style={{
+        marginTop: "auto",
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        fontSize: "20px",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        opacity: 0.7,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        {branding.logoUrl ? <img src={branding.logoUrl} width="30" height="30" /> : null}
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <span>{branding.brandName}</span>
+          <span style={{ fontSize: "16px", opacity: 0.7, textTransform: "none" }}>
+            {branding.brandDescription}
+          </span>
+        </div>
+      </div>
+      <span>{branding.domain}</span>
+    </div>
   </div>
 );

@@ -1,6 +1,11 @@
-import { WEBSITE_URL } from "@/constants/app";
 import { merge } from "lodash";
 import { Metadata } from "next";
+import { WEBSITE_URL } from "@/constants/app";
+
+type MetadataContext = {
+  baseUrl: string;
+  brandName: string;
+};
 
 export type CastMetadata = {
   hash?: string;
@@ -12,12 +17,14 @@ export type CastMetadata = {
 
 export const getCastMetadataStructure = (
   cast: CastMetadata,
+  context?: MetadataContext,
 ): Metadata => {
   if (!cast) {
     return {};
   }
 
   const { hash, username, displayName, pfpUrl, text } = cast;
+  const baseUrl = context?.baseUrl ?? WEBSITE_URL;
 
   const title = displayName
     ? `${displayName}'s Cast`
@@ -27,7 +34,7 @@ export const getCastMetadataStructure = (
 
   const castUrl =
     hash && username
-      ? `${WEBSITE_URL}/homebase/c/${username}/${hash}`
+      ? `${baseUrl}/homebase/c/${username}/${hash}`
       : undefined;
 
   const params = new URLSearchParams({
@@ -37,7 +44,7 @@ export const getCastMetadataStructure = (
     text: text || "",
   });
 
-  const ogImageUrl = `${WEBSITE_URL}/api/metadata/cast?${params.toString()}`;
+  const ogImageUrl = `${baseUrl}/api/metadata/cast?${params.toString()}`;
 
   const ogImage = {
     url: ogImageUrl,
@@ -54,7 +61,7 @@ export const getCastMetadataStructure = (
     },
     twitter: {
       title,
-      site: "https://nounspace.com/",
+      site: baseUrl,
       images: [ogImage],
       card: "summary_large_image",
     },

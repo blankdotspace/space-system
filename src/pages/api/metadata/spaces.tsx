@@ -3,6 +3,7 @@ import React from "react";
 import { NextApiRequest, NextApiResponse } from "next";
 import { ImageResponse } from "next/og";
 import { toFarcasterCdnUrl } from "@/common/lib/utils/farcasterCdn";
+import { resolveMetadataBranding } from "@/common/lib/utils/resolveMetadataBranding";
 
 export const config = {
   runtime: "edge",
@@ -23,6 +24,7 @@ export default async function GET(
     return res.status(404).send("Url not found");
   }
 
+  const branding = await resolveMetadataBranding(req.headers);
   const params = new URLSearchParams(req.url.split("?")[1]);
   const userMetadata: UserMetadata = {
     username: params.get("username") || "",
@@ -31,13 +33,22 @@ export default async function GET(
     bio: params.get("bio") || "",
   };
 
-  return new ImageResponse(<ProfileCard userMetadata={userMetadata} />, {
+  return new ImageResponse(
+    <ProfileCard userMetadata={userMetadata} branding={branding} />,
+    {
     width: 1200,
     height: 630,
-  });
+    },
+  );
 }
 
-const ProfileCard = ({ userMetadata }: { userMetadata: UserMetadata }) => {
+const ProfileCard = ({
+  userMetadata,
+  branding,
+}: {
+  userMetadata: UserMetadata;
+  branding: Awaited<ReturnType<typeof resolveMetadataBranding>>;
+}) => {
   return (
     <div
       style={{
@@ -47,34 +58,68 @@ const ProfileCard = ({ userMetadata }: { userMetadata: UserMetadata }) => {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        justifyContent: "center",
+        justifyContent: "space-between",
         background: "white",
-        gap: "0px",
+        gap: "24px",
       }}
     >
-      <img
-        src={toFarcasterCdnUrl(userMetadata.pfpUrl || "")}
-        width={"180px"}
-        height={"180px"}
-        style={{ borderRadius: "300px" }}
-      />
-      <p
-        style={{
-          fontSize: "64px",
-          fontWeight: "bold",
-        }}
-      >
-        @{userMetadata.username}
-      </p>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+        <img
+          src={toFarcasterCdnUrl(userMetadata.pfpUrl || "")}
+          width={"180px"}
+          height={"180px"}
+          style={{ borderRadius: "300px" }}
+        />
+        <p
+          style={{
+            fontSize: "64px",
+            fontWeight: "bold",
+          }}
+        >
+          @{userMetadata.username}
+        </p>
+        <div
+          style={{
+            fontSize: "22px",
+            display: "flex",
+            textAlign: "center",
+            maxWidth: "600px",
+          }}
+        >
+          {userMetadata.bio}
+        </div>
+      </div>
+
       <div
         style={{
-          fontSize: "22px",
+          width: "100%",
           display: "flex",
-          textAlign: "center",
-          maxWidth: "600px",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "0 24px 12px",
         }}
       >
-        {userMetadata.bio}
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          {branding.logoUrl ? (
+            <img src={branding.logoUrl} width="48" height="48" />
+          ) : null}
+          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            <div style={{ fontSize: "26px", fontWeight: 600 }}>{branding.brandName}</div>
+            <div style={{ fontSize: "18px", opacity: 0.6, maxWidth: "360px" }}>
+              {branding.brandDescription}
+            </div>
+          </div>
+        </div>
+        <div
+          style={{
+            fontSize: "20px",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            opacity: 0.6,
+          }}
+        >
+          {branding.domain}
+        </div>
       </div>
     </div>
   );

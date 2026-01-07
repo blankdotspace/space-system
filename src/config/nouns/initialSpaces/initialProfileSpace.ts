@@ -1,18 +1,18 @@
 import { SpaceConfig } from "@/app/(spaces)/Space";
 import { FeedType, FilterType } from "@neynar/nodejs-sdk/build/api";
-import { cloneDeep } from "lodash";
 import { getLayoutConfig } from "@/common/utils/layoutFormatUtils";
 import { INITIAL_SPACE_CONFIG_EMPTY } from "../../initialSpaceConfig";
+import { deepClone } from "@/common/lib/utils/deepClone";
 
 // Set default tabNames for profile spaces
-const INITIAL_PROFILE_SPACE_CONFIG = cloneDeep(INITIAL_SPACE_CONFIG_EMPTY);
+const INITIAL_PROFILE_SPACE_CONFIG = deepClone(INITIAL_SPACE_CONFIG_EMPTY);
 INITIAL_PROFILE_SPACE_CONFIG.tabNames = ["Profile"];
 
 const createInitialProfileSpaceConfigForFid = (
   fid: number,
   username?: string,
 ): Omit<SpaceConfig, "isEditable"> => {
-  const config = cloneDeep(INITIAL_PROFILE_SPACE_CONFIG);
+  const config = deepClone(INITIAL_PROFILE_SPACE_CONFIG);
   config.fidgetInstanceDatums = {
     "feed:profile": {
       config: {

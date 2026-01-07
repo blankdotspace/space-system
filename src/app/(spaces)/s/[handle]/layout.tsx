@@ -1,13 +1,15 @@
-import { WEBSITE_URL } from "@/constants/app";
 import React from "react";
 import { getUserMetadata } from "./utils";
 import type { Metadata } from "next/types";
 import { getUserMetadataStructure } from "@/common/lib/utils/userMetadata";
 import { getDefaultFrame } from "@/constants/metadata";
+import { loadSystemConfig, type SystemConfig } from "@/config";
+import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
+import { resolveAssetUrl } from "@/common/lib/utils/resolveAssetUrl";
 
 // Default metadata (used as fallback)
-const buildDefaultMetadata = async () => {
-  const defaultFrame = await getDefaultFrame();
+const buildDefaultMetadata = async (systemConfig: SystemConfig, baseUrl: string) => {
+  const defaultFrame = await getDefaultFrame({ systemConfig, baseUrl });
   return {
     other: {
       "fc:frame": JSON.stringify(defaultFrame),
@@ -20,17 +22,26 @@ export async function generateMetadata({
 }: { 
   params: Promise<{ handle: string; tabName?: string }> 
 }): Promise<Metadata> {
+  const systemConfig = await loadSystemConfig();
+  const baseUrl = resolveBaseUrl({ systemConfig });
+  const brandName = systemConfig.brand.displayName;
+  const splashImageUrl =
+    resolveAssetUrl(systemConfig.assets.logos.splash, baseUrl) ??
+    systemConfig.assets.logos.splash;
   const { handle, tabName: tabNameParam } = await params;
 
   if (!handle) {
-    return buildDefaultMetadata(); // Return default metadata if no handle
+    return buildDefaultMetadata(systemConfig, baseUrl); // Return default metadata if no handle
   }
 
   const normalizedHandle = handle.toLowerCase();
   const userMetadata = await getUserMetadata(handle);
   if (!userMetadata) {
-    const defaultFrame = await getDefaultFrame();
-    const baseMetadata = getUserMetadataStructure({ username: normalizedHandle });
+    const defaultFrame = await getDefaultFrame({ systemConfig, baseUrl });
+    const baseMetadata = getUserMetadataStructure(
+      { username: normalizedHandle },
+      { baseUrl, brandName },
+    );
     return {
       ...baseMetadata,
       other: { "fc:frame": JSON.stringify(defaultFrame) },
@@ -43,8 +54,8 @@ export async function generateMetadata({
   // Create Frame metadata for Farcaster with the correct path
   const canonicalHandle = userMetadata?.username || normalizedHandle;
   const frameUrl = tabName
-    ? `${WEBSITE_URL}/s/${canonicalHandle}/${encodeURIComponent(tabName)}`
-    : `${WEBSITE_URL}/s/${canonicalHandle}`;
+    ? `${baseUrl}/s/${canonicalHandle}/${encodeURIComponent(tabName)}`
+    : `${baseUrl}/s/${canonicalHandle}`;
     
   const displayName =
     userMetadata?.displayName || userMetadata?.username || handle;
@@ -53,7 +64,7 @@ export async function generateMetadata({
   const encodedDisplayName = encodeURIComponent(displayName || "");
   const encodedPfpUrl = encodeURIComponent(userMetadata?.pfpUrl || "");
   const encodedBio = encodeURIComponent(userMetadata?.bio || "");
-  const ogImageUrl = `${WEBSITE_URL}/api/metadata/spaces?username=${canonicalHandle}&displayName=${encodedDisplayName}&pfpUrl=${encodedPfpUrl}&bio=${encodedBio}`;
+  const ogImageUrl = `${baseUrl}/api/metadata/spaces?username=${canonicalHandle}&displayName=${encodedDisplayName}&pfpUrl=${encodedPfpUrl}&bio=${encodedBio}`;
 
   const spaceFrame = {
     version: "next",
@@ -63,21 +74,21 @@ export async function generateMetadata({
       action: {
         type: "launch_frame",
         url: frameUrl,
-        name: `${displayName}'s Nounspace`,
-        splashImageUrl: `${WEBSITE_URL}/images/nounspace_logo.png`,
+        name: `${displayName}'s ${brandName}`,
+        splashImageUrl,
         splashBackgroundColor: "#FFFFFF",
       }
     }
   };
 
-  const baseMetadata = getUserMetadataStructure(userMetadata);
+  const baseMetadata = getUserMetadataStructure(userMetadata, { baseUrl, brandName });
   
   // Type-safe way to add frame metadata
   const metadataWithFrame = {
     ...baseMetadata,
-    title: `${displayName}'s Space | Nounspace`,
+    title: `${displayName}'s Space | ${brandName}`,
     description: userMetadata?.bio || 
-      `${displayName}'s customized space on Nounspace, the customizable web3 social app built on Farcaster.`,
+      `${displayName}'s customized space on ${brandName}, the customizable web3 social app built on Farcaster.`,
   };
   
   // Add the fc:frame metadata

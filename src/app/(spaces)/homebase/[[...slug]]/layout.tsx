@@ -1,14 +1,16 @@
 import React from "react";
 import type { Metadata } from "next/types";
 
-import { WEBSITE_URL } from "@/constants/app";
 import { CastParamType } from "@neynar/nodejs-sdk/build/api";
 import neynar from "@/common/data/api/neynar";
 import { getCastMetadataStructure } from "@/common/lib/utils/castMetadata";
 import { getDefaultFrame } from "@/constants/metadata";
+import { loadSystemConfig, type SystemConfig } from "@/config";
+import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
+import { resolveAssetUrl } from "@/common/lib/utils/resolveAssetUrl";
 
-async function buildDefaultMetadata(): Promise<Metadata> {
-  const defaultFrame = await getDefaultFrame();
+async function buildDefaultMetadata(systemConfig: SystemConfig, baseUrl: string): Promise<Metadata> {
+  const defaultFrame = await getDefaultFrame({ systemConfig, baseUrl });
   return {
     other: {
       "fc:frame": JSON.stringify(defaultFrame),
@@ -17,6 +19,12 @@ async function buildDefaultMetadata(): Promise<Metadata> {
 }
 
 export async function generateMetadata({ params }): Promise<Metadata> {
+  const systemConfig = await loadSystemConfig();
+  const baseUrl = resolveBaseUrl({ systemConfig });
+  const brandName = systemConfig.brand.displayName;
+  const splashImageUrl =
+    resolveAssetUrl(systemConfig.assets.logos.splash, baseUrl) ??
+    systemConfig.assets.logos.splash;
   const { slug } = await params;
   const segments: string[] = Array.isArray(slug) ? slug : [];
   let castHash: string | undefined;
@@ -30,7 +38,7 @@ export async function generateMetadata({ params }): Promise<Metadata> {
   }
 
   if (!castHash) {
-    return buildDefaultMetadata();
+    return buildDefaultMetadata(systemConfig, baseUrl);
   }
 
   try {
@@ -45,9 +53,9 @@ export async function generateMetadata({ params }): Promise<Metadata> {
       displayName: cast.author.display_name,
       pfpUrl: cast.author.pfp_url,
       text: cast.text,
-    });
+    }, { baseUrl, brandName });
 
-    const castUrl = `${WEBSITE_URL}/homebase/c/${cast.author.username}/${cast.hash}`;
+    const castUrl = `${baseUrl}/homebase/c/${cast.author.username}/${cast.hash}`;
     const ogImageUrl = baseMetadata.openGraph?.images?.[0]?.url ?? "";
 
     const castFrame = {
@@ -58,8 +66,8 @@ export async function generateMetadata({ params }): Promise<Metadata> {
         action: {
           type: "launch_frame",
           url: castUrl,
-          name: `Cast by @${cast.author.username} on Nounspace`,
-          splashImageUrl: `${WEBSITE_URL}/images/nounspace_logo.png`,
+          name: `Cast by @${cast.author.username} on ${brandName}`,
+          splashImageUrl,
           splashBackgroundColor: "#FFFFFF",
         },
       },
@@ -71,8 +79,8 @@ export async function generateMetadata({ params }): Promise<Metadata> {
     };
   } catch (error) {
     console.error("Error generating cast metadata:", error);
-    const baseMetadata = getCastMetadataStructure({ hash: castHash, username });
-    const castUrl = username && castHash ? `${WEBSITE_URL}/homebase/c/${username}/${castHash}` : undefined;
+    const baseMetadata = getCastMetadataStructure({ hash: castHash, username }, { baseUrl, brandName });
+    const castUrl = username && castHash ? `${baseUrl}/homebase/c/${username}/${castHash}` : undefined;
     const ogImageUrl = baseMetadata.openGraph?.images?.[0]?.url ?? "";
     const castFrame = {
       version: "next",
@@ -82,8 +90,8 @@ export async function generateMetadata({ params }): Promise<Metadata> {
         action: {
           type: "launch_frame",
           url: castUrl,
-          name: "Farcaster Cast on Nounspace",
-          splashImageUrl: `${WEBSITE_URL}/images/nounspace_logo.png`,
+          name: `Farcaster Cast on ${brandName}`,
+          splashImageUrl,
           splashBackgroundColor: "#FFFFFF",
         },
       },
