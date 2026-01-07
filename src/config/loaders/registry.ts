@@ -42,6 +42,20 @@ export function resolveCommunityFromDomain(
   if (domain.endsWith('.vercel.app') && domain.includes('nounspace')) {
     return 'nouns';
   }
+
+  if (domain.endsWith('.vercel.app')) {
+    const subdomain = domain.replace('.vercel.app', '');
+    const parts = subdomain.split('-').filter(Boolean);
+    const hashIndex = parts.findIndex(
+      (part, index) => index > 0 && index < parts.length - 1 && /^[a-z0-9]{7,}$/.test(part)
+    );
+    if (hashIndex !== -1 && hashIndex < parts.length - 1) {
+      const candidate = parts.slice(hashIndex + 1).join('-');
+      if (candidate) {
+        return candidate;
+      }
+    }
+  }
   
   // Support localhost subdomains for local testing
   // e.g., example.localhost:3000 -> example
