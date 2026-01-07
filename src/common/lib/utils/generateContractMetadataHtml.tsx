@@ -1,5 +1,6 @@
 import { MasterToken } from "@/common/providers/TokenProvider";
 import { Metadata } from 'next/types';
+import { WEBSITE_URL } from "@/constants/app";
 
 export type UserMetadata = {
   username?: string;
@@ -11,8 +12,11 @@ export type UserMetadata = {
 export const generateContractMetadataHtml = (
   contractAddress?: string | null,
   tokenData?: MasterToken | null,
+  baseUrl: string = WEBSITE_URL,
 ): Metadata => {
-  const spaceUrl = `https://nounspace.com/t/${tokenData?.network}/${contractAddress}`;
+  const spaceUrl = tokenData?.network && contractAddress
+    ? `${baseUrl}/t/${tokenData?.network}/${contractAddress}`
+    : baseUrl;
   const priceInfo = tokenData?.geckoData?.price_usd
     ? ` - $${Number(tokenData.geckoData?.price_usd)} USD`
     : "";
@@ -30,7 +34,13 @@ export const generateContractMetadataHtml = (
     },
     twitter: {
       title,
-      domain: spaceUrl,
+      domain: (() => {
+        try {
+          return new URL(baseUrl).hostname;
+        } catch {
+          return baseUrl.replace(/^https?:\/\//, "");
+        }
+      })(),
       url: spaceUrl,
     },
   };

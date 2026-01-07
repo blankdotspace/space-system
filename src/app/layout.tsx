@@ -1,4 +1,3 @@
-import { WEBSITE_URL } from "@/constants/app";
 import React from "react";
 import "@/styles/globals.css";
 import '@coinbase/onchainkit/styles.css';
@@ -9,6 +8,8 @@ import ClientMobileHeaderWrapper from "@/common/components/organisms/ClientMobil
 import ClientSidebarWrapper from "@/common/components/organisms/ClientSidebarWrapper";
 import type { Metadata } from 'next' // Migrating next/head
 import { extractFontFamilyFromUrl } from "@/common/lib/utils/fontUtils";
+import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
+import { resolveAssetUrl } from "@/common/lib/utils/resolveAssetUrl";
 
 const TRUSTED_STYLESHEET_HOSTS = new Set(["fonts.googleapis.com"]);
 
@@ -47,17 +48,22 @@ export const dynamic = 'force-dynamic';
 // This ensures metadata matches the actual domain/community config
 export async function generateMetadata(): Promise<Metadata> {
   const config = await loadSystemConfig();
+  const baseUrl = resolveBaseUrl({ systemConfig: config });
+  const ogImageUrl = resolveAssetUrl(config.assets.logos.og, baseUrl) ?? config.assets.logos.og;
+  const splashImageUrl =
+    resolveAssetUrl(config.assets.logos.splash, baseUrl) ?? config.assets.logos.splash;
+  const communityOgUrl = `${baseUrl}/api/metadata/community`;
   
   const defaultFrame = {
     version: "next",
-    imageUrl: `${WEBSITE_URL}${config.assets.logos.og}`,
+    imageUrl: ogImageUrl,
     button: {
       title: config.brand.displayName,
       action: {
         type: "launch_frame",
-        url: WEBSITE_URL,
+        url: baseUrl,
         name: config.brand.displayName,
-        splashImageUrl: `${WEBSITE_URL}${config.assets.logos.splash}`,
+        splashImageUrl,
         splashBackgroundColor: "#FFFFFF",
       }
     }
@@ -71,30 +77,39 @@ export async function generateMetadata(): Promise<Metadata> {
       title: config.brand.displayName,
       type: "website",
       description: config.brand.description,
-      images: {
-        url: `${WEBSITE_URL}${config.assets.logos.og}`,
-        type: "image/png",
-        width: 1200,
-        height: 737,
-      },
-      url: WEBSITE_URL,
+      images: [
+        {
+          url: communityOgUrl,
+          width: 1200,
+          height: 630,
+        },
+        {
+          url: ogImageUrl,
+          type: "image/png",
+          width: 1200,
+          height: 737,
+        },
+      ],
+      url: baseUrl,
     },
     icons: {
       icon: [
         {
-          url: config.assets.logos.favicon,
+          url: resolveAssetUrl(config.assets.logos.favicon, baseUrl) ?? config.assets.logos.favicon,
         },
         {
-          url: "/images/favicon-32x32.png",
+          url: resolveAssetUrl("/images/favicon-32x32.png", baseUrl) ?? "/images/favicon-32x32.png",
           sizes: "32x32",
         },
         {
-          url: "/images/favicon-16x16.png",
+          url: resolveAssetUrl("/images/favicon-16x16.png", baseUrl) ?? "/images/favicon-16x16.png",
           sizes: "16x16",
         },
       ],
       // Apple touch icon should be a PNG; configs provide a valid PNG path now
-      apple: config.assets.logos.appleTouch,
+      apple:
+        resolveAssetUrl(config.assets.logos.appleTouch, baseUrl) ??
+        config.assets.logos.appleTouch,
     },
     other: {
       "fc:frame": JSON.stringify(defaultFrame),

@@ -1,54 +1,60 @@
-import { WEBSITE_URL } from "@/constants/app";
-import { loadSystemConfig } from "@/config";
+import type { SystemConfig } from "@/config";
+import { resolveAssetUrl } from "@/common/lib/utils/resolveAssetUrl";
 
-// Lazy-load config for module-level constants
-// These are used in contexts where async isn't possible, so we cache after first load
-let cachedConfig: Awaited<ReturnType<typeof loadSystemConfig>> | null = null;
-
-async function getConfig() {
-  if (cachedConfig) {
-    return cachedConfig;
-  }
-  cachedConfig = await loadSystemConfig();
-  return cachedConfig;
-}
+type DefaultMetadataOptions = {
+  systemConfig: SystemConfig;
+  baseUrl: string;
+};
 
 // Config loading is always async (from database)
-// Usage: const frame = await getDefaultFrame();
-export async function getDefaultFrame() {
-  const config = await getConfig();
+// Usage: const frame = await getDefaultFrame({ systemConfig, baseUrl });
+export async function getDefaultFrame(options: DefaultMetadataOptions) {
+  const { systemConfig, baseUrl } = options;
+  const ogImageUrl =
+    resolveAssetUrl(systemConfig.assets.logos.og, baseUrl) ?? systemConfig.assets.logos.og;
+  const splashImageUrl =
+    resolveAssetUrl(systemConfig.assets.logos.splash, baseUrl) ??
+    systemConfig.assets.logos.splash;
   return {
     version: "next",
-    imageUrl: `${WEBSITE_URL}${config.assets.logos.og}`,
+    imageUrl: ogImageUrl,
     button: {
-      title: config.brand.displayName,
+      title: systemConfig.brand.displayName,
       action: {
         type: "launch_frame",
-        url: WEBSITE_URL,
-        name: config.brand.displayName,
-        splashImageUrl: `${WEBSITE_URL}${config.assets.logos.splash}`,
+        url: baseUrl,
+        name: systemConfig.brand.displayName,
+        splashImageUrl,
         splashBackgroundColor: "#FFFFFF",
       }
     }
   };
 }
 
-export async function getMetadata() {
-  const config = await getConfig();
+export async function getMetadata(options: DefaultMetadataOptions) {
+  const { systemConfig, baseUrl } = options;
   return {
-    APP_NAME: config.brand.displayName,
-    APP_ICON: `${WEBSITE_URL}${config.assets.logos.icon}`,
-    APP_SUBTITLE: config.brand.description,
+    APP_NAME: systemConfig.brand.displayName,
+    APP_ICON:
+      resolveAssetUrl(systemConfig.assets.logos.icon, baseUrl) ??
+      systemConfig.assets.logos.icon,
+    APP_SUBTITLE: systemConfig.brand.description,
     APP_BUTTON_TITLE: 'Open Space',
-    APP_DESCRIPTION: config.brand.description,
-    APP_TAGS: config.brand.miniAppTags,
-    APP_SPLASH_IMAGE: `${WEBSITE_URL}${config.assets.logos.splash}`,
+    APP_DESCRIPTION: systemConfig.brand.description,
+    APP_TAGS: systemConfig.brand.miniAppTags,
+    APP_SPLASH_IMAGE:
+      resolveAssetUrl(systemConfig.assets.logos.splash, baseUrl) ??
+      systemConfig.assets.logos.splash,
     SPLASH_BACKGROUND_COLOR: '#FFFFFF',
     APP_PRIMARY_CATEGORY: 'social',
-    APP_HERO_IMAGE: `${WEBSITE_URL}${config.assets.logos.splash}`,
-    APP_TAGLINE: config.brand.description,
-    APP_OG_TITLE: config.brand.displayName,
-    APP_OG_DESCRIPTION: config.brand.description,
-    APP_OG_IMAGE: `${WEBSITE_URL}${config.assets.logos.og}`,
+    APP_HERO_IMAGE:
+      resolveAssetUrl(systemConfig.assets.logos.splash, baseUrl) ??
+      systemConfig.assets.logos.splash,
+    APP_TAGLINE: systemConfig.brand.description,
+    APP_OG_TITLE: systemConfig.brand.displayName,
+    APP_OG_DESCRIPTION: systemConfig.brand.description,
+    APP_OG_IMAGE:
+      resolveAssetUrl(systemConfig.assets.logos.og, baseUrl) ??
+      systemConfig.assets.logos.og,
   };
 }
