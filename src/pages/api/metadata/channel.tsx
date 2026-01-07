@@ -2,6 +2,7 @@ import React from "react";
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
 import { resolveMetadataBranding } from "@/common/lib/utils/resolveMetadataBranding";
+import { getOgFonts } from "@/common/lib/utils/ogFonts";
 
 export const config = {
   runtime: "edge",
@@ -59,9 +60,13 @@ export default async function handler(req: NextRequest) {
     followerCount: Number.isNaN(followerCount) ? undefined : followerCount,
   };
 
+  const fonts = await getOgFonts();
+
   return new ImageResponse(<ChannelCard metadata={channelMetadata} branding={branding} />, {
     width: 1200,
     height: 630,
+    fonts,
+    emoji: "twemoji",
   });
 }
 
@@ -89,6 +94,7 @@ const ChannelCard = ({
         background: "linear-gradient(135deg, #111827, #1f2937)",
         color: "#FFFFFF",
         gap: "40px",
+        fontFamily: "Noto Sans, Noto Sans Symbols 2",
       }}
     >
       <div style={{ display: "flex", flexDirection: "row", gap: "36px", alignItems: "center" }}>
