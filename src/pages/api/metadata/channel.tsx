@@ -61,11 +61,12 @@ export default async function handler(req: NextRequest) {
   };
 
   const fonts = await getOgFonts();
+  const fontFamily = fonts ? "Noto Sans, Noto Sans Symbols 2" : "sans-serif";
 
-  return new ImageResponse(<ChannelCard metadata={channelMetadata} branding={branding} />, {
+  return new ImageResponse(<ChannelCard metadata={channelMetadata} branding={branding} fontFamily={fontFamily} />, {
     width: 1200,
     height: 630,
-    fonts,
+    ...(fonts ? { fonts } : {}),
     emoji: "twemoji",
   });
 }
@@ -73,9 +74,11 @@ export default async function handler(req: NextRequest) {
 const ChannelCard = ({
   metadata,
   branding,
+  fontFamily,
 }: {
   metadata: ChannelMetadata;
   branding: Awaited<ReturnType<typeof resolveMetadataBranding>>;
+  fontFamily: string;
 }) => {
   const { channelId, channelName, description, imageUrl, followerCount } = metadata;
 
@@ -94,7 +97,7 @@ const ChannelCard = ({
         background: "linear-gradient(135deg, #111827, #1f2937)",
         color: "#FFFFFF",
         gap: "40px",
-        fontFamily: "Noto Sans, Noto Sans Symbols 2",
+        fontFamily,
       }}
     >
       <div style={{ display: "flex", flexDirection: "row", gap: "36px", alignItems: "center" }}>

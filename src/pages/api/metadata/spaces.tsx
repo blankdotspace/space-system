@@ -35,24 +35,40 @@ export default async function GET(
   };
 
   const fonts = await getOgFonts();
+  const fontFamily = fonts ? "Noto Sans, Noto Sans Symbols 2" : "sans-serif";
 
   return new ImageResponse(
-    <ProfileCard userMetadata={userMetadata} branding={branding} />,
+    <ProfileCard userMetadata={userMetadata} branding={branding} fontFamily={fontFamily} />,
     {
       width: 1200,
       height: 630,
-      fonts,
+      ...(fonts ? { fonts } : {}),
       emoji: "twemoji",
     },
   );
 }
 
+const resolveOgAvatarUrl = (url: string): string => {
+  if (!url) return url;
+  try {
+    const parsedUrl = new URL(url);
+    if (parsedUrl.hostname.endsWith("imagedelivery.net")) {
+      return url;
+    }
+  } catch {
+    return url;
+  }
+  return toFarcasterCdnUrl(url, "anim=false,fit=contain,f=png,w=576");
+};
+
 const ProfileCard = ({
   userMetadata,
   branding,
+  fontFamily,
 }: {
   userMetadata: UserMetadata;
   branding: Awaited<ReturnType<typeof resolveMetadataBranding>>;
+  fontFamily: string;
 }) => {
   return (
     <div
@@ -66,12 +82,12 @@ const ProfileCard = ({
         justifyContent: "space-between",
         background: "white",
         gap: "24px",
-        fontFamily: "Noto Sans, Noto Sans Symbols 2",
+        fontFamily,
       }}
     >
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
         <img
-          src={toFarcasterCdnUrl(userMetadata.pfpUrl || "", "anim=false,fit=contain,f=png,w=576")}
+          src={resolveOgAvatarUrl(userMetadata.pfpUrl || "")}
           width={"180px"}
           height={"180px"}
           style={{ borderRadius: "300px" }}
