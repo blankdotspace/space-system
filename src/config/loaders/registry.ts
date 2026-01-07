@@ -54,6 +54,20 @@ function resolveCommunityIdFromDomain(domain: string): string {
   if (normalizedDomain in DOMAIN_TO_COMMUNITY_MAP) {
     return DOMAIN_TO_COMMUNITY_MAP[normalizedDomain];
   }
+
+  if (domain.endsWith('.vercel.app')) {
+    const subdomain = domain.replace('.vercel.app', '');
+    const parts = subdomain.split('-').filter(Boolean);
+    const hashIndex = parts.findIndex(
+      (part, index) => index > 0 && index < parts.length - 1 && /^[a-z0-9]{7,}$/.test(part)
+    );
+    if (hashIndex !== -1 && hashIndex < parts.length - 1) {
+      const candidate = parts.slice(hashIndex + 1).join('-');
+      if (candidate) {
+        return candidate;
+      }
+    }
+  }
   
   // Priority 3: Domain as community ID (e.g., example.nounspace.com → example.nounspace.com)
   return normalizedDomain;
