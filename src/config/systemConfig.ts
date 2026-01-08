@@ -156,7 +156,7 @@ export interface NavigationItem {
   id: string;
   label: string;
   href: string;
-  icon?: 'home' | 'explore' | 'notifications' | 'search' | 'space' | 'robot' | 'custom';
+  icon?: string; // Icon name from react-icons (e.g., 'FaHouse', 'FaRss') or URL for custom icons
   openInNewTab?: boolean;
   requiresAuth?: boolean;
   spaceId?: string; // Optional reference to Space for page content (navPage type)
