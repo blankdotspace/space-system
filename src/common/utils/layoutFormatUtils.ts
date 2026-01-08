@@ -5,9 +5,9 @@ import {
 } from "@/common/fidgets";
 
 export const hasMultipleLayouts = (
-  layoutDetails: LayoutFidgetDetails<LayoutFidgetConfig<any>>
+  layoutDetails: LayoutFidgetDetails<LayoutFidgetConfig<any>> | undefined
 ): boolean => {
-  return 'layouts' in layoutDetails && layoutDetails.layouts !== undefined;
+  return layoutDetails !== undefined && 'layouts' in layoutDetails && layoutDetails.layouts !== undefined;
 };
 
 /**
@@ -17,9 +17,13 @@ export const hasMultipleLayouts = (
  * @returns Layout fidget type (grid, tabFullScreen, etc.)
  */
 export const getLayoutFidgetForMode = (
-  layoutDetails: LayoutFidgetDetails<LayoutFidgetConfig<any>>,
+  layoutDetails: LayoutFidgetDetails<LayoutFidgetConfig<any>> | undefined,
   mode: 'mobile' | 'desktop' = 'desktop'
 ): string => {
+  if (!layoutDetails) {
+    return 'grid';
+  }
+  
   // Check if using multi-layout format
   if (hasMultipleLayouts(layoutDetails) && layoutDetails.layouts![mode]) {
     return layoutDetails.layouts![mode].layoutFidget;
@@ -35,9 +39,13 @@ export const getLayoutFidgetForMode = (
  * @returns Array of IDs in correct order for mobile
  */
 export const getMobileFidgetOrder = (
-  layoutDetails: LayoutFidgetDetails<LayoutFidgetConfig<any>>,
+  layoutDetails: LayoutFidgetDetails<LayoutFidgetConfig<any>> | undefined,
   fidgetInstanceDatums: { [key: string]: FidgetInstanceData }
 ): string[] => {
+  if (!layoutDetails) {
+    return Object.keys(fidgetInstanceDatums || {});
+  }
+  
   // Check if using multi-layout format and has mobile layout defined
   if (hasMultipleLayouts(layoutDetails) && 
       layoutDetails.layouts!.mobile?.layoutConfig?.layout) {
@@ -93,15 +101,19 @@ export const migrateToMultipleLayouts = (
  * @returns Layout configuration equivalent to old format layoutConfig
  */
 export const getLayoutConfig = (
-  layoutDetails: LayoutFidgetDetails<LayoutFidgetConfig<any>>,
+  layoutDetails: LayoutFidgetDetails<LayoutFidgetConfig<any>> | undefined,
   mode: 'mobile' | 'desktop' = 'desktop'
 ): any => {
+  if (!layoutDetails) {
+    return { layout: [] };
+  }
+  
   // Check if using multi-layout format
   if (hasMultipleLayouts(layoutDetails) && layoutDetails.layouts![mode]) {
     return layoutDetails.layouts![mode].layoutConfig;
   }
   
   // Fallback to original layoutConfig for backwards compatibility
-  return layoutDetails.layoutConfig;
+  return layoutDetails.layoutConfig || { layout: [] };
 };
 
