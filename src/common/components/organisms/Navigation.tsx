@@ -94,6 +94,7 @@ const Navigation = React.memo(
     handleCommit,
     handleCancel,
     handleCreateItem,
+    isCommitting,
   } = useNavigation(systemConfig, setNavEditMode);
   
   // Destructure navigation from systemConfig early
@@ -491,6 +492,7 @@ const Navigation = React.memo(
                   onCommit={handleCommit}
                   onCancel={handleCancel}
                   hasUncommittedChanges={hasUncommittedChanges}
+                  isCommitting={isCommitting}
                   onOpenSearch={openSearchModal}
                   onLogout={handleLogout}
                   onLogin={openModal}
