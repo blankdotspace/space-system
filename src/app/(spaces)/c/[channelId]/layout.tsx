@@ -4,14 +4,8 @@ import { getChannelMetadata } from "./utils";
 import { loadSystemConfig, type SystemConfig } from "@/config";
 import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
 import { resolveAssetUrl } from "@/common/lib/utils/resolveAssetUrl";
-
-const resolveDomain = (url: string): string => {
-  try {
-    return new URL(url).hostname;
-  } catch (error) {
-    return url.replace(/^https?:\/\//, "");
-  }
-};
+import { buildMiniAppEmbed, truncateMiniAppButtonTitle } from "@/common/lib/utils/miniAppEmbed";
+import { resolveMiniAppDomain } from "@/common/lib/utils/miniAppDomain";
 
 async function buildDefaultMetadata(
   systemConfig: SystemConfig,
@@ -23,20 +17,13 @@ async function buildDefaultMetadata(
 ): Promise<Metadata> {
   const defaultFrame = await getDefaultFrame({ systemConfig, baseUrl });
   const defaultDescription = `Explore Farcaster channel spaces on ${brandName}.`;
-  const defaultMiniAppMetadata = {
-    version: "1" as const,
+  const defaultMiniAppMetadata = buildMiniAppEmbed({
     imageUrl: defaultImage,
-    button: {
-      title: "Open Channel Space",
-      action: {
-        type: "launch_miniapp" as const,
-        name: brandName,
-        url: baseUrl,
-        splashImageUrl: defaultSplashImage,
-        splashBackgroundColor: "#FFFFFF",
-      },
-    },
-  };
+    buttonTitle: "Open Channel Space",
+    actionUrl: baseUrl,
+    actionName: brandName,
+    splashImageUrl: defaultSplashImage,
+  });
 
   return {
     title: `Channel | ${brandName}`,
@@ -68,11 +55,6 @@ async function buildDefaultMetadata(
   };
 }
 
-const MAX_BUTTON_TITLE_LENGTH = 32;
-
-const truncateButtonTitle = (title: string) =>
-  title.length > MAX_BUTTON_TITLE_LENGTH ? `${title.slice(0, MAX_BUTTON_TITLE_LENGTH - 1)}…` : title;
-
 export async function generateMetadata({
   params,
 }: {
@@ -81,7 +63,7 @@ export async function generateMetadata({
   const systemConfig = await loadSystemConfig();
   const baseUrl = await resolveBaseUrl({ systemConfig });
   const brandName = systemConfig.brand.displayName;
-  const miniAppDomain = resolveDomain(baseUrl);
+  const miniAppDomain = resolveMiniAppDomain(baseUrl);
   const defaultImage =
     resolveAssetUrl(systemConfig.assets.logos.og, baseUrl) ?? systemConfig.assets.logos.og;
   const defaultSplashImage =
@@ -127,7 +109,7 @@ export async function generateMetadata({
     ? `${baseUrl}/c/${channel.id}/${encodeURIComponent(decodedTabName)}`
     : `${baseUrl}/c/${channel.id}`;
 
-  const buttonTitle = truncateButtonTitle(`Visit ${name}`);
+  const buttonTitle = truncateMiniAppButtonTitle(`Visit ${name}`);
   const frameName = `${name} on ${brandName}`;
   const splashImageUrl = defaultSplashImage;
 
@@ -165,20 +147,13 @@ export async function generateMetadata({
     },
   };
 
-  const miniAppMetadata = {
-    version: "1" as const,
+  const miniAppMetadata = buildMiniAppEmbed({
     imageUrl: ogImageUrl,
-    button: {
-      title: buttonTitle,
-      action: {
-        type: "launch_miniapp" as const,
-        name: frameName,
-        url: pageUrl,
-        splashImageUrl,
-        splashBackgroundColor: "#FFFFFF",
-      },
-    },
-  };
+    buttonTitle,
+    actionUrl: pageUrl,
+    actionName: frameName,
+    splashImageUrl,
+  });
 
   return {
     title: `${name} | ${brandName}`,

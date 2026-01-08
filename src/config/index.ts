@@ -101,6 +101,9 @@ export type {
   CommunityNftToken,
   CommunityTokenNetwork,
   CommunityTokensConfig,
+  MiniAppAccountAssociation,
+  MiniAppManifestOverrides,
+  MiniAppConfig,
 };
 
 // Space creators - re-export directly from Nouns implementations

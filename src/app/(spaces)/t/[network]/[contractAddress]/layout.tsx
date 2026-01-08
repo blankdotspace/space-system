@@ -7,13 +7,31 @@ import { EtherScanChainName } from "@/constants/etherscanChainIds";
 import { loadSystemConfig, type SystemConfig } from "@/config";
 import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
 import { resolveAssetUrl } from "@/common/lib/utils/resolveAssetUrl";
+import { buildMiniAppEmbed } from "@/common/lib/utils/miniAppEmbed";
+import { resolveMiniAppDomain } from "@/common/lib/utils/miniAppDomain";
 
 // Default metadata (used as fallback)
 async function buildDefaultMetadata(systemConfig: SystemConfig, baseUrl: string): Promise<Metadata> {
   const defaultFrame = await getDefaultFrame({ systemConfig, baseUrl });
+  const brandName = systemConfig.brand.displayName;
+  const defaultImage =
+    resolveAssetUrl(systemConfig.assets.logos.og, baseUrl) ?? systemConfig.assets.logos.og;
+  const splashImageUrl =
+    resolveAssetUrl(systemConfig.assets.logos.splash, baseUrl) ??
+    systemConfig.assets.logos.splash;
+  const miniAppDomain = resolveMiniAppDomain(baseUrl);
+  const defaultMiniApp = buildMiniAppEmbed({
+    imageUrl: defaultImage,
+    buttonTitle: `Open ${brandName}`,
+    actionUrl: baseUrl,
+    actionName: brandName,
+    splashImageUrl,
+  });
   return {
     other: {
       "fc:frame": JSON.stringify(defaultFrame),
+      "fc:miniapp": JSON.stringify(defaultMiniApp),
+      "fc:miniapp:domain": miniAppDomain,
     },
   };
 }
@@ -24,6 +42,7 @@ export async function generateMetadata({
   const systemConfig = await loadSystemConfig();
   const baseUrl = await resolveBaseUrl({ systemConfig });
   const brandName = systemConfig.brand.displayName;
+  const miniAppDomain = resolveMiniAppDomain(baseUrl);
   const twitterHandle = systemConfig.community.social?.x;
   const splashImageUrl =
     resolveAssetUrl(systemConfig.assets.logos.splash, baseUrl) ??
@@ -106,6 +125,14 @@ export async function generateMetadata({
       }
     }
   };
+
+  const tokenMiniApp = buildMiniAppEmbed({
+    imageUrl: ogImageUrl,
+    buttonTitle: symbol ? `Visit ${symbol}` : "Visit Token Space",
+    actionUrl: frameUrl,
+    actionName: symbol ? `${symbol} on ${brandName}` : `Token Space on ${brandName}`,
+    splashImageUrl,
+  });
   
   // Create metadata object with token data if available
   const tokenMetadata = getTokenMetadataStructure(
@@ -130,6 +157,8 @@ export async function generateMetadata({
       : `Token information and trading on ${brandName}, the customizable web3 social app built on Farcaster.`,
     other: {
       "fc:frame": JSON.stringify(tokenFrame),
+      "fc:miniapp": JSON.stringify(tokenMiniApp),
+      "fc:miniapp:domain": miniAppDomain,
     },
   };
   
