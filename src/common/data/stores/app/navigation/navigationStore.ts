@@ -200,11 +200,17 @@ export const createNavigationStoreFunc = (
       } else {
         newLabel = sanitizedLabel;
       }
+      
+      // Auto-generate href from new label if href wasn't explicitly provided
+      if (updates.href === undefined && newLabel !== currentItem.label) {
+        newHref = generateUniqueHrefFromLabel(newLabel, state.localNavigation, itemId);
+        console.log(`Auto-generated href "${newHref}" from label "${newLabel}"`);
+      }
     }
     
-    // Validate href
-    if (updates.href !== undefined) {
-      const sanitizedHref = updates.href.trim();
+    // Validate href (if explicitly provided or auto-generated)
+    if (updates.href !== undefined || (updates.label !== undefined && newHref !== currentItem.href)) {
+      const sanitizedHref = newHref.trim();
       const hrefError = validateNavItemHref(sanitizedHref);
       if (hrefError) {
         console.error("Invalid navigation href:", hrefError);
@@ -224,7 +230,8 @@ export const createNavigationStoreFunc = (
       if (updates.label !== undefined) {
         draft.navigation.localNavigation[itemIndex].label = newLabel;
       }
-      if (updates.href !== undefined) {
+      // Update href if it changed (either explicitly or auto-generated from label)
+      if (updates.href !== undefined || (updates.label !== undefined && newHref !== currentItem.href)) {
         draft.navigation.localNavigation[itemIndex].href = newHref;
       }
       if (updates.icon !== undefined) {
