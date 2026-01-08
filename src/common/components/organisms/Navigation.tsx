@@ -14,6 +14,10 @@ import {
     FaChevronRight,
     FaDiscord,
     FaPencil,
+    FaX,
+    FaFloppyDisk,
+    FaSpinner,
+    FaTriangleExclamation,
 } from "react-icons/fa6";
 import * as FaIcons from "react-icons/fa6";
 import * as BsIcons from "react-icons/bs";
@@ -170,6 +174,29 @@ const Navigation = React.memo(
   const [showCastModal, setShowCastModal] = useState(false);
   const [shouldConfirmCastClose, setShouldConfirmCastClose] = useState(false);
   const [showCastDiscardPrompt, setShowCastDiscardPrompt] = useState(false);
+  const [showConfirmCancel, setShowConfirmCancel] = useState(false);
+
+  // Reset confirmation state when exiting edit mode
+  useEffect(() => {
+    if (!navEditMode) {
+      setShowConfirmCancel(false);
+    }
+  }, [navEditMode]);
+
+  // Handler for cancel button click - shows confirmation if there are changes
+  const handleCancelClick = useCallback(() => {
+    if (hasUncommittedChanges) {
+      setShowConfirmCancel(true);
+    } else {
+      handleCancel();
+    }
+  }, [hasUncommittedChanges, handleCancel]);
+
+  // Handler for confirmed cancel
+  const handleConfirmedCancel = useCallback(() => {
+    setShowConfirmCancel(false);
+    handleCancel();
+  }, [handleCancel]);
 
   const closeCastModal = useCallback(() => {
     setShowCastModal(false);
@@ -654,40 +681,112 @@ const Navigation = React.memo(
             {isLoggedIn && (
               <div
                 className={mergeClasses(
-                  "pt-3 flex items-center gap-2 justify-center",
+                  "pt-3 flex items-center gap-2",
+                  navEditMode && isNavigationEditable ? "" : "justify-center",
                   shrunk ? "flex-col gap-1" : ""
                 )}
               >
-                <Button
-                  onClick={openCastModal}
-                  id="open-cast-modal-button"
-                  width="auto"
-                  className="flex items-center justify-center w-12 h-12 font-medium rounded-md transition-colors"
-                  style={{
-                    backgroundColor: castButtonColors.backgroundColor,
-                    color: castButtonColors.fontColor,
-                    fontFamily: uiColors.fontFamily,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = castButtonColors.backgroundColor;
-                  }}
-                  onMouseDown={(e) => {
-                    e.currentTarget.style.backgroundColor = castButtonColors.activeColor;
-                  }}
-                  onMouseUp={(e) => {
-                    e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
-                  }}
-                >
-                  {shrunk ? <span className="sr-only">Cast</span> : "Cast"}
-                  {shrunk && (
-                    <span className="text-lg font-bold">
-                      <RiQuillPenLine />
-                    </span>
-                  )}
-                </Button>
+                {navEditMode && isNavigationEditable ? (
+                  showConfirmCancel ? (
+                    // Confirmation state - Back and Exit buttons
+                    <div className="w-full flex flex-col gap-2">
+                      <p className="w-full text-center text-xs pt-1 pl-8 pr-8">
+                        If you exit, any changes made will not be saved.
+                      </p>
+                      <div className="gap-2 flex items-center w-full">
+                        <Button
+                          onClick={() => setShowConfirmCancel(false)}
+                          size="icon"
+                          variant="secondary"
+                        >
+                          <FaChevronLeft aria-hidden="true" />
+                        </Button>
+                        <Button
+                          onClick={handleConfirmedCancel}
+                          variant="destructive"
+                          className="flex-1"
+                          withIcon
+                        >
+                          <FaTriangleExclamation
+                            className="h-8l shrink-0"
+                            aria-hidden="true"
+                          />
+                          <span>Exit</span>
+                        </Button>
+                      </div>
+                    </div>
+                  ) : hasUncommittedChanges ? (
+                    // Normal state with changes - X and Save buttons
+                    <div className="gap-2 flex items-center w-full">
+                      <Button
+                        onClick={handleCancelClick}
+                        size="icon"
+                        variant="secondary"
+                      >
+                        <FaX aria-hidden="true" />
+                      </Button>
+                      <Button
+                        onClick={handleCommit}
+                        disabled={isCommitting}
+                        variant="primary"
+                        className="flex-1"
+                        withIcon
+                      >
+                        {isCommitting ? (
+                          <>
+                            <FaSpinner className="animate-spin" aria-hidden="true" />
+                            <span>Committing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <FaFloppyDisk aria-hidden="true" />
+                            <span>Save</span>
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ) : (
+                    // No changes - full width Exit button
+                    <Button
+                      onClick={handleCancel}
+                      variant="secondary"
+                      className="w-full"
+                    >
+                      <span>Exit Edit Mode</span>
+                    </Button>
+                  )
+                ) : (
+                  <Button
+                    onClick={openCastModal}
+                    id="open-cast-modal-button"
+                    width="auto"
+                    className="flex items-center justify-center w-12 h-12 font-medium rounded-md transition-colors"
+                    style={{
+                      backgroundColor: castButtonColors.backgroundColor,
+                      color: castButtonColors.fontColor,
+                      fontFamily: uiColors.fontFamily,
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = castButtonColors.backgroundColor;
+                    }}
+                    onMouseDown={(e) => {
+                      e.currentTarget.style.backgroundColor = castButtonColors.activeColor;
+                    }}
+                    onMouseUp={(e) => {
+                      e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
+                    }}
+                  >
+                    {shrunk ? <span className="sr-only">Cast</span> : "Cast"}
+                    {shrunk && (
+                      <span className="text-lg font-bold">
+                        <RiQuillPenLine />
+                      </span>
+                    )}
+                  </Button>
+                )}
               </div>
             )}
             {!isLoggedIn && (
