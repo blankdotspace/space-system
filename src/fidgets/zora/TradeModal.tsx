@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import { BsCoin } from "react-icons/bs";
+import { parseEther, formatEther } from "viem";
+import { useAccount, useWalletClient, usePublicClient } from "wagmi";
 
 interface TradeModalProps {
   isOpen: boolean;
@@ -26,16 +28,97 @@ interface TradeModalProps {
 export const TradeModal: React.FC<TradeModalProps> = ({ isOpen, onClose, coinData }) => {
   const [amount, setAmount] = useState("");
   const [isBuying, setIsBuying] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const { address } = useAccount();
+  const { data: walletClient } = useWalletClient();
+  const publicClient = usePublicClient();
 
   if (!isOpen) return null;
 
   const coinImage = coinData.mediaContent?.previewImage?.medium || 
                     coinData.mediaContent?.previewImage?.small;
 
+  // Calculate conversions
+  const ETH_PRICE_USD = 3000; // TODO: Fetch real-time ETH price from oracle
+  const coinPriceInEth = parseFloat(coinData.tokenPrice.priceInUsdc) / ETH_PRICE_USD;
+  
+  let displayAmount = "";
+  let displayConversion = "";
+  
+  if (isBuying) {
+    // Buying: input ETH, get coins
+    const ethAmount = parseFloat(amount) || 0;
+    const coinsToReceive = ethAmount / coinPriceInEth;
+    displayAmount = amount;
+    displayConversion = `≈ ${coinsToReceive.toFixed(2)} ${coinData.symbol} ($${(ethAmount * ETH_PRICE_USD).toFixed(2)} USD)`;
+  } else {
+    // Selling: input coins, get ETH
+    const coinAmount = parseFloat(amount) || 0;
+    const ethToReceive = coinAmount * coinPriceInEth;
+    displayAmount = amount;
+    displayConversion = `≈ ${ethToReceive.toFixed(6)} ETH ($${(ethToReceive * ETH_PRICE_USD).toFixed(2)} USD)`;
+  }
+
   const handleTrade = async () => {
-    // TODO: Implement Zora SDK trade logic
-    console.log("Trading:", { isBuying, amount, coin: coinData.address });
-    alert(`${isBuying ? "Buy" : "Sell"} ${amount} ${coinData.symbol} - Coming soon!`);
+    if (!address || !walletClient || !publicClient) {
+      alert("Please connect your wallet first");
+      return;
+    }
+
+    setIsLoading(true);
+    
+    try {
+      // Dynamic import to avoid build issues
+      const { tradeCoin } = await import("@zoralabs/coins-sdk");
+      
+      let tradeParameters;
+      
+      if (isBuying) {
+        // Buy coins with ETH
+        tradeParameters = {
+          sell: { type: "eth" as const },
+          buy: { 
+            type: "erc20" as const, 
+            address: coinData.address as `0x${string}`
+          },
+          amountIn: parseEther(amount),
+          slippage: 0.05, // 5% slippage tolerance
+          sender: address as `0x${string}`,
+        };
+      } else {
+        // Sell coins for ETH
+        const coinAmount = parseFloat(amount);
+        tradeParameters = {
+          sell: { 
+            type: "erc20" as const, 
+            address: coinData.address as `0x${string}`
+          },
+          buy: { type: "eth" as const },
+          amountIn: parseEther(coinAmount.toString()), // Adjust for actual token decimals
+          slippage: 0.15, // 15% slippage tolerance for selling
+          sender: address as `0x${string}`,
+        };
+      }
+
+      const receipt = await tradeCoin({
+        tradeParameters,
+        walletClient,
+        account: { address } as any,
+        publicClient: publicClient as any,
+      });
+
+      console.log("Trade successful:", receipt);
+      alert(`Trade successful! Transaction: ${receipt.transactionHash}`);
+      onClose();
+      
+    } catch (err) {
+      console.error("Trade error:", err);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      alert(`Trade failed: ${errorMessage}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -135,13 +218,14 @@ export const TradeModal: React.FC<TradeModalProps> = ({ isOpen, onClose, coinDat
         {/* Amount Input */}
         <div style={{ marginBottom: "20px" }}>
           <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>
-            Amount
+            {isBuying ? "Amount (ETH)" : `Amount (${coinData.symbol})`}
           </label>
           <input
             type="number"
-            value={amount}
+            value={displayAmount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0.00"
+            step={isBuying ? "0.001" : "1"}
             style={{
               width: "100%",
               padding: "12px",
@@ -153,7 +237,7 @@ export const TradeModal: React.FC<TradeModalProps> = ({ isOpen, onClose, coinDat
           />
           {amount && (
             <div style={{ marginTop: "8px", fontSize: "14px", color: "#666" }}>
-              ≈ ${(parseFloat(amount) * parseFloat(coinData.tokenPrice.priceInUsdc)).toFixed(2)} USD
+              {displayConversion}
             </div>
           )}
         </div>
@@ -173,20 +257,20 @@ export const TradeModal: React.FC<TradeModalProps> = ({ isOpen, onClose, coinDat
         {/* Trade Button */}
         <button
           onClick={handleTrade}
-          disabled={!amount || parseFloat(amount) <= 0}
+          disabled={!amount || parseFloat(amount) <= 0 || isLoading || !address}
           style={{
             width: "100%",
             padding: "16px",
-            backgroundColor: !amount || parseFloat(amount) <= 0 ? "#ccc" : "black",
+            backgroundColor: (!amount || parseFloat(amount) <= 0 || isLoading || !address) ? "#ccc" : "black",
             color: "white",
             border: "none",
             borderRadius: "8px",
             fontSize: "16px",
             fontWeight: "600",
-            cursor: !amount || parseFloat(amount) <= 0 ? "not-allowed" : "pointer",
+            cursor: (!amount || parseFloat(amount) <= 0 || isLoading || !address) ? "not-allowed" : "pointer",
           }}
         >
-          {isBuying ? "Buy" : "Sell"} {coinData.symbol}
+          {isLoading ? "Processing..." : !address ? "Connect Wallet" : `${isBuying ? "Buy" : "Sell"} ${coinData.symbol}`}
         </button>
       </div>
     </div>
