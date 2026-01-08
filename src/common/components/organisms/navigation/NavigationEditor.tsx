@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { Reorder } from "framer-motion";
 import { map } from "lodash";
@@ -11,6 +11,11 @@ import { FaPlus, FaCheck, FaXmark, FaSpinner } from "react-icons/fa6";
 import { toast } from "sonner";
 import EditableText from "@/common/components/atoms/editable-text";
 import { CloseIcon } from "@/common/components/atoms/icons/CloseIcon";
+import { IconSelector } from "@/common/components/molecules/IconSelector";
+import * as FaIcons from "react-icons/fa6";
+import * as BsIcons from "react-icons/bs";
+import * as GiIcons from "react-icons/gi";
+import type { IconType } from "react-icons";
 import {
   validateNavItemLabel,
 } from "@/common/utils/navUtils";
@@ -36,7 +41,7 @@ interface NavigationEditorProps {
   iconFor: (key?: string) => React.FC;
   CurrentUserImage: React.FC;
   onReorder: (newOrder: NavigationItem[]) => void;
-  onRename: (itemId: string, updates: { label?: string }) => string | undefined;
+  onRename: (itemId: string, updates: { label?: string; icon?: string }) => string | undefined;
   onDelete: (itemId: string) => void;
   onCreate: () => void;
   onCommit: () => void;
@@ -83,6 +88,81 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
     () => items.filter((item) => item.id !== "notifications"),
     [items]
   );
+
+  // Icon pack mapping for react-icons (matches IconSelector)
+  const iconPack = useMemo(() => ({
+    ...FaIcons,
+    ...BsIcons,
+    ...GiIcons,
+  }), []);
+
+  // Track which item's icon selector is open (by itemId)
+  const [openIconSelectorId, setOpenIconSelectorId] = useState<string | null>(null);
+  const iconButtonRefs = useRef<Record<string, React.RefObject<HTMLButtonElement>>>({});
+
+  // Helper to get or create ref for an item's icon button
+  const getIconButtonRef = (itemId: string) => {
+    if (!iconButtonRefs.current[itemId]) {
+      iconButtonRefs.current[itemId] = React.createRef<HTMLButtonElement>();
+    }
+    return iconButtonRefs.current[itemId];
+  };
+
+  // Helper to render icon component (matches IconSelector format)
+  // Uses w-5 h-5 (20px) to match visual size of standard nav icons (w-6 h-6 custom SVGs)
+  const getIconComponent = (iconName?: string) => {
+    if (!iconName) {
+      return (
+        <div className="w-5 h-5 bg-gray-100 flex items-center justify-center rounded">?</div>
+      );
+    }
+
+    // Handle custom icon URLs
+    if (iconName.startsWith('http://') || iconName.startsWith('https://')) {
+      return (
+        <img src={iconName} alt="icon" className="w-5 h-5 rounded object-contain" />
+      );
+    }
+
+    // Handle react-icons names (e.g., 'FaHouse', 'FaRss')
+    const Icon = iconPack[iconName as keyof typeof iconPack] as IconType | undefined;
+    if (Icon) {
+      return <Icon className="w-5 h-5" />;
+    }
+
+    // Fallback for unknown icons
+    return (
+      <div className="w-5 h-5 bg-gray-100 flex items-center justify-center rounded">?</div>
+    );
+  };
+
+  // Handle icon selection
+  const handleIconSelect = (itemId: string, iconName: string) => {
+    console.log('[NavigationEditor] Icon selected:', {
+      itemId,
+      iconName
+    });
+    try {
+      onRename(itemId, { icon: iconName });
+      setOpenIconSelectorId(null);
+      toast.success("Icon updated");
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : "Failed to update icon";
+      console.error('[NavigationEditor] Icon update failed:', {
+        itemId,
+        iconName,
+        error: errorMessage
+      });
+      toast.error(errorMessage);
+      
+      // Re-throw for error boundaries
+      if (error instanceof Error) {
+        throw error;
+      }
+    }
+  };
 
   /**
    * Updates URL when the currently viewed navigation item's href changes
@@ -198,10 +278,11 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
                     isShrunk ? "justify-center" : ""
                   )}
                   onClick={(e) => {
-                    // Prevent navigation only if clicking on delete button or input field
+                    // Prevent navigation only if clicking on delete button, icon button, or input field
                     const target = e.target as HTMLElement;
                     if (
                       target.closest('button[aria-label*="Delete"]') ||
+                      target.closest('button[aria-label*="Change icon"]') ||
                       target.tagName === "INPUT"
                     ) {
                       e.preventDefault();
@@ -219,7 +300,23 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
                   aria-current={isSelected ? "page" : undefined}
                 >
                     <div className="flex-shrink-0">
-                      <IconComp />
+                      {!isShrunk ? (
+                        <button
+                          ref={getIconButtonRef(item.id)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setOpenIconSelectorId(openIconSelectorId === item.id ? null : item.id);
+                          }}
+                          className="flex items-center justify-center rounded hover:bg-gray-200 transition-colors p-0"
+                          aria-label={`Change icon for ${item.label}`}
+                          title={`Change icon for ${item.label}`}
+                        >
+                          {getIconComponent(item.icon)}
+                        </button>
+                      ) : (
+                        <IconComp />
+                      )}
                     </div>
                     {!isShrunk && (
                       <div className="ms-3 flex-1 flex items-center min-w-0">
@@ -232,6 +329,13 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
                           maxLength={NAVIGATION_MAX_LABEL_LENGTH}
                         />
                       </div>
+                    )}
+                    {!isShrunk && openIconSelectorId === item.id && (
+                      <IconSelector
+                        onSelectIcon={(iconName) => handleIconSelect(item.id, iconName)}
+                        triggerRef={getIconButtonRef(item.id)}
+                        onClose={() => setOpenIconSelectorId(null)}
+                      />
                     )}
                   {!isShrunk && (
                     <button
