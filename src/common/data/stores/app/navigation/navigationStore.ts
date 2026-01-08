@@ -71,7 +71,8 @@ export const createNavigationStoreFunc = (
   ...navigationStoreDefaults,
   
   loadNavigation: (navigationConfig) => {
-    const items = navigationConfig?.items || [];
+    // Filter out notifications - it's hardcoded and not managed as a config item
+    const items = (navigationConfig?.items || []).filter(item => item.id !== 'notifications');
     set((draft) => {
       draft.navigation.remoteNavigation = cloneDeep(items);
       draft.navigation.localNavigation = cloneDeep(items);
@@ -140,7 +141,11 @@ export const createNavigationStoreFunc = (
         tabs: {
           Home: {
             ...INITIAL_SPACE_CONFIG_EMPTY,
-            name: `${spaceId}-Home-theme`,
+            theme: {
+              ...INITIAL_SPACE_CONFIG_EMPTY.theme,
+              id: `${spaceId}-Home-theme`,
+              name: `${spaceId}-Home-theme`,
+            },
             isPrivate: false,
             timestamp: timestamp,
           },
@@ -354,10 +359,16 @@ export const createNavigationStoreFunc = (
       // The endpoint compares old vs new navigation config to identify deleted spaces and cleans them up
       
       // Step 3: Update navigation config in database
+      // Filter out notifications - it's hardcoded and not stored in config
+      const itemsToCommit = state.localNavigation.filter(item => item.id !== 'notifications');
+      
+      // Debug: log what we're about to send
+      console.log("Committing navigation items:", itemsToCommit.map(item => ({ id: item.id, label: item.label, href: item.href })));
+      
       const unsignedRequest = {
         communityId,
         navigationConfig: {
-          items: state.localNavigation,
+          items: itemsToCommit,
         },
         publicKey,
         timestamp: moment().toISOString(),
@@ -372,11 +383,26 @@ export const createNavigationStoreFunc = (
       await axiosBackend.put("/api/navigation/config", signedRequest);
       
       // Step 4: Update local state to reflect committed changes
+      // Use itemsToCommit (which excludes notifications) as the new remoteNavigation
       set((draft) => {
-        draft.navigation.remoteNavigation = cloneDeep(draft.navigation.localNavigation);
+        draft.navigation.remoteNavigation = cloneDeep(itemsToCommit);
+        // Also update localNavigation to remove notifications if it exists
+        draft.navigation.localNavigation = draft.navigation.localNavigation.filter(item => item.id !== 'notifications');
       }, "commitNavigationChanges");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to commit navigation changes:", error);
+      // Log full error response for debugging
+      if (error?.response) {
+        console.error("API error response:", {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          data: error.response.data,
+          headers: error.response.headers,
+        });
+      } else if (error?.message) {
+        console.error("Error message:", error.message);
+      }
+      console.error("Full error object:", JSON.stringify(error, null, 2));
       throw error;
     }
   },

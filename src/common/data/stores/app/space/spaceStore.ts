@@ -257,18 +257,28 @@ export const createSpaceStoreFunc = (
       { fileName: tabName },
     );
     
-    try {
+      try {
       await axiosBackend.post(
         `/api/space/registry/${spaceId}/tabs/${storageFileName}`,
         { ...file, network },
       );
 
       set((draft) => {
+        // Initialize remoteSpaces[spaceId] if it doesn't exist (for new spaces)
+        if (!draft.space.remoteSpaces[spaceId]) {
+          draft.space.remoteSpaces[spaceId] = {
+            id: spaceId,
+            updatedAt: moment().toISOString(),
+            tabs: {},
+            order: [],
+          };
+        }
+        
         // Update remoteSpaces with new name
         draft.space.remoteSpaces[spaceId].tabs[tabName] = localCopy;
         
         // Remove old name from remoteSpaces (if it was a rename)
-        if (storageFileName !== tabName) {
+        if (storageFileName !== tabName && draft.space.remoteSpaces[spaceId].tabs[storageFileName]) {
           delete draft.space.remoteSpaces[spaceId].tabs[storageFileName];
         }
         
@@ -594,6 +604,18 @@ export const createSpaceStoreFunc = (
     const localTabNames = Object.keys(localSpace.tabs);
     const deletedTabs = localSpace.deletedTabs || [];
 
+    // Initialize remoteSpaces[spaceId] if it doesn't exist (for new spaces)
+    set((draft) => {
+      if (!draft.space.remoteSpaces[spaceId]) {
+        draft.space.remoteSpaces[spaceId] = {
+          id: spaceId,
+          updatedAt: moment().toISOString(),
+          tabs: {},
+          order: [],
+        };
+      }
+    }, "commitAllSpaceChanges-initializeRemoteSpace");
+
     try {
       // Batch all operations
       await Promise.all([
@@ -766,9 +788,18 @@ export const createSpaceStoreFunc = (
           Expires: "0",
         },
       });
-      const tabOrderReq = JSON.parse(
-        await data.text(),
-      ) as UpdateTabOrderRequest;
+      
+      const textContent = await data.text();
+      
+      // Check if response is HTML (404 error page) instead of JSON
+      if (textContent.trim().startsWith("<!DOCTYPE") || textContent.trim().startsWith("<html")) {
+        console.warn(`TabOrder file not found for space ${spaceId}, using local order if available`);
+        // Return early - tabOrder doesn't exist yet (new space that hasn't committed)
+        // The local space order will be used instead
+        return;
+      }
+      
+      const tabOrderReq = JSON.parse(textContent) as UpdateTabOrderRequest;
 
       // Compare local and remote timestamps
       const localSpace = get().space.localSpaces[spaceId];

@@ -50,6 +50,13 @@ async function updateNavigationConfig(
   const updateRequest = req.body;
 
   if (!isUpdateNavigationConfigRequest(updateRequest)) {
+    console.error("Invalid request structure:", {
+      hasBody: !!updateRequest,
+      hasCommunityId: !!updateRequest?.communityId,
+      hasNavigationConfig: !!updateRequest?.navigationConfig,
+      hasItems: !!updateRequest?.navigationConfig?.items,
+      itemsCount: Array.isArray(updateRequest?.navigationConfig?.items) ? updateRequest.navigationConfig.items.length : 'not array',
+    });
     res.status(400).json({
       result: "error",
       error: {
@@ -69,6 +76,9 @@ async function updateNavigationConfig(
     });
     return;
   }
+  
+  // Debug: log what we received
+  console.log("Received navigation items:", updateRequest.navigationConfig.items?.map((item: NavigationItem) => ({ id: item.id, label: item.label, href: item.href })));
 
   const supabase = createSupabaseServerClient();
 
