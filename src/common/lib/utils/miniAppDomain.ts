@@ -7,9 +7,7 @@ export const resolveMiniAppDomain = (baseUrl: string): string => {
     const parsed = new URL(baseUrl);
     return parsed.hostname;
   } catch {
-    return baseUrl
-      .replace(/^https?:\/\//i, "")
-      .replace(/\/.*$/, "")
-      .split(":")[0];
+    const trimmed = baseUrl.replace(/^https?:\/\//i, "");
+    return trimmed.split("/")[0]?.split(":")[0] ?? "";
   }
 };
