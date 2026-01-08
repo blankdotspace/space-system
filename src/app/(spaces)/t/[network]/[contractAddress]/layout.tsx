@@ -24,6 +24,7 @@ export async function generateMetadata({
   const systemConfig = await loadSystemConfig();
   const baseUrl = await resolveBaseUrl({ systemConfig });
   const brandName = systemConfig.brand.displayName;
+  const twitterHandle = systemConfig.community.social?.x;
   const splashImageUrl =
     resolveAssetUrl(systemConfig.assets.logos.splash, baseUrl) ??
     systemConfig.assets.logos.splash;
@@ -107,16 +108,19 @@ export async function generateMetadata({
   };
   
   // Create metadata object with token data if available
-  const tokenMetadata = getTokenMetadataStructure({
-    name,
-    symbol,
-    imageUrl,
-    contractAddress,
-    marketCap,
-    price,
-    priceChange,
-    network,
-  }, { baseUrl, brandName });
+  const tokenMetadata = getTokenMetadataStructure(
+    {
+      name,
+      symbol,
+      imageUrl,
+      contractAddress,
+      marketCap,
+      price,
+      priceChange,
+      network,
+    },
+    { baseUrl, brandName, twitterHandle },
+  );
 
   const metadataWithFrame = {
     ...tokenMetadata,

@@ -44,6 +44,7 @@ export async function generateMetadata({ params }): Promise<Metadata> {
   const systemConfig = await loadSystemConfig();
   const baseUrl = await resolveBaseUrl({ systemConfig });
   const brandName = systemConfig.brand.displayName;
+  const twitterHandle = systemConfig.community.social?.x;
   const splashImageUrl =
     resolveAssetUrl(systemConfig.assets.logos.splash, baseUrl) ??
     systemConfig.assets.logos.splash;
@@ -70,14 +71,17 @@ export async function generateMetadata({ params }): Promise<Metadata> {
     });
     const embedImageUrl = resolveCastEmbedImageUrl(cast.embeds);
 
-    const baseMetadata = getCastMetadataStructure({
-      hash: cast.hash,
-      username: cast.author.username,
-      displayName: cast.author.display_name,
-      pfpUrl: cast.author.pfp_url,
-      text: cast.text,
-      embedImageUrl,
-    }, { baseUrl, brandName });
+    const baseMetadata = getCastMetadataStructure(
+      {
+        hash: cast.hash,
+        username: cast.author.username,
+        displayName: cast.author.display_name,
+        pfpUrl: cast.author.pfp_url,
+        text: cast.text,
+        embedImageUrl,
+      },
+      { baseUrl, brandName, twitterHandle },
+    );
 
     const castUrl = `${baseUrl}/homebase/c/${cast.author.username}/${cast.hash}`;
     const ogImageUrl = baseMetadata.openGraph?.images?.[0]?.url ?? "";
@@ -103,7 +107,10 @@ export async function generateMetadata({ params }): Promise<Metadata> {
     };
   } catch (error) {
     console.error("Error generating cast metadata:", error);
-    const baseMetadata = getCastMetadataStructure({ hash: castHash, username }, { baseUrl, brandName });
+    const baseMetadata = getCastMetadataStructure(
+      { hash: castHash, username },
+      { baseUrl, brandName, twitterHandle },
+    );
     const castUrl = username && castHash ? `${baseUrl}/homebase/c/${username}/${castHash}` : undefined;
     const ogImageUrl = baseMetadata.openGraph?.images?.[0]?.url ?? "";
     const castFrame = {

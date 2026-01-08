@@ -5,6 +5,7 @@ import { WEBSITE_URL } from "@/constants/app";
 type MetadataContext = {
   baseUrl: string;
   brandName: string;
+  twitterHandle?: string;
 };
 
 export type UserMetadata = {
@@ -27,6 +28,7 @@ export const getUserMetadataStructure = (
   const { username, displayName, pfpUrl, bio } = userMetadata;
   const baseUrl = context?.baseUrl ?? WEBSITE_URL;
   const brandName = context?.brandName ?? "Nounspace";
+  const twitterHandle = normalizeTwitterHandle(context?.twitterHandle);
 
   const title = `${displayName} (@${username}) on ${brandName}`;
   const spaceUrl = username ? `${baseUrl}/s/${username}` : undefined;
@@ -54,9 +56,9 @@ export const getUserMetadataStructure = (
     },
     twitter: {
       title,
-      site: baseUrl,
       images: [ogImage],
       card: "summary_large_image",
+      ...(twitterHandle ? { site: twitterHandle } : {}),
     },
   };
 
@@ -72,7 +74,23 @@ export const getUserMetadataStructure = (
     });
   }
 
-
-
   return metadata;
+};
+
+const normalizeTwitterHandle = (handle?: string): string | undefined => {
+  if (!handle) {
+    return undefined;
+  }
+  const trimmed = handle.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const withoutAt = trimmed.startsWith("@") ? trimmed.slice(1) : trimmed;
+  const cleaned = withoutAt.replace(/^https?:\/\//i, "");
+  const parts = cleaned.split("/");
+  const lastPart = parts[parts.length - 1]?.replace(/^@/, "");
+  if (!lastPart) {
+    return undefined;
+  }
+  return `@${lastPart}`;
 };

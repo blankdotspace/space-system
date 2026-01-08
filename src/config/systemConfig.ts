@@ -111,6 +111,7 @@ export interface CommunityConfig {
   };
   social?: {
     farcaster?: string;
+    x?: string;
   };
   governance?: {
     snapshotSpace?: string;
