@@ -1,12 +1,8 @@
 import { merge } from "lodash";
 import { Metadata } from "next";
 import { WEBSITE_URL } from "@/constants/app";
-
-type MetadataContext = {
-  baseUrl: string;
-  brandName: string;
-  twitterHandle?: string;
-};
+import type { MetadataContext } from "@/common/lib/utils/metadataContext";
+import { normalizeTwitterHandle } from "@/common/lib/utils/normalizeTwitterHandle";
 
 export type CastMetadata = {
   hash?: string;
@@ -27,13 +23,14 @@ export const getCastMetadataStructure = (
 
   const { hash, username, displayName, pfpUrl, text, embedImageUrl } = cast;
   const baseUrl = context?.baseUrl ?? WEBSITE_URL;
+  const brandName = context?.brandName ?? "Nounspace";
   const twitterHandle = normalizeTwitterHandle(context?.twitterHandle);
 
   const title = displayName
     ? `${displayName}'s Cast`
     : username
     ? `@${username}'s Cast`
-    : "Farcaster Cast";
+    : `Cast on ${brandName}`;
 
   const castUrl =
     hash && username
@@ -82,22 +79,4 @@ export const getCastMetadataStructure = (
   }
 
   return metadata;
-};
-
-const normalizeTwitterHandle = (handle?: string): string | undefined => {
-  if (!handle) {
-    return undefined;
-  }
-  const trimmed = handle.trim();
-  if (!trimmed) {
-    return undefined;
-  }
-  const withoutAt = trimmed.startsWith("@") ? trimmed.slice(1) : trimmed;
-  const cleaned = withoutAt.replace(/^https?:\/\//i, "");
-  const parts = cleaned.split("/");
-  const lastPart = parts[parts.length - 1]?.replace(/^@/, "");
-  if (!lastPart) {
-    return undefined;
-  }
-  return `@${lastPart}`;
 };

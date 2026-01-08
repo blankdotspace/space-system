@@ -8,14 +8,14 @@ import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
 import { resolveAssetUrl } from "@/common/lib/utils/resolveAssetUrl";
 
 // Default metadata (used as fallback)
-const buildDefaultMetadata = async (systemConfig: SystemConfig, baseUrl: string) => {
+async function buildDefaultMetadata(systemConfig: SystemConfig, baseUrl: string): Promise<Metadata> {
   const defaultFrame = await getDefaultFrame({ systemConfig, baseUrl });
   return {
     other: {
       "fc:frame": JSON.stringify(defaultFrame),
     },
   };
-};
+}
 
 export async function generateMetadata({ 
   params 
