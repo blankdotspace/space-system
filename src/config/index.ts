@@ -4,6 +4,9 @@ import {
   type CommunityNftToken,
   type CommunityTokenNetwork,
   type CommunityTokensConfig,
+  type MiniAppAccountAssociation,
+  type MiniAppManifestOverrides,
+  type MiniAppConfig,
 } from './systemConfig';
 import { 
   ConfigLoadContext,
@@ -108,6 +111,9 @@ export type {
   CommunityNftToken,
   CommunityTokenNetwork,
   CommunityTokensConfig,
+  MiniAppAccountAssociation,
+  MiniAppManifestOverrides,
+  MiniAppConfig,
 };
 
 // Space creators - re-export directly from Nouns implementations

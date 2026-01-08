@@ -3,10 +3,29 @@ import React from "react";
 import { loadProposalData, calculateTimeRemaining } from "./utils";
 import { loadSystemConfig, type SystemConfig } from "@/config";
 import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
-import { buildDefaultFrameMetadata } from "@/common/lib/utils/defaultMetadata";
+import { buildDefaultFrameMetadata, getDefaultFrameAssets } from "@/common/lib/utils/defaultMetadata";
+import { buildMiniAppEmbed } from "@/common/lib/utils/miniAppEmbed";
+import { resolveMiniAppDomain } from "@/common/lib/utils/miniAppDomain";
 
-const buildDefaultMetadata = async (systemConfig: SystemConfig, baseUrl: string) =>
-  buildDefaultFrameMetadata(systemConfig, baseUrl);
+const buildDefaultMetadata = async (systemConfig: SystemConfig, baseUrl: string): Promise<Metadata> => {
+  const { defaultFrame, defaultImage, splashImageUrl } = await getDefaultFrameAssets(systemConfig, baseUrl);
+  const brandName = systemConfig.brand.displayName;
+  const miniAppDomain = resolveMiniAppDomain(baseUrl);
+  const defaultMiniApp = buildMiniAppEmbed({
+    imageUrl: defaultImage,
+    buttonTitle: `Open ${brandName}`,
+    actionUrl: baseUrl,
+    actionName: brandName,
+    splashImageUrl,
+  });
+  return {
+    other: {
+      "fc:frame": JSON.stringify(defaultFrame),
+      "fc:miniapp": JSON.stringify(defaultMiniApp),
+      "fc:miniapp:domain": miniAppDomain,
+    },
+  };
+};
 
 export async function generateMetadata({ 
   params 
@@ -16,6 +35,7 @@ export async function generateMetadata({
   const systemConfig = await loadSystemConfig();
   const baseUrl = await resolveBaseUrl({ systemConfig });
   const brandName = systemConfig.brand.displayName;
+  const miniAppDomain = resolveMiniAppDomain(baseUrl);
   const { proposalId } = await params;
   const defaultMetadata = await buildDefaultMetadata(systemConfig, baseUrl);
   
@@ -81,6 +101,14 @@ export async function generateMetadata({
     },
   };
 
+  const proposalMiniApp = buildMiniAppEmbed({
+    imageUrl: dynamicThumbnailUrl,
+    buttonTitle: `View Proposal ${proposalData.id}`,
+    actionUrl: frameUrl,
+    actionName: `Proposal ${proposalData.id} on ${brandName}`,
+    splashImageUrl: dynamicThumbnailUrl,
+  });
+
   const getProposerDisplay = () => {
     if (proposalData.signers && proposalData.signers.length > 0) {
       // De-duplicate addresses in case proposer is also in signers
@@ -120,6 +148,8 @@ export async function generateMetadata({
     },
     other: {
       "fc:frame": JSON.stringify(proposalFrame),
+      "fc:miniapp": JSON.stringify(proposalMiniApp),
+      "fc:miniapp:domain": miniAppDomain,
     },
   };
 

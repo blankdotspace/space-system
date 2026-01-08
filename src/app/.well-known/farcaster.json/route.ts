@@ -1,53 +1,95 @@
-import { getMetadata } from '../../../constants/metadata';
-import { loadSystemConfig } from "@/config";
+import { loadSystemConfig, type MiniAppConfig, type MiniAppAccountAssociation, type MiniAppManifestOverrides } from "@/config";
 import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
+import { buildMiniAppManifest } from "@/common/lib/utils/miniAppManifest";
+import { resolveMiniAppDomain } from "@/common/lib/utils/miniAppDomain";
 
-function withValidProperties(properties: Record<string, undefined | string | string[]>) {
-  return Object.fromEntries(
-    Object.entries(properties).filter(([_, value]) => (Array.isArray(value) ? value.length > 0 : !!value))
-  );
+function withValidProperties<T extends Record<string, unknown>>(properties: T): Partial<T> {
+  return Object.entries(properties).reduce<Partial<T>>((acc, [key, value]) => {
+    if (value === undefined || value === null) {
+      return acc;
+    }
+    if (Array.isArray(value) && value.length === 0) {
+      return acc;
+    }
+    if (typeof value === "string" && value.trim().length === 0) {
+      return acc;
+    }
+    acc[key as keyof T] = value as T[keyof T];
+    return acc;
+  }, {});
 }
+
+const resolveEnvAccountAssociation = (): MiniAppAccountAssociation | undefined => {
+  const header = process.env.FARCASTER_HEADER;
+  const payload = process.env.FARCASTER_PAYLOAD;
+  const signature = process.env.FARCASTER_SIGNATURE;
+  if (!header || !payload || !signature) {
+    return undefined;
+  }
+  return { header, payload, signature };
+};
+
+const isAccountAssociationComplete = (association?: MiniAppAccountAssociation) =>
+  Boolean(association?.header && association?.payload && association?.signature);
+
+const resolveAccountAssociation = (
+  miniappConfig: MiniAppConfig | undefined,
+  domain: string,
+): MiniAppAccountAssociation | undefined => {
+  if (!miniappConfig) {
+    return undefined;
+  }
+  const normalizedDomain = domain.trim().toLowerCase();
+  const associations = miniappConfig.accountAssociations;
+  if (associations && normalizedDomain) {
+    const directMatch = associations[normalizedDomain] ?? associations[domain];
+    if (isAccountAssociationComplete(directMatch)) {
+      return directMatch;
+    }
+    const withoutWww = normalizedDomain.replace(/^www\./, "");
+    const fallbackMatch = associations[withoutWww];
+    if (isAccountAssociationComplete(fallbackMatch)) {
+      return fallbackMatch;
+    }
+  }
+  if (isAccountAssociationComplete(miniappConfig.accountAssociation)) {
+    return miniappConfig.accountAssociation;
+  }
+  return undefined;
+};
 
 export async function GET() {
   const systemConfig = await loadSystemConfig();
   const baseUrl = await resolveBaseUrl({ systemConfig });
-  const metadata = await getMetadata({ systemConfig, baseUrl });
-  const URL = baseUrl || (process.env.NEXT_PUBLIC_URL as string);
+  const miniAppDomain = resolveMiniAppDomain(baseUrl);
   const envTags = process.env.NEXT_PUBLIC_APP_TAGS
-    ?.split(',')
-    .map(tag => tag.trim())
-    .filter(tag => tag.length > 0);
+    ?.split(",")
+    .map((tag) => tag.trim())
+    .filter((tag) => tag.length > 0);
+
+  const manifestOverrides: MiniAppManifestOverrides = {
+    ...(systemConfig.community.miniapp?.manifest ?? {}),
+  };
+
+  if ((!manifestOverrides.tags || manifestOverrides.tags.length === 0) && envTags) {
+    manifestOverrides.tags = envTags;
+  }
+
+  const miniapp = buildMiniAppManifest({
+    systemConfig,
+    baseUrl,
+    overrides: manifestOverrides,
+  });
+
+  const accountAssociation =
+    resolveAccountAssociation(systemConfig.community.miniapp, miniAppDomain) ??
+    resolveEnvAccountAssociation();
+
   return Response.json({
-    accountAssociation: {
-      header: process.env.FARCASTER_HEADER,
-      payload: process.env.FARCASTER_PAYLOAD,
-      signature: process.env.FARCASTER_SIGNATURE,
-    },
-    miniapp: withValidProperties({
-      version: '1',
-      imageUrl: metadata.APP_OG_IMAGE || process.env.NEXT_PUBLIC_APP_OG_IMAGE,
-      buttonTitle: metadata.APP_NAME || process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME,
-      name: metadata.APP_NAME || process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME,
-      subtitle: metadata.APP_SUBTITLE || process.env.NEXT_PUBLIC_APP_SUBTITLE,
-      description: metadata.APP_DESCRIPTION || process.env.NEXT_PUBLIC_APP_DESCRIPTION,
-      screenshotUrls: [],
-      iconUrl: metadata.APP_ICON || process.env.NEXT_PUBLIC_APP_ICON,
-      splashImageUrl: metadata.APP_SPLASH_IMAGE || process.env.NEXT_PUBLIC_APP_SPLASH_IMAGE,
-      splashBackgroundColor: metadata.SPLASH_BACKGROUND_COLOR || process.env.NEXT_PUBLIC_SPLASH_BACKGROUND_COLOR,
-      homeUrl: URL,
-      webhookUrl: `${URL}/api/webhook`,
-      primaryCategory: metadata.APP_PRIMARY_CATEGORY || process.env.NEXT_PUBLIC_APP_PRIMARY_CATEGORY,
-      tags: metadata.APP_TAGS && metadata.APP_TAGS.length > 0 ? metadata.APP_TAGS : envTags,
-      heroImageUrl: metadata.APP_HERO_IMAGE || process.env.NEXT_PUBLIC_APP_HERO_IMAGE,
-      tagline: metadata.APP_TAGLINE || process.env.NEXT_PUBLIC_APP_TAGLINE,
-      ogTitle: metadata.APP_OG_TITLE || process.env.NEXT_PUBLIC_APP_OG_TITLE,
-      ogDescription: metadata.APP_OG_DESCRIPTION || process.env.NEXT_PUBLIC_APP_OG_DESCRIPTION,
-      ogImageUrl: metadata.APP_OG_IMAGE || process.env.NEXT_PUBLIC_APP_OG_IMAGE,
-      // use only while testing
-      // noindex: 'true',
-    }),
+    ...(accountAssociation ? { accountAssociation } : {}),
+    miniapp: withValidProperties(miniapp),
     baseBuilder: {
-      allowedAddresses: ["0x857Ba87e094BF962D0B933bBf2C706893e14d3bE"]
-    }
+      allowedAddresses: ["0x857Ba87e094BF962D0B933bBf2C706893e14d3bE"],
+    },
   });
 }
