@@ -8,6 +8,7 @@ import axiosBackend from "@/common/data/api/backend";
 import { signSignable } from "@/common/lib/signedFiles";
 import { RegisterNewSpaceResponse } from "@/pages/api/space/registry";
 import { SPACE_TYPES } from "@/common/types/spaceData";
+import { INITIAL_SPACE_CONFIG_EMPTY } from "@/config";
 
 // Type for navPage space registration (similar to other space registration types)
 interface SpaceRegistrationNavPage {
@@ -32,7 +33,7 @@ interface NavigationStoreActions {
   
   // Navigation item operations (staged changes)
   createNavigationItem: (
-    item: Omit<NavigationItem, "id"> & { createSpace?: boolean }
+    item: Omit<NavigationItem, "id">
   ) => Promise<NavigationItem>;
   deleteNavigationItem: (itemId: string) => void;
   renameNavigationItem: (itemId: string, updates: { label?: string; href?: string; icon?: NavigationItem["icon"] }) => void;
@@ -71,30 +72,35 @@ export const createNavigationStoreFunc = (
   
   createNavigationItem: async (itemData) => {
     const newId = uuidv4();
+    const spaceId = uuidv4();
+    const timestamp = moment().toISOString();
+    
+    // All navigation items get a space created for them
     const newItem: NavigationItem = {
       id: newId,
       ...itemData,
+      spaceId: spaceId,
     };
     
-    // If createSpace is true, generate a spaceId and create local space entry
-    if (itemData.createSpace) {
-      const spaceId = uuidv4();
-      
-      set((draft) => {
-        // Add to space store's localSpaces so PublicSpace can find it
-        // Initialize with empty tabOrder (will be created on commit)
-        draft.space.localSpaces[spaceId] = {
-          id: spaceId,
-          updatedAt: moment().toISOString(),
-          tabs: {},
-          order: ["Home"], // Initial default tab
-          changedNames: {},
-          deletedTabs: [],
-        };
-      }, "createNavigationItem-addLocalSpace");
-      
-      newItem.spaceId = spaceId;
-    }
+    set((draft) => {
+      // Add to space store's localSpaces so PublicSpace can find it
+      // Initialize with default "Home" tab so the space can be viewed immediately
+      draft.space.localSpaces[spaceId] = {
+        id: spaceId,
+        updatedAt: timestamp,
+        tabs: {
+          Home: {
+            ...INITIAL_SPACE_CONFIG_EMPTY,
+            name: `${spaceId}-Home-theme`,
+            isPrivate: false,
+            timestamp: timestamp,
+          },
+        },
+        order: ["Home"], // Initial default tab
+        changedNames: {},
+        deletedTabs: [],
+      };
+    }, "createNavigationItem-addLocalSpace");
     
     set((draft) => {
       draft.navigation.localNavigation.push(cloneDeep(newItem));

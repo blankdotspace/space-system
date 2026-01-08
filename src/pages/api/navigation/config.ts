@@ -164,11 +164,15 @@ async function updateNavigationConfig(
     ...updateRequest.navigationConfig, // This includes items and any other fields if explicitly provided
   };
 
+  // Convert to Json type by serializing/deserializing to ensure JSON compatibility
+  // This provides runtime safety while working around TypeScript's Json type limitations
+  const navigationConfigJson: Json = JSON.parse(JSON.stringify(mergedNavigationConfig));
+
   // Update the navigation_config column with merged config
   const { error: updateError } = await supabase
     .from("community_configs")
     .update({
-      navigation_config: mergedNavigationConfig as Json,
+      navigation_config: navigationConfigJson,
       updated_at: new Date().toISOString(),
     })
     .eq("community_id", updateRequest.communityId)
