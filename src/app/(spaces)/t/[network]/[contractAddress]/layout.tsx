@@ -1,33 +1,27 @@
 import { Metadata } from "next/types";
 import React from "react";
 import { getTokenMetadataStructure } from "@/common/lib/utils/tokenMetadata";
-import { getDefaultFrame } from "@/constants/metadata";
+import { buildDefaultFrameMetadata, getDefaultFrameAssets } from "@/common/lib/utils/defaultMetadata";
 import { fetchMasterTokenServer } from "@/common/data/queries/serverTokenData";
 import { EtherScanChainName } from "@/constants/etherscanChainIds";
 import { loadSystemConfig, type SystemConfig } from "@/config";
 import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
-import { resolveAssetUrl } from "@/common/lib/utils/resolveAssetUrl";
 
 // Default metadata (used as fallback)
 async function buildDefaultMetadata(systemConfig: SystemConfig, baseUrl: string): Promise<Metadata> {
-  const defaultFrame = await getDefaultFrame({ systemConfig, baseUrl });
-  return {
-    other: {
-      "fc:frame": JSON.stringify(defaultFrame),
-    },
-  };
+  return buildDefaultFrameMetadata(systemConfig, baseUrl);
 }
 
 export async function generateMetadata({
   params,
+}: {
+  params: Promise<{ network: string; contractAddress: string; tabName?: string }>;
 }): Promise<Metadata> {
   const systemConfig = await loadSystemConfig();
   const baseUrl = await resolveBaseUrl({ systemConfig });
   const brandName = systemConfig.brand.displayName;
   const twitterHandle = systemConfig.community.social?.x;
-  const splashImageUrl =
-    resolveAssetUrl(systemConfig.assets.logos.splash, baseUrl) ??
-    systemConfig.assets.logos.splash;
+  const { splashImageUrl } = await getDefaultFrameAssets(systemConfig, baseUrl);
   const { network, contractAddress, tabName: tabNameParam } = await params;
   const defaultMetadata = await buildDefaultMetadata(systemConfig, baseUrl);
   
