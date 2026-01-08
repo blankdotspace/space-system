@@ -99,11 +99,6 @@ const nextConfig = {
           "https://docs.nounspace.com/nounspace-alpha/accounts/signatures",
         permanent: true,
       },
-      {
-        source: "/t/:network/:contractAddress",
-        destination: "/t/:network/:contractAddress/Profile",
-        permanent: true,
-      },
     ];
   },
   async rewrites() {
