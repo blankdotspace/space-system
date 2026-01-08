@@ -111,11 +111,48 @@ export interface CommunityConfig {
     farcaster?: string;
     x?: string;
   };
+  miniapp?: MiniAppConfig;
   governance?: {
     snapshotSpace?: string;
     nounishGov?: string;
   };
   tokens?: CommunityTokensConfig;
+}
+
+export interface MiniAppAccountAssociation {
+  header: string;
+  payload: string;
+  signature: string;
+}
+
+export interface MiniAppManifestOverrides {
+  name?: string;
+  subtitle?: string;
+  description?: string;
+  screenshotUrls?: string[];
+  primaryCategory?: string;
+  tags?: string[];
+  heroImageUrl?: string;
+  tagline?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogImageUrl?: string;
+  imageUrl?: string;
+  buttonTitle?: string;
+  homeUrl?: string;
+  iconUrl?: string;
+  splashImageUrl?: string;
+  splashBackgroundColor?: string;
+  noindex?: boolean;
+  requiredChains?: string[];
+  requiredCapabilities?: string[];
+  canonicalDomain?: string;
+}
+
+export interface MiniAppConfig {
+  accountAssociation?: MiniAppAccountAssociation;
+  accountAssociations?: Record<string, MiniAppAccountAssociation>;
+  manifest?: MiniAppManifestOverrides;
 }
 
 export interface FidgetConfig {
