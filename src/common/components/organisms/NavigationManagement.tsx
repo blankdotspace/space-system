@@ -64,15 +64,15 @@ export default function NavigationManagement({
 
   const handleCreateItem = useCallback(async () => {
     try {
-      const newItem = await createNavigationItem({
+      await createNavigationItem({
         label: "New Item",
-        href: "/new-item",
+        // href will be auto-generated from label if not provided
         icon: "custom",
       });
       toast.success("Navigation item created");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to create navigation item:", error);
-      toast.error("Failed to create navigation item");
+      toast.error(error.message || "Failed to create navigation item");
     }
   }, [createNavigationItem]);
 

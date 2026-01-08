@@ -13,7 +13,7 @@ import { TooltipProvider } from "../atoms/tooltip";
 import ClaimButtonWithModal from "../molecules/ClaimButtonWithModal";
 import { useSidebarContext } from "./Sidebar";
 import TokenDataHeader from "./TokenDataHeader";
-import { validateTabName } from "@/common/utils/tabUtils";
+import { validateTabName, generateUniqueName } from "@/common/utils/tabUtils";
 
 interface TabBarProps {
   inHomebase: boolean;
@@ -202,14 +202,7 @@ function TabBar({
       return null;
     }
 
-    let uniqueName = tabName;
-    let iter = 1;
-    
-    while (tabList.includes(uniqueName) && iter <= 100) {
-      uniqueName = `${tabName} - ${iter++}`;
-    }
-    
-    return iter > 100 ? null : uniqueName;
+    return generateUniqueName(tabName, tabList);
   }
 
   const handleTabClick = React.useCallback((tabName: string, e?: React.MouseEvent) => {
