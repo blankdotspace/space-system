@@ -48,6 +48,7 @@ import { useSidebarContext } from "./Sidebar";
 import { useNavigation } from "./navigation/useNavigation";
 import { NavigationItem as NavItemComponent, NavigationButton } from "./navigation/NavigationItem";
 import { NavigationEditor } from "./navigation/NavigationEditor";
+import { NavigationErrorBoundary } from "./navigation/ErrorBoundary";
 
 type NavProps = {
   systemConfig: SystemConfig;
@@ -462,7 +463,16 @@ const Navigation = React.memo(
           >
             <div className="flex-auto">
               {navEditMode && isNavigationEditable ? (
-                <NavigationEditor
+                <NavigationErrorBoundary
+                  onError={(error, errorInfo) => {
+                    // Log to error service in production
+                    if (process.env.NODE_ENV === "production") {
+                      // TODO: Integrate with error logging service
+                      // logErrorToService(error, errorInfo);
+                    }
+                  }}
+                >
+                  <NavigationEditor
                   items={navItemsToDisplay}
                   isShrunk={shrunk}
                   isLoggedIn={isLoggedIn}
@@ -484,7 +494,8 @@ const Navigation = React.memo(
                   onOpenSearch={openSearchModal}
                   onLogout={handleLogout}
                   onLogin={openModal}
-                />
+                  />
+                </NavigationErrorBoundary>
               ) : (
                 // Normal mode: show regular navigation items
                 <ul className="space-y-2">

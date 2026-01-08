@@ -5,6 +5,10 @@
 
 import { isDuplicateTabName, generateUniqueName } from "./tabUtils";
 import { NavigationItem } from "@/config/systemConfig";
+import { 
+  NAVIGATION_MAX_LABEL_LENGTH,
+  NAVIGATION_MAX_UNIQUE_NAME_ITERATIONS 
+} from "@/common/components/organisms/navigation/constants";
 
 /**
  * Validates a navigation item label
@@ -23,8 +27,8 @@ export function validateNavItemLabel(label: string): string | null {
   }
   
   // Additional length check for nav labels
-  if (label.trim().length > 50) {
-    return "Navigation label is too long. Maximum 50 characters.";
+  if (label.trim().length > NAVIGATION_MAX_LABEL_LENGTH) {
+    return `Navigation label is too long. Maximum ${NAVIGATION_MAX_LABEL_LENGTH} characters.`;
   }
   
   return null;
@@ -142,11 +146,11 @@ export function generateUniqueHrefFromLabel(
   let uniqueHref = baseHref;
   let iter = 1;
   
-  while (existingHrefs.includes(uniqueHref) && iter <= 100) {
+  while (existingHrefs.includes(uniqueHref) && iter <= NAVIGATION_MAX_UNIQUE_NAME_ITERATIONS) {
     uniqueHref = `/${slug}-${iter++}`;
   }
   
-  return iter > 100 ? `/${slug}-${Date.now()}` : uniqueHref;
+  return iter > NAVIGATION_MAX_UNIQUE_NAME_ITERATIONS ? `/${slug}-${Date.now()}` : uniqueHref;
 }
 
 /**
