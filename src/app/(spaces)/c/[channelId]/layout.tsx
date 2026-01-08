@@ -1,42 +1,29 @@
-import { getDefaultFrame } from "@/constants/metadata";
 import type { Metadata } from "next/types";
 import { getChannelMetadata } from "./utils";
 import { loadSystemConfig, type SystemConfig } from "@/config";
 import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
-import { resolveAssetUrl } from "@/common/lib/utils/resolveAssetUrl";
-
-const resolveDomain = (url: string): string => {
-  try {
-    return new URL(url).hostname;
-  } catch (error) {
-    return url.replace(/^https?:\/\//, "");
-  }
-};
+import { resolveMiniAppDomain } from "@/common/lib/utils/miniAppDomain";
+import { buildMiniAppEmbed, truncateMiniAppButtonTitle } from "@/common/lib/utils/miniAppEmbed";
+import { getDefaultFrameAssets } from "@/common/lib/utils/defaultMetadata";
 
 async function buildDefaultMetadata(
   systemConfig: SystemConfig,
   baseUrl: string,
-  brandName: string,
-  miniAppDomain: string,
-  defaultImage: string,
-  defaultSplashImage: string,
 ): Promise<Metadata> {
-  const defaultFrame = await getDefaultFrame({ systemConfig, baseUrl });
+  const { defaultFrame, defaultImage, splashImageUrl } = await getDefaultFrameAssets(
+    systemConfig,
+    baseUrl,
+  );
+  const brandName = systemConfig.brand.displayName;
+  const miniAppDomain = resolveMiniAppDomain(baseUrl);
   const defaultDescription = `Explore Farcaster channel spaces on ${brandName}.`;
-  const defaultMiniAppMetadata = {
-    version: "1" as const,
+  const defaultMiniAppMetadata = buildMiniAppEmbed({
     imageUrl: defaultImage,
-    button: {
-      title: "Open Channel Space",
-      action: {
-        type: "launch_miniapp" as const,
-        name: brandName,
-        url: baseUrl,
-        splashImageUrl: defaultSplashImage,
-        splashBackgroundColor: "#FFFFFF",
-      },
-    },
-  };
+    buttonTitle: "Open Channel Space",
+    actionUrl: baseUrl,
+    actionName: brandName,
+    splashImageUrl,
+  });
 
   return {
     title: `Channel | ${brandName}`,
@@ -68,11 +55,6 @@ async function buildDefaultMetadata(
   };
 }
 
-const MAX_BUTTON_TITLE_LENGTH = 32;
-
-const truncateButtonTitle = (title: string) =>
-  title.length > MAX_BUTTON_TITLE_LENGTH ? `${title.slice(0, MAX_BUTTON_TITLE_LENGTH - 1)}…` : title;
-
 export async function generateMetadata({
   params,
 }: {
@@ -81,21 +63,10 @@ export async function generateMetadata({
   const systemConfig = await loadSystemConfig();
   const baseUrl = await resolveBaseUrl({ systemConfig });
   const brandName = systemConfig.brand.displayName;
-  const miniAppDomain = resolveDomain(baseUrl);
-  const defaultImage =
-    resolveAssetUrl(systemConfig.assets.logos.og, baseUrl) ?? systemConfig.assets.logos.og;
-  const defaultSplashImage =
-    resolveAssetUrl(systemConfig.assets.logos.splash, baseUrl) ??
-    systemConfig.assets.logos.splash;
+  const miniAppDomain = resolveMiniAppDomain(baseUrl);
+  const { splashImageUrl } = await getDefaultFrameAssets(systemConfig, baseUrl);
   const { channelId, tabName } = await params;
-  const defaultMetadata = await buildDefaultMetadata(
-    systemConfig,
-    baseUrl,
-    brandName,
-    miniAppDomain,
-    defaultImage,
-    defaultSplashImage,
-  );
+  const defaultMetadata = await buildDefaultMetadata(systemConfig, baseUrl);
 
   if (!channelId) {
     return defaultMetadata;
@@ -127,9 +98,9 @@ export async function generateMetadata({
     ? `${baseUrl}/c/${channel.id}/${encodeURIComponent(decodedTabName)}`
     : `${baseUrl}/c/${channel.id}`;
 
-  const buttonTitle = truncateButtonTitle(`Visit ${name}`);
+  const rawButtonTitle = `Visit ${name}`;
+  const buttonTitle = truncateMiniAppButtonTitle(rawButtonTitle);
   const frameName = `${name} on ${brandName}`;
-  const splashImageUrl = defaultSplashImage;
 
   const metadataParams = new URLSearchParams({
     channelId: channel.id,
@@ -165,20 +136,13 @@ export async function generateMetadata({
     },
   };
 
-  const miniAppMetadata = {
-    version: "1" as const,
+  const miniAppMetadata = buildMiniAppEmbed({
     imageUrl: ogImageUrl,
-    button: {
-      title: buttonTitle,
-      action: {
-        type: "launch_miniapp" as const,
-        name: frameName,
-        url: pageUrl,
-        splashImageUrl,
-        splashBackgroundColor: "#FFFFFF",
-      },
-    },
-  };
+    buttonTitle: rawButtonTitle,
+    actionUrl: pageUrl,
+    actionName: frameName,
+    splashImageUrl,
+  });
 
   return {
     title: `${name} | ${brandName}`,

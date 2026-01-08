@@ -4,19 +4,13 @@ import type { Metadata } from "next/types";
 import { CastParamType } from "@neynar/nodejs-sdk/build/api";
 import neynar from "@/common/data/api/neynar";
 import { getCastMetadataStructure } from "@/common/lib/utils/castMetadata";
-import { getDefaultFrame } from "@/constants/metadata";
 import { loadSystemConfig, type SystemConfig } from "@/config";
 import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
-import { resolveAssetUrl } from "@/common/lib/utils/resolveAssetUrl";
 import type { Embed } from "@neynar/nodejs-sdk/build/api";
+import { buildDefaultFrameMetadata, getDefaultFrameAssets } from "@/common/lib/utils/defaultMetadata";
 
 async function buildDefaultMetadata(systemConfig: SystemConfig, baseUrl: string): Promise<Metadata> {
-  const defaultFrame = await getDefaultFrame({ systemConfig, baseUrl });
-  return {
-    other: {
-      "fc:frame": JSON.stringify(defaultFrame),
-    },
-  };
+  return buildDefaultFrameMetadata(systemConfig, baseUrl);
 }
 
 function resolveCastEmbedImageUrl(embeds?: Embed[]): string | undefined {
@@ -49,9 +43,7 @@ export async function generateMetadata({
   const baseUrl = await resolveBaseUrl({ systemConfig });
   const brandName = systemConfig.brand.displayName;
   const twitterHandle = systemConfig.community.social?.x;
-  const splashImageUrl =
-    resolveAssetUrl(systemConfig.assets.logos.splash, baseUrl) ??
-    systemConfig.assets.logos.splash;
+  const { splashImageUrl } = await getDefaultFrameAssets(systemConfig, baseUrl);
   const { slug } = await params;
   const segments: string[] = Array.isArray(slug) ? slug : [];
   let castHash: string | undefined;
