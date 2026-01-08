@@ -1,7 +1,5 @@
 import { redirect } from "next/navigation";
 import { loadSystemConfig } from "@/config";
-import { createSupabaseServerClient } from "@/common/data/database/supabase/clients/server";
-
 
 // Force dynamic rendering - config loading requires request context
 export const dynamic = 'force-dynamic';
@@ -9,33 +7,21 @@ export const dynamic = 'force-dynamic';
 export default async function RootRedirect() {
   const config = await loadSystemConfig();
   
-  // Find the home navigation item and redirect to its default tab
+  // Find the first navigation item and redirect to it
+  // The space loading will automatically figure out the default tab
   const navItems = config.navigation?.items || [];
-  const homeNavItem = navItems.find(item => item.href === '/home');
+  const firstNavItem = navItems[0];
   
-  if (homeNavItem?.spaceId) {
-    try {
-      // Tab order is stored directly (not wrapped in SignedFile)
-      const { data: tabOrderData } = await createSupabaseServerClient()
-        .storage
-        .from('spaces')
-        .download(`${homeNavItem.spaceId}/tabOrder`);
-      
-      if (tabOrderData) {
-        const tabOrderJson = JSON.parse(await tabOrderData.text());
-        const defaultTab = tabOrderJson.tabOrder?.[0];
-        
-        if (defaultTab) {
-          redirect(`/home/${encodeURIComponent(defaultTab)}`);
-          return null;
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to load home space default tab:', error);
-    }
+  if (firstNavItem?.href) {
+    // Remove leading slash if present and redirect
+    const href = firstNavItem.href.startsWith('/') 
+      ? firstNavItem.href 
+      : `/${firstNavItem.href}`;
+    redirect(href);
   }
   
-  // Fallback: redirect to /home and let the navigation handler figure out the default tab
+  // Fallback: redirect to /home if no navigation items found
   redirect('/home');
   return null;
 }
+
