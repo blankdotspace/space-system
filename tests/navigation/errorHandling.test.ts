@@ -1,63 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import axios from 'axios';
-
-/**
- * Tests for error handling utilities
- * These test the error normalization logic extracted from useNavigation
- */
-
-type NavigationError = 
-  | { type: 'VALIDATION'; message: string }
-  | { type: 'NETWORK'; message: string; retryable: boolean }
-  | { type: 'PERMISSION'; message: string }
-  | { type: 'UNKNOWN'; message: string; originalError: unknown };
-
-function normalizeNavigationError(error: unknown): NavigationError {
-  if (error instanceof Error) {
-    // Check for validation errors
-    if (error.message.includes('Invalid') || error.message.includes('duplicate')) {
-      return { type: 'VALIDATION', message: error.message };
-    }
-    
-    // Check for permission errors
-    if (error.message.includes('admin') || error.message.includes('permission')) {
-      return { type: 'PERMISSION', message: error.message };
-    }
-    
-    // Check for network errors (axios)
-    if (axios.isAxiosError(error)) {
-      const isRetryable = error.response?.status && error.response.status >= 500;
-      return {
-        type: 'NETWORK',
-        message: error.response?.data?.error?.message || error.message || 'Network error occurred',
-        retryable: isRetryable,
-      };
-    }
-    
-    return { type: 'UNKNOWN', message: error.message, originalError: error };
-  }
-  
-  return {
-    type: 'UNKNOWN',
-    message: 'An unexpected error occurred',
-    originalError: error,
-  };
-}
-
-function getUserFriendlyMessage(error: NavigationError): string {
-  switch (error.type) {
-    case 'VALIDATION':
-      return error.message;
-    case 'NETWORK':
-      return error.retryable 
-        ? 'Network error. Please try again.'
-        : error.message;
-    case 'PERMISSION':
-      return 'You do not have permission to perform this action.';
-    case 'UNKNOWN':
-      return error.message;
-  }
-}
+import {
+  NavigationError,
+  normalizeNavigationError,
+  getUserFriendlyMessage,
+} from '../../src/common/components/organisms/navigation/errorHandling';
 
 describe('Navigation Error Handling', () => {
   describe('normalizeNavigationError', () => {
