@@ -6,13 +6,31 @@ import { getDefaultFrame } from "@/constants/metadata";
 import { loadSystemConfig, type SystemConfig } from "@/config";
 import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
 import { resolveAssetUrl } from "@/common/lib/utils/resolveAssetUrl";
+import { buildMiniAppEmbed } from "@/common/lib/utils/miniAppEmbed";
+import { resolveMiniAppDomain } from "@/common/lib/utils/miniAppDomain";
 
 // Default metadata (used as fallback)
 async function buildDefaultMetadata(systemConfig: SystemConfig, baseUrl: string): Promise<Metadata> {
   const defaultFrame = await getDefaultFrame({ systemConfig, baseUrl });
+  const brandName = systemConfig.brand.displayName;
+  const defaultImage =
+    resolveAssetUrl(systemConfig.assets.logos.og, baseUrl) ?? systemConfig.assets.logos.og;
+  const splashImageUrl =
+    resolveAssetUrl(systemConfig.assets.logos.splash, baseUrl) ??
+    systemConfig.assets.logos.splash;
+  const miniAppDomain = resolveMiniAppDomain(baseUrl);
+  const defaultMiniApp = buildMiniAppEmbed({
+    imageUrl: defaultImage,
+    buttonTitle: `Open ${brandName}`,
+    actionUrl: baseUrl,
+    actionName: brandName,
+    splashImageUrl,
+  });
   return {
     other: {
       "fc:frame": JSON.stringify(defaultFrame),
+      "fc:miniapp": JSON.stringify(defaultMiniApp),
+      "fc:miniapp:domain": miniAppDomain,
     },
   };
 }
@@ -25,10 +43,14 @@ export async function generateMetadata({
   const systemConfig = await loadSystemConfig();
   const baseUrl = await resolveBaseUrl({ systemConfig });
   const brandName = systemConfig.brand.displayName;
+  const miniAppDomain = resolveMiniAppDomain(baseUrl);
   const twitterHandle = systemConfig.community.social?.x;
   const splashImageUrl =
     resolveAssetUrl(systemConfig.assets.logos.splash, baseUrl) ??
     systemConfig.assets.logos.splash;
+  const defaultImage =
+    resolveAssetUrl(systemConfig.assets.logos.og, baseUrl) ??
+    systemConfig.assets.logos.og;
   const { handle, tabName: tabNameParam } = await params;
 
   if (!handle) {
@@ -43,9 +65,23 @@ export async function generateMetadata({
       { username: normalizedHandle },
       { baseUrl, brandName, twitterHandle },
     );
+    const ogImageUrl = baseMetadata.openGraph?.images?.[0]?.url ?? "";
+    const fallbackImageUrl = ogImageUrl || defaultImage;
     return {
       ...baseMetadata,
-      other: { "fc:frame": JSON.stringify(defaultFrame) },
+      other: {
+        "fc:frame": JSON.stringify(defaultFrame),
+        "fc:miniapp": JSON.stringify(
+          buildMiniAppEmbed({
+            imageUrl: fallbackImageUrl,
+            buttonTitle: `Open ${brandName}`,
+            actionUrl: baseUrl,
+            actionName: brandName,
+            splashImageUrl,
+          }),
+        ),
+        "fc:miniapp:domain": miniAppDomain,
+      },
     };
   }
 
@@ -85,6 +121,14 @@ export async function generateMetadata({
     }
   };
 
+  const spaceMiniApp = buildMiniAppEmbed({
+    imageUrl: ogImageUrl,
+    buttonTitle: `Visit ${displayName}'s Space`,
+    actionUrl: frameUrl,
+    actionName: `${displayName}'s ${brandName}`,
+    splashImageUrl,
+  });
+
   const baseMetadata = getUserMetadataStructure(
     userMetadata,
     { baseUrl, brandName, twitterHandle },
@@ -103,7 +147,9 @@ export async function generateMetadata({
     metadataWithFrame.other = {};
   }
   
-  metadataWithFrame.other['fc:frame'] = JSON.stringify(spaceFrame);
+  metadataWithFrame.other["fc:frame"] = JSON.stringify(spaceFrame);
+  metadataWithFrame.other["fc:miniapp"] = JSON.stringify(spaceMiniApp);
+  metadataWithFrame.other["fc:miniapp:domain"] = miniAppDomain;
   
   return metadataWithFrame;
 }
