@@ -25,24 +25,35 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(
-      `https://api-sdk.zora.engineering/coin?address=${address}&chain=${chain}`,
-      {
+    // Build URL with proper encoding to prevent injection
+    const url = new URL('https://api-sdk.zora.engineering/coin');
+    url.searchParams.set('address', address);
+    url.searchParams.set('chain', chain);
+
+    // Add timeout to prevent hanging requests
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => abortController.abort(), 10000); // 10 second timeout
+
+    try {
+      const response = await fetch(url.toString(), {
         headers: {
           "x-api-key": ZORA_API_KEY,
         },
+        signal: abortController.signal,
+      });
+
+      // Clear timeout on successful response
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        return NextResponse.json(
+          { error: `Zora API error: ${response.status} ${errorText}` },
+          { status: response.status }
+        );
       }
-    );
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      return NextResponse.json(
-        { error: `Zora API error: ${response.status} ${errorText}` },
-        { status: response.status }
-      );
-    }
-
-    const data = await response.json();
+      const data = await response.json();
     
     // Debug logging to see what Zora API returns
     console.log("[Zora API] Response data:", JSON.stringify(data, null, 2));
@@ -51,6 +62,16 @@ export async function GET(request: NextRequest) {
     }
     
     return NextResponse.json(data);
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        return NextResponse.json(
+          { error: 'Request timeout - Zora API took too long to respond' },
+          { status: 504 }
+        );
+      }
+      throw fetchError;
+    }
   } catch (error) {
     console.error("[Zora API] Error fetching coin:", error);
     return NextResponse.json(

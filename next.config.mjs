@@ -57,8 +57,7 @@ const cspHeader = `
       https://*.cloudflarestream.com
       https://customer-35w74jq9s1d58g1v.cloudflarestream.com
       https://*.b-cdn.net
-      https://cca-lite.coinbase.com
-      https://api-sdk.zora.engineering;
+      https://cca-lite.coinbase.com;
 
     upgrade-insecure-requests;
 `;
