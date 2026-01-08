@@ -78,8 +78,31 @@ const NavigationItemComponent: React.FC<NavigationItemProps> = ({
     [onClick, onNavigate, href, disable, openInNewTab, router]
   );
 
+  /**
+   * Handles keyboard navigation for accessibility
+   */
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLAnchorElement>) => {
+      if (disable) {
+        e.preventDefault();
+        return;
+      }
+
+      // Enter or Space key activates the link
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        if (e.key === " ") {
+          // Prevent page scroll on Space
+          e.preventDefault();
+        }
+        handleClick(e as unknown as React.MouseEvent<HTMLAnchorElement>);
+      }
+    },
+    [disable, handleClick]
+  );
+
   return (
-    <li>
+    <li role="none">
       <Link
         href={disable ? "#" : href}
         className={mergeClasses(
@@ -89,11 +112,15 @@ const NavigationItemComponent: React.FC<NavigationItemProps> = ({
           disable ? "opacity-50 cursor-not-allowed pointer-events-none" : ""
         )}
         onClick={handleClick}
+        onKeyDown={handleKeyDown}
         rel={openInNewTab ? "noopener noreferrer" : undefined}
         target={openInNewTab ? "_blank" : undefined}
+        aria-label={shrunk ? label : undefined}
+        aria-current={href === pathname ? "page" : undefined}
+        tabIndex={disable ? -1 : 0}
       >
         {badgeText && <NavIconBadge systemConfig={systemConfig}>{badgeText}</NavIconBadge>}
-        <Icon />
+        <Icon aria-hidden="true" />
         {!shrunk && <span className="ms-3 relative z-10">{label}</span>}
       </Link>
     </li>
@@ -102,7 +129,28 @@ const NavigationItemComponent: React.FC<NavigationItemProps> = ({
 
 NavigationItemComponent.displayName = 'NavigationItem';
 
-export const NavigationItem = React.memo(NavigationItemComponent);
+/**
+ * Memoized navigation item component with custom comparison
+ * 
+ * Only re-renders when props that affect rendering actually change.
+ * Compares systemConfig by community type (stable) rather than object reference
+ * to avoid unnecessary re-renders when systemConfig object reference changes.
+ */
+export const NavigationItem = React.memo(
+  NavigationItemComponent,
+  (prevProps, nextProps) => {
+    return (
+      prevProps.label === nextProps.label &&
+      prevProps.href === nextProps.href &&
+      prevProps.shrunk === nextProps.shrunk &&
+      prevProps.disable === nextProps.disable &&
+      prevProps.openInNewTab === nextProps.openInNewTab &&
+      prevProps.badgeText === nextProps.badgeText &&
+      // Compare systemConfig by stable community type instead of object reference
+      prevProps.systemConfig.community?.type === nextProps.systemConfig.community?.type
+    );
+  }
+);
 
 export interface NavigationButtonProps {
   label: string;
@@ -123,8 +171,27 @@ const NavigationButtonComponent: React.FC<NavigationButtonProps> = ({
   shrunk = false,
   systemConfig,
 }) => {
+  /**
+   * Handles keyboard navigation for accessibility
+   */
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLButtonElement>) => {
+      if (disable) {
+        e.preventDefault();
+        return;
+      }
+
+      // Enter or Space key activates the button
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onClick?.();
+      }
+    },
+    [disable, onClick]
+  );
+
   return (
-    <li>
+    <li role="none">
       <button
         disabled={disable}
         className={mergeClasses(
@@ -134,6 +201,9 @@ const NavigationButtonComponent: React.FC<NavigationButtonProps> = ({
           disable ? "opacity-50 cursor-not-allowed pointer-events-none" : ""
         )}
         onClick={onClick}
+        onKeyDown={handleKeyDown}
+        aria-label={shrunk ? label : undefined}
+        tabIndex={disable ? -1 : 0}
       >
         {badgeText && <NavIconBadge systemConfig={systemConfig}>{badgeText}</NavIconBadge>}
         <Icon aria-hidden="true" />
@@ -145,5 +215,23 @@ const NavigationButtonComponent: React.FC<NavigationButtonProps> = ({
 
 NavigationButtonComponent.displayName = 'NavigationButton';
 
-export const NavigationButton = React.memo(NavigationButtonComponent);
+/**
+ * Memoized navigation button component with custom comparison
+ * 
+ * Only re-renders when props that affect rendering actually change.
+ * Compares systemConfig by community type (stable) rather than object reference.
+ */
+export const NavigationButton = React.memo(
+  NavigationButtonComponent,
+  (prevProps, nextProps) => {
+    return (
+      prevProps.label === nextProps.label &&
+      prevProps.shrunk === nextProps.shrunk &&
+      prevProps.disable === nextProps.disable &&
+      prevProps.badgeText === nextProps.badgeText &&
+      // Compare systemConfig by stable community type instead of object reference
+      prevProps.systemConfig.community?.type === nextProps.systemConfig.community?.type
+    );
+  }
+);
 

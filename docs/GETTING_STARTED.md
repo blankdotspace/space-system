@@ -69,7 +69,7 @@ Configure the following in `.env.local` using the credentials from `supabase sta
 # Supabase Local (Required - use values from `supabase start` output)
 NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-local-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-local-service-role-key
+SUPABASE_SERVICE_KEY=your-local-service-role-key
 
 # Authentication (Required)
 NEXT_PUBLIC_PRIVY_APP_ID=your-privy-app-id
