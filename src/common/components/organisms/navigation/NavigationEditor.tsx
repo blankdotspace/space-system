@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useEffect, useRef } from "react";
+import React, { useMemo } from "react";
 import Link from "next/link";
 import { Reorder } from "framer-motion";
 import { map } from "lodash";
@@ -36,7 +36,7 @@ interface NavigationEditorProps {
   iconFor: (key?: string) => React.FC;
   CurrentUserImage: React.FC;
   onReorder: (newOrder: NavigationItem[]) => void;
-  onRename: (itemId: string, updates: { label?: string }) => void;
+  onRename: (itemId: string, updates: { label?: string }) => string | undefined;
   onDelete: (itemId: string) => void;
   onCreate: () => void;
   onCommit: () => void;
@@ -92,41 +92,13 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
    * Uses a ref to track the previous pathname to avoid unnecessary updates and
    * prevent race conditions where the effect might run before the store has fully updated.
    */
-  const previousPathnameRef = useRef<string | null>(pathname);
-  
-  useEffect(() => {
-    if (pathname === null) return;
-
-    // Find the navigation item that matches the current pathname
-    const currentItem = localNavigation.find((item) => item.href === pathname);
-    
-    // If we found a matching item and the pathname hasn't changed externally,
-    // we're good (no update needed)
-    if (currentItem && pathname === previousPathnameRef.current) {
-      previousPathnameRef.current = pathname;
-      return;
-    }
-
-    // Check if any item's href matches the previous pathname (item was renamed)
-    const renamedItem = localNavigation.find(
-      (item) => item.href !== pathname && previousPathnameRef.current && item.href === previousPathnameRef.current
-    );
-
-    // If we're on a page that was renamed, update the URL
-    if (renamedItem && previousPathnameRef.current === pathname) {
-      window.history.replaceState(null, "", renamedItem.href);
-      previousPathnameRef.current = renamedItem.href;
-    } else {
-      previousPathnameRef.current = pathname;
-    }
-  }, [localNavigation, pathname]);
 
   /**
    * Handles renaming a navigation item
    * 
    * Validates the new label, updates the item in the store (which handles
-   * href regeneration), and shows success/error feedback. The URL update
-   * is handled by the useEffect that watches localNavigation changes.
+   * href regeneration), and immediately updates the URL if we're on that
+   * page. This matches the pattern used by tab renaming.
    * 
    * @param itemId - ID of the item to rename
    * @param oldLabel - Current label
@@ -139,9 +111,17 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
           const item = localNavigation.find((i) => i.id === itemId);
           if (!item) return;
 
-          // Perform the rename - store handles all logic (validation, uniqueness, href generation)
-          // URL update is handled by the useEffect that watches localNavigation changes
-          onRename(itemId, { label: newLabel });
+          const oldHref = item.href;
+
+          // Perform the rename - store handles validation, uniqueness, and updates href
+          // Returns the new href so we can update the URL immediately
+          const newHref = onRename(itemId, { label: newLabel });
+
+          // Immediately update the URL if we're currently on this item's page
+          // This matches the tab rename pattern (see TabBar.tsx switchTabTo)
+          if (newHref && pathname === oldHref && newHref !== oldHref) {
+            window.history.replaceState(null, "", newHref);
+          }
 
           toast.success("Navigation item updated");
         } catch (error: unknown) {
@@ -157,7 +137,7 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
         }
       }
     },
-    [localNavigation, onRename]
+    [localNavigation, onRename, pathname]
   );
 
   return (
