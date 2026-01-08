@@ -13,7 +13,7 @@ import {
     FaChevronLeft,
     FaChevronRight,
     FaDiscord,
-    FaPaintbrush,
+    FaPencil,
 } from "react-icons/fa6";
 import { Button } from "../atoms/button";
 import BrandHeader from "../molecules/BrandHeader";
@@ -195,7 +195,6 @@ const Navigation = React.memo(
         label: "New Item",
         href: "/new-item",
         icon: "custom",
-        createSpace: true,
       });
       toast.success("Navigation item created");
     } catch (error) {
@@ -428,7 +427,8 @@ const Navigation = React.memo(
           className={mergeClasses(
             "flex relative items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 w-full group",
             href === pathname ? "bg-gray-100" : "",
-            shrunk ? "justify-center" : ""
+            shrunk ? "justify-center" : "",
+            disable ? "opacity-50 cursor-not-allowed pointer-events-none" : ""
           )}
           style={navTextStyle}
           onClick={handleClick}
@@ -457,7 +457,8 @@ const Navigation = React.memo(
           className={mergeClasses(
             "flex relative items-center p-2 text-gray-900 rounded-lg dark:text-white w-full group",
             "hover:bg-gray-100 dark:hover:bg-gray-700",
-            shrunk ? "justify-center" : ""
+            shrunk ? "justify-center" : "",
+            disable ? "opacity-50 cursor-not-allowed pointer-events-none" : ""
           )}
           style={navTextStyle}
           onClick={onClick}
@@ -556,108 +557,156 @@ const Navigation = React.memo(
           >
             <div className="flex-auto">
               {navEditMode && isNavigationEditable ? (
-                // Edit mode: show editable navigation items with drag-and-drop
-                <div className="space-y-2">
-                  <Reorder.Group
-                    axis="y"
-                    onReorder={debouncedUpdateOrder}
-                    values={navItemsToDisplay}
-                    className="space-y-2"
-                  >
-                    {map(navItemsToDisplay, (item) => {
-                      if (item.requiresAuth && !isLoggedIn) return null;
-                      const IconComp = iconFor(item.icon);
-                      const badge = item.id === 'notifications' ? notificationBadgeText : null;
-                      const isSelected = pathname === item.href;
-                      
-                      return (
-                        <Reorder.Item
-                          key={item.id}
-                          value={item}
-                          className="relative"
-                          whileDrag={{ backgroundColor: "#e3e3e3" }}
-                          dragListener={navEditMode}
-                        >
-                          <Link
-                            href={item.href}
-                            className={mergeClasses(
-                              "flex relative items-center p-2 rounded-lg w-full group",
-                              isSelected ? "bg-gray-100" : "hover:bg-gray-100",
-                              navEditMode ? "cursor-grab active:cursor-grabbing" : ""
-                            )}
-                            onClick={(e) => {
-                              // Prevent navigation only if clicking on delete button or input field
-                              const target = e.target as HTMLElement;
-                              if (target.closest('button[aria-label="Delete item"]') || target.tagName === 'INPUT') {
-                                e.preventDefault();
-                                e.stopPropagation();
-                              }
-                            }}
-                            draggable={false}
+                // Edit mode: show editable navigation items with drag-and-drop, plus other items greyed out
+                <>
+                  <div className="space-y-2">
+                    <Reorder.Group
+                      axis="y"
+                      onReorder={debouncedUpdateOrder}
+                      values={navItemsToDisplay}
+                      className="space-y-2"
+                    >
+                      {map(navItemsToDisplay, (item) => {
+                        if (item.requiresAuth && !isLoggedIn) return null;
+                        const IconComp = iconFor(item.icon);
+                        const badge = item.id === 'notifications' ? notificationBadgeText : null;
+                        const isSelected = pathname === item.href;
+                        
+                        return (
+                          <Reorder.Item
+                            key={item.id}
+                            value={item}
+                            className="relative"
+                            whileDrag={{ backgroundColor: "#e3e3e3" }}
+                            dragListener={navEditMode}
                           >
-                            {badge && <NavIconBadge systemConfig={systemConfig}>{badge}</NavIconBadge>}
-                            <IconComp />
-                            {!shrunk && (
-                              <div className="ms-3 flex-1 flex items-center gap-2">
-                                <EditableText
-                                  initialText={item.label}
-                                  updateMethod={(oldLabel, newLabel) => {
-                                    if (oldLabel !== newLabel) {
-                                      renameNavigationItem(item.id, { label: newLabel });
-                                    }
-                                  }}
-                                />
-                              </div>
-                            )}
-                            {navEditMode && (
-                              <button
-                                onClick={(e) => {
+                            <Link
+                              href={item.href}
+                              className={mergeClasses(
+                                "flex relative items-center p-2 rounded-lg w-full group",
+                                isSelected ? "bg-gray-100" : "hover:bg-gray-100",
+                                navEditMode ? "cursor-grab active:cursor-grabbing" : "",
+                                shrunk ? "justify-center" : ""
+                              )}
+                              onClick={(e) => {
+                                // Prevent navigation only if clicking on delete button or input field
+                                const target = e.target as HTMLElement;
+                                if (target.closest('button[aria-label="Delete item"]') || target.tagName === 'INPUT') {
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  deleteNavigationItem(item.id);
-                                  toast.success("Navigation item deleted");
-                                }}
-                                className="p-1 hover:bg-red-100 rounded opacity-0 group-hover:opacity-100 transition-opacity ml-auto"
-                                aria-label="Delete item"
-                              >
-                                <CloseIcon />
-                              </button>
-                            )}
-                          </Link>
-                        </Reorder.Item>
-                      );
-                    })}
-                  </Reorder.Group>
+                                }
+                              }}
+                              draggable={false}
+                            >
+                              {badge && <NavIconBadge systemConfig={systemConfig}>{badge}</NavIconBadge>}
+                              <div className="flex-shrink-0">
+                                <IconComp />
+                              </div>
+                              {!shrunk && (
+                                <div className="ms-3 flex-1 flex items-center min-w-0">
+                                  <EditableText
+                                    initialText={item.label}
+                                    updateMethod={(oldLabel, newLabel) => {
+                                      if (oldLabel !== newLabel) {
+                                        renameNavigationItem(item.id, { label: newLabel });
+                                      }
+                                    }}
+                                  />
+                                </div>
+                              )}
+                              {navEditMode && !shrunk && (
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    deleteNavigationItem(item.id);
+                                    toast.success("Navigation item deleted");
+                                  }}
+                                  className="p-1 hover:bg-red-100 rounded opacity-0 group-hover:opacity-100 transition-opacity ml-auto"
+                                  aria-label="Delete item"
+                                >
+                                  <CloseIcon />
+                                </button>
+                              )}
+                            </Link>
+                          </Reorder.Item>
+                        );
+                      })}
+                    </Reorder.Group>
+                    
+                    {/* Add new item button */}
+                    <button
+                      onClick={handleCreateItem}
+                      className={mergeClasses(
+                        "flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 w-full text-gray-600",
+                        shrunk ? "justify-center" : "text-left"
+                      )}
+                    >
+                      <FaPlus size={14} />
+                      {!shrunk && <span className="text-sm">Add Navigation Item</span>}
+                    </button>
+                    
+                    {/* Commit/Cancel buttons */}
+                    {hasUncommittedChanges() && !shrunk && (
+                      <div className="flex gap-2 mt-4 pt-4 border-t">
+                        <Button
+                          onClick={handleCommit}
+                          className="flex items-center gap-2 rounded-lg px-3 py-2 bg-green-500 hover:bg-green-600 text-white font-semibold text-sm flex-1"
+                        >
+                          <FaCheck size={12} />
+                          <span>Commit</span>
+                        </Button>
+                        <Button
+                          onClick={handleCancel}
+                          className="flex items-center gap-2 rounded-lg px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold text-sm"
+                        >
+                          <FaXmark size={12} />
+                          <span>Cancel</span>
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                   
-                  {/* Add new item button */}
-                  <button
-                    onClick={handleCreateItem}
-                    className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 w-full text-left text-gray-600"
-                  >
-                    <FaPlus size={14} />
-                    {!shrunk && <span className="text-sm">Add Navigation Item</span>}
-                  </button>
-                  
-                  {/* Commit/Cancel buttons */}
-                  {hasUncommittedChanges() && !shrunk && (
-                    <div className="flex gap-2 mt-4 pt-4 border-t">
-                      <Button
-                        onClick={handleCommit}
-                        className="flex items-center gap-2 rounded-lg px-3 py-2 bg-green-500 hover:bg-green-600 text-white font-semibold text-sm flex-1"
-                      >
-                        <FaCheck size={12} />
-                        <span>Commit</span>
-                      </Button>
-                      <Button
-                        onClick={handleCancel}
-                        className="flex items-center gap-2 rounded-lg px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold text-sm"
-                      >
-                        <FaXmark size={12} />
-                        <span>Cancel</span>
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                  {/* Show other nav items but greyed out/inactive */}
+                  <ul className="space-y-2 mt-4 pt-4 border-t">
+                    <NavButton
+                      label="Search"
+                      Icon={SearchIcon}
+                      onClick={() => {
+                        openSearchModal();
+                        trackAnalyticsEvent(AnalyticsEvent.CLICK_SEARCH);
+                      }}
+                      disable={true}
+                    />
+                    {isLoggedIn && (
+                      <NavItem
+                        label={"My Space"}
+                        Icon={CurrentUserImage}
+                        href={`/s/${username}`}
+                        onClick={() =>
+                          trackAnalyticsEvent(AnalyticsEvent.CLICK_MY_SPACE)
+                        }
+                        disable={true}
+                      />
+                    )}
+                    {isLoggedIn && (
+                      <NavButton
+                        label={"Logout"}
+                        Icon={LogoutIcon}
+                        onClick={handleLogout}
+                        disable={true}
+                      />
+                    )}
+                    {!isLoggedIn && (
+                      <NavButton
+                        label={isInitializing ? "Complete Signup" : "Login"}
+                        Icon={LoginIcon}
+                        onClick={openModal}
+                        disable={true}
+                      />
+                    )}
+                  </ul>
+                </>
               ) : (
                 // Normal mode: show regular navigation items
                 <ul className="space-y-2">
@@ -718,7 +767,11 @@ const Navigation = React.memo(
                 {isNavigationEditable && !mobile && (
                   <NavButton
                     label={navEditMode ? "Exit Edit" : "Edit Nav"}
-                    Icon={navEditMode ? LogoutIcon : FaPaintbrush}
+                    Icon={navEditMode ? LogoutIcon : () => (
+                      <div className="w-6 h-6 flex items-center justify-center">
+                        <FaPencil className="w-4 h-4 text-gray-800 dark:text-white" />
+                      </div>
+                    )}
                     onClick={() => {
                       setNavEditMode(!navEditMode);
                     }}

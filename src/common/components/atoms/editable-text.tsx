@@ -28,7 +28,7 @@ const EditableText = ({ initialText, updateMethod }) => {
   return isEditing ? (
     <input
       value={text}
-      className="bg-transparent border-none"
+      className="bg-transparent border-none outline-none w-full min-w-0"
       maxLength={22}
       onKeyDown={(event) => {
         if (isEnterOrEscapeKeyEvent(event)) {
@@ -47,7 +47,7 @@ const EditableText = ({ initialText, updateMethod }) => {
     />
   ) : (
     <div 
-      className="select-none" 
+      className="select-none min-w-0" 
       onDoubleClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
