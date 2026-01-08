@@ -4,6 +4,9 @@ import {
   type CommunityNftToken,
   type CommunityTokenNetwork,
   type CommunityTokensConfig,
+  type MiniAppAccountAssociation,
+  type MiniAppManifestOverrides,
+  type MiniAppConfig,
 } from './systemConfig';
 import { 
   ConfigLoadContext,
