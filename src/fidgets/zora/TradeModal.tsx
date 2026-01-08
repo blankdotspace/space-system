@@ -166,10 +166,12 @@ export const TradeModal: React.FC<TradeModalProps> = ({ isOpen, onClose, coinDat
     <Modal
       open={isOpen}
       setOpen={(open) => !open && onClose()}
-      title={`Trade ${coinData.symbol}`}
       showClose={true}
     >
       <div className="space-y-6">
+        {/* Title */}
+        <h2 className="text-2xl font-bold text-center">Trade {coinData.symbol}</h2>
+        
         {/* Coin Info */}
         <div className="flex items-center gap-3">
           {coinImage ? (
