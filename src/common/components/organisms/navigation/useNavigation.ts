@@ -1,73 +1,11 @@
 import { useCallback, useEffect, useRef, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { debounce } from "lodash";
 import { toast } from "sonner";
 import { useAppStore } from "@/common/data/stores/app";
 import { SystemConfig, NavigationItem } from "@/config/systemConfig";
-import axios from "axios";
 import { NAVIGATION_REORDER_DEBOUNCE_MS } from "./constants";
-
-/**
- * Normalized error type for navigation operations
- */
-type NavigationError = 
-  | { type: 'VALIDATION'; message: string }
-  | { type: 'NETWORK'; message: string; retryable: boolean }
-  | { type: 'PERMISSION'; message: string }
-  | { type: 'UNKNOWN'; message: string; originalError: unknown };
-
-/**
- * Normalizes various error types into a consistent NavigationError format
- */
-function normalizeNavigationError(error: unknown): NavigationError {
-  if (error instanceof Error) {
-    // Check for validation errors
-    if (error.message.includes('Invalid') || error.message.includes('duplicate')) {
-      return { type: 'VALIDATION', message: error.message };
-    }
-    
-    // Check for permission errors
-    if (error.message.includes('admin') || error.message.includes('permission')) {
-      return { type: 'PERMISSION', message: error.message };
-    }
-    
-    // Check for network errors (axios)
-    if (axios.isAxiosError(error)) {
-      const isRetryable = error.response?.status !== undefined && error.response.status >= 500;
-      return {
-        type: 'NETWORK',
-        message: error.response?.data?.error?.message || error.message || 'Network error occurred',
-        retryable: isRetryable,
-      };
-    }
-    
-    return { type: 'UNKNOWN', message: error.message, originalError: error };
-  }
-  
-  return {
-    type: 'UNKNOWN',
-    message: 'An unexpected error occurred',
-    originalError: error,
-  };
-}
-
-/**
- * Gets a user-friendly error message for display
- */
-function getUserFriendlyMessage(error: NavigationError): string {
-  switch (error.type) {
-    case 'VALIDATION':
-      return error.message;
-    case 'NETWORK':
-      return error.retryable 
-        ? 'Network error. Please try again.'
-        : error.message;
-    case 'PERMISSION':
-      return 'You do not have permission to perform this action.';
-    case 'UNKNOWN':
-      return error.message;
-  }
-}
+import { normalizeNavigationError, getUserFriendlyMessage } from "./errorHandling";
 
 export interface UseNavigationReturn {
   localNavigation: NavigationItem[];
@@ -104,7 +42,11 @@ export function useNavigation(
   setNavEditMode: (value: boolean) => void
 ): UseNavigationReturn {
   const router = useRouter();
+  const pathname = usePathname();
   const [isCommitting, setIsCommitting] = useState(false);
+  
+  // Track pending cancel operation - reset will happen after navigation completes
+  const pendingCancelTargetRef = useRef<string | null>(null);
   
   const {
     loadNavigation,
@@ -139,6 +81,10 @@ export function useNavigation(
   useEffect(() => {
     // Only load on initial mount when store is empty, and only load once
     if (!hasLoadedNavigationRef.current && localNavigation.length === 0) {
+      console.log('[useNavigation] Loading navigation from config:', {
+        itemCount: initialNavigationConfigRef.current?.items?.length || 0,
+        items: initialNavigationConfigRef.current?.items?.map(i => ({ id: i.id, label: i.label, href: i.href }))
+      });
       loadNavigation(initialNavigationConfigRef.current);
       hasLoadedNavigationRef.current = true;
     }
@@ -153,6 +99,10 @@ export function useNavigation(
    */
   const debouncedUpdateOrder = useMemo(
     () => debounce((newOrder: NavigationItem[]) => {
+      console.log('[useNavigation] Updating navigation order:', {
+        itemCount: newOrder.length,
+        order: newOrder.map(i => ({ id: i.id, label: i.label }))
+      });
       updateNavigationOrder(newOrder);
     }, NAVIGATION_REORDER_DEBOUNCE_MS),
     [updateNavigationOrder]
@@ -166,6 +116,41 @@ export function useNavigation(
   }, [debouncedUpdateOrder]);
 
   /**
+   * Watch for navigation completion after cancel
+   * 
+   * When cancel is triggered, we navigate first and keep localNavigation intact
+   * until navigation completes. Once pathname matches the target, we can safely
+   * reset localNavigation without causing a 404 flash.
+   */
+  useEffect(() => {
+    if (!pendingCancelTargetRef.current) {
+      return;
+    }
+
+    // Check if we've reached the target (or if we were already there)
+    if (pathname === pendingCancelTargetRef.current) {
+      console.log('[useNavigation] Navigation completed, resetting navigation changes:', {
+        target: pendingCancelTargetRef.current,
+        currentPathname: pathname
+      });
+      
+      // Navigation completed - safe to reset now
+      pendingCancelTargetRef.current = null; // Clear before reset to avoid loops
+      
+      resetNavigationChanges();
+      toast.info("Navigation changes cancelled");
+      setNavEditMode(false);
+    }
+  }, [pathname, resetNavigationChanges, setNavEditMode]);
+
+  // Cleanup: clear pending cancel on unmount
+  useEffect(() => {
+    return () => {
+      pendingCancelTargetRef.current = null;
+    };
+  }, []);
+
+  /**
    * Commits local navigation changes to the database
    * 
    * Validates that there are uncommitted changes before attempting commit.
@@ -174,9 +159,16 @@ export function useNavigation(
    */
   const handleCommit = useCallback(async () => {
     if (!hasUncommittedChanges()) {
+      console.log('[useNavigation] Commit skipped: no uncommitted changes');
       toast.info("No changes to commit");
       return;
     }
+    
+    console.log('[useNavigation] Starting commit:', {
+      communityId: systemConfig.community?.type || "nouns",
+      localItemCount: localNavigation.length,
+      items: localNavigation.map(i => ({ id: i.id, label: i.label, href: i.href, spaceId: i.spaceId }))
+    });
     
     setIsCommitting(true);
     try {
@@ -186,15 +178,19 @@ export function useNavigation(
         systemConfig.community?.type || "nouns",
         systemConfig.navigation
       );
+      console.log('[useNavigation] Commit successful');
       toast.success("Navigation changes committed");
       setNavEditMode(false);
     } catch (error: unknown) {
       const navError = normalizeNavigationError(error);
       const userMessage = getUserFriendlyMessage(navError);
       
-      if (process.env.NODE_ENV === 'development') {
-        console.error("Failed to commit navigation changes:", navError);
-      }
+      console.error('[useNavigation] Commit failed:', {
+        error: navError,
+        errorType: navError.type,
+        message: userMessage,
+        originalError: error
+      });
       
       toast.error(userMessage);
       
@@ -211,18 +207,55 @@ export function useNavigation(
     systemConfig.community?.type,
     systemConfig.navigation,
     setNavEditMode,
+    localNavigation,
   ]);
 
   /**
    * Cancels navigation changes and resets to remote state
    * 
-   * Discards all local changes and exits edit mode.
+   * First navigates to the first navigation item (from committed config),
+   * then waits for navigation to complete before discarding local changes.
+   * This prevents a 404 flash by keeping uncommitted items available during navigation.
    */
   const handleCancel = useCallback(() => {
-    resetNavigationChanges();
-    toast.info("Navigation changes cancelled");
-    setNavEditMode(false);
-  }, [resetNavigationChanges, setNavEditMode]);
+    console.log('[useNavigation] Canceling navigation changes:', {
+      localItemCount: localNavigation.length,
+      remoteItemCount: systemConfig.navigation?.items?.length || 0
+    });
+    
+    // Navigate to first navigation item before canceling
+    // Use systemConfig.navigation which has the committed/remote state
+    const navItems = systemConfig.navigation?.items || [];
+    const firstNavItem = navItems[0];
+    
+    if (firstNavItem?.href) {
+      // If we're already on the target path, reset immediately
+      if (pathname === firstNavItem.href) {
+        console.log('[useNavigation] Already on target path, resetting immediately');
+        resetNavigationChanges();
+        toast.info("Navigation changes cancelled");
+        setNavEditMode(false);
+        return;
+      }
+      
+      console.log('[useNavigation] Navigating to first item before cancel:', firstNavItem.href);
+      
+      // Store the target - reset will happen in useEffect once navigation completes
+      // This ensures uncommitted items remain available during navigation transition
+      pendingCancelTargetRef.current = firstNavItem.href;
+      
+      // Navigate first - localNavigation will remain intact until pathname matches target
+      router.push(firstNavItem.href);
+      
+      // Note: resetNavigationChanges will be called in useEffect once pathname === firstNavItem.href
+    } else {
+      console.log('[useNavigation] No navigation items found, resetting immediately');
+      // If no navigation items, just reset immediately (no navigation needed)
+      resetNavigationChanges();
+      toast.info("Navigation changes cancelled");
+      setNavEditMode(false);
+    }
+  }, [resetNavigationChanges, setNavEditMode, systemConfig.navigation, router, pathname, localNavigation.length]);
 
   /**
    * Creates a new navigation item and navigates to it
@@ -232,24 +265,35 @@ export function useNavigation(
    * The href is auto-generated from the label if not provided.
    */
   const handleCreateItem = useCallback(async () => {
+    console.log('[useNavigation] Creating new navigation item');
     try {
       const newItem = await createNavigationItem({
         label: "New Item",
         // href will be auto-generated from label if not provided
         icon: "custom",
       });
+      console.log('[useNavigation] Navigation item created:', {
+        id: newItem.id,
+        label: newItem.label,
+        href: newItem.href,
+        spaceId: newItem.spaceId
+      });
       toast.success("Navigation item created");
       // Automatically navigate to the new item
       if (newItem?.href) {
+        console.log('[useNavigation] Navigating to new item:', newItem.href);
         router.push(newItem.href);
       }
     } catch (error: unknown) {
       const navError = normalizeNavigationError(error);
       const userMessage = getUserFriendlyMessage(navError);
       
-      if (process.env.NODE_ENV === 'development') {
-        console.error("Failed to create navigation item:", navError);
-      }
+      console.error('[useNavigation] Failed to create navigation item:', {
+        error: navError,
+        errorType: navError.type,
+        message: userMessage,
+        originalError: error
+      });
       
       toast.error(userMessage);
       

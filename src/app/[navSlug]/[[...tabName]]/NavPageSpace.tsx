@@ -107,8 +107,28 @@ export default function NavPageSpace({
     };
   }, [serverSpaceData, localNavigation, spaceLocalSpaces, navSlug, providedTabName, adminIdentityPublicKeys]);
 
+  // Add isEditable and spacePageUrl logic on the client side
+  // IMPORTANT: This hook must be called before any early returns to satisfy Rules of Hooks
+  const spaceDataWithClientSideLogic = useMemo(() => {
+    if (!spaceData) {
+      return null;
+    }
+    return {
+      ...spaceData,
+      spacePageUrl: (tabName: string) => `/${spaceData.navSlug}/${encodeURIComponent(tabName)}`,
+      // NavPage editability is based on admin keys, not FID
+      // We ignore the currentUserFid parameter since we use identity keys instead
+      isEditable: (_currentUserFid: number | undefined) => 
+        isNavPageSpaceEditable(
+          spaceData.adminIdentityPublicKeys,
+          currentUserIdentityPublicKey
+        ),
+    };
+  }, [spaceData, currentUserIdentityPublicKey]);
+
   // If we still don't have space data, show 404
-  if (!spaceData) {
+  // This check must come AFTER all hooks are called
+  if (!spaceDataWithClientSideLogic) {
     // In client components, we can't use notFound() directly
     // Return a simple error state instead
     return (
@@ -121,20 +141,7 @@ export default function NavPageSpace({
     );
   }
 
-  // Add isEditable and spacePageUrl logic on the client side
-  const spaceDataWithClientSideLogic = useMemo(() => ({
-    ...spaceData,
-    spacePageUrl: (tabName: string) => `/${spaceData.navSlug}/${encodeURIComponent(tabName)}`,
-    // NavPage editability is based on admin keys, not FID
-    // We ignore the currentUserFid parameter since we use identity keys instead
-    isEditable: (_currentUserFid: number | undefined) => 
-      isNavPageSpaceEditable(
-        spaceData.adminIdentityPublicKeys,
-        currentUserIdentityPublicKey
-      ),
-  }), [spaceData, currentUserIdentityPublicKey]);
-
-  const finalTabName = providedTabName || spaceData.defaultTab;
+  const finalTabName = providedTabName || spaceDataWithClientSideLogic.defaultTab;
 
   return (
     <PublicSpace

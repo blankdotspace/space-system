@@ -47,6 +47,7 @@ async function updateNavigationConfig(
   req: NextApiRequest,
   res: NextApiResponse<UpdateNavigationConfigResponse>,
 ) {
+  console.log('[API] Received navigation config update request');
   const updateRequest = req.body;
 
   if (!isUpdateNavigationConfigRequest(updateRequest)) {
@@ -68,6 +69,7 @@ async function updateNavigationConfig(
   }
 
   if (!validateSignable(updateRequest)) {
+    console.error('[API] Invalid signature for navigation config update');
     res.status(400).json({
       result: "error",
       error: {
@@ -78,11 +80,21 @@ async function updateNavigationConfig(
   }
   
   // Debug: log what we received
-  console.log("Received navigation items:", updateRequest.navigationConfig.items?.map((item: NavigationItem) => ({ id: item.id, label: item.label, href: item.href })));
+  console.log('[API] Received navigation items:', {
+    communityId: updateRequest.communityId,
+    itemCount: updateRequest.navigationConfig.items?.length || 0,
+    items: updateRequest.navigationConfig.items?.map((item: NavigationItem) => ({
+      id: item.id,
+      label: item.label,
+      href: item.href,
+      spaceId: item.spaceId
+    }))
+  });
 
   const supabase = createSupabaseServerClient();
 
   // Check if the identity is an admin for this community and get current config
+  console.log('[API] Fetching community config for:', updateRequest.communityId);
   const { data: config, error: fetchError } = await supabase
     .from("community_configs")
     .select("admin_identity_public_keys, navigation_config")
@@ -91,6 +103,10 @@ async function updateNavigationConfig(
     .single();
 
   if (fetchError || !config) {
+    console.error('[API] Community config not found:', {
+      communityId: updateRequest.communityId,
+      error: fetchError?.message
+    });
     res.status(404).json({
       result: "error",
       error: {
@@ -99,6 +115,15 @@ async function updateNavigationConfig(
     });
     return;
   }
+  
+  const oldNavConfig = (config.navigation_config as unknown as NavigationConfig) || {};
+  console.log('[API] Community config found:', {
+    communityId: updateRequest.communityId,
+    adminKeyCount: config.admin_identity_public_keys?.length || 0,
+    currentItemCount: oldNavConfig?.items?.length || 0
+  });
+  
+  // oldNavConfig is now available for use below
 
   const adminKeys = config.admin_identity_public_keys || [];
   if (!isArray(adminKeys) || !adminKeys.includes(updateRequest.publicKey)) {
@@ -164,7 +189,7 @@ async function updateNavigationConfig(
   }
 
   // Clean up spaces for deleted navigation items
-  const oldNavConfig = config.navigation_config as NavigationConfig | null;
+  // oldNavConfig already defined above
   const oldItems = oldNavConfig?.items || [];
   const newItems = updateRequest.navigationConfig.items || [];
   
@@ -230,12 +255,24 @@ async function updateNavigationConfig(
     ...updateRequest.navigationConfig, // This includes items and any other fields if explicitly provided
   };
 
+  console.log('[API] Merged navigation config:', {
+    oldItemCount: oldNavConfig?.items?.length || 0,
+    newItemCount: updateRequest.navigationConfig.items?.length || 0,
+    mergedItemCount: mergedNavigationConfig.items?.length || 0,
+    preservedFields: {
+      logoTooltip: mergedNavigationConfig.logoTooltip,
+      showMusicPlayer: mergedNavigationConfig.showMusicPlayer,
+      showSocials: mergedNavigationConfig.showSocials
+    }
+  });
+
   // Convert to Json type by serializing/deserializing to ensure JSON compatibility
   // This provides runtime safety while working around TypeScript's Json type limitations
   const navigationConfigJson: Json = JSON.parse(JSON.stringify(mergedNavigationConfig));
 
   // Update the navigation_config column with merged config
   // Use .select() to verify that a row was actually updated
+  console.log('[API] Updating navigation config in database');
   const { data: updatedRows, error: updateError } = await supabase
     .from("community_configs")
     .update({
@@ -248,7 +285,12 @@ async function updateNavigationConfig(
 
   // Check for database errors
   if (updateError) {
-    console.error("Error updating navigation config:", updateError);
+    console.error('[API] Error updating navigation config:', {
+      error: updateError.message,
+      code: updateError.code,
+      details: updateError.details,
+      hint: updateError.hint
+    });
     res.status(500).json({
       result: "error",
       error: {
@@ -264,10 +306,10 @@ async function updateNavigationConfig(
   // - The community config exists but is_published is false (unpublished)
   // - Race condition: row was deleted/unpublished between our fetch and update
   if (!updatedRows || updatedRows.length === 0) {
-    console.error(
-      `Navigation config update failed: No rows updated for community ${updateRequest.communityId}. ` +
-      `This may indicate the config doesn't exist or is not published.`
-    );
+    console.error('[API] Navigation config update failed: No rows updated:', {
+      communityId: updateRequest.communityId,
+      updatedRowsCount: updatedRows?.length || 0
+    });
     res.status(409).json({
       result: "error",
       error: {
@@ -277,6 +319,12 @@ async function updateNavigationConfig(
     });
     return;
   }
+  
+  console.log('[API] Navigation config updated successfully:', {
+    communityId: updateRequest.communityId,
+    updatedRowsCount: updatedRows.length,
+    finalItemCount: mergedNavigationConfig.items?.length || 0
+  });
 
   res.status(200).json({
     result: "success",

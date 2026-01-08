@@ -109,19 +109,35 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
   const handleRename = React.useCallback(
     (itemId: string, oldLabel: string, newLabel: string) => {
       if (oldLabel !== newLabel) {
+        console.log('[NavigationEditor] Renaming navigation item:', {
+          itemId,
+          oldLabel,
+          newLabel,
+          currentPathname: pathname
+        });
         try {
           const item = localNavigation.find((i) => i.id === itemId);
-          if (!item) return;
+          if (!item) {
+            console.warn('[NavigationEditor] Rename failed: item not found', itemId);
+            return;
+          }
 
           const oldHref = item.href;
 
           // Perform the rename - store handles validation, uniqueness, and updates href
           // Returns the new href so we can update the URL immediately
           const newHref = onRename(itemId, { label: newLabel });
+          console.log('[NavigationEditor] Rename successful:', {
+            itemId,
+            oldHref,
+            newHref,
+            willUpdateURL: newHref && pathname === oldHref && newHref !== oldHref
+          });
 
           // Immediately update the URL if we're currently on this item's page
           // This matches the tab rename pattern (see TabBar.tsx switchTabTo)
           if (newHref && pathname === oldHref && newHref !== oldHref) {
+            console.log('[NavigationEditor] Updating URL from', oldHref, 'to', newHref);
             window.history.replaceState(null, "", newHref);
           }
 
@@ -130,6 +146,12 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
           const errorMessage = error instanceof Error 
             ? error.message 
             : "Failed to update navigation item";
+          console.error('[NavigationEditor] Rename failed:', {
+            itemId,
+            oldLabel,
+            newLabel,
+            error: errorMessage
+          });
           toast.error(errorMessage);
           
           // Re-throw for error boundaries
@@ -216,6 +238,11 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        console.log('[NavigationEditor] Deleting navigation item:', {
+                          itemId: item.id,
+                          label: item.label,
+                          href: item.href
+                        });
                         onDelete(item.id);
                         toast.success("Navigation item deleted");
                       }}
@@ -223,6 +250,11 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
                           e.stopPropagation();
+                          console.log('[NavigationEditor] Deleting navigation item (keyboard):', {
+                            itemId: item.id,
+                            label: item.label,
+                            href: item.href
+                          });
                           onDelete(item.id);
                           toast.success("Navigation item deleted");
                         }
