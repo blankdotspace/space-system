@@ -5,6 +5,7 @@ import { WEBSITE_URL } from "@/constants/app";
 type MetadataContext = {
   baseUrl: string;
   brandName: string;
+  twitterHandle?: string;
 };
 
 export type CastMetadata = {
@@ -26,6 +27,7 @@ export const getCastMetadataStructure = (
 
   const { hash, username, displayName, pfpUrl, text, embedImageUrl } = cast;
   const baseUrl = context?.baseUrl ?? WEBSITE_URL;
+  const twitterHandle = normalizeTwitterHandle(context?.twitterHandle);
 
   const title = displayName
     ? `${displayName}'s Cast`
@@ -65,9 +67,9 @@ export const getCastMetadataStructure = (
     },
     twitter: {
       title,
-      site: baseUrl,
       images: [ogImage],
       card: "summary_large_image",
+      ...(twitterHandle ? { site: twitterHandle } : {}),
     },
   };
 
@@ -80,4 +82,22 @@ export const getCastMetadataStructure = (
   }
 
   return metadata;
+};
+
+const normalizeTwitterHandle = (handle?: string): string | undefined => {
+  if (!handle) {
+    return undefined;
+  }
+  const trimmed = handle.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const withoutAt = trimmed.startsWith("@") ? trimmed.slice(1) : trimmed;
+  const cleaned = withoutAt.replace(/^https?:\/\//i, "");
+  const parts = cleaned.split("/");
+  const lastPart = parts[parts.length - 1]?.replace(/^@/, "");
+  if (!lastPart) {
+    return undefined;
+  }
+  return `@${lastPart}`;
 };
