@@ -25,6 +25,7 @@ export async function generateMetadata({
   const systemConfig = await loadSystemConfig();
   const baseUrl = await resolveBaseUrl({ systemConfig });
   const brandName = systemConfig.brand.displayName;
+  const twitterHandle = systemConfig.community.social?.x;
   const splashImageUrl =
     resolveAssetUrl(systemConfig.assets.logos.splash, baseUrl) ??
     systemConfig.assets.logos.splash;
@@ -40,7 +41,7 @@ export async function generateMetadata({
     const defaultFrame = await getDefaultFrame({ systemConfig, baseUrl });
     const baseMetadata = getUserMetadataStructure(
       { username: normalizedHandle },
-      { baseUrl, brandName },
+      { baseUrl, brandName, twitterHandle },
     );
     return {
       ...baseMetadata,
@@ -84,7 +85,10 @@ export async function generateMetadata({
     }
   };
 
-  const baseMetadata = getUserMetadataStructure(userMetadata, { baseUrl, brandName });
+  const baseMetadata = getUserMetadataStructure(
+    userMetadata,
+    { baseUrl, brandName, twitterHandle },
+  );
   
   // Type-safe way to add frame metadata
   const metadataWithFrame = {
