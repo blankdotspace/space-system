@@ -45,7 +45,7 @@ export interface ProfileSpacePageData extends SpacePageData {
 
 export interface TokenSpacePageData extends SpacePageData {
   spaceType: typeof SPACE_TYPES.TOKEN;
-  defaultTab: 'Token';
+  defaultTab: string;
   contractAddress: string;
   network: string;
   spaceOwnerAddress: Address;
@@ -110,4 +110,3 @@ export function isChannelSpace(space: SpacePageData): space is ChannelSpacePageD
 export function isNavPageSpace(space: SpacePageData): space is NavPageSpacePageData {
   return space.spaceType === SPACE_TYPES.NAV_PAGE;
 }
-
