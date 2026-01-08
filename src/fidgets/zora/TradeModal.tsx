@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { BsCoin } from "react-icons/bs";
 import { parseEther, formatEther } from "viem";
 import { useAccount, useWalletClient, usePublicClient } from "wagmi";
+import Modal from "@/common/components/molecules/Modal";
 
 interface TradeModalProps {
   isOpen: boolean;
@@ -33,8 +34,6 @@ export const TradeModal: React.FC<TradeModalProps> = ({ isOpen, onClose, coinDat
   const { address } = useAccount();
   const { data: walletClient } = useWalletClient();
   const publicClient = usePublicClient();
-
-  if (!isOpen) return null;
 
   const coinImage = coinData.mediaContent?.previewImage?.medium || 
                     coinData.mediaContent?.previewImage?.small;
@@ -164,102 +163,57 @@ export const TradeModal: React.FC<TradeModalProps> = ({ isOpen, onClose, coinDat
   };
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.7)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 9999,
-      }}
-      onClick={onClose}
+    <Modal
+      open={isOpen}
+      setOpen={(open) => !open && onClose()}
+      title={`Trade ${coinData.symbol}`}
+      showClose={true}
     >
-      <div
-        style={{
-          backgroundColor: "white",
-          borderRadius: "16px",
-          padding: "24px",
-          maxWidth: "450px",
-          width: "90%",
-          maxHeight: "90vh",
-          overflow: "auto",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-          <h2 style={{ margin: 0, fontSize: "24px", fontWeight: "bold" }}>Trade {coinData.symbol}</h2>
-          <button
-            onClick={onClose}
-            style={{
-              background: "none",
-              border: "none",
-              fontSize: "24px",
-              cursor: "pointer",
-              padding: "4px 8px",
-            }}
-          >
-            ✕
-          </button>
-        </div>
-
+      <div className="space-y-6">
         {/* Coin Info */}
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
+        <div className="flex items-center gap-3">
           {coinImage ? (
             <img
               src={coinImage}
               alt={coinData.name}
-              style={{ width: "48px", height: "48px", borderRadius: "50%", objectFit: "cover" }}
+              className="w-12 h-12 rounded-full object-cover"
             />
           ) : (
             <BsCoin size={48} />
           )}
           <div>
-            <div style={{ fontWeight: "600", fontSize: "18px" }}>{coinData.name}</div>
-            <div style={{ color: "#666", fontSize: "14px" }}>${parseFloat(coinData.tokenPrice.priceInUsdc).toFixed(6)}</div>
+            <div className="font-semibold text-lg">{coinData.name}</div>
+            <div className="text-sm text-gray-400">${parseFloat(coinData.tokenPrice.priceInUsdc).toFixed(6)}</div>
           </div>
         </div>
 
         {/* Buy/Sell Toggle */}
-        <div style={{ display: "flex", gap: "8px", marginBottom: "20px" }}>
+        <div className="flex gap-2">
           <button
             onClick={() => setIsBuying(true)}
-            style={{
-              flex: 1,
-              padding: "12px",
-              border: isBuying ? "2px solid black" : "2px solid #e0e0e0",
-              backgroundColor: isBuying ? "#f0f0f0" : "white",
-              borderRadius: "8px",
-              cursor: "pointer",
-              fontWeight: isBuying ? "600" : "normal",
-            }}
+            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
+              isBuying 
+                ? "bg-gray-100 border-2 border-black text-black" 
+                : "bg-transparent border-2 border-gray-300 text-gray-600"
+            }`}
           >
             Buy
           </button>
           <button
             onClick={() => setIsBuying(false)}
-            style={{
-              flex: 1,
-              padding: "12px",
-              border: !isBuying ? "2px solid black" : "2px solid #e0e0e0",
-              backgroundColor: !isBuying ? "#f0f0f0" : "white",
-              borderRadius: "8px",
-              cursor: "pointer",
-              fontWeight: !isBuying ? "600" : "normal",
-            }}
+            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
+              !isBuying 
+                ? "bg-gray-100 border-2 border-black text-black" 
+                : "bg-transparent border-2 border-gray-300 text-gray-600"
+            }`}
           >
             Sell
           </button>
         </div>
 
         {/* Amount Input */}
-        <div style={{ marginBottom: "20px" }}>
-          <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>
+        <div>
+          <label className="block mb-2 font-medium">
             {isBuying ? "Amount (ETH)" : `Amount (${coinData.symbol})`}
           </label>
           <input
@@ -268,31 +222,24 @@ export const TradeModal: React.FC<TradeModalProps> = ({ isOpen, onClose, coinDat
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0.00"
             step={isBuying ? "0.001" : "1"}
-            style={{
-              width: "100%",
-              padding: "12px",
-              border: "2px solid #e0e0e0",
-              borderRadius: "8px",
-              fontSize: "16px",
-              boxSizing: "border-box",
-            }}
+            className="w-full p-3 border-2 border-gray-200 rounded-lg text-base focus:outline-none focus:border-gray-400"
           />
           {amount && (
-            <div style={{ marginTop: "8px", fontSize: "14px", color: "#666" }}>
+            <div className="mt-2 text-sm text-gray-400">
               {displayConversion}
             </div>
           )}
         </div>
 
         {/* Trade Stats */}
-        <div style={{ backgroundColor: "#f9f9f9", padding: "16px", borderRadius: "8px", marginBottom: "20px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-            <span style={{ color: "#666" }}>Market Cap</span>
-            <span style={{ fontWeight: "500" }}>${parseFloat(coinData.marketCap).toLocaleString()}</span>
+        <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+          <div className="flex justify-between">
+            <span className="text-gray-600">Market Cap</span>
+            <span className="font-medium">${parseFloat(coinData.marketCap).toLocaleString()}</span>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ color: "#666" }}>Price per coin</span>
-            <span style={{ fontWeight: "500" }}>${parseFloat(coinData.tokenPrice.priceInUsdc).toFixed(6)}</span>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Price per coin</span>
+            <span className="font-medium">${parseFloat(coinData.tokenPrice.priceInUsdc).toFixed(6)}</span>
           </div>
         </div>
 
@@ -300,21 +247,15 @@ export const TradeModal: React.FC<TradeModalProps> = ({ isOpen, onClose, coinDat
         <button
           onClick={handleTrade}
           disabled={!amount || parseFloat(amount) <= 0 || isLoading || !address}
-          style={{
-            width: "100%",
-            padding: "16px",
-            backgroundColor: (!amount || parseFloat(amount) <= 0 || isLoading || !address) ? "#ccc" : "black",
-            color: "white",
-            border: "none",
-            borderRadius: "8px",
-            fontSize: "16px",
-            fontWeight: "600",
-            cursor: (!amount || parseFloat(amount) <= 0 || isLoading || !address) ? "not-allowed" : "pointer",
-          }}
+          className={`w-full py-4 rounded-lg text-base font-semibold text-white transition-colors ${
+            (!amount || parseFloat(amount) <= 0 || isLoading || !address)
+              ? "bg-gray-300 cursor-not-allowed" 
+              : "bg-black hover:bg-gray-800"
+          }`}
         >
           {isLoading ? "Processing..." : !address ? "Connect Wallet" : `${isBuying ? "Buy" : "Sell"} ${coinData.symbol}`}
         </button>
       </div>
-    </div>
+    </Modal>
   );
 };
