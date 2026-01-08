@@ -14,6 +14,7 @@ import { CloseIcon } from "@/common/components/atoms/icons/CloseIcon";
 import {
   validateNavItemLabel,
 } from "@/common/utils/navUtils";
+import { NAVIGATION_MAX_LABEL_LENGTH } from "./constants";
 import { NavigationItem as NavItemComponent, NavigationButton } from "./NavigationItem";
 import NotificationsIcon from "@/common/components/atoms/icons/NotificationsIcon";
 import SearchIcon from "@/common/components/atoms/icons/SearchIcon";
@@ -46,6 +47,12 @@ interface NavigationEditorProps {
   onLogin: () => void;
 }
 
+/**
+ * Navigation editor component implementation
+ * 
+ * Provides drag-and-drop reordering, inline editing, and item management.
+ * See NavigationEditor (memoized export) for component documentation.
+ */
 const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
   items,
   isShrunk,
@@ -75,22 +82,56 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
     [items]
   );
 
-  // Track pending renames to update URL after store updates
-  const pendingRenameRef = useRef<{ itemId: string; oldHref: string } | null>(null);
-
-  // Watch for href changes after rename and update URL
+  /**
+   * Updates URL when the currently viewed navigation item's href changes
+   * 
+   * This effect watches for changes in localNavigation and updates the browser URL
+   * if the current pathname matches an item that has been renamed. This ensures
+   * the URL stays in sync with navigation item changes without requiring a page reload.
+   * 
+   * Uses a ref to track the previous pathname to avoid unnecessary updates and
+   * prevent race conditions where the effect might run before the store has fully updated.
+   */
+  const previousPathnameRef = useRef<string | null>(pathname);
+  
   useEffect(() => {
-    if (pendingRenameRef.current && pathname !== null) {
-      const { itemId, oldHref } = pendingRenameRef.current;
-      const updatedItem = localNavigation.find((i) => i.id === itemId);
-      
-      if (updatedItem && updatedItem.href !== oldHref && pathname === oldHref) {
-        window.history.replaceState(null, "", updatedItem.href);
-        pendingRenameRef.current = null;
-      }
+    if (pathname === null) return;
+
+    // Find the navigation item that matches the current pathname
+    const currentItem = localNavigation.find((item) => item.href === pathname);
+    
+    // If we found a matching item and the pathname hasn't changed externally,
+    // we're good (no update needed)
+    if (currentItem && pathname === previousPathnameRef.current) {
+      previousPathnameRef.current = pathname;
+      return;
+    }
+
+    // Check if any item's href matches the previous pathname (item was renamed)
+    const renamedItem = localNavigation.find(
+      (item) => item.href !== pathname && previousPathnameRef.current && item.href === previousPathnameRef.current
+    );
+
+    // If we're on a page that was renamed, update the URL
+    if (renamedItem && previousPathnameRef.current === pathname) {
+      window.history.replaceState(null, "", renamedItem.href);
+      previousPathnameRef.current = renamedItem.href;
+    } else {
+      previousPathnameRef.current = pathname;
     }
   }, [localNavigation, pathname]);
 
+  /**
+   * Handles renaming a navigation item
+   * 
+   * Validates the new label, updates the item in the store (which handles
+   * href regeneration), and shows success/error feedback. The URL update
+   * is handled by the useEffect that watches localNavigation changes.
+   * 
+   * @param itemId - ID of the item to rename
+   * @param oldLabel - Current label
+   * @param newLabel - New label to apply
+   */
   const handleRename = React.useCallback(
     (itemId: string, oldLabel: string, newLabel: string) => {
       if (oldLabel !== newLabel) {
@@ -98,16 +139,21 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
           const item = localNavigation.find((i) => i.id === itemId);
           if (!item) return;
 
-          // Store old href for URL update after rename
-          pendingRenameRef.current = { itemId, oldHref: item.href };
-
           // Perform the rename - store handles all logic (validation, uniqueness, href generation)
+          // URL update is handled by the useEffect that watches localNavigation changes
           onRename(itemId, { label: newLabel });
 
           toast.success("Navigation item updated");
-        } catch (error: any) {
-          pendingRenameRef.current = null;
-          toast.error(error.message || "Failed to update navigation item");
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error 
+            ? error.message 
+            : "Failed to update navigation item";
+          toast.error(errorMessage);
+          
+          // Re-throw for error boundaries
+          if (error instanceof Error) {
+            throw error;
+          }
         }
       }
     },
@@ -139,27 +185,35 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
                   whileDrag={{ backgroundColor: "#e3e3e3" }}
                   dragListener={true}
                 >
-                  <Link
-                    href={item.href}
-                    className={mergeClasses(
-                      "flex relative items-center p-2 rounded-lg w-full group",
-                      isSelected ? "bg-gray-100" : "hover:bg-gray-100",
-                      "cursor-grab active:cursor-grabbing",
-                      isShrunk ? "justify-center" : ""
-                    )}
-                    onClick={(e) => {
-                      // Prevent navigation only if clicking on delete button or input field
-                      const target = e.target as HTMLElement;
-                      if (
-                        target.closest('button[aria-label="Delete item"]') ||
-                        target.tagName === "INPUT"
-                      ) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                      }
-                    }}
-                    draggable={false}
-                  >
+                <Link
+                  href={item.href}
+                  className={mergeClasses(
+                    "flex relative items-center p-2 rounded-lg w-full group",
+                    isSelected ? "bg-gray-100" : "hover:bg-gray-100",
+                    "cursor-grab active:cursor-grabbing",
+                    isShrunk ? "justify-center" : ""
+                  )}
+                  onClick={(e) => {
+                    // Prevent navigation only if clicking on delete button or input field
+                    const target = e.target as HTMLElement;
+                    if (
+                      target.closest('button[aria-label*="Delete"]') ||
+                      target.tagName === "INPUT"
+                    ) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    // Allow keyboard navigation but prevent during drag
+                    if (e.key === "Enter" && !e.currentTarget.closest('[data-dragging="true"]')) {
+                      // Navigation handled by Link component
+                    }
+                  }}
+                  draggable={false}
+                  aria-label={isShrunk ? item.label : undefined}
+                  aria-current={isSelected ? "page" : undefined}
+                >
                     <div className="flex-shrink-0">
                       <IconComp />
                     </div>
@@ -171,24 +225,33 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
                             handleRename(item.id, oldLabel, newLabel)
                           }
                           validateInput={validateNavItemLabel}
-                          maxLength={50}
+                          maxLength={NAVIGATION_MAX_LABEL_LENGTH}
                         />
                       </div>
                     )}
-                    {!isShrunk && (
-                      <button
-                        onClick={(e) => {
+                  {!isShrunk && (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onDelete(item.id);
+                        toast.success("Navigation item deleted");
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
                           e.stopPropagation();
                           onDelete(item.id);
                           toast.success("Navigation item deleted");
-                        }}
-                        className="p-1 hover:bg-red-100 rounded opacity-0 group-hover:opacity-100 transition-opacity ml-auto"
-                        aria-label="Delete item"
-                      >
-                        <CloseIcon />
-                      </button>
-                    )}
+                        }
+                      }}
+                      className="p-1 hover:bg-red-100 rounded opacity-0 group-hover:opacity-100 transition-opacity ml-auto"
+                      aria-label={`Delete ${item.label}`}
+                      title={`Delete ${item.label}`}
+                    >
+                      <CloseIcon aria-hidden="true" />
+                    </button>
+                  )}
                   </Link>
                 </Reorder.Item>
               );
@@ -199,12 +262,19 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
         {/* Add new item button */}
         <button
           onClick={onCreate}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onCreate();
+            }
+          }}
           className={mergeClasses(
             "flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 w-full text-gray-600",
             isShrunk ? "justify-center" : "text-left"
           )}
+          aria-label="Add navigation item"
         >
-          <FaPlus size={14} />
+          <FaPlus size={14} aria-hidden="true" />
           {!isShrunk && <span className="text-sm">Add Navigation Item</span>}
         </button>
 

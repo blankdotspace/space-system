@@ -463,7 +463,7 @@ RootLayout (Server Component)
 
 - `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anon key (for runtime loading)
-- `SUPABASE_SERVICE_ROLE_KEY` - Service role key (for seeding/admin operations)
+- `SUPABASE_SERVICE_KEY` - Service role key (for seeding/admin operations)
 
 ### Optional
 
