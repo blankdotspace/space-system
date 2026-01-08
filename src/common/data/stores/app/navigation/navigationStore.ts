@@ -75,6 +75,10 @@ export const createNavigationStoreFunc = (
   loadNavigation: (navigationConfig) => {
     // Filter out notifications - it's hardcoded and not managed as a config item
     const items = (navigationConfig?.items || []).filter(item => item.id !== 'notifications');
+    console.log('[navigationStore] Loading navigation:', {
+      itemCount: items.length,
+      items: items.map(i => ({ id: i.id, label: i.label, href: i.href, spaceId: i.spaceId }))
+    });
     set((draft) => {
       draft.navigation.remoteNavigation = cloneDeep(items);
       draft.navigation.localNavigation = cloneDeep(items);
@@ -82,11 +86,17 @@ export const createNavigationStoreFunc = (
   },
   
   createNavigationItem: async (itemData) => {
+    console.log('[navigationStore] Creating navigation item:', {
+      label: itemData.label,
+      href: itemData.href,
+      icon: itemData.icon
+    });
     const state = get().navigation;
     
     // Validate label
     const labelError = validateNavItemLabel(itemData.label);
     if (labelError) {
+      console.error('[navigationStore] Label validation failed:', labelError);
       throw new Error(labelError);
     }
     
@@ -162,25 +172,48 @@ export const createNavigationStoreFunc = (
       draft.navigation.localNavigation.push(cloneDeep(newItem));
     }, "createNavigationItem");
     
+    console.log('[navigationStore] Navigation item created:', {
+      id: newItem.id,
+      label: newItem.label,
+      href: newItem.href,
+      spaceId: newItem.spaceId,
+      totalItems: get().navigation.localNavigation.length
+    });
+    
     return newItem;
   },
   
   deleteNavigationItem: (itemId) => {
+    const item = get().navigation.localNavigation.find(i => i.id === itemId);
+    console.log('[navigationStore] Deleting navigation item:', {
+      itemId,
+      label: item?.label,
+      href: item?.href
+    });
     set((draft) => {
       // Remove from local navigation
       draft.navigation.localNavigation = draft.navigation.localNavigation.filter(
         (item) => item.id !== itemId
       );
     }, "deleteNavigationItem");
+    console.log('[navigationStore] Navigation item deleted, remaining items:', get().navigation.localNavigation.length);
   },
   
   renameNavigationItem: (itemId, updates) => {
+    console.log('[navigationStore] Renaming navigation item:', {
+      itemId,
+      updates,
+      currentItem: get().navigation.localNavigation.find(i => i.id === itemId)
+    });
     const state = get().navigation;
     const itemIndex = state.localNavigation.findIndex(
       (item) => item.id === itemId
     );
     
-    if (itemIndex === -1) return;
+    if (itemIndex === -1) {
+      console.warn('[navigationStore] Rename failed: item not found', itemId);
+      return;
+    }
     
     const currentItem = state.localNavigation[itemIndex];
     let newLabel = updates.label ?? currentItem.label;
@@ -241,20 +274,39 @@ export const createNavigationStoreFunc = (
       }
     }, "renameNavigationItem");
     
+    console.log('[navigationStore] Navigation item renamed:', {
+      itemId,
+      oldLabel: currentItem.label,
+      newLabel,
+      oldHref: currentItem.href,
+      newHref
+    });
+    
     // Return the new href so callers can update the URL immediately
     return newHref;
   },
   
   updateNavigationOrder: (newOrder) => {
+    console.log('[navigationStore] Updating navigation order:', {
+      itemCount: newOrder.length,
+      order: newOrder.map(i => ({ id: i.id, label: i.label }))
+    });
     set((draft) => {
       draft.navigation.localNavigation = cloneDeep(newOrder);
     }, "updateNavigationOrder");
   },
   
   resetNavigationChanges: () => {
+    const state = get().navigation;
+    console.log('[navigationStore] Resetting navigation changes:', {
+      remoteItemCount: state.remoteNavigation.length,
+      localItemCount: state.localNavigation.length,
+      remoteItems: state.remoteNavigation.map(i => ({ id: i.id, label: i.label, href: i.href }))
+    });
     set((draft) => {
       draft.navigation.localNavigation = cloneDeep(draft.navigation.remoteNavigation);
     }, "resetNavigationChanges");
+    console.log('[navigationStore] Navigation changes reset, localNavigation now matches remoteNavigation');
   },
   
   hasUncommittedChanges: () => {
@@ -277,10 +329,18 @@ export const createNavigationStoreFunc = (
   },
   
   commitNavigationChanges: async (communityId: string, existingNavigationConfig?: NavigationConfig | null) => {
+    console.log('[navigationStore] Starting commitNavigationChanges:', {
+      communityId,
+      remoteItemCount: get().navigation.remoteNavigation.length,
+      localItemCount: get().navigation.localNavigation.length,
+      hasExistingConfig: !!existingNavigationConfig
+    });
+    
     const state = get().navigation;
     const publicKey = get().account.currentSpaceIdentityPublicKey;
     
     if (!publicKey) {
+      console.error('[navigationStore] Commit failed: no identity public key');
       throw new Error("No identity public key available");
     }
     
@@ -291,6 +351,11 @@ export const createNavigationStoreFunc = (
       // Derive added items by comparing localNavigation with remoteNavigation
       const remoteItemIds = new Set(state.remoteNavigation.map(item => item.id));
       const addedItems = state.localNavigation.filter(item => !remoteItemIds.has(item.id));
+      
+      console.log('[navigationStore] Identified new items requiring spaces:', {
+        addedItemCount: addedItems.length,
+        addedItems: addedItems.map(i => ({ id: i.id, label: i.label, href: i.href, spaceId: i.spaceId }))
+      });
       
       // Derive spaceName from the nav item's label or href
       const spacesToCreate = addedItems
@@ -313,7 +378,21 @@ export const createNavigationStoreFunc = (
         throw new Error("No current identity available");
       }
       
+      // Track successful registrations to update spaceIds
+      const successfulRegistrations: Array<{ itemId: string; spaceId: string; actualSpaceId: string }> = [];
+      
+      console.log('[navigationStore] Registering spaces for new nav items:', {
+        spaceCount: spacesToCreate.length,
+        spaces: spacesToCreate.map(s => ({ itemId: s.itemId, spaceId: s.spaceId, spaceName: s.spaceName }))
+      });
+      
       for (const space of spacesToCreate) {
+        console.log('[navigationStore] Registering space:', {
+          itemId: space.itemId,
+          spaceId: space.spaceId,
+          spaceName: space.spaceName
+        });
+        
         // Register space in database with the client-generated spaceId
         const unsignedRegistration: SpaceRegistrationNavPage = {
           spaceId: space.spaceId,
@@ -329,50 +408,87 @@ export const createNavigationStoreFunc = (
           currentIdentity.rootKeys.privateKey
         );
         
-        // TODO: For local testing, skip space registration if API fails
         try {
+          console.log('[navigationStore] Sending space registration request for item:', space.itemId);
           const { data: registrationResponse } = await axiosBackend.post<RegisterNewSpaceResponse>("/api/space/registry", signedRegistration);
           
           if (registrationResponse.result !== "success" || !registrationResponse.value?.spaceId) {
-            throw new Error(`Failed to register space for nav item ${space.itemId}`);
+            throw new Error(`Failed to register space for nav item ${space.itemId}: API returned failure`);
           }
           
           const actualSpaceId = registrationResponse.value!.spaceId;
           
+          console.log('[navigationStore] Space registration successful:', {
+            itemId: space.itemId,
+            expectedSpaceId: space.spaceId,
+            actualSpaceId,
+            matches: actualSpaceId === space.spaceId
+          });
+          
           // Verify that the API returned the same spaceId we sent
           if (actualSpaceId !== space.spaceId) {
-            console.warn(`Space registration returned different spaceId: expected ${space.spaceId}, got ${actualSpaceId}`);
+            console.warn(`[navigationStore] Space registration returned different spaceId: expected ${space.spaceId}, got ${actualSpaceId}`);
           }
-          
-          // Update the navigation item and space store with the spaceId (should match what we sent)
-          set((draft) => {
-            const itemIndex = draft.navigation.localNavigation.findIndex(
-              (item) => item.id === space.itemId
-            );
-            if (itemIndex !== -1) {
-              draft.navigation.localNavigation[itemIndex].spaceId = actualSpaceId;
-            }
-            // Ensure the spaceId is set correctly in localSpaces
-            if (draft.space.localSpaces[space.spaceId]) {
-              if (space.spaceId !== actualSpaceId) {
-                // Move the localSpaces entry to the actual spaceId (shouldn't happen, but handle it)
-                draft.space.localSpaces[actualSpaceId] = draft.space.localSpaces[space.spaceId];
-                draft.space.localSpaces[actualSpaceId].id = actualSpaceId;
-                delete draft.space.localSpaces[space.spaceId];
-              } else {
-                // Ensure the spaceId is set correctly
-                draft.space.localSpaces[actualSpaceId].id = actualSpaceId;
-              }
-            }
-          }, "commitNavigationChanges-updateSpaceId");
           
           // Use spaceStore's commitAllSpaceChanges to commit the tab order and sync state
           // This handles tab commits, deletions, and order updates, and syncs remoteSpaces
+          console.log('[navigationStore] Committing space changes for spaceId:', actualSpaceId);
           await get().space.commitAllSpaceChanges(actualSpaceId);
+          console.log('[navigationStore] Space changes committed successfully for spaceId:', actualSpaceId);
+          
+          // Only track successful registration after both registration AND commit succeed
+          // This ensures we only update state if the entire space setup is successful
+          successfulRegistrations.push({
+            itemId: space.itemId,
+            spaceId: space.spaceId,
+            actualSpaceId,
+          });
+          console.log('[navigationStore] Space registration and commit completed for item:', space.itemId);
         } catch (spaceError: any) {
-          // For local testing, continue even if space registration fails
-          console.warn(`Space registration failed for nav item ${space.itemId} - continuing with local spaceId:`, spaceError);
+          // Fail the entire commit if space registration fails
+          // This prevents navigation items from pointing to non-existent spaces
+          const errorMessage = spaceError?.response?.data?.error?.message 
+            || spaceError?.message 
+            || `Unknown error registering space for nav item ${space.itemId}`;
+          
+          console.error(`Space registration failed for nav item ${space.itemId}:`, spaceError);
+          
+          throw new Error(
+            `Failed to register space for navigation item "${space.itemId}": ${errorMessage}. ` +
+            `Navigation commit aborted to maintain data consistency.`
+          );
         }
+      }
+      
+      // Update navigation items with actual spaceIds after all registrations succeeded
+      console.log('[navigationStore] Updating navigation items with actual spaceIds:', {
+        successfulRegistrations: successfulRegistrations.length
+      });
+      for (const registration of successfulRegistrations) {
+        set((draft) => {
+          const itemIndex = draft.navigation.localNavigation.findIndex(
+            (item) => item.id === registration.itemId
+          );
+          if (itemIndex !== -1) {
+            draft.navigation.localNavigation[itemIndex].spaceId = registration.actualSpaceId;
+          }
+          // Ensure the spaceId is set correctly in localSpaces
+          if (draft.space.localSpaces[registration.spaceId]) {
+            if (registration.spaceId !== registration.actualSpaceId) {
+              // Move the localSpaces entry to the actual spaceId (shouldn't happen, but handle it)
+              console.log('[navigationStore] Moving localSpace entry:', {
+                from: registration.spaceId,
+                to: registration.actualSpaceId
+              });
+              draft.space.localSpaces[registration.actualSpaceId] = draft.space.localSpaces[registration.spaceId];
+              draft.space.localSpaces[registration.actualSpaceId].id = registration.actualSpaceId;
+              delete draft.space.localSpaces[registration.spaceId];
+            } else {
+              // Ensure the spaceId is set correctly
+              draft.space.localSpaces[registration.actualSpaceId].id = registration.actualSpaceId;
+            }
+          }
+        }, "commitNavigationChanges-updateSpaceId");
       }
       
       // Step 2: Space cleanup for deleted items is handled server-side in the navigation config API endpoint
@@ -392,8 +508,10 @@ export const createNavigationStoreFunc = (
       };
       
       // Debug: log what we're about to send
-      console.log("Committing navigation config:", {
-        items: itemsToCommit.map(item => ({ id: item.id, label: item.label, href: item.href })),
+      console.log('[navigationStore] Committing navigation config:', {
+        communityId,
+        itemCount: itemsToCommit.length,
+        items: itemsToCommit.map(item => ({ id: item.id, label: item.label, href: item.href, spaceId: item.spaceId })),
         logoTooltip: navigationConfigToCommit.logoTooltip,
         showMusicPlayer: navigationConfigToCommit.showMusicPlayer,
         showSocials: navigationConfigToCommit.showSocials,
@@ -412,7 +530,9 @@ export const createNavigationStoreFunc = (
       );
       
       // Update navigation config in database
+      console.log('[navigationStore] Sending navigation config update request');
       await axiosBackend.put("/api/navigation/config", signedRequest);
+      console.log('[navigationStore] Navigation config update request successful');
       
       // Step 4: Update local state to reflect committed changes
       set((draft) => {
@@ -420,6 +540,12 @@ export const createNavigationStoreFunc = (
         // Also update localNavigation to remove notifications if it exists
         draft.navigation.localNavigation = draft.navigation.localNavigation.filter(item => item.id !== 'notifications');
       }, "commitNavigationChanges");
+      
+      console.log('[navigationStore] Commit completed successfully:', {
+        committedItemCount: itemsToCommit.length,
+        remoteNavigationCount: get().navigation.remoteNavigation.length,
+        localNavigationCount: get().navigation.localNavigation.length
+      });
     } catch (error: any) {
       console.error("Failed to commit navigation changes:", error);
       // Log full error response for debugging
