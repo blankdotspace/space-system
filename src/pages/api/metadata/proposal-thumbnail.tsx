@@ -1,7 +1,6 @@
 import React from "react";
 import { NextApiRequest, NextApiResponse } from "next";
 import { ImageResponse } from "next/og";
-import { resolveMetadataBranding } from "@/common/lib/utils/resolveMetadataBranding";
 import { getOgFonts } from "@/common/lib/utils/ogFonts";
 
 export const config = {
@@ -26,7 +25,6 @@ export default async function GET(
     return res.status(404).send("Url not found");
   }
 
-  const branding = await resolveMetadataBranding(req.headers);
   const params = new URLSearchParams(req.url.split("?")[1]);
   const data: ProposalCardData = {
     id: params.get("id") || "Unknown",
@@ -41,24 +39,19 @@ export default async function GET(
   const fonts = await getOgFonts();
   const fontFamily = fonts ? "Noto Sans, Noto Sans Symbols 2" : "sans-serif";
 
-  return new ImageResponse(
-    <ProposalCard data={data} branding={branding} fontFamily={fontFamily} />,
-    {
+  return new ImageResponse(<ProposalCard data={data} fontFamily={fontFamily} />, {
     width: 1200,
     height: 630,
     ...(fonts ? { fonts } : {}),
     emoji: "twemoji",
-    },
-  );
+  });
 }
 
 const ProposalCard = ({
   data,
-  branding,
   fontFamily,
 }: {
   data: ProposalCardData;
-  branding: Awaited<ReturnType<typeof resolveMetadataBranding>>;
   fontFamily: string;
 }) => {
   // Simple vote formatting
@@ -93,31 +86,6 @@ const ProposalCard = ({
         fontFamily,
       }}
     >
-      <div
-        style={{
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          fontSize: "22px",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          opacity: 0.85,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          {branding.logoUrl ? (
-            <img src={branding.logoUrl} width="36" height="36" />
-          ) : null}
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <span>{branding.brandName}</span>
-            <span style={{ fontSize: "16px", opacity: 0.8, textTransform: "none" }}>
-              {branding.brandDescription}
-            </span>
-          </div>
-        </div>
-        <span>{branding.domain}</span>
-      </div>
       <div
         style={{
           display: "flex",
