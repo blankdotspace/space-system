@@ -45,7 +45,7 @@ interface NavigationStoreActions {
     item: Omit<NavigationItem, "id" | "href"> & { href?: string }
   ) => Promise<NavigationItem>;
   deleteNavigationItem: (itemId: string) => void;
-  renameNavigationItem: (itemId: string, updates: { label?: string; href?: string; icon?: NavigationItem["icon"] }) => void;
+  renameNavigationItem: (itemId: string, updates: { label?: string; href?: string; icon?: NavigationItem["icon"] }) => string | undefined;
   updateNavigationOrder: (newOrder: NavigationItem[]) => void;
   
   // Commit all staged changes to database
@@ -240,6 +240,9 @@ export const createNavigationStoreFunc = (
         draft.navigation.localNavigation[itemIndex].icon = updates.icon;
       }
     }, "renameNavigationItem");
+    
+    // Return the new href so callers can update the URL immediately
+    return newHref;
   },
   
   updateNavigationOrder: (newOrder) => {
