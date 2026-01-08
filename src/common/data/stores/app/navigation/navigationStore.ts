@@ -20,6 +20,7 @@ import {
 
 // Type for navPage space registration (similar to other space registration types)
 interface SpaceRegistrationNavPage {
+  spaceId: string;
   spaceName: string;
   spaceType: typeof SPACE_TYPES.NAV_PAGE;
   identityPublicKey: string;
@@ -28,11 +29,7 @@ interface SpaceRegistrationNavPage {
 }
 
 interface NavigationStoreState {
-  // Remote navigation config from database (SystemConfig)
-  // Stores the full NavigationConfig to preserve fields like logoTooltip, showMusicPlayer, showSocials
-  remoteNavigationConfig: NavigationConfig | null;
-  
-  // Remote navigation items (derived from remoteNavigationConfig for convenience)
+  // Remote navigation items from database (SystemConfig)
   remoteNavigation: NavigationItem[];
   
   // Local (staged) navigation items
@@ -52,7 +49,8 @@ interface NavigationStoreActions {
   updateNavigationOrder: (newOrder: NavigationItem[]) => void;
   
   // Commit all staged changes to database
-  commitNavigationChanges: (communityId: string) => Promise<void>;
+  // Accepts existingNavigationConfig to preserve fields like logoTooltip, showMusicPlayer, showSocials
+  commitNavigationChanges: (communityId: string, existingNavigationConfig?: NavigationConfig | null) => Promise<void>;
   
   // Reset local changes to match remote
   resetNavigationChanges: () => void;
@@ -64,7 +62,6 @@ interface NavigationStoreActions {
 export type NavigationStore = NavigationStoreState & NavigationStoreActions;
 
 export const navigationStoreDefaults: NavigationStoreState = {
-  remoteNavigationConfig: null,
   remoteNavigation: [],
   localNavigation: [],
 };
@@ -78,17 +75,7 @@ export const createNavigationStoreFunc = (
   loadNavigation: (navigationConfig) => {
     // Filter out notifications - it's hardcoded and not managed as a config item
     const items = (navigationConfig?.items || []).filter(item => item.id !== 'notifications');
-    
-    // Store the full config, but with filtered items (without notifications)
-    const configWithoutNotifications: NavigationConfig | null = navigationConfig
-      ? {
-          ...navigationConfig,
-          items: items,
-        }
-      : null;
-    
     set((draft) => {
-      draft.navigation.remoteNavigationConfig = configWithoutNotifications;
       draft.navigation.remoteNavigation = cloneDeep(items);
       draft.navigation.localNavigation = cloneDeep(items);
     }, "loadNavigation");
@@ -286,7 +273,7 @@ export const createNavigationStoreFunc = (
     });
   },
   
-  commitNavigationChanges: async (communityId: string) => {
+  commitNavigationChanges: async (communityId: string, existingNavigationConfig?: NavigationConfig | null) => {
     const state = get().navigation;
     const publicKey = get().account.currentSpaceIdentityPublicKey;
     
@@ -324,8 +311,9 @@ export const createNavigationStoreFunc = (
       }
       
       for (const space of spacesToCreate) {
-        // Register space in database - API generates spaceId
+        // Register space in database with the client-generated spaceId
         const unsignedRegistration: SpaceRegistrationNavPage = {
+          spaceId: space.spaceId,
           spaceName: space.spaceName,
           spaceType: SPACE_TYPES.NAV_PAGE,
           identityPublicKey: publicKey,
@@ -339,7 +327,6 @@ export const createNavigationStoreFunc = (
         );
         
         // TODO: For local testing, skip space registration if API fails
-        let actualSpaceId = space.spaceId;
         try {
           const { data: registrationResponse } = await axiosBackend.post<RegisterNewSpaceResponse>("/api/space/registry", signedRegistration);
           
@@ -347,9 +334,14 @@ export const createNavigationStoreFunc = (
             throw new Error(`Failed to register space for nav item ${space.itemId}`);
           }
           
-          actualSpaceId = registrationResponse.value!.spaceId;
+          const actualSpaceId = registrationResponse.value!.spaceId;
           
-          // Update the navigation item and space store with the actual spaceId from the API
+          // Verify that the API returned the same spaceId we sent
+          if (actualSpaceId !== space.spaceId) {
+            console.warn(`Space registration returned different spaceId: expected ${space.spaceId}, got ${actualSpaceId}`);
+          }
+          
+          // Update the navigation item and space store with the spaceId (should match what we sent)
           set((draft) => {
             const itemIndex = draft.navigation.localNavigation.findIndex(
               (item) => item.id === space.itemId
@@ -357,14 +349,17 @@ export const createNavigationStoreFunc = (
             if (itemIndex !== -1) {
               draft.navigation.localNavigation[itemIndex].spaceId = actualSpaceId;
             }
-            // Move the localSpaces entry to the new spaceId (if spaceId changed)
-            if (space.spaceId !== actualSpaceId && draft.space.localSpaces[space.spaceId]) {
-              draft.space.localSpaces[actualSpaceId] = draft.space.localSpaces[space.spaceId];
-              draft.space.localSpaces[actualSpaceId].id = actualSpaceId;
-              delete draft.space.localSpaces[space.spaceId];
-            } else if (space.spaceId === actualSpaceId) {
-              // Ensure the spaceId is set correctly
-              draft.space.localSpaces[actualSpaceId].id = actualSpaceId;
+            // Ensure the spaceId is set correctly in localSpaces
+            if (draft.space.localSpaces[space.spaceId]) {
+              if (space.spaceId !== actualSpaceId) {
+                // Move the localSpaces entry to the actual spaceId (shouldn't happen, but handle it)
+                draft.space.localSpaces[actualSpaceId] = draft.space.localSpaces[space.spaceId];
+                draft.space.localSpaces[actualSpaceId].id = actualSpaceId;
+                delete draft.space.localSpaces[space.spaceId];
+              } else {
+                // Ensure the spaceId is set correctly
+                draft.space.localSpaces[actualSpaceId].id = actualSpaceId;
+              }
             }
           }, "commitNavigationChanges-updateSpaceId");
           
@@ -386,7 +381,8 @@ export const createNavigationStoreFunc = (
       
       // Build full navigation config by merging updated items with existing config
       // This preserves other fields like logoTooltip, showMusicPlayer, showSocials
-      const baseConfig = state.remoteNavigationConfig || {};
+      // Use existingNavigationConfig if provided, otherwise fall back to empty object
+      const baseConfig = existingNavigationConfig || {};
       const navigationConfigToCommit: NavigationConfig = {
         ...baseConfig,
         items: itemsToCommit,
@@ -416,9 +412,7 @@ export const createNavigationStoreFunc = (
       await axiosBackend.put("/api/navigation/config", signedRequest);
       
       // Step 4: Update local state to reflect committed changes
-      // Update both remoteNavigationConfig (full config) and remoteNavigation (items only)
       set((draft) => {
-        draft.navigation.remoteNavigationConfig = cloneDeep(navigationConfigToCommit);
         draft.navigation.remoteNavigation = cloneDeep(itemsToCommit);
         // Also update localNavigation to remove notifications if it exists
         draft.navigation.localNavigation = draft.navigation.localNavigation.filter(item => item.id !== 'notifications');
