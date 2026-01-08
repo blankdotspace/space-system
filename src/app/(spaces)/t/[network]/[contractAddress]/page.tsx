@@ -35,7 +35,7 @@ export default async function TokenSpacePage({
     );
   }
   
-  if (!decodedTabNameParam && !tokenSpacePageData.spaceId) {
+  if (!decodedTabNameParam) {
     redirect(`/t/${resolvedParams.network}/${resolvedParams.contractAddress}/Token`);
   }
 
