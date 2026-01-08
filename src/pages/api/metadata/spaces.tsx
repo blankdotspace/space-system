@@ -82,12 +82,14 @@ const ProfileCard = ({
       }}
     >
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
-        <img
-          src={resolveOgAvatarUrl(userMetadata.pfpUrl || "")}
-          width={"180px"}
-          height={"180px"}
-          style={{ borderRadius: "300px" }}
-        />
+        {userMetadata.pfpUrl ? (
+          <img
+            src={resolveOgAvatarUrl(userMetadata.pfpUrl)}
+            width={"180px"}
+            height={"180px"}
+            style={{ borderRadius: "300px" }}
+          />
+        ) : null}
         <p
           style={{
             fontSize: "64px",
