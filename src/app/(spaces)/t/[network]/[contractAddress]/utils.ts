@@ -91,6 +91,31 @@ export async function loadInternalSpaceData(
   };
 }
 
+async function loadTokenSpaceDefaultTab(spaceId?: string): Promise<string | undefined> {
+  if (!spaceId) {
+    return undefined;
+  }
+
+  try {
+    const { data: tabOrderData, error: storageError } = await createSupabaseServerClient()
+      .storage
+      .from("spaces")
+      .download(`${spaceId}/tabOrder`);
+
+    if (storageError || !tabOrderData) {
+      console.warn(`No tab order found for space ${spaceId}:`, storageError);
+      return undefined;
+    }
+
+    const tabOrderText = await tabOrderData.text();
+    const tabOrderJson = JSON.parse(tabOrderText);
+    return tabOrderJson.tabOrder?.[0];
+  } catch (e) {
+    console.warn(`Error fetching tab order for space ${spaceId}:`, e);
+    return undefined;
+  }
+}
+
 /**
  * Get token ownership information
  */
@@ -214,7 +239,8 @@ export const loadTokenSpacePageData = async (
     finalOwningIdentities.push(internalData.identityPublicKey);
   }
 
-  const tabName = tabNameParam || "Token";
+  const defaultTab = (await loadTokenSpaceDefaultTab(internalData.spaceId)) || "Token";
+  const tabName = tabNameParam || defaultTab;
   const spaceName = internalData.spaceName || `Token ${contractAddress}`;
   
   // Get symbol from tokenData for the config
@@ -250,7 +276,7 @@ export const loadTokenSpacePageData = async (
     spaceName,
     spaceType: SPACE_TYPES.TOKEN,
     updatedAt: new Date().toISOString(),
-    defaultTab: "Token",
+    defaultTab,
     currentTab: tabName,
     spaceOwnerFid,
     spaceOwnerAddress,
