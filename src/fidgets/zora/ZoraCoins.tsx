@@ -52,6 +52,7 @@ const zoraCoinsProperties: FidgetProperties = {
       fieldName: "coinContract",
       displayName: "Coin Contract Address",
       displayNameHint: "Enter the contract address of the Zora coin you want to display",
+      default: "0xb560c74b8c9ddffcdf171f7a45c6632b8093fe1b",
       required: false,
       inputSelector: (props) => (
         <WithMargin>
@@ -65,6 +66,7 @@ const zoraCoinsProperties: FidgetProperties = {
       fieldName: "creatorContract",
       displayName: "Creator Contract Address",
       displayNameHint: "Enter the creator's contract address to display all their coins",
+      default: "0x0cf0c3b75d522290d7d12c74d7f1f0cc47ccb23b",
       required: false,
       inputSelector: (props) => (
         <WithMargin>
@@ -108,52 +110,42 @@ interface CoinData {
   };
 }
 
-// Utility function to detect mime type from URI if not provided
 const detectMimeType = (uri: string, providedMimeType?: string): string => {
   if (providedMimeType && providedMimeType !== "application/octet-stream" && !providedMimeType.includes('image')) {
     return providedMimeType;
   }
   
-  // If we have an IPFS URI, we should assume it might be video until proven otherwise
-  // since IPFS doesn't always provide accurate mime types
   const url = uri.toLowerCase();
   
-  // Video formats
   if (url.includes('.mp4') || url.includes('.webm') || url.includes('.mov') || url.includes('.avi') || url.includes('.m4v')) {
     return 'video/mp4';
   }
   
-  // Image formats
   if (url.includes('.jpg') || url.includes('.jpeg') || url.includes('.png') || url.includes('.gif') || url.includes('.webp')) {
     return 'image/jpeg';
   }
   
-  // For IPFS URIs without clear extensions, let's try as video first
-  // since the error handling will fall back to image if it fails
   if (uri.startsWith('ipfs://') || uri.startsWith('ipfs:/')) {
     return 'video/mp4';
   }
   
-  // Default to image for unknown types
   return providedMimeType || 'image/jpeg';
 };
 
-// Utility function to get the best video URL
-const getBestVideoUrl = (mediaContent: any): string => {
-  // Prefer the optimized video URLs over raw IPFS
-  if (mediaContent.videoPreviewUrl) {
-    return mediaContent.videoPreviewUrl;
+const getBestVideoUrl = (mediaContent: any): { url: string; type: 'cloudflare' | 'hls' | 'ipfs' } => {
+  if (mediaContent.videoPreviewUrl?.includes('cloudflarestream.com')) {
+    const videoId = mediaContent.videoPreviewUrl.split('/').slice(-2, -1)[0];
+    const baseUrl = mediaContent.videoPreviewUrl.split('/').slice(0, 3).join('/');
+    return { url: `${baseUrl}/${videoId}/iframe`, type: 'cloudflare' };
   }
   
   if (mediaContent.videoHlsUrl) {
-    return mediaContent.videoHlsUrl;
+    return { url: mediaContent.videoHlsUrl, type: 'hls' };
   }
   
-  // Fallback to IPFS if no optimized URLs available
-  return formatIpfsUri(mediaContent.originalUri);
+  return { url: formatIpfsUri(mediaContent.originalUri), type: 'ipfs' };
 };
 
-// Utility function to convert IPFS URIs to public gateway format
 const formatIpfsUri = (uri: string): string => {
   if (!uri) return uri;
   
@@ -162,7 +154,6 @@ const formatIpfsUri = (uri: string): string => {
     return `https://ipfs.io/ipfs/${cid}`;
   }
   
-  // Also handle ipfs:/ (single slash) format
   if (uri.startsWith('ipfs:/') && !uri.startsWith('ipfs://')) {
     const cid = uri.replace('ipfs:/', '');
     return `https://ipfs.io/ipfs/${cid}`;
@@ -177,13 +168,6 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) 
   const [error, setError] = useState<string | null>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [videoError, setVideoError] = useState(false);
-  console.log("original uri", coinData?.mediaContent?.originalUri);
-  console.log("formatted uri", coinData?.mediaContent?.originalUri ? formatIpfsUri(coinData.mediaContent.originalUri) : null);
-  console.log("mimeType", coinData?.mediaContent?.mimeType);
-  console.log("videoPreviewUrl", coinData?.mediaContent?.videoPreviewUrl);
-  console.log("best video url", coinData?.mediaContent ? getBestVideoUrl(coinData.mediaContent) : null);
-  console.log("isVideo", coinData?.mediaContent?.mimeType?.startsWith("video/"));
-  console.log("videoError", videoError);
 
   useEffect(() => {
     const fetchCoinData = async () => {
@@ -200,6 +184,7 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) 
       setLoading(true);
       setError(null);
       setVideoError(false);
+      setIsVideoPlaying(false);
 
       try {
         if (settings.displayMode === "single" && settings.coinContract) {
@@ -243,16 +228,9 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) 
             setError("Coin not found");
           }
         } else if (settings.displayMode === "creator") {
-          // TODO: Implement creator coins fetching via SDK
           setError("Creator mode coming soon");
         }
       } catch (err) {
-        // Log error details for debugging (using console.log to avoid duplicate error in console)
-        console.log("[ZoraCoins] Fetch error:", {
-          error: err,
-          message: err instanceof Error ? err.message : String(err),
-          coinContract: settings.coinContract,
-        });
         const errorMessage = err instanceof Error ? err.message : String(err);
         setError(`Failed to fetch coin data: ${errorMessage}`);
       } finally {
@@ -264,12 +242,11 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) 
   }, [settings.coinContract, settings.creatorContract, settings.displayMode]);
 
   const handleTrade = () => {
-    // TODO: implement trade modal integration
-    // Mock trade button - will implement real modal later
     alert("Trade modal coming soon!");
   };
 
-  const isVideo = coinData?.mediaContent?.mimeType?.startsWith("video/");
+  const videoData = coinData?.mediaContent ? getBestVideoUrl(coinData.mediaContent) : null;
+  const isVideo = coinData?.mediaContent?.mimeType?.startsWith("video/") && videoData?.url;
 
   if (loading) {
     return (
@@ -310,48 +287,54 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) 
       {/* Media Section */}
       <div className="relative flex-1 min-h-0">
         {coinData.mediaContent ? (
-          isVideo && !videoError ? (
-            <div className="relative w-full h-full">
-              <video
-                src={getBestVideoUrl(coinData.mediaContent)}
-                className="w-full h-full object-cover"
-                controls={isVideoPlaying}
-                loop
-                playsInline
-                preload="metadata"
-                poster={coinData.mediaContent.previewImage?.medium || coinData.mediaContent.previewImage?.small}
-                onClick={() => setIsVideoPlaying(!isVideoPlaying)}
-                onPlay={() => setIsVideoPlaying(true)}
-                onPause={() => setIsVideoPlaying(false)}
-                onError={(e) => {
-                  console.error("Video error:", e);
-                  const videoElement = e.target as HTMLVideoElement;
-                  console.error("Video error details:", videoElement.error);
-                  setVideoError(true);
-                }}
-                onLoadedMetadata={() => {
-                  console.log("Video metadata loaded successfully");
-                }}
+          isVideo && !videoError && videoData ? (
+            videoData.type === 'cloudflare' ? (
+              <iframe
+                key={videoData.url}
+                src={videoData.url}
+                className="w-full h-full"
+                allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                allowFullScreen
+                style={{ border: 'none' }}
               />
-              {!isVideoPlaying && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
-                  <button
-                    className="w-16 h-16 flex items-center justify-center bg-white bg-opacity-90 rounded-full hover:bg-opacity-100 transition-all"
-                    onClick={() => {
-                      const video = document.querySelector("video");
-                      if (video) {
-                        video.play();
-                        setIsVideoPlaying(true);
-                      }
-                    }}
-                  >
-                    <svg className="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                  </button>
-                </div>
-              )}
-            </div>
+            ) : (
+              <div className="relative w-full h-full">
+                <video
+                  key={videoData.url}
+                  src={videoData.url}
+                  className="w-full h-full object-cover"
+                  controls={isVideoPlaying}
+                  loop
+                  playsInline
+                  preload="metadata"
+                  autoPlay
+                  muted
+                  poster={coinData.mediaContent.previewImage?.medium || coinData.mediaContent.previewImage?.small}
+                  onClick={() => setIsVideoPlaying(!isVideoPlaying)}
+                  onPlay={() => setIsVideoPlaying(true)}
+                  onPause={() => setIsVideoPlaying(false)}
+                  onError={() => setVideoError(true)}
+                />
+                {!isVideoPlaying && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
+                    <button
+                      className="w-16 h-16 flex items-center justify-center bg-white bg-opacity-90 rounded-full hover:bg-opacity-100 transition-all"
+                      onClick={() => {
+                        const video = document.querySelector("video");
+                        if (video) {
+                          video.play();
+                          setIsVideoPlaying(true);
+                        }
+                      }}
+                    >
+                      <svg className="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
           ) : (
             <img 
               src={
