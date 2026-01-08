@@ -1,7 +1,6 @@
 import React from "react";
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
-import { resolveMetadataBranding } from "@/common/lib/utils/resolveMetadataBranding";
 import { getOgFonts } from "@/common/lib/utils/ogFonts";
 
 export const config = {
@@ -40,7 +39,6 @@ const formatFollowerCount = (count?: number) => {
 
 export default async function handler(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const branding = await resolveMetadataBranding(req.headers);
 
   const channelId = searchParams.get("channelId");
   const channelName = searchParams.get("channelName");
@@ -63,7 +61,7 @@ export default async function handler(req: NextRequest) {
   const fonts = await getOgFonts();
   const fontFamily = fonts ? "Noto Sans, Noto Sans Symbols 2" : "sans-serif";
 
-  return new ImageResponse(<ChannelCard metadata={channelMetadata} branding={branding} fontFamily={fontFamily} />, {
+  return new ImageResponse(<ChannelCard metadata={channelMetadata} fontFamily={fontFamily} />, {
     width: 1200,
     height: 630,
     ...(fonts ? { fonts } : {}),
@@ -73,11 +71,9 @@ export default async function handler(req: NextRequest) {
 
 const ChannelCard = ({
   metadata,
-  branding,
   fontFamily,
 }: {
   metadata: ChannelMetadata;
-  branding: Awaited<ReturnType<typeof resolveMetadataBranding>>;
   fontFamily: string;
 }) => {
   const { channelId, channelName, description, imageUrl, followerCount } = metadata;
@@ -145,34 +141,7 @@ const ChannelCard = ({
           opacity: 0.9,
         }}
       >
-        {description || `Join /${channelId} on ${branding.brandName}.`}
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          width: "100%",
-          marginTop: "auto",
-          fontSize: "28px",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          opacity: 0.7,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          {branding.logoUrl ? (
-            <img src={branding.logoUrl} width="40" height="40" />
-          ) : null}
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <span>{branding.brandName}</span>
-            <span style={{ fontSize: "18px", opacity: 0.7, textTransform: "none" }}>
-              {branding.brandDescription}
-            </span>
-          </div>
-        </div>
-        <span>{branding.domain}</span>
+        {description || `Join /${channelId} on Farcaster.`}
       </div>
     </div>
   );

@@ -2,7 +2,6 @@ import React from "react";
 import { NextApiRequest, NextApiResponse } from "next";
 import { ImageResponse } from "next/og";
 import { toFarcasterCdnUrl } from "@/common/lib/utils/farcasterCdn";
-import { resolveMetadataBranding } from "@/common/lib/utils/resolveMetadataBranding";
 import { getOgFonts } from "@/common/lib/utils/ogFonts";
 
 export const config = {
@@ -25,7 +24,6 @@ export default async function GET(
     return res.status(404).send("Url not found");
   }
 
-  const branding = await resolveMetadataBranding(req.headers);
   const params = new URLSearchParams(req.url.split("?")[1]);
   const data: CastCardData = {
     username: params.get("username") || "",
@@ -38,13 +36,47 @@ export default async function GET(
   const fonts = await getOgFonts();
   const fontFamily = fonts ? "Noto Sans, Noto Sans Symbols 2" : "sans-serif";
 
-  return new ImageResponse(<CastCard data={data} branding={branding} fontFamily={fontFamily} />, {
+  return new ImageResponse(<CastCard data={data} fontFamily={fontFamily} />, {
     width: 1200,
     height: 630,
     ...(fonts ? { fonts } : {}),
     emoji: "twemoji",
   });
 }
+
+const MAX_TEXT_WITH_IMAGE = 200;
+const MAX_TEXT_NO_IMAGE = 320;
+const TOP_TEXT_LIMIT = 120;
+const MIN_TOP_TEXT = 60;
+
+const truncateCastText = (text: string, hasImage: boolean) => {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return "";
+  }
+  const limit = hasImage ? MAX_TEXT_WITH_IMAGE : MAX_TEXT_NO_IMAGE;
+  if (trimmed.length <= limit) {
+    return trimmed;
+  }
+  const ellipsis = "...";
+  const sliceLimit = Math.max(0, limit - ellipsis.length);
+  return `${trimmed.slice(0, sliceLimit)}${ellipsis}`;
+};
+
+const splitCastText = (text: string) => {
+  if (!text) {
+    return { topText: "", sideText: "" };
+  }
+  if (text.length <= TOP_TEXT_LIMIT) {
+    return { topText: text, sideText: "" };
+  }
+  const breakIndex = text.lastIndexOf(" ", TOP_TEXT_LIMIT);
+  const splitIndex = breakIndex >= MIN_TOP_TEXT ? breakIndex : TOP_TEXT_LIMIT;
+  return {
+    topText: text.slice(0, splitIndex).trim(),
+    sideText: text.slice(splitIndex).trim(),
+  };
+};
 
 const resolveOgAvatarUrl = (url: string): string => {
   if (!url) return url;
@@ -61,83 +93,109 @@ const resolveOgAvatarUrl = (url: string): string => {
 
 const CastCard = ({
   data,
-  branding,
   fontFamily,
 }: {
   data: CastCardData;
-  branding: Awaited<ReturnType<typeof resolveMetadataBranding>>;
   fontFamily: string;
-}) => (
-  <div
-    style={{
-      width: "100%",
-      height: "100%",
-      padding: "40px",
-      display: "flex",
-      flexDirection: "column",
-      background: "white",
-      fontFamily,
-    }}
-  >
-    <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-      {data.pfpUrl && (
-        <img
-          src={resolveOgAvatarUrl(data.pfpUrl || "")}
-          width="120"
-          height="120"
-          style={{ borderRadius: "60px" }}
-        />
-      )}
-      <div style={{ display: "flex", flexDirection: "column" }}>
-        <span style={{ fontSize: "48px", fontWeight: "bold" }}>{data.displayName}</span>
-        <span style={{ fontSize: "36px", color: "#555" }}>@{data.username}</span>
-      </div>
-    </div>
-    <p
-      style={{
-        fontSize: "40px",
-        marginTop: "40px",
-        whiteSpace: "pre-wrap",
-        wordBreak: "break-word",
-      }}
-    >
-      {data.text}
-    </p>
-    {data.imageUrl ? (
-      <img
-        src={data.imageUrl}
-        width="720"
-        height="360"
-        style={{
-          marginTop: "32px",
-          borderRadius: "24px",
-          objectFit: "cover",
-        }}
-      />
-    ) : null}
+}) => {
+  const hasImage = Boolean(data.imageUrl);
+  const displayText = truncateCastText(data.text, hasImage);
+  const { topText, sideText } = hasImage ? splitCastText(displayText) : { topText: displayText, sideText: "" };
+
+  return (
     <div
       style={{
-        marginTop: "auto",
         width: "100%",
+        height: "100%",
+        padding: "40px",
         display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        fontSize: "20px",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        opacity: 0.7,
+        flexDirection: "column",
+        background: "white",
+        fontFamily,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-        {branding.logoUrl ? <img src={branding.logoUrl} width="30" height="30" /> : null}
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <span>{branding.brandName}</span>
-          <span style={{ fontSize: "16px", opacity: 0.7, textTransform: "none" }}>
-            {branding.brandDescription}
-          </span>
+      <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+        {data.pfpUrl && (
+          <img
+            src={resolveOgAvatarUrl(data.pfpUrl || "")}
+            width="120"
+            height="120"
+            style={{ borderRadius: "60px" }}
+          />
+        )}
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <span style={{ fontSize: "48px", fontWeight: "bold" }}>{data.displayName}</span>
+          <span style={{ fontSize: "36px", color: "#555" }}>@{data.username}</span>
         </div>
       </div>
-      <span>{branding.domain}</span>
+
+      {hasImage ? (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            marginTop: "32px",
+            flex: 1,
+          }}
+        >
+          {topText ? (
+            <div
+              style={{
+                fontSize: "40px",
+                lineHeight: 1.4,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+              }}
+            >
+              {topText}
+            </div>
+          ) : null}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              gap: "24px",
+              marginTop: topText ? "16px" : "0px",
+              flex: 1,
+              alignItems: "flex-end",
+            }}
+          >
+            <div
+              style={{
+                flex: 1,
+                maxWidth: "520px",
+                fontSize: "40px",
+                lineHeight: 1.4,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+              }}
+            >
+              {sideText}
+            </div>
+            <img
+              src={data.imageUrl}
+              width="576"
+              height="288"
+              style={{
+                marginLeft: "auto",
+                borderRadius: "24px",
+                objectFit: "cover",
+              }}
+            />
+          </div>
+        </div>
+      ) : (
+        <p
+          style={{
+            fontSize: "40px",
+            marginTop: "40px",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+          }}
+        >
+          {displayText}
+        </p>
+      )}
     </div>
-  </div>
-);
+  );
+};
