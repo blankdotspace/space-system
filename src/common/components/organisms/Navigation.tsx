@@ -156,7 +156,7 @@ const Navigation = React.memo(
       loadNavigation(systemConfig.navigation);
       hasLoadedNavigationRef.current = true;
     }
-  }, [systemConfig.navigation, loadNavigation, localNavigation.length]);
+  }, []);
   
   // Always use localNavigation as the source of truth
   // It's initialized from systemConfig.navigation on mount and updated by user actions
@@ -198,21 +198,6 @@ const Navigation = React.memo(
     setNavEditMode(false);
   }, [resetNavigationChanges, setNavEditMode]);
   
-  // Handle create new item
-  const handleCreateItem = React.useCallback(async () => {
-    try {
-      await createNavigationItem({
-        label: "New Item",
-        // href will be auto-generated from label if not provided
-        icon: "custom",
-      });
-      toast.success("Navigation item created");
-    } catch (error) {
-      console.error("Failed to create navigation item:", error);
-      toast.error("Failed to create navigation item");
-    }
-  }, [createNavigationItem]);
-
   const logout = useLogout();
   const notificationBadgeText = useNotificationBadgeText();
   const pathname = usePathname();
@@ -256,10 +241,31 @@ const Navigation = React.memo(
     setShrunk((prev) => !prev);
   };
 
+  const router = useRouter();
+
   function handleLogout() {
     router.push("/home");
     logout();
   }
+
+  // Handle create new item
+  const handleCreateItem = React.useCallback(async () => {
+    try {
+      const newItem = await createNavigationItem({
+        label: "New Item",
+        // href will be auto-generated from label if not provided
+        icon: "custom",
+      });
+      toast.success("Navigation item created");
+      // Automatically navigate to the new item
+      if (newItem?.href) {
+        router.push(newItem.href);
+      }
+    } catch (error) {
+      console.error("Failed to create navigation item:", error);
+      toast.error("Failed to create navigation item");
+    }
+  }, [createNavigationItem, router]);
 
   const openModal = () => setModalOpen(true);
 
@@ -372,8 +378,6 @@ const Navigation = React.memo(
       ),
     [user]
   );
-
-  const router = useRouter();
 
   const iconFor = useCallback((key?: string): React.FC => {
     switch (key) {

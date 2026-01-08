@@ -688,20 +688,56 @@ export const createSpaceStoreFunc = (
       const urlWithParam = `${publicUrl}?t=${t}`;
 
       // Download the file content, ensuring no caching
-      const { data } = await axios.get<Blob>(urlWithParam, {
-        responseType: "blob",
-        headers: {
-          "Cache-Control": "no-cache",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
-      });
+      let data: Blob;
+      try {
+        const response = await axios.get<Blob>(urlWithParam, {
+          responseType: "blob",
+          headers: {
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+            Expires: "0",
+          },
+        });
+        data = response.data;
+      } catch (axiosError: any) {
+        // Check if response is HTML (404 error page)
+        if (axiosError?.response?.data) {
+          const blob = axiosError.response.data as Blob;
+          const textContent = await blob.text();
+          if (textContent.trim().startsWith("<!DOCTYPE") || textContent.trim().startsWith("<html")) {
+            console.warn(`Space tab ${spaceId}/tabs/${tabName} not found in storage (404)`);
+            return; // Tab doesn't exist in storage, use local if available
+          }
+        }
+        throw axiosError; // Re-throw if it's a different error
+      }
+
+      const textContent = await data.text();
+      
+      // Check if response is HTML (404 error page) instead of JSON
+      if (textContent.trim().startsWith("<!DOCTYPE") || textContent.trim().startsWith("<html")) {
+        console.warn(`Space tab ${spaceId}/tabs/${tabName} not found in storage (404 HTML response)`);
+        return; // Tab doesn't exist in storage, use local if available
+      }
 
       // Parse the file data and decrypt it
-      const fileData = JSON.parse(await data.text()) as SignedFile;
-      const remoteSpaceConfig = JSON.parse(
-        await get().account.decryptEncryptedSignedFile(fileData),
-      ) as DatabaseWritableSpaceConfig;
+      let fileData: SignedFile;
+      try {
+        fileData = JSON.parse(textContent) as SignedFile;
+      } catch (parseError) {
+        console.error(`Failed to parse space tab file ${spaceId}/tabs/${tabName}:`, parseError);
+        console.error("File content:", textContent.substring(0, 200));
+        throw parseError;
+      }
+
+      let remoteSpaceConfig: DatabaseWritableSpaceConfig;
+      try {
+        const decryptedData = await get().account.decryptEncryptedSignedFile(fileData);
+        remoteSpaceConfig = JSON.parse(decryptedData) as DatabaseWritableSpaceConfig;
+      } catch (decryptError) {
+        console.error(`Failed to decrypt space tab ${spaceId}/tabs/${tabName}:`, decryptError);
+        throw decryptError;
+      }
 
       // Prepare the remote space config for updating, including privacy status
       const remoteUpdatableSpaceConfig = {
