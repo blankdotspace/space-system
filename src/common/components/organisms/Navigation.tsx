@@ -15,6 +15,10 @@ import {
     FaDiscord,
     FaPencil,
 } from "react-icons/fa6";
+import * as FaIcons from "react-icons/fa6";
+import * as BsIcons from "react-icons/bs";
+import * as GiIcons from "react-icons/gi";
+import type { IconType } from "react-icons";
 import { Button } from "../atoms/button";
 import BrandHeader from "../molecules/BrandHeader";
 import Modal from "../molecules/Modal";
@@ -273,16 +277,49 @@ const Navigation = React.memo(
     [user]
   );
 
+  // Icon pack mapping for react-icons (matches IconSelector)
+  const iconPack = useMemo(() => ({
+    ...FaIcons,
+    ...BsIcons,
+    ...GiIcons,
+  }), []);
+
   const iconFor = useCallback((key?: string): React.FC => {
+    // Handle legacy icon keys for backward compatibility
     switch (key) {
       case 'home': return HomeIcon;
       case 'explore': return ExploreIcon;
       case 'notifications': return NotificationsIcon;
+      case 'search': return SearchIcon;
       case 'space': return RocketIcon;
       case 'robot': return RobotIcon;
-      default: return HomeIcon;
+      default: {
+        // Handle react-icons names (e.g., 'FaHouse', 'FaRss')
+        // Use w-5 h-5 (20px) to match visual size of standard nav icons (w-6 h-6 custom SVGs)
+        if (key && iconPack[key as keyof typeof iconPack]) {
+          const IconComponent = iconPack[key as keyof typeof iconPack] as IconType;
+          const ReactIconWrapper = () => <IconComponent className="w-5 h-5" aria-hidden="true" />;
+          ReactIconWrapper.displayName = `ReactIcon(${key})`;
+          return ReactIconWrapper;
+        }
+        // Handle custom icon URLs
+        if (key && (key.startsWith('http://') || key.startsWith('https://'))) {
+          const CustomIconWrapper = () => (
+            <img 
+              src={key} 
+              alt="icon" 
+              className="w-5 h-5 rounded object-contain" 
+              aria-hidden="true"
+            />
+          );
+          CustomIconWrapper.displayName = 'CustomIcon';
+          return CustomIconWrapper;
+        }
+        // Default fallback
+        return HomeIcon;
+      }
     }
-  }, []);
+  }, [iconPack]);
   
   // Process nav items: adjust labels and hrefs based on login status when needed
   const allNavItems = configuredNavItems.map((item) => {
