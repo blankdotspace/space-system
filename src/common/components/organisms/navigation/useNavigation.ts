@@ -177,7 +177,12 @@ export function useNavigation(
     }
     
     try {
-      await commitNavigationChanges(systemConfig.community?.type || "nouns");
+      // Pass existing navigation config to preserve fields like logoTooltip, showMusicPlayer, showSocials
+      // Reconstruct from systemConfig.navigation which has the current values
+      await commitNavigationChanges(
+        systemConfig.community?.type || "nouns",
+        systemConfig.navigation
+      );
       toast.success("Navigation changes committed");
       setNavEditMode(false);
     } catch (error: unknown) {
@@ -195,7 +200,13 @@ export function useNavigation(
         throw error;
       }
     }
-  }, [hasUncommittedChanges, commitNavigationChanges, systemConfig.community?.type, setNavEditMode]);
+  }, [
+    hasUncommittedChanges,
+    commitNavigationChanges,
+    systemConfig.community?.type,
+    systemConfig.navigation,
+    setNavEditMode,
+  ]);
 
   /**
    * Cancels navigation changes and resets to remote state
