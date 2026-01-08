@@ -73,7 +73,7 @@ export const Tab = ({
         >
           {/* Text */}
           <motion.span layout="position" className="whitespace-nowrap">
-            {inEditMode && renameable && isSelected ? (
+            {inEditMode && renameable && isSelected && renameTab ? (
               <div className="cursor-text">
                 <EditableText initialText={tabName} updateMethod={renameTab} />
               </div>

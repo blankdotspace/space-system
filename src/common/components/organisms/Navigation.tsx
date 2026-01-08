@@ -145,9 +145,18 @@ const Navigation = React.memo(
   // Destructure navigation from systemConfig early
   const { community, navigation, ui } = systemConfig;
   
+  // Load navigation from config only once on initial mount
+  // Don't reload after commits - the store manages its own state
+  // systemConfig.navigation may update after commits, but we shouldn't overwrite committed changes
+  const hasLoadedNavigationRef = React.useRef(false);
   React.useEffect(() => {
-    loadNavigation(systemConfig.navigation);
-  }, [systemConfig.navigation, loadNavigation]);
+    // Only load on initial mount when store is empty, and only load once
+    // Check localNavigation here, but don't add it to dependencies to avoid reloading on every change
+    if (!hasLoadedNavigationRef.current && localNavigation.length === 0) {
+      loadNavigation(systemConfig.navigation);
+      hasLoadedNavigationRef.current = true;
+    }
+  }, [systemConfig.navigation, loadNavigation, localNavigation.length]);
   
   // Always use localNavigation as the source of truth
   // It's initialized from systemConfig.navigation on mount and updated by user actions
