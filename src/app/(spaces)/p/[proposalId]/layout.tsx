@@ -1,18 +1,12 @@
 import { Metadata } from "next/types";
 import React from "react";
 import { loadProposalData, calculateTimeRemaining } from "./utils";
-import { getDefaultFrame } from "@/constants/metadata";
 import { loadSystemConfig, type SystemConfig } from "@/config";
 import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
+import { buildDefaultFrameMetadata } from "@/common/lib/utils/defaultMetadata";
 
-const buildDefaultMetadata = async (systemConfig: SystemConfig, baseUrl: string) => {
-  const defaultFrame = await getDefaultFrame({ systemConfig, baseUrl });
-  return {
-    other: {
-      'fc:frame': JSON.stringify(defaultFrame),
-    },
-  };
-};
+const buildDefaultMetadata = async (systemConfig: SystemConfig, baseUrl: string) =>
+  buildDefaultFrameMetadata(systemConfig, baseUrl);
 
 export async function generateMetadata({ 
   params 
@@ -34,12 +28,12 @@ export async function generateMetadata({
     const proposalAbort = new AbortController();
     const proposalData = await Promise.race([
       loadProposalData(proposalId, proposalAbort.signal),
-      new Promise<null>((_, reject) => 
+      new Promise<never>((_, reject) =>
         setTimeout(() => {
           proposalAbort.abort();
-          reject(new Error('Proposal data fetch timeout'));
-        }, 8000)
-      )
+          reject(new Error("Proposal data fetch timeout"));
+        }, 8000),
+      ),
     ]);
 
     if (!proposalData || proposalData.title === "Error loading proposal") {
