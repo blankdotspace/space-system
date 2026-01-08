@@ -69,6 +69,8 @@ export const TradeModal: React.FC<TradeModalProps> = ({ isOpen, onClose, coinDat
     setIsLoading(true);
     
     try {
+      console.log('🎯 Starting trade execution - Zora SDK will manage all balance validations');
+      
       // Dynamic import to avoid build issues
       const { tradeCoin } = await import("@zoralabs/coins-sdk");
       
@@ -76,6 +78,7 @@ export const TradeModal: React.FC<TradeModalProps> = ({ isOpen, onClose, coinDat
       
       if (isBuying) {
         // Buy coins with ETH
+        console.log('💰 Buy trade: ETH → Coins');
         tradeParameters = {
           sell: { type: "eth" as const },
           buy: { 
@@ -88,6 +91,7 @@ export const TradeModal: React.FC<TradeModalProps> = ({ isOpen, onClose, coinDat
         };
       } else {
         // Sell coins for ETH
+        console.log('💸 Sell trade: Coins → ETH');
         const coinAmount = parseFloat(amount);
         tradeParameters = {
           sell: { 
@@ -101,21 +105,59 @@ export const TradeModal: React.FC<TradeModalProps> = ({ isOpen, onClose, coinDat
         };
       }
 
+      console.log('📤 Executing tradeCoin with parameters:', tradeParameters);
+
+      // Create account object properly for viem
+      const account = walletClient.account;
+      if (!account) {
+        throw new Error('No account found in wallet client');
+      }
+
       const receipt = await tradeCoin({
         tradeParameters,
         walletClient,
-        account: { address } as any,
+        account,
         publicClient: publicClient as any,
+        validateTransaction: true,
       });
 
-      console.log("Trade successful:", receipt);
+      console.log("✅ Trade successful:", receipt);
       alert(`Trade successful! Transaction: ${receipt.transactionHash}`);
       onClose();
       
-    } catch (err) {
-      console.error("Trade error:", err);
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      alert(`Trade failed: ${errorMessage}`);
+    } catch (err: any) {
+      console.error("❌ Trade error:", err);
+      
+      // Handle specific error types
+      let userMessage = 'An error occurred during the trade';
+      
+      if (err?.message) {
+        const errorMessage = err.message.toLowerCase();
+        
+        if (errorMessage.includes('user denied') || errorMessage.includes('user rejected')) {
+          userMessage = 'You cancelled the transaction in your wallet';
+          // Don't show alert for user cancellations
+          setIsLoading(false);
+          return;
+        } else if (errorMessage.includes('insufficient funds') || errorMessage.includes('insufficient balance')) {
+          userMessage = `Insufficient ${isBuying ? 'ETH' : coinData.symbol} balance. The SDK will estimate gas automatically.`;
+        } else if (errorMessage.includes('permit') || errorMessage.includes('approval') || errorMessage.includes('allowance')) {
+          userMessage = 'Please sign the permit message in your wallet to authorize this trade.';
+        } else if (errorMessage.includes('transfer_from_failed') || errorMessage.includes('transferfrom')) {
+          userMessage = 'Token transfer failed. This usually means insufficient balance or the permit signature was not accepted.';
+        } else if (errorMessage.includes('network') || errorMessage.includes('chain')) {
+          userMessage = 'Network error. Please check your connection and try again.';
+        } else if (errorMessage.includes('slippage')) {
+          userMessage = 'Price moved too much. Try increasing slippage tolerance.';
+        } else if (errorMessage.includes('gas')) {
+          userMessage = 'Gas estimation failed. The transaction might fail.';
+        } else if (err.message.length < 200) {
+          // Show short error messages directly
+          userMessage = err.message;
+        }
+      }
+      
+      alert(`Trade failed: ${userMessage}`);
     } finally {
       setIsLoading(false);
     }
