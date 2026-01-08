@@ -361,92 +361,93 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) 
       formatIpfsUri(coinData.mediaContent?.originalUri || "");
 
     return (
-      <div
-        style={{
-          background: settings.background,
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          perspective: "1000px",
-          cursor: "pointer",
-          position: "relative",
-        }}
-        onClick={handleTrade}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
+      <>
         <div
           style={{
+            background: settings.background,
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            perspective: "1000px",
+            cursor: "pointer",
             position: "relative",
-            width: "min(80%, 80vh)",
-            height: "min(80%, 80vh)",
-            aspectRatio: "1",
-            maxWidth: "350px",
-            maxHeight: "350px",
-            transformStyle: "preserve-3d",
-            animation: "spin 8s linear infinite",
-            transform: isHovered ? "scale(1.15)" : "scale(1)",
-            transition: "transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
-            filter: isHovered
-              ? "drop-shadow(0 15px 40px rgba(0, 0, 0, 0.5))"
-              : "drop-shadow(0 10px 25px rgba(0, 0, 0, 0.3))",
           }}
+          onClick={handleTrade}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
         >
-          {/* Front side */}
           <div
             style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              backfaceVisibility: "hidden",
-              borderRadius: "50%",
-              overflow: "hidden",
+              position: "relative",
+              width: "min(80%, 80vh)",
+              height: "min(80%, 80vh)",
+              aspectRatio: "1",
+              maxWidth: "350px",
+              maxHeight: "350px",
+              transformStyle: "preserve-3d",
+              animation: "spin 8s linear infinite",
+              transform: isHovered ? "scale(1.15)" : "scale(1)",
+              transition: "transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
+              filter: isHovered
+                ? "drop-shadow(0 15px 40px rgba(0, 0, 0, 0.5))"
+                : "drop-shadow(0 10px 25px rgba(0, 0, 0, 0.3))",
             }}
           >
-            <img
-              src={coinImage}
-              alt={coinData.name}
+            {/* Front side */}
+            <div
               style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
                 width: "100%",
                 height: "100%",
-                objectFit: "cover",
+                backfaceVisibility: "hidden",
+                borderRadius: "50%",
+                overflow: "hidden",
               }}
-            />
-          </div>
+            >
+              <img
+                src={coinImage}
+                alt={coinData.name}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                }}
+              />
+            </div>
 
-          {/* Back side */}
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              backfaceVisibility: "hidden",
-              transform: "rotateY(180deg)",
-              borderRadius: "50%",
-              overflow: "hidden",
-            }}
-          >
-            <img
-              src={coinImage}
-              alt={coinData.name}
+            {/* Back side */}
+            <div
               style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
                 width: "100%",
                 height: "100%",
-                objectFit: "cover",
+                backfaceVisibility: "hidden",
+                transform: "rotateY(180deg)",
+                borderRadius: "50%",
+                overflow: "hidden",
               }}
-            />
+            >
+              <img
+                src={coinImage}
+                alt={coinData.name}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                }}
+              />
+            </div>
           </div>
-        </div>
 
-        <style
-          dangerouslySetInnerHTML={{
-            __html: `
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
             @keyframes spin {
               from {
                 transform: rotateY(0deg);
@@ -456,9 +457,15 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) 
               }
             }
           `,
-          }}
-        />
-      </div>
+            }}
+          />
+        </div>
+
+        {/* Trade Modal */}
+        {coinData && (
+          <TradeModal isOpen={isTradeModalOpen} onClose={() => setIsTradeModalOpen(false)} coinData={coinData} />
+        )}
+      </>
     );
   }
 
