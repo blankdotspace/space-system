@@ -2,19 +2,13 @@ import React from "react";
 import { getUserMetadata } from "./utils";
 import type { Metadata } from "next/types";
 import { getUserMetadataStructure } from "@/common/lib/utils/userMetadata";
-import { getDefaultFrame } from "@/constants/metadata";
 import { loadSystemConfig, type SystemConfig } from "@/config";
 import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
-import { resolveAssetUrl } from "@/common/lib/utils/resolveAssetUrl";
+import { buildDefaultFrameMetadata, getDefaultFrameAssets } from "@/common/lib/utils/defaultMetadata";
 
 // Default metadata (used as fallback)
 async function buildDefaultMetadata(systemConfig: SystemConfig, baseUrl: string): Promise<Metadata> {
-  const defaultFrame = await getDefaultFrame({ systemConfig, baseUrl });
-  return {
-    other: {
-      "fc:frame": JSON.stringify(defaultFrame),
-    },
-  };
+  return buildDefaultFrameMetadata(systemConfig, baseUrl);
 }
 
 export async function generateMetadata({ 
@@ -26,9 +20,7 @@ export async function generateMetadata({
   const baseUrl = await resolveBaseUrl({ systemConfig });
   const brandName = systemConfig.brand.displayName;
   const twitterHandle = systemConfig.community.social?.x;
-  const splashImageUrl =
-    resolveAssetUrl(systemConfig.assets.logos.splash, baseUrl) ??
-    systemConfig.assets.logos.splash;
+  const { splashImageUrl, defaultFrame } = await getDefaultFrameAssets(systemConfig, baseUrl);
   const { handle, tabName: tabNameParam } = await params;
 
   if (!handle) {
@@ -38,7 +30,6 @@ export async function generateMetadata({
   const normalizedHandle = handle.toLowerCase();
   const userMetadata = await getUserMetadata(handle);
   if (!userMetadata) {
-    const defaultFrame = await getDefaultFrame({ systemConfig, baseUrl });
     const baseMetadata = getUserMetadataStructure(
       { username: normalizedHandle },
       { baseUrl, brandName, twitterHandle },
