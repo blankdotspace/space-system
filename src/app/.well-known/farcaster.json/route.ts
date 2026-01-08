@@ -4,20 +4,19 @@ import { buildMiniAppManifest } from "@/common/lib/utils/miniAppManifest";
 import { resolveMiniAppDomain } from "@/common/lib/utils/miniAppDomain";
 
 function withValidProperties<T extends Record<string, unknown>>(properties: T): Partial<T> {
-  return Object.fromEntries(
-    Object.entries(properties).filter(([_, value]) => {
-      if (value === undefined || value === null) {
-        return false;
-      }
-      if (Array.isArray(value)) {
-        return value.length > 0;
-      }
-      if (typeof value === "string") {
-        return value.trim().length > 0;
-      }
-      return true;
-    })
-  );
+  return Object.entries(properties).reduce<Partial<T>>((acc, [key, value]) => {
+    if (value === undefined || value === null) {
+      return acc;
+    }
+    if (Array.isArray(value) && value.length === 0) {
+      return acc;
+    }
+    if (typeof value === "string" && value.trim().length === 0) {
+      return acc;
+    }
+    acc[key as keyof T] = value as T[keyof T];
+    return acc;
+  }, {});
 }
 
 const resolveEnvAccountAssociation = (): MiniAppAccountAssociation | undefined => {
