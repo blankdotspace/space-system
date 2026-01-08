@@ -7,7 +7,7 @@ import { map } from "lodash";
 import { mergeClasses } from "@/common/lib/utils/mergeClasses";
 import { SystemConfig, NavigationItem } from "@/config/systemConfig";
 import { Button } from "@/common/components/atoms/button";
-import { FaPlus, FaCheck, FaXmark } from "react-icons/fa6";
+import { FaPlus, FaCheck, FaXmark, FaSpinner } from "react-icons/fa6";
 import { toast } from "sonner";
 import EditableText from "@/common/components/atoms/editable-text";
 import { CloseIcon } from "@/common/components/atoms/icons/CloseIcon";
@@ -42,6 +42,7 @@ interface NavigationEditorProps {
   onCommit: () => void;
   onCancel: () => void;
   hasUncommittedChanges: boolean;
+  isCommitting: boolean;
   onOpenSearch: () => void;
   onLogout: () => void;
   onLogin: () => void;
@@ -72,6 +73,7 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
   onCommit,
   onCancel,
   hasUncommittedChanges,
+  isCommitting,
   onOpenSearch,
   onLogout,
   onLogin,
@@ -263,10 +265,20 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
           <div className="flex gap-2 mt-4 pt-4 border-t">
             <Button
               onClick={onCommit}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 bg-green-500 hover:bg-green-600 text-white font-semibold text-sm flex-1"
+              disabled={isCommitting}
+              className="flex items-center gap-2 rounded-lg px-3 py-2 bg-green-500 hover:bg-green-600 text-white font-semibold text-sm flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <FaCheck size={12} />
-              <span>Commit</span>
+              {isCommitting ? (
+                <>
+                  <FaSpinner size={12} className="animate-spin" />
+                  <span>Committing...</span>
+                </>
+              ) : (
+                <>
+                  <FaCheck size={12} />
+                  <span>Commit</span>
+                </>
+              )}
             </Button>
             <Button
               onClick={onCancel}

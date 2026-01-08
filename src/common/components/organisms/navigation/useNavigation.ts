@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useMemo } from "react";
+import { useCallback, useEffect, useRef, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { debounce } from "lodash";
 import { toast } from "sonner";
@@ -77,6 +77,7 @@ export interface UseNavigationReturn {
   handleCommit: () => Promise<void>;
   handleCancel: () => void;
   handleCreateItem: () => Promise<void>;
+  isCommitting: boolean;
 }
 
 /**
@@ -103,6 +104,7 @@ export function useNavigation(
   setNavEditMode: (value: boolean) => void
 ): UseNavigationReturn {
   const router = useRouter();
+  const [isCommitting, setIsCommitting] = useState(false);
   
   const {
     loadNavigation,
@@ -176,6 +178,7 @@ export function useNavigation(
       return;
     }
     
+    setIsCommitting(true);
     try {
       // Pass existing navigation config to preserve fields like logoTooltip, showMusicPlayer, showSocials
       // Reconstruct from systemConfig.navigation which has the current values
@@ -199,6 +202,8 @@ export function useNavigation(
       if (navError.type === 'UNKNOWN') {
         throw error;
       }
+    } finally {
+      setIsCommitting(false);
     }
   }, [
     hasUncommittedChanges,
@@ -263,6 +268,7 @@ export function useNavigation(
     handleCommit,
     handleCancel,
     handleCreateItem,
+    isCommitting,
   };
 }
 
