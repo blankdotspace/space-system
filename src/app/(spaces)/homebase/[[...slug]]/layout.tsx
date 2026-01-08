@@ -15,11 +15,8 @@ import { resolveMiniAppDomain } from "@/common/lib/utils/miniAppDomain";
 async function buildDefaultMetadata(systemConfig: SystemConfig, baseUrl: string): Promise<Metadata> {
   const defaultFrame = await getDefaultFrame({ systemConfig, baseUrl });
   const brandName = systemConfig.brand.displayName;
-  const defaultImage =
-    resolveAssetUrl(systemConfig.assets.logos.og, baseUrl) ?? systemConfig.assets.logos.og;
-  const splashImageUrl =
-    resolveAssetUrl(systemConfig.assets.logos.splash, baseUrl) ??
-    systemConfig.assets.logos.splash;
+  const defaultImage = defaultFrame.imageUrl;
+  const splashImageUrl = defaultFrame.button.action.splashImageUrl;
   const miniAppDomain = resolveMiniAppDomain(baseUrl);
   const defaultMiniApp = buildMiniAppEmbed({
     imageUrl: defaultImage,

@@ -87,7 +87,6 @@ const normalizeTags = (tags?: string[]) => {
   if (!tags || tags.length === 0) return undefined;
   const normalized = tags
     .map((tag) => tag.toLowerCase().replace(/[^a-z0-9-]/g, ""))
-    .map((tag) => tag.trim())
     .filter((tag) => tag.length > 0)
     .map((tag) => truncate(tag, MAX_TAG_LENGTH))
     .slice(0, MAX_TAGS);

@@ -4,7 +4,7 @@ import { getChannelMetadata } from "./utils";
 import { loadSystemConfig, type SystemConfig } from "@/config";
 import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
 import { resolveAssetUrl } from "@/common/lib/utils/resolveAssetUrl";
-import { buildMiniAppEmbed, truncateMiniAppButtonTitle } from "@/common/lib/utils/miniAppEmbed";
+import { buildMiniAppEmbed } from "@/common/lib/utils/miniAppEmbed";
 import { resolveMiniAppDomain } from "@/common/lib/utils/miniAppDomain";
 
 async function buildDefaultMetadata(
@@ -109,7 +109,7 @@ export async function generateMetadata({
     ? `${baseUrl}/c/${channel.id}/${encodeURIComponent(decodedTabName)}`
     : `${baseUrl}/c/${channel.id}`;
 
-  const buttonTitle = truncateMiniAppButtonTitle(`Visit ${name}`);
+  const buttonTitle = `Visit ${name}`;
   const frameName = `${name} on ${brandName}`;
   const splashImageUrl = defaultSplashImage;
 
