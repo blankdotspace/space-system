@@ -137,6 +137,8 @@ export interface MiniAppManifestOverrides {
   ogTitle?: string;
   ogDescription?: string;
   ogImageUrl?: string;
+  imageUrl?: string;
+  buttonTitle?: string;
   homeUrl?: string;
   iconUrl?: string;
   splashImageUrl?: string;

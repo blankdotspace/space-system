@@ -6,6 +6,8 @@ export type MiniAppManifest = {
   name: string;
   homeUrl: string;
   iconUrl: string;
+  imageUrl?: string;
+  buttonTitle?: string;
   splashImageUrl?: string;
   splashBackgroundColor?: string;
   subtitle?: string;
@@ -46,6 +48,7 @@ const MAX_DESCRIPTION_LENGTH = 170;
 const MAX_TAGLINE_LENGTH = 30;
 const MAX_OG_TITLE_LENGTH = 30;
 const MAX_OG_DESCRIPTION_LENGTH = 100;
+const MAX_BUTTON_TITLE_LENGTH = 32;
 const MAX_URL_LENGTH = 1024;
 const MAX_TAG_LENGTH = 20;
 const MAX_TAGS = 5;
@@ -65,6 +68,13 @@ const sanitizeManifestText = (value?: string, maxLength?: number) => {
 const normalizeUrl = (value?: string) => {
   if (!value) return undefined;
   return truncate(value.trim(), MAX_URL_LENGTH);
+};
+
+const normalizeButtonTitle = (value?: string) => {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  return truncate(trimmed, MAX_BUTTON_TITLE_LENGTH);
 };
 
 const normalizePrimaryCategory = (value?: string) => {
@@ -148,6 +158,8 @@ export const buildMiniAppManifest = ({
     MAX_OG_DESCRIPTION_LENGTH,
   );
   const ogImageUrl = normalizeUrl(overrides?.ogImageUrl ?? resolvedOgUrl);
+  const imageUrl = normalizeUrl(overrides?.imageUrl);
+  const buttonTitle = normalizeButtonTitle(overrides?.buttonTitle);
   const canonicalDomain = normalizeCanonicalDomain(overrides?.canonicalDomain);
 
   const manifest: MiniAppManifest = {
@@ -171,6 +183,8 @@ export const buildMiniAppManifest = ({
     ...(ogTitle ? { ogTitle } : {}),
     ...(ogDescription ? { ogDescription } : {}),
     ...(ogImageUrl ? { ogImageUrl } : {}),
+    ...(imageUrl ? { imageUrl } : {}),
+    ...(buttonTitle ? { buttonTitle } : {}),
     ...(typeof overrides?.noindex === "boolean" ? { noindex: overrides.noindex } : {}),
     ...(overrides?.requiredChains && overrides.requiredChains.length > 0
       ? { requiredChains: overrides.requiredChains }
