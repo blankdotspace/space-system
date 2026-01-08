@@ -5,6 +5,7 @@ import TokenSpace from "./TokenSpace";
 import SpaceNotFound from "@/app/(spaces)/SpaceNotFound";
 import { Address } from "viem";
 import { EtherScanChainName } from "@/constants/etherscanChainIds";
+import { redirect } from "next/navigation";
 
 export default async function TokenSpacePage({ 
   params 
@@ -32,6 +33,10 @@ export default async function TokenSpacePage({
     return (
       <SpaceNotFound />
     );
+  }
+  
+  if (!decodedTabNameParam && !tokenSpacePageData.spaceId) {
+    redirect(`/t/${resolvedParams.network}/${resolvedParams.contractAddress}/Token`);
   }
 
   return (
