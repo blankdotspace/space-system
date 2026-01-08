@@ -1,6 +1,7 @@
 import React from "react";
 import _ from "lodash";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { validateTabName } from "@/common/utils/tabUtils";
 
 const inputValue = (e: any): string => e.target.value;
 
@@ -8,28 +9,53 @@ function isEnterOrEscapeKeyEvent(event: React.KeyboardEvent<HTMLInputElement>) {
   return event.key === "Enter" || event.key === "Escape";
 }
 
-const EditableText = ({ initialText, updateMethod }) => {
+interface EditableTextProps {
+  initialText: string;
+  updateMethod: (oldText: string, newText: string) => void;
+  validateInput?: (text: string) => string | null; // Returns error message or null
+  maxLength?: number;
+}
+
+const EditableText = ({ 
+  initialText, 
+  updateMethod,
+  validateInput,
+  maxLength = 22,
+}: EditableTextProps) => {
   const [isEditing, setisEditing] = useState(false);
   const [text, settext] = useState(initialText);
 
+  // Sync text state when initialText changes (when not editing)
+  useEffect(() => {
+    if (!isEditing) {
+      settext(initialText);
+    }
+  }, [initialText, isEditing]);
+
   const onEditEnd = () => {
-    // Validate characters before calling updateMethod
-    if (/[^a-zA-Z0-9-_ ]/.test(text)) {
+    const trimmedText = text.trim();
+    
+    // Use provided validation function, or fall back to default tab name validation
+    const validationError = validateInput 
+      ? validateInput(trimmedText)
+      : validateTabName(trimmedText);
+    
+    if (validationError) {
       // Reset text to original and stay in edit mode
       settext(initialText);
-      console.warn("Invalid characters in tab name:", text);
+      console.warn("Invalid input:", validationError);
       return; // Don't exit edit mode, don't call updateMethod
     }
     
     setisEditing(false);
-    updateMethod(initialText, text);
+    updateMethod(initialText, trimmedText);
   };
 
   return isEditing ? (
     <input
       value={text}
       className="bg-transparent border-none outline-none w-full min-w-0"
-      maxLength={22}
+      maxLength={maxLength}
       onKeyDown={(event) => {
         if (isEnterOrEscapeKeyEvent(event)) {
           event.preventDefault();

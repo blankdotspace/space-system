@@ -9,6 +9,14 @@ import { signSignable } from "@/common/lib/signedFiles";
 import { RegisterNewSpaceResponse } from "@/pages/api/space/registry";
 import { SPACE_TYPES } from "@/common/types/spaceData";
 import { INITIAL_SPACE_CONFIG_EMPTY } from "@/config";
+import {
+  validateNavItemLabel,
+  validateNavItemHref,
+  isDuplicateNavLabel,
+  isDuplicateNavHref,
+  generateUniqueNavLabel,
+  generateUniqueHrefFromLabel,
+} from "@/common/utils/navUtils";
 
 // Type for navPage space registration (similar to other space registration types)
 interface SpaceRegistrationNavPage {
@@ -33,7 +41,7 @@ interface NavigationStoreActions {
   
   // Navigation item operations (staged changes)
   createNavigationItem: (
-    item: Omit<NavigationItem, "id">
+    item: Omit<NavigationItem, "id" | "href"> & { href?: string }
   ) => Promise<NavigationItem>;
   deleteNavigationItem: (itemId: string) => void;
   renameNavigationItem: (itemId: string, updates: { label?: string; href?: string; icon?: NavigationItem["icon"] }) => void;
@@ -71,6 +79,45 @@ export const createNavigationStoreFunc = (
   },
   
   createNavigationItem: async (itemData) => {
+    const state = get().navigation;
+    
+    // Validate label
+    const labelError = validateNavItemLabel(itemData.label);
+    if (labelError) {
+      throw new Error(labelError);
+    }
+    
+    // Check for duplicate label and auto-generate unique if needed
+    let uniqueLabel = itemData.label.trim();
+    if (isDuplicateNavLabel(uniqueLabel, state.localNavigation)) {
+      uniqueLabel = generateUniqueNavLabel(uniqueLabel, state.localNavigation);
+      console.warn(`Duplicate label "${itemData.label}", using "${uniqueLabel}" instead`);
+    }
+    
+    // Generate href from label if not provided, or use provided href
+    let trimmedHref: string;
+    if (itemData.href) {
+      trimmedHref = itemData.href.trim();
+      // Validate provided href
+      const hrefError = validateNavItemHref(trimmedHref);
+      if (hrefError) {
+        throw new Error(hrefError);
+      }
+      // Check for duplicate href - fail if duplicate (user provided it, so don't auto-fix)
+      if (isDuplicateNavHref(trimmedHref, state.localNavigation)) {
+        throw new Error(`A navigation item with href "${trimmedHref}" already exists.`);
+      }
+    } else {
+      // Auto-generate href from label, ensuring uniqueness
+      trimmedHref = generateUniqueHrefFromLabel(uniqueLabel, state.localNavigation);
+      // Validate generated href (should always be valid, but check anyway)
+      const hrefError = validateNavItemHref(trimmedHref);
+      if (hrefError) {
+        // This shouldn't happen with our generator, but handle it gracefully
+        trimmedHref = `/item-${Date.now()}`;
+      }
+    }
+    
     const newId = uuidv4();
     const spaceId = uuidv4();
     const timestamp = moment().toISOString();
@@ -79,6 +126,8 @@ export const createNavigationStoreFunc = (
     const newItem: NavigationItem = {
       id: newId,
       ...itemData,
+      label: uniqueLabel,
+      href: trimmedHref,
       spaceId: spaceId,
     };
     
@@ -119,17 +168,63 @@ export const createNavigationStoreFunc = (
   },
   
   renameNavigationItem: (itemId, updates) => {
+    const state = get().navigation;
+    const itemIndex = state.localNavigation.findIndex(
+      (item) => item.id === itemId
+    );
+    
+    if (itemIndex === -1) return;
+    
+    const currentItem = state.localNavigation[itemIndex];
+    let newLabel = updates.label ?? currentItem.label;
+    let newHref = updates.href ?? currentItem.href;
+    
+    // Validate label
+    if (updates.label !== undefined) {
+      const sanitizedLabel = updates.label.trim();
+      const labelError = validateNavItemLabel(sanitizedLabel);
+      if (labelError) {
+        console.error("Invalid navigation label:", labelError);
+        throw new Error(labelError);
+      }
+      
+      // Check for duplicate labels (case-insensitive) and auto-generate unique if needed
+      if (isDuplicateNavLabel(sanitizedLabel, state.localNavigation, itemId)) {
+        newLabel = generateUniqueNavLabel(sanitizedLabel, state.localNavigation, itemId);
+        console.warn(`Duplicate label "${sanitizedLabel}", using "${newLabel}" instead`);
+      } else {
+        newLabel = sanitizedLabel;
+      }
+    }
+    
+    // Validate href
+    if (updates.href !== undefined) {
+      const sanitizedHref = updates.href.trim();
+      const hrefError = validateNavItemHref(sanitizedHref);
+      if (hrefError) {
+        console.error("Invalid navigation href:", hrefError);
+        throw new Error(hrefError);
+      }
+      
+      // Check for duplicate hrefs (case-sensitive for URLs) - fail hard
+      if (isDuplicateNavHref(sanitizedHref, state.localNavigation, itemId)) {
+        throw new Error(`A navigation item with href "${sanitizedHref}" already exists.`);
+      }
+      
+      newHref = sanitizedHref;
+    }
+    
+    // Apply updates
     set((draft) => {
-      const itemIndex = draft.navigation.localNavigation.findIndex(
-        (item) => item.id === itemId
-      );
-      
-      if (itemIndex === -1) return;
-      
-      // Update the item directly in localNavigation
-      if (updates.label !== undefined) draft.navigation.localNavigation[itemIndex].label = updates.label;
-      if (updates.href !== undefined) draft.navigation.localNavigation[itemIndex].href = updates.href;
-      if (updates.icon !== undefined) draft.navigation.localNavigation[itemIndex].icon = updates.icon;
+      if (updates.label !== undefined) {
+        draft.navigation.localNavigation[itemIndex].label = newLabel;
+      }
+      if (updates.href !== undefined) {
+        draft.navigation.localNavigation[itemIndex].href = newHref;
+      }
+      if (updates.icon !== undefined) {
+        draft.navigation.localNavigation[itemIndex].icon = updates.icon;
+      }
     }, "renameNavigationItem");
   },
   

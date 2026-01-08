@@ -7,11 +7,15 @@ import {
   Signable,
   validateSignable,
 } from "@/common/lib/signedFiles";
-import { isArray, isString } from "lodash";
+import { isArray } from "lodash";
 import { NextApiRequest, NextApiResponse } from "next/types";
-import { NavigationConfig } from "@/config/systemConfig";
+import { NavigationConfig, NavigationItem } from "@/config/systemConfig";
 import { SPACE_TYPES } from "@/common/types/spaceData";
 import { Json } from "@/supabase/database";
+import {
+  validateNavItemLabel,
+  validateNavItemHref,
+} from "@/common/utils/navUtils";
 
 export type UnsignedUpdateNavigationConfigRequest = {
   communityId: string;
@@ -92,6 +96,58 @@ async function updateNavigationConfig(
       result: "error",
       error: {
         message: `Identity ${updateRequest.publicKey} is not an admin for community ${updateRequest.communityId}`,
+      },
+    });
+    return;
+  }
+
+  // Validate all navigation items before updating
+  const itemsToValidate = updateRequest.navigationConfig.items || [];
+  
+  // Validate all labels
+  for (const item of itemsToValidate) {
+    const labelError = validateNavItemLabel(item.label);
+    if (labelError) {
+      res.status(400).json({
+        result: "error",
+        error: {
+          message: `Invalid label for item "${item.label}": ${labelError}`,
+        },
+      });
+      return;
+    }
+    
+    const hrefError = validateNavItemHref(item.href);
+    if (hrefError) {
+      res.status(400).json({
+        result: "error",
+        error: {
+          message: `Invalid href for item "${item.label}": ${hrefError}`,
+        },
+      });
+      return;
+    }
+  }
+  
+  // Check for duplicate labels (case-insensitive)
+  const labels = itemsToValidate.map((item: NavigationItem) => item.label.toLowerCase().trim());
+  if (new Set(labels).size !== labels.length) {
+    res.status(400).json({
+      result: "error",
+      error: {
+        message: "Duplicate navigation labels found. Labels must be unique (case-insensitive).",
+      },
+    });
+    return;
+  }
+  
+  // Check for duplicate hrefs (case-sensitive)
+  const hrefs = itemsToValidate.map((item: NavigationItem) => item.href.trim());
+  if (new Set(hrefs).size !== hrefs.length) {
+    res.status(400).json({
+      result: "error",
+      error: {
+        message: "Duplicate navigation hrefs found. Each navigation item must have a unique href.",
       },
     });
     return;

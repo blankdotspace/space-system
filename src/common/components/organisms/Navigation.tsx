@@ -54,6 +54,7 @@ import EditableText from "../atoms/editable-text";
 import { CloseIcon } from "../atoms/icons/CloseIcon";
 import { FaPlus, FaCheck, FaXmark } from "react-icons/fa6";
 import { toast } from "sonner";
+import { validateNavItemLabel } from "@/common/utils/navUtils";
 
 type NavItemProps = {
   label: string;
@@ -107,7 +108,7 @@ const Navigation = React.memo(
       getIsInitializing: state.getIsInitializing,
     })
   );
-  const { editMode, setEditMode, navEditMode, setNavEditMode } = useSidebarContext();
+  const { navEditMode, setNavEditMode } = useSidebarContext();
   const currentUserIdentityPublicKey = useCurrentSpaceIdentityPublicKey();
   const userTheme: UserTheme = useUserTheme();
   const uiColors = useUIColors({ systemConfig });
@@ -193,7 +194,7 @@ const Navigation = React.memo(
     try {
       await createNavigationItem({
         label: "New Item",
-        href: "/new-item",
+        // href will be auto-generated from label if not provided
         icon: "custom",
       });
       toast.success("Navigation item created");
@@ -563,13 +564,13 @@ const Navigation = React.memo(
                     <Reorder.Group
                       axis="y"
                       onReorder={debouncedUpdateOrder}
-                      values={navItemsToDisplay}
+                      values={navItemsToDisplay.filter(item => item.id !== 'notifications')}
                       className="space-y-2"
                     >
-                      {map(navItemsToDisplay, (item) => {
+                      {map(navItemsToDisplay.filter(item => item.id !== 'notifications'), (item) => {
                         if (item.requiresAuth && !isLoggedIn) return null;
+                        
                         const IconComp = iconFor(item.icon);
-                        const badge = item.id === 'notifications' ? notificationBadgeText : null;
                         const isSelected = pathname === item.href;
                         
                         return (
@@ -598,7 +599,6 @@ const Navigation = React.memo(
                               }}
                               draggable={false}
                             >
-                              {badge && <NavIconBadge systemConfig={systemConfig}>{badge}</NavIconBadge>}
                               <div className="flex-shrink-0">
                                 <IconComp />
                               </div>
@@ -608,9 +608,16 @@ const Navigation = React.memo(
                                     initialText={item.label}
                                     updateMethod={(oldLabel, newLabel) => {
                                       if (oldLabel !== newLabel) {
-                                        renameNavigationItem(item.id, { label: newLabel });
+                                        try {
+                                          renameNavigationItem(item.id, { label: newLabel });
+                                          toast.success("Navigation item updated");
+                                        } catch (error: any) {
+                                          toast.error(error.message || "Failed to update navigation item");
+                                        }
                                       }
                                     }}
+                                    validateInput={validateNavItemLabel}
+                                    maxLength={50}
                                   />
                                 </div>
                               )}
@@ -669,6 +676,16 @@ const Navigation = React.memo(
                   
                   {/* Show other nav items but greyed out/inactive */}
                   <ul className="space-y-2 mt-4 pt-4 border-t">
+                    {isLoggedIn && (
+                      <NavItem
+                        label="Notifications"
+                        Icon={NotificationsIcon}
+                        href="/notifications"
+                        onClick={() => trackAnalyticsEvent(AnalyticsEvent.CLICK_NOTIFICATIONS)}
+                        badgeText={notificationBadgeText}
+                        disable={true}
+                      />
+                    )}
                     <NavButton
                       label="Search"
                       Icon={SearchIcon}
@@ -710,10 +727,9 @@ const Navigation = React.memo(
               ) : (
                 // Normal mode: show regular navigation items
                 <ul className="space-y-2">
-                  {allNavItems.map((item) => {
+                  {allNavItems.filter(item => item.id !== 'notifications').map((item) => {
                     if (item.requiresAuth && !isLoggedIn) return null;
                     const IconComp = iconFor(item.icon);
-                    const badge = item.id === 'notifications' ? notificationBadgeText : null;
                     return (
                       <NavItem
                         key={item.id}
@@ -722,15 +738,22 @@ const Navigation = React.memo(
                         href={item.href}
                         onClick={() => {
                           if (item.id === 'explore') trackAnalyticsEvent(AnalyticsEvent.CLICK_EXPLORE);
-                          if (item.id === 'notifications') trackAnalyticsEvent(AnalyticsEvent.CLICK_NOTIFICATIONS);
                           if (item.id === 'home') trackAnalyticsEvent(AnalyticsEvent.CLICK_HOMEBASE);
                           if (item.id === 'space-token') trackAnalyticsEvent(AnalyticsEvent.CLICK_SPACE_FAIR_LAUNCH);
                         }}
                         openInNewTab={item.openInNewTab}
-                        badgeText={badge}
                       />
                     );
                   })}
+                  {isLoggedIn && (
+                    <NavItem
+                      label="Notifications"
+                      Icon={NotificationsIcon}
+                      href="/notifications"
+                      onClick={() => trackAnalyticsEvent(AnalyticsEvent.CLICK_NOTIFICATIONS)}
+                      badgeText={notificationBadgeText}
+                    />
+                  )}
                 <NavButton
                   label="Search"
                   Icon={SearchIcon}

@@ -34,6 +34,30 @@ export function isDuplicateTabName(
 }
 
 /**
+ * Generates a unique name by appending numbers if duplicates exist
+ * Used for both tabs and navigation items
+ * @param baseName Base name to make unique
+ * @param existingNames List of existing names to check against
+ * @param maxIterations Maximum number of iterations before giving up
+ * @returns Unique name, or null if max iterations exceeded
+ */
+export function generateUniqueName(
+  baseName: string,
+  existingNames: string[],
+  maxIterations: number = 100
+): string | null {
+  const trimmedBase = baseName.trim();
+  let uniqueName = trimmedBase;
+  let iter = 1;
+  
+  while (existingNames.includes(uniqueName) && iter <= maxIterations) {
+    uniqueName = `${trimmedBase} - ${iter++}`;
+  }
+  
+  return iter > maxIterations ? null : uniqueName;
+}
+
+/**
  * Helper for handling optimistic updates with automatic rollback on error
  * This pattern is used across both public and private space tab operations
  *
