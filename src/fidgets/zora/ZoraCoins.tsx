@@ -5,6 +5,7 @@ import TextInput from "@/common/components/molecules/TextInput";
 import { FidgetArgs, FidgetModule, FidgetProperties, FidgetSettingsStyle } from "@/common/fidgets";
 import { defaultStyleFields, WithMargin, ErrorWrapper } from "@/fidgets/helpers";
 import { BsCoin } from "react-icons/bs";
+import { TradeModal } from "./TradeModal";
 
 export type ZoraCoinsFidgetSettings = {
   coinContract?: string;
@@ -32,7 +33,7 @@ const zoraCoinsProperties: FidgetProperties = {
                 checked={props.value === "single"}
                 onChange={(e) => props.onChange(e.target.value)}
               />
-              Single Coin
+              Content Coin
             </label>
             <label className="flex items-center gap-2">
               <input
@@ -79,9 +80,9 @@ const zoraCoinsProperties: FidgetProperties = {
     ...defaultStyleFields,
   ],
   size: {
-    minHeight: 2,
+    minHeight: 1,
     maxHeight: 12,
-    minWidth: 3,
+    minWidth: 1,
     maxWidth: 12,
   },
 };
@@ -111,54 +112,66 @@ interface CoinData {
 }
 
 const detectMimeType = (uri: string, providedMimeType?: string): string => {
-  if (providedMimeType && providedMimeType !== "application/octet-stream" && !providedMimeType.includes('image')) {
+  if (providedMimeType && providedMimeType !== "application/octet-stream" && !providedMimeType.includes("image")) {
     return providedMimeType;
   }
-  
+
   const url = uri.toLowerCase();
-  
-  if (url.includes('.mp4') || url.includes('.webm') || url.includes('.mov') || url.includes('.avi') || url.includes('.m4v')) {
-    return 'video/mp4';
+
+  if (
+    url.includes(".mp4") ||
+    url.includes(".webm") ||
+    url.includes(".mov") ||
+    url.includes(".avi") ||
+    url.includes(".m4v")
+  ) {
+    return "video/mp4";
   }
-  
-  if (url.includes('.jpg') || url.includes('.jpeg') || url.includes('.png') || url.includes('.gif') || url.includes('.webp')) {
-    return 'image/jpeg';
+
+  if (
+    url.includes(".jpg") ||
+    url.includes(".jpeg") ||
+    url.includes(".png") ||
+    url.includes(".gif") ||
+    url.includes(".webp")
+  ) {
+    return "image/jpeg";
   }
-  
-  if (uri.startsWith('ipfs://') || uri.startsWith('ipfs:/')) {
-    return 'video/mp4';
+
+  if (uri.startsWith("ipfs://") || uri.startsWith("ipfs:/")) {
+    return "video/mp4";
   }
-  
-  return providedMimeType || 'image/jpeg';
+
+  return providedMimeType || "image/jpeg";
 };
 
-const getBestVideoUrl = (mediaContent: any): { url: string; type: 'cloudflare' | 'hls' | 'ipfs' } => {
-  if (mediaContent.videoPreviewUrl?.includes('cloudflarestream.com')) {
-    const videoId = mediaContent.videoPreviewUrl.split('/').slice(-2, -1)[0];
-    const baseUrl = mediaContent.videoPreviewUrl.split('/').slice(0, 3).join('/');
-    return { url: `${baseUrl}/${videoId}/iframe`, type: 'cloudflare' };
+const getBestVideoUrl = (mediaContent: any): { url: string; type: "cloudflare" | "hls" | "ipfs" } => {
+  if (mediaContent.videoPreviewUrl?.includes("cloudflarestream.com")) {
+    const videoId = mediaContent.videoPreviewUrl.split("/").slice(-2, -1)[0];
+    const baseUrl = mediaContent.videoPreviewUrl.split("/").slice(0, 3).join("/");
+    return { url: `${baseUrl}/${videoId}/iframe`, type: "cloudflare" };
   }
-  
+
   if (mediaContent.videoHlsUrl) {
-    return { url: mediaContent.videoHlsUrl, type: 'hls' };
+    return { url: mediaContent.videoHlsUrl, type: "hls" };
   }
-  
-  return { url: formatIpfsUri(mediaContent.originalUri), type: 'ipfs' };
+
+  return { url: formatIpfsUri(mediaContent.originalUri), type: "ipfs" };
 };
 
 const formatIpfsUri = (uri: string): string => {
   if (!uri) return uri;
-  
-  if (uri.startsWith('ipfs://')) {
-    const cid = uri.replace('ipfs://', '');
+
+  if (uri.startsWith("ipfs://")) {
+    const cid = uri.replace("ipfs://", "");
     return `https://ipfs.io/ipfs/${cid}`;
   }
-  
-  if (uri.startsWith('ipfs:/') && !uri.startsWith('ipfs://')) {
-    const cid = uri.replace('ipfs:/', '');
+
+  if (uri.startsWith("ipfs:/") && !uri.startsWith("ipfs://")) {
+    const cid = uri.replace("ipfs:/", "");
     return `https://ipfs.io/ipfs/${cid}`;
   }
-  
+
   return uri;
 };
 
@@ -168,6 +181,8 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) 
   const [error, setError] = useState<string | null>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [videoError, setVideoError] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isTradeModalOpen, setIsTradeModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchCoinData = async () => {
@@ -227,8 +242,45 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) 
           } else {
             setError("Coin not found");
           }
-        } else if (settings.displayMode === "creator") {
-          setError("Creator mode coming soon");
+        } else if (settings.displayMode === "creator" && settings.creatorContract) {
+          const response = await fetch(`/api/zora/coin?address=${settings.creatorContract}&chain=8453`);
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP ${response.status}`);
+          }
+
+          const data = await response.json();
+          const token = data?.zora20Token;
+
+          if (token) {
+            setCoinData({
+              address: token.address,
+              name: token.name,
+              symbol: token.symbol,
+              marketCap: token.marketCap || "0",
+              tokenPrice: {
+                priceInUsdc: token.tokenPrice?.priceInUsdc || "0",
+              },
+              mediaContent: token.mediaContent
+                ? {
+                    originalUri: token.mediaContent.originalUri,
+                    mimeType: detectMimeType(token.mediaContent.originalUri, token.mediaContent.mimeType),
+                    videoPreviewUrl: token.mediaContent.videoPreviewUrl,
+                    videoHlsUrl: token.mediaContent.videoHlsUrl,
+                    previewImage: token.mediaContent.previewImage,
+                  }
+                : undefined,
+              creatorProfile: token.creatorProfile
+                ? {
+                    handle: token.creatorProfile.handle || undefined,
+                    avatarUrl: token.creatorProfile.avatar?.previewImage?.medium || undefined,
+                  }
+                : undefined,
+            });
+          } else {
+            setError("Creator coin not found");
+          }
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
@@ -242,7 +294,7 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) 
   }, [settings.coinContract, settings.creatorContract, settings.displayMode]);
 
   const handleTrade = () => {
-    alert("Trade modal coming soon!");
+    setIsTradeModalOpen(true);
   };
 
   const videoData = coinData?.mediaContent ? getBestVideoUrl(coinData.mediaContent) : null;
@@ -256,11 +308,39 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) 
           width: "100%",
           height: "100%",
           display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          flexDirection: "column",
+          overflow: "hidden",
         }}
       >
-        <div className="animate-pulse">Loading coin data...</div>
+        {/* Media Skeleton */}
+        <div className="relative flex-1 min-h-0 bg-gray-200 animate-pulse" />
+
+        {/* Info Section Skeleton */}
+        <div className="p-4 space-y-3 bg-white border-t">
+          {/* Name & Symbol Skeleton */}
+          <div className="space-y-2">
+            <div className="h-6 bg-gray-200 rounded animate-pulse w-3/4" />
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 bg-gray-200 rounded-full animate-pulse" />
+              <div className="h-4 bg-gray-200 rounded animate-pulse w-24" />
+            </div>
+          </div>
+
+          {/* Market Data Skeleton */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <div className="h-4 bg-gray-200 rounded animate-pulse w-12" />
+              <div className="h-5 bg-gray-200 rounded animate-pulse w-20" />
+            </div>
+            <div className="space-y-1">
+              <div className="h-4 bg-gray-200 rounded animate-pulse w-20" />
+              <div className="h-5 bg-gray-200 rounded animate-pulse w-24" />
+            </div>
+          </div>
+
+          {/* Button Skeleton */}
+          <div className="h-12 bg-gray-200 rounded-lg animate-pulse" />
+        </div>
       </div>
     );
   }
@@ -273,6 +353,116 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) 
     return <ErrorWrapper icon="🪙" message="Enter a coin contract address to display coin information" />;
   }
 
+  // Creator mode: Show 3D spinning coin
+  if (settings.displayMode === "creator") {
+    const coinImage =
+      coinData.mediaContent?.previewImage?.medium ||
+      coinData.mediaContent?.previewImage?.small ||
+      formatIpfsUri(coinData.mediaContent?.originalUri || "");
+
+    return (
+      <div
+        style={{
+          background: settings.background,
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          perspective: "1000px",
+          cursor: "pointer",
+          position: "relative",
+        }}
+        onClick={handleTrade}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <div
+          style={{
+            position: "relative",
+            width: "min(80%, 80vh)",
+            height: "min(80%, 80vh)",
+            aspectRatio: "1",
+            maxWidth: "350px",
+            maxHeight: "350px",
+            transformStyle: "preserve-3d",
+            animation: "spin 8s linear infinite",
+            transform: isHovered ? "scale(1.15)" : "scale(1)",
+            transition: "transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
+            filter: isHovered
+              ? "drop-shadow(0 15px 40px rgba(0, 0, 0, 0.5))"
+              : "drop-shadow(0 10px 25px rgba(0, 0, 0, 0.3))",
+          }}
+        >
+          {/* Front side */}
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              backfaceVisibility: "hidden",
+              borderRadius: "50%",
+              overflow: "hidden",
+            }}
+          >
+            <img
+              src={coinImage}
+              alt={coinData.name}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+              }}
+            />
+          </div>
+
+          {/* Back side */}
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              backfaceVisibility: "hidden",
+              transform: "rotateY(180deg)",
+              borderRadius: "50%",
+              overflow: "hidden",
+            }}
+          >
+            <img
+              src={coinImage}
+              alt={coinData.name}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+              }}
+            />
+          </div>
+        </div>
+
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+            @keyframes spin {
+              from {
+                transform: rotateY(0deg);
+              }
+              to {
+                transform: rotateY(360deg);
+              }
+            }
+          `,
+          }}
+        />
+      </div>
+    );
+  }
+
+  // Single coin mode: Show full coin details
   return (
     <div
       style={{
@@ -288,14 +478,14 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) 
       <div className="relative flex-1 min-h-0">
         {coinData.mediaContent ? (
           isVideo && !videoError && videoData ? (
-            videoData.type === 'cloudflare' ? (
+            videoData.type === "cloudflare" ? (
               <iframe
                 key={videoData.url}
                 src={videoData.url}
                 className="w-full h-full"
                 allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
                 allowFullScreen
-                style={{ border: 'none' }}
+                style={{ border: "none" }}
               />
             ) : (
               <div className="relative w-full h-full">
@@ -336,14 +526,14 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) 
               </div>
             )
           ) : (
-            <img 
+            <img
               src={
-                coinData.mediaContent.previewImage?.medium || 
-                coinData.mediaContent.previewImage?.small || 
+                coinData.mediaContent.previewImage?.medium ||
+                coinData.mediaContent.previewImage?.small ||
                 formatIpfsUri(coinData.mediaContent.originalUri)
-              } 
-              alt={coinData.name} 
-              className="w-full h-full object-cover" 
+              }
+              alt={coinData.name}
+              className="w-full h-full object-cover"
             />
           )
         ) : (
@@ -394,6 +584,11 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) 
           Trade
         </button>
       </div>
+
+      {/* Trade Modal */}
+      {coinData && (
+        <TradeModal isOpen={isTradeModalOpen} onClose={() => setIsTradeModalOpen(false)} coinData={coinData} />
+      )}
     </div>
   );
 };
