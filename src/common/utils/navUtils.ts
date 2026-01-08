@@ -3,11 +3,12 @@
  * Reuses tab validation utilities where applicable, adds nav-specific validation
  */
 
-import { validateTabName, isDuplicateTabName, generateUniqueName } from "./tabUtils";
+import { isDuplicateTabName, generateUniqueName } from "./tabUtils";
 import { NavigationItem } from "@/config/systemConfig";
 
 /**
- * Validates a navigation item label using the same rules as tab names
+ * Validates a navigation item label
+ * Allows letters, numbers, hyphens, underscores, spaces, and $ (for token symbols)
  * @param label The navigation label to validate
  * @returns Error message string if invalid, null if valid
  */
@@ -16,14 +17,12 @@ export function validateNavItemLabel(label: string): string | null {
     return "Navigation label cannot be empty.";
   }
   
-  // Reuse tab name validation (same character rules)
-  const tabValidationError = validateTabName(label);
-  if (tabValidationError) {
-    // Replace "tab name" with "navigation label" in the error message
-    return tabValidationError.replace("tab name", "navigation label");
+  // Allow letters, numbers, hyphens, underscores, spaces, and $ (for token symbols like $SPACE)
+  if (/[^a-zA-Z0-9-_ $]/.test(label)) {
+    return "The navigation label contains invalid characters. Only letters, numbers, hyphens, underscores, spaces, and $ are allowed.";
   }
   
-  // Additional length check for nav labels (optional, but reasonable)
+  // Additional length check for nav labels
   if (label.trim().length > 50) {
     return "Navigation label is too long. Maximum 50 characters.";
   }
