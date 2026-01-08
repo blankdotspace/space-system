@@ -138,6 +138,14 @@ const Navigation = React.memo(
     }
   }, [navEditMode, shrunk]);
 
+  // Force sidebar to remain expanded while in navigation edit mode
+  useEffect(() => {
+    if (navEditMode && shrunk) {
+      console.log('[Navigation] Forcing sidebar expansion due to navigation edit mode');
+      setShrunk(false);
+    }
+  }, [navEditMode, shrunk]);
+
   const toggleSidebar = () => {
     if (mobile || navEditMode) return; // Disable toggle during navigation edit mode
     setShrunk((prev) => !prev);
@@ -439,7 +447,7 @@ const Navigation = React.memo(
               : "w-[270px]"
           )}
         >
-          {!mobile && (
+          {!mobile && !navEditMode && (
             <button
               onClick={toggleSidebar}
               className="absolute right-0 top-4 transform translate-x-1/2 bg-white rounded-full border border-gray-200 shadow-sm p-2 hover:bg-gray-50 sidebar-expand-button z-50"
