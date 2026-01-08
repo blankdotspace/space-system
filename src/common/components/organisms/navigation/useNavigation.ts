@@ -33,7 +33,7 @@ function normalizeNavigationError(error: unknown): NavigationError {
     
     // Check for network errors (axios)
     if (axios.isAxiosError(error)) {
-      const isRetryable = error.response?.status && error.response.status >= 500;
+      const isRetryable = error.response?.status !== undefined && error.response.status >= 500;
       return {
         type: 'NETWORK',
         message: error.response?.data?.error?.message || error.message || 'Network error occurred',

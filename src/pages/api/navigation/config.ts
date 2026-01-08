@@ -235,21 +235,44 @@ async function updateNavigationConfig(
   const navigationConfigJson: Json = JSON.parse(JSON.stringify(mergedNavigationConfig));
 
   // Update the navigation_config column with merged config
-  const { error: updateError } = await supabase
+  // Use .select() to verify that a row was actually updated
+  const { data: updatedRows, error: updateError } = await supabase
     .from("community_configs")
     .update({
       navigation_config: navigationConfigJson,
       updated_at: new Date().toISOString(),
     })
     .eq("community_id", updateRequest.communityId)
-    .eq("is_published", true);
+    .eq("is_published", true)
+    .select();
 
+  // Check for database errors
   if (updateError) {
     console.error("Error updating navigation config:", updateError);
     res.status(500).json({
       result: "error",
       error: {
-        message: updateError.message,
+        message: `Database error: ${updateError.message}`,
+      },
+    });
+    return;
+  }
+
+  // Verify that at least one row was actually updated
+  // This can happen if:
+  // - The community config doesn't exist
+  // - The community config exists but is_published is false (unpublished)
+  // - Race condition: row was deleted/unpublished between our fetch and update
+  if (!updatedRows || updatedRows.length === 0) {
+    console.error(
+      `Navigation config update failed: No rows updated for community ${updateRequest.communityId}. ` +
+      `This may indicate the config doesn't exist or is not published.`
+    );
+    res.status(409).json({
+      result: "error",
+      error: {
+        message: `No navigation config found to update for community "${updateRequest.communityId}". ` +
+          `The config may not exist or may not be published.`,
       },
     });
     return;

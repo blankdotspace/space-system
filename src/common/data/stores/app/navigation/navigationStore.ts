@@ -28,7 +28,11 @@ interface SpaceRegistrationNavPage {
 }
 
 interface NavigationStoreState {
-  // Remote navigation items from database (SystemConfig)
+  // Remote navigation config from database (SystemConfig)
+  // Stores the full NavigationConfig to preserve fields like logoTooltip, showMusicPlayer, showSocials
+  remoteNavigationConfig: NavigationConfig | null;
+  
+  // Remote navigation items (derived from remoteNavigationConfig for convenience)
   remoteNavigation: NavigationItem[];
   
   // Local (staged) navigation items
@@ -60,6 +64,7 @@ interface NavigationStoreActions {
 export type NavigationStore = NavigationStoreState & NavigationStoreActions;
 
 export const navigationStoreDefaults: NavigationStoreState = {
+  remoteNavigationConfig: null,
   remoteNavigation: [],
   localNavigation: [],
 };
@@ -73,7 +78,17 @@ export const createNavigationStoreFunc = (
   loadNavigation: (navigationConfig) => {
     // Filter out notifications - it's hardcoded and not managed as a config item
     const items = (navigationConfig?.items || []).filter(item => item.id !== 'notifications');
+    
+    // Store the full config, but with filtered items (without notifications)
+    const configWithoutNotifications: NavigationConfig | null = navigationConfig
+      ? {
+          ...navigationConfig,
+          items: items,
+        }
+      : null;
+    
     set((draft) => {
+      draft.navigation.remoteNavigationConfig = configWithoutNotifications;
       draft.navigation.remoteNavigation = cloneDeep(items);
       draft.navigation.localNavigation = cloneDeep(items);
     }, "loadNavigation");
@@ -369,14 +384,25 @@ export const createNavigationStoreFunc = (
       // Filter out notifications - it's hardcoded and not stored in config
       const itemsToCommit = state.localNavigation.filter(item => item.id !== 'notifications');
       
+      // Build full navigation config by merging updated items with existing config
+      // This preserves other fields like logoTooltip, showMusicPlayer, showSocials
+      const baseConfig = state.remoteNavigationConfig || {};
+      const navigationConfigToCommit: NavigationConfig = {
+        ...baseConfig,
+        items: itemsToCommit,
+      };
+      
       // Debug: log what we're about to send
-      console.log("Committing navigation items:", itemsToCommit.map(item => ({ id: item.id, label: item.label, href: item.href })));
+      console.log("Committing navigation config:", {
+        items: itemsToCommit.map(item => ({ id: item.id, label: item.label, href: item.href })),
+        logoTooltip: navigationConfigToCommit.logoTooltip,
+        showMusicPlayer: navigationConfigToCommit.showMusicPlayer,
+        showSocials: navigationConfigToCommit.showSocials,
+      });
       
       const unsignedRequest = {
         communityId,
-        navigationConfig: {
-          items: itemsToCommit,
-        },
+        navigationConfig: navigationConfigToCommit,
         publicKey,
         timestamp: moment().toISOString(),
       };
@@ -390,8 +416,9 @@ export const createNavigationStoreFunc = (
       await axiosBackend.put("/api/navigation/config", signedRequest);
       
       // Step 4: Update local state to reflect committed changes
-      // Use itemsToCommit (which excludes notifications) as the new remoteNavigation
+      // Update both remoteNavigationConfig (full config) and remoteNavigation (items only)
       set((draft) => {
+        draft.navigation.remoteNavigationConfig = cloneDeep(navigationConfigToCommit);
         draft.navigation.remoteNavigation = cloneDeep(itemsToCommit);
         // Also update localNavigation to remove notifications if it exists
         draft.navigation.localNavigation = draft.navigation.localNavigation.filter(item => item.id !== 'notifications');
