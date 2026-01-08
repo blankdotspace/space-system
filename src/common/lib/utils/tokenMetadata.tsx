@@ -5,6 +5,7 @@ import { WEBSITE_URL } from "@/constants/app";
 type MetadataContext = {
   baseUrl: string;
   brandName: string;
+  twitterHandle?: string;
 };
 
 export type TokenMetadata = {
@@ -39,6 +40,7 @@ export const getTokenMetadataStructure = (
 
   const baseUrl = context?.baseUrl ?? WEBSITE_URL;
   const brandName = context?.brandName ?? "Nounspace";
+  const twitterHandle = normalizeTwitterHandle(context?.twitterHandle);
 
   const spaceUrl =
     network && contractAddress
@@ -67,9 +69,9 @@ export const getTokenMetadataStructure = (
     },
     twitter: {
       title,
-      site: baseUrl,
       images: [ogImageUrl],
       card: "summary_large_image",
+      ...(twitterHandle ? { site: twitterHandle } : {}),
     },
   };
 
@@ -87,4 +89,22 @@ export const getTokenMetadataStructure = (
   }
 
   return metadata;
+};
+
+const normalizeTwitterHandle = (handle?: string): string | undefined => {
+  if (!handle) {
+    return undefined;
+  }
+  const trimmed = handle.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const withoutAt = trimmed.startsWith("@") ? trimmed.slice(1) : trimmed;
+  const cleaned = withoutAt.replace(/^https?:\/\//i, "");
+  const parts = cleaned.split("/");
+  const lastPart = parts[parts.length - 1]?.replace(/^@/, "");
+  if (!lastPart) {
+    return undefined;
+  }
+  return `@${lastPart}`;
 };
