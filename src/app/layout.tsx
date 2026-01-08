@@ -10,6 +10,8 @@ import type { Metadata } from 'next' // Migrating next/head
 import { extractFontFamilyFromUrl } from "@/common/lib/utils/fontUtils";
 import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
 import { resolveAssetUrl } from "@/common/lib/utils/resolveAssetUrl";
+import { buildMiniAppEmbed } from "@/common/lib/utils/miniAppEmbed";
+import { resolveMiniAppDomain } from "@/common/lib/utils/miniAppDomain";
 
 const TRUSTED_STYLESHEET_HOSTS = new Set(["fonts.googleapis.com"]);
 
@@ -53,6 +55,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const splashImageUrl =
     resolveAssetUrl(config.assets.logos.splash, baseUrl) ?? config.assets.logos.splash;
   const communityOgUrl = `${baseUrl}/api/metadata/community`;
+  const miniAppDomain = resolveMiniAppDomain(baseUrl);
   
   const defaultFrame = {
     version: "next",
@@ -68,6 +71,14 @@ export async function generateMetadata(): Promise<Metadata> {
       }
     }
   };
+
+  const defaultMiniApp = buildMiniAppEmbed({
+    imageUrl: communityOgUrl,
+    buttonTitle: `Open ${config.brand.displayName}`,
+    actionUrl: baseUrl,
+    actionName: config.brand.displayName,
+    splashImageUrl,
+  });
 
   return {
     title: config.brand.displayName,
@@ -113,6 +124,8 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     other: {
       "fc:frame": JSON.stringify(defaultFrame),
+      "fc:miniapp": JSON.stringify(defaultMiniApp),
+      "fc:miniapp:domain": miniAppDomain,
     },
   };
 }

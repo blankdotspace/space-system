@@ -1,13 +1,13 @@
 type MiniAppEmbedAction = {
-  type: "launch_frame";
-  url: string;
+  type: "launch_miniapp";
   name: string;
-  splashImageUrl?: string;
+  url: string;
+  splashImageUrl: string;
   splashBackgroundColor?: string;
 };
 
 export type MiniAppEmbed = {
-  version: "next";
+  version: "1";
   imageUrl: string;
   button: {
     title: string;
@@ -15,21 +15,11 @@ export type MiniAppEmbed = {
   };
 };
 
-type MiniAppEmbedOptions = {
-  imageUrl: string;
-  buttonTitle: string;
-  actionUrl: string;
-  actionName: string;
-  splashImageUrl?: string | null;
-  splashBackgroundColor?: string;
-};
-
-const DEFAULT_SPLASH_BACKGROUND_COLOR = "#FFFFFF";
-const DEFAULT_BUTTON_TITLE_MAX_LENGTH = 32;
+const MAX_BUTTON_TITLE_LENGTH = 32;
 
 export const truncateMiniAppButtonTitle = (
   buttonTitle: string,
-  maxLength: number = DEFAULT_BUTTON_TITLE_MAX_LENGTH,
+  maxLength: number = MAX_BUTTON_TITLE_LENGTH,
 ): string => {
   const trimmed = buttonTitle.trim();
   if (trimmed.length <= maxLength) {
@@ -43,31 +33,33 @@ export const truncateMiniAppButtonTitle = (
   return `${trimmed.slice(0, maxLength - 3)}...`;
 };
 
+type BuildMiniAppEmbedOptions = {
+  imageUrl: string;
+  buttonTitle: string;
+  actionUrl: string;
+  actionName: string;
+  splashImageUrl: string;
+  splashBackgroundColor?: string;
+};
+
 export const buildMiniAppEmbed = ({
   imageUrl,
   buttonTitle,
   actionUrl,
   actionName,
   splashImageUrl,
-  splashBackgroundColor = DEFAULT_SPLASH_BACKGROUND_COLOR,
-}: MiniAppEmbedOptions): MiniAppEmbed => {
-  const action: MiniAppEmbedAction = {
-    type: "launch_frame",
-    url: actionUrl,
-    name: actionName,
-    splashBackgroundColor,
-  };
-
-  if (splashImageUrl) {
-    action.splashImageUrl = splashImageUrl;
-  }
-
-  return {
-    version: "next",
-    imageUrl,
-    button: {
-      title: truncateMiniAppButtonTitle(buttonTitle),
-      action,
+  splashBackgroundColor = "#FFFFFF",
+}: BuildMiniAppEmbedOptions): MiniAppEmbed => ({
+  version: "1",
+  imageUrl,
+  button: {
+    title: truncateMiniAppButtonTitle(buttonTitle),
+    action: {
+      type: "launch_miniapp",
+      name: actionName,
+      url: actionUrl,
+      splashImageUrl,
+      splashBackgroundColor,
     },
-  };
-};
+  },
+});
