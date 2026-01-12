@@ -51,6 +51,7 @@ import {
 import SearchModal, { SearchModalHandle } from "./SearchModal";
 import { toFarcasterCdnUrl } from "@/common/lib/utils/farcasterCdn";
 import { SystemConfig } from "@/config";
+import { NavigationItem } from "@/config/systemConfig";
 import { useCurrentSpaceIdentityPublicKey } from "@/common/lib/hooks/useCurrentSpaceIdentityPublicKey";
 import { useSidebarContext } from "./Sidebar";
 import { useNavigation } from "./navigation/useNavigation";
@@ -450,6 +451,52 @@ const Navigation = React.memo(
     renameNavigationItem: state.navigation.renameNavigationItem,
   }));
 
+  /**
+   * Handles deletion of a navigation item
+   * If the current pathname matches the deleted item, navigates to the closest nav item
+   */
+  const handleDeleteItem = useCallback((itemId: string) => {
+    const itemToDelete = localNavigation.find(item => item.id === itemId);
+    if (!itemToDelete) {
+      console.warn('[Navigation] Item not found for deletion:', itemId);
+      deleteNavigationItem(itemId);
+      return;
+    }
+
+    // Check if current pathname matches the deleted item's href
+    const isCurrentItem = pathname !== null && (
+      pathname === itemToDelete.href ||
+      (itemToDelete.href.startsWith('/') && pathname.startsWith(itemToDelete.href + '/'))
+    );
+
+    // Find the closest item BEFORE deleting (if we're on the deleted item)
+    let closestItem: NavigationItem | undefined;
+    if (isCurrentItem && localNavigation.length > 1) {
+      const currentIndex = localNavigation.findIndex(item => item.id === itemId);
+      
+      // Find the closest item: try previous, then next, otherwise first
+      if (currentIndex > 0) {
+        // Use previous item
+        closestItem = localNavigation[currentIndex - 1];
+      } else if (currentIndex < localNavigation.length - 1) {
+        // Use next item
+        closestItem = localNavigation[currentIndex + 1];
+      } else {
+        // Use first item (shouldn't happen if length > 1, but just in case)
+        closestItem = localNavigation[0];
+      }
+    }
+
+    // Delete the item
+    deleteNavigationItem(itemId);
+
+    // Navigate to the closest item if we were on the deleted item
+    if (closestItem && closestItem.href) {
+      console.log('[Navigation] Navigating to closest nav item after deletion:', closestItem.href);
+      router.push(closestItem.href);
+    }
+  }, [localNavigation, pathname, deleteNavigationItem, router]);
+
   const openSearchModal = useCallback(() => {
     if (!searchRef?.current) return;
     searchRef.current.focus();
@@ -559,7 +606,7 @@ const Navigation = React.memo(
                   CurrentUserImage={CurrentUserImage}
                   onReorder={debouncedUpdateOrder}
                   onRename={renameNavigationItem}
-                  onDelete={deleteNavigationItem}
+                  onDelete={handleDeleteItem}
                   onCreate={handleCreateItem}
                   onCommit={handleCommit}
                   onCancel={handleCancel}
