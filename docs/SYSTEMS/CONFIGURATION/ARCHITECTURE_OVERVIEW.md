@@ -190,6 +190,8 @@ interface SystemConfig {
   fidgets: FidgetConfig;        // From database
   navigation?: NavigationConfig; // From database (with spaceId refs)
   ui?: UIConfig;                // From database
+  adminIdentityPublicKeys?: string[]; // From database (admin public keys)
+  communityId: string;          // Database community_id (added for API operations)
 }
 ```
 
@@ -205,6 +207,9 @@ interface SystemConfig {
 | **UI Config** | Database (`ui_config`) | Primary colors, hover states, font colors, font URL |
 | **Themes** | `src/config/shared/themes.ts` | Shared across all communities |
 | **Navigation Pages** | Supabase Storage (`spaces` bucket) | Stored as Spaces, referenced by `spaceId` |
+| **Community ID** | SystemConfig (runtime) | Database `community_id` passed through for API operations |
+
+**Note:** The `communityId` field in `SystemConfig` is the database `community_id` (e.g., "nounspace.com", "nouns") used for API operations. This is different from `community.type` which is a semantic descriptor (e.g., "nouns", "token_platform") stored in the `community_config` JSONB field.
 
 ### 5. Navigation Pages as Spaces
 
@@ -219,7 +224,7 @@ interface NavigationItem {
   id: string;
   label: string;
   href: string;              // e.g., "/home"
-  icon?: 'home' | 'explore' | ...;
+  icon?: string;             // react-icons name (e.g., "FaHome") or custom URL
   spaceId?: string;          // Reference to Space in storage
 }
 ```
@@ -322,10 +327,11 @@ Supabase Storage (spaces bucket):
 
 **Key Files:**
 - `src/app/[navSlug]/[[...tabName]]/page.tsx` - Dynamic navigation page handler
-- `src/app/[navSlug]/[[...tabName]]/NavPageClient.tsx` - Client component for rendering
+- `src/app/[navSlug]/[[...tabName]]/NavPageSpace.tsx` - Client component for rendering
 - `src/config/systemConfig.ts` - `NavPageConfig` type definition
 
 **Related Documentation:**
+- See [Navigation System](../NAVIGATION/OVERVIEW.md) for details on the navigation editor
 - See [Space Architecture](../SPACES/SPACE_ARCHITECTURE.md) for details on how Spaces work
 - See [Public Spaces Pattern](../SPACES/PUBLIC_SPACES_PATTERN.md) for the server/client separation pattern
 
@@ -516,10 +522,14 @@ RootLayout (Server Component)
 ### Routing & Navigation
 - `middleware.ts` - Domain detection and header injection
 - `src/app/[navSlug]/[[...tabName]]/page.tsx` - Dynamic navigation (Server Component)
-- `src/app/[navSlug]/[[...tabName]]/NavPageClient.tsx` - Client component for rendering
+- `src/app/[navSlug]/[[...tabName]]/NavPageSpace.tsx` - Client component for rendering
 - `src/app/layout.tsx` - Root layout that loads config and passes to client components
 - `src/common/components/organisms/ClientSidebarWrapper.tsx` - Client wrapper for Sidebar
 - `src/common/components/organisms/ClientMobileHeaderWrapper.tsx` - Client wrapper for MobileHeader
+- `src/common/components/organisms/navigation/NavigationEditor.tsx` - Navigation editor UI
+- `src/common/components/organisms/navigation/useNavigation.ts` - Navigation management hook
+- `src/common/data/stores/app/navigation/navigationStore.ts` - Navigation Zustand store
+- `src/pages/api/navigation/config.ts` - Navigation config API endpoint
 
 ### Database
 - `supabase/migrations/20251129172847_create_community_configs.sql` - Schema
@@ -534,7 +544,6 @@ RootLayout (Server Component)
 ## Future Considerations
 
 1. **Versioning**: Database function supports multiple versions (orders by `updated_at`)
-2. **Caching**: Could add caching layer for frequently accessed configs
-3. **Admin UI**: Could build admin interface for config updates
+2. **Admin UI**: Navigation editor provides admin interface for navigation config updates (see [Navigation System](../NAVIGATION/OVERVIEW.md))
 4. **Validation**: Could add JSON schema validation for configs
 5. **Rollback**: Could add version history and rollback capabilities
