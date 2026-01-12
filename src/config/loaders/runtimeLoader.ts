@@ -2,6 +2,14 @@ import { ConfigLoader, ConfigLoadContext } from './types';
 import { SystemConfig } from '../systemConfig';
 import { themes } from '../shared/themes';
 import { createClient } from '@supabase/supabase-js';
+import {
+  nounsBrand,
+  nounsAssets,
+  nounsCommunity,
+  nounsFidgets,
+  nounsNavigation,
+  nounsUI,
+} from '../nouns';
 
 /**
  * Runtime config loader
@@ -45,10 +53,10 @@ export class RuntimeConfigLoader implements ConfigLoader {
         .single();
 
       if (error || !data) {
-        throw new Error(
-          `❌ Failed to load config from database for community: ${context.communityId}. ` +
-          `Error: ${error?.message || 'No data returned'}`
+        console.warn(
+          `⚠️ No config found for community ${context.communityId}. Falling back to default 'nouns' config.`
         );
+        return this.createFallbackConfig();
       }
 
       // Type assertion for database response
@@ -78,6 +86,18 @@ export class RuntimeConfigLoader implements ConfigLoader {
         `❌ Unexpected error loading runtime config: ${error.message || 'Unknown error'}`
       );
     }
+  }
+
+  private createFallbackConfig(): SystemConfig {
+    return {
+      brand: nounsBrand,
+      assets: nounsAssets,
+      community: nounsCommunity,
+      theme: themes,
+      fidgets: nounsFidgets,
+      navigation: nounsNavigation,
+      ui: nounsUI,
+    };
   }
 }
 
