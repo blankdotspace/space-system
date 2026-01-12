@@ -134,8 +134,9 @@ export function useFarcasterSigner(
     try {
       await authenticatorManager.installAuthenticators([authenticatorName]);
       authenticatorManager.initializeAuthenticators([authenticatorName]);
-    } catch (error) {
-      console.error("[useFarcasterSigner] Error requesting signer authorization:", error);
+      // Give a bit of time for the authenticator to initialize
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    } finally {
       setIsLoadingSigner(false);
     }
   }, [authenticatorManager, authenticatorName]);
@@ -145,12 +146,11 @@ export function useFarcasterSigner(
   useEffect(() => {
     if (currentIdentityFids.length > 0) {
       setFid(currentIdentityFids[0]);
-      setHasLoadedFids(true);
-    } else if (!hasLoadedFids) {
-      // Try to load FIDs only once if not already loaded
-      loadFids().then(() => setHasLoadedFids(true));
+    } else {
+      // Try to load FIDs if not already loaded
+      loadFids();
     }
-  }, [currentIdentityFids]);
+  }, [currentIdentityFids, loadFids]);
 
   // Check if signer is already initialized on mount or when FID becomes available
   useEffect(() => {
