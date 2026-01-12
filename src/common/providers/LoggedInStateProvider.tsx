@@ -157,28 +157,39 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
       
       const walletLower = user.wallet.address.toLowerCase();
       const matchingUser = users.find((u: any) => {
-        // Check verified_addresses.primary.eth_address
-        if (u.verified_addresses?.primary?.eth_address?.toLowerCase() === walletLower) {
+        const verified = u.verified_addresses;
+        const addressCandidates = [
+          verified?.primary?.eth_address,
+          ...(verified?.eth_addresses ?? []),
+          ...(verified?.sol_addresses ?? []),
+          u?.custody_address,
+        ];
+
+        if (
+          addressCandidates.some(
+            (addr) => typeof addr === "string" && addr.toLowerCase() === walletLower,
+          )
+        ) {
           return true;
         }
-        // Check verified_addresses.eth_addresses array
-        if (u.verified_addresses?.eth_addresses?.some(
-          (addr: string) => addr.toLowerCase() === walletLower
-        )) {
+
+        if (
+          u.verifications?.some(
+            (addr: string) => addr.toLowerCase() === walletLower,
+          )
+        ) {
           return true;
         }
-        // Check verifications array (fallback)
-        if (u.verifications?.some(
-          (addr: string) => addr.toLowerCase() === walletLower
-        )) {
-          return true;
-        }
+
         return false;
       });
-      
-      const fid = matchingUser?.fid ?? users[0]?.fid;
-      console.log("[inferFidFromWallet] Found FID:", fid, "from matching user:", !!matchingUser);
-      return fid;
+
+      if (!matchingUser) {
+        console.log("[inferFidFromWallet] No matching Neynar user for wallet");
+        return undefined;
+      }
+      console.log("[inferFidFromWallet] Found FID:", matchingUser.fid);
+      return matchingUser.fid;
     } catch (e) {
       console.error("[inferFidFromWallet] Error inferring FID from wallet:", e);
       return undefined;
@@ -260,13 +271,15 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
           ]);
           const signerReady = await waitForAuthenticator(FARCASTER_AUTHENTICATOR_NAME);
           if (signerReady) {
+            let fidResult: { value: number } | undefined;
             try {
-            const fidResult = (await authenticatorManager.callMethod({
+            const fidResultTemp = (await authenticatorManager.callMethod({
               requestingFidgetId: "root",
               authenticatorId: FARCASTER_AUTHENTICATOR_NAME,
               methodName: "getAccountFid",
               isLookup: true,
             })) as { value: number };
+            fidResult = fidResultTemp;
             const publicKeyResult = (await authenticatorManager.callMethod({
               requestingFidgetId: "root",
               authenticatorId: FARCASTER_AUTHENTICATOR_NAME,
@@ -290,8 +303,21 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
               bytesToHex(publicKeyResult.value),
               signForFid,
             );
+            console.log("[registerAccounts] FID registered with signer, reloading...");
+            await loadFidsForCurrentIdentity();
             } catch (e) {
               console.error("Error registering FID with signer:", e);
+              // Try registering without signer as fallback
+              if (fidResult) {
+                try {
+                  console.log("[registerAccounts] Retrying registration without signer");
+                  await registerFidForCurrentIdentity(fidResult.value);
+                  console.log("[registerAccounts] FID registered without signer, reloading...");
+                  await loadFidsForCurrentIdentity();
+                } catch (retryError) {
+                  console.error("Error registering FID without signer:", retryError);
+                }
+              }
             }
           }
         }
@@ -301,7 +327,7 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
   };
 
   // Has to be separate otherwise will cause retrigger chain
-  // due to depence on authenticatorManager
+  // due to dependency on authenticatorManager
   useEffect(() => {
     if (
       ready &&

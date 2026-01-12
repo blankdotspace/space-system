@@ -960,6 +960,12 @@ const CreateCast: React.FC<CreateCastProps> = ({
                 type="submit"
                 className="line-clamp-1 w-full"
                 disabled={isPublishing || isLoadingSigner}
+                onClick={async (e) => {
+                  if (!signer) {
+                    e.preventDefault();
+                    await requestSignerAuthorization();
+                  }
+                }}
               >
                 {getButtonText()}
               </Button>
@@ -1008,6 +1014,12 @@ const CreateCast: React.FC<CreateCastProps> = ({
                   type="submit"
                   className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white line-clamp-1 min-w-40 max-w-xs truncate"
                   disabled={isPublishing || isLoadingSigner}
+                  onClick={async (e) => {
+                    if (!signer) {
+                      e.preventDefault();
+                      await requestSignerAuthorization();
+                    }
+                  }}
                 >
                   {getButtonText()}
                 </Button>
