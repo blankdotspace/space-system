@@ -101,13 +101,20 @@ const NavigationItemComponent: React.FC<NavigationItemProps> = ({
     [disable, handleClick]
   );
 
+  // Match if pathname exactly equals href, or if pathname starts with href + "/"
+  // This allows tabs like /home/Settings to match the /home navigation item
+  const isSelected = pathname !== null && (
+    pathname === href || 
+    (href.startsWith('/') && pathname.startsWith(href + '/'))
+  );
+
   return (
     <li role="none">
       <Link
         href={disable ? "#" : href}
         className={mergeClasses(
           "flex relative items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 w-full group",
-          href === pathname ? "bg-gray-100" : "",
+          isSelected ? "bg-gray-100" : "",
           shrunk ? "justify-center" : "",
           disable ? "opacity-50 cursor-not-allowed pointer-events-none" : ""
         )}
@@ -116,7 +123,7 @@ const NavigationItemComponent: React.FC<NavigationItemProps> = ({
         rel={openInNewTab ? "noopener noreferrer" : undefined}
         target={openInNewTab ? "_blank" : undefined}
         aria-label={shrunk ? label : undefined}
-        aria-current={href === pathname ? "page" : undefined}
+        aria-current={isSelected ? "page" : undefined}
         tabIndex={disable ? -1 : 0}
       >
         {badgeText && <NavIconBadge systemConfig={systemConfig}>{badgeText}</NavIconBadge>}
