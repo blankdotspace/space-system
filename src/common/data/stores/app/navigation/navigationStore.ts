@@ -152,12 +152,12 @@ export const createNavigationStoreFunc = (
       href: trimmedHref,
       spaceId: spaceId,
     };
-    
-    set((draft) => {
-      // Add to space store's localSpaces so PublicSpace can find it
+      
+      set((draft) => {
+        // Add to space store's localSpaces so PublicSpace can find it
       // Initialize with default "Home" tab so the space can be viewed immediately
-      draft.space.localSpaces[spaceId] = {
-        id: spaceId,
+        draft.space.localSpaces[spaceId] = {
+          id: spaceId,
         updatedAt: timestamp,
         tabs: {
           Home: {
@@ -171,11 +171,11 @@ export const createNavigationStoreFunc = (
             timestamp: timestamp,
           },
         },
-        order: ["Home"], // Initial default tab
-        changedNames: {},
-        deletedTabs: [],
-      };
-    }, "createNavigationItem-addLocalSpace");
+          order: ["Home"], // Initial default tab
+          changedNames: {},
+          deletedTabs: [],
+        };
+      }, "createNavigationItem-addLocalSpace");
     
     set((draft) => {
       draft.navigation.localNavigation.push(cloneDeep(newItem));
@@ -216,9 +216,9 @@ export const createNavigationStoreFunc = (
     });
     const state = get().navigation;
     const itemIndex = state.localNavigation.findIndex(
-      (item) => item.id === itemId
-    );
-    
+        (item) => item.id === itemId
+      );
+      
     if (itemIndex === -1) {
       console.warn('[navigationStore] Rename failed: item not found', itemId);
       return;
@@ -520,7 +520,7 @@ export const createNavigationStoreFunc = (
             } else {
               // Ensure the spaceId is set correctly
               draft.space.localSpaces[registration.actualSpaceId].id = registration.actualSpaceId;
-            }
+        }
           }
         }, "commitNavigationChanges-updateSpaceId");
       }
