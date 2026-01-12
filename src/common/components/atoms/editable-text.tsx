@@ -69,6 +69,11 @@ const EditableText = ({
         // Prevent navigation when clicking on input
         e.stopPropagation();
       }}
+      onDoubleClick={(e) => {
+        // Prevent navigation when double-clicking on input (select all text)
+        e.stopPropagation();
+        e.preventDefault();
+      }}
       autoFocus
     />
   ) : (

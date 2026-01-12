@@ -33,6 +33,7 @@ export interface SystemConfig {
   navigation?: NavigationConfig;
   ui?: UIConfig;
   adminIdentityPublicKeys?: string[]; // identityPublicKey values of users who can edit nav pages
+  communityId: string; // The database community_id used to load this config
 }
 
 export interface UIConfig {
