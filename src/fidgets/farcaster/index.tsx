@@ -77,15 +77,24 @@ export function useFarcasterSigner(
   const requestSignerAuthorization = useCallback(async () => {
     setHasRequestedSigner(true);
     setIsLoadingSigner(true);
-    await authenticatorManager.installAuthenticators([authenticatorName]);
-    authenticatorManager.initializeAuthenticators([authenticatorName]);
+    try {
+      await authenticatorManager.installAuthenticators([authenticatorName]);
+      authenticatorManager.initializeAuthenticators([authenticatorName]);
+      // Give a bit of time for the authenticator to initialize
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    } finally {
+      setIsLoadingSigner(false);
+    }
   }, [authenticatorManager, authenticatorName]);
 
   useEffect(() => {
     if (currentIdentityFids.length > 0) {
       setFid(currentIdentityFids[0]);
+    } else {
+      // Try to load FIDs if not already loaded
+      loadFids();
     }
-  }, [currentIdentityFids]);
+  }, [currentIdentityFids, loadFids]);
 
   useEffect(() => {
     if (!hasRequestedSigner) {

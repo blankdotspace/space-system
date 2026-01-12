@@ -284,7 +284,7 @@ export const AuthenticatorManagerProvider: React.FC<
         });
       }
     },
-    [installedAuthenticators],
+    [installedAuthenticators, initializationQueue],
   );
 
   useEffect(() => {
@@ -292,7 +292,7 @@ export const AuthenticatorManagerProvider: React.FC<
     if (!isUndefined(authenticatorToInitialize)) {
       initializeAuthentictator(authenticatorToInitialize);
     }
-  }, [initializationQueue]);
+  }, [initializationQueue, initializeAuthentictator]);
 
   function completeInstallingCurrentInitializer() {
     setInitializationQueue(tail(initializationQueue));

@@ -980,6 +980,12 @@ const CreateCast: React.FC<CreateCastProps> = ({
                   e.currentTarget.style.backgroundColor = castButtonColors.backgroundColor;
                 }}
                 disabled={isPublishing || isLoadingSigner}
+                onClick={async (e) => {
+                  if (!signer) {
+                    e.preventDefault();
+                    await requestSignerAuthorization();
+                  }
+                }}
               >
                 {getButtonText()}
               </Button>
@@ -1050,6 +1056,12 @@ const CreateCast: React.FC<CreateCastProps> = ({
                     e.currentTarget.style.backgroundColor = castButtonColors.backgroundColor;
                   }}
                   disabled={isPublishing || isLoadingSigner}
+                  onClick={async (e) => {
+                    if (!signer) {
+                      e.preventDefault();
+                      await requestSignerAuthorization();
+                    }
+                  }}
                 >
                   {getButtonText()}
                 </Button>
