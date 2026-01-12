@@ -70,7 +70,7 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
       return resolution.config;
     }
     // Domain provided but config not found - fall back to default
-    console.error(
+    console.warn(
       `[Config] Community config not found for domain: "${domain}", falling back to default: "${DEFAULT_COMMUNITY_ID}"`
     );
     return await loadSystemConfigById(DEFAULT_COMMUNITY_ID);
@@ -88,7 +88,7 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
   // No domain or communityId provided - fall back to default
   // This should not happen at runtime if host header is available
   // If this happens during build, the layout should be set to dynamic
-  console.error(
+  console.warn(
     `[Config] No domain or communityId provided, falling back to default: "${DEFAULT_COMMUNITY_ID}"`
   );
   return await loadSystemConfigById(DEFAULT_COMMUNITY_ID);
