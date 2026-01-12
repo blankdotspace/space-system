@@ -100,4 +100,3 @@ export class RuntimeConfigLoader implements ConfigLoader {
     };
   }
 }
-
