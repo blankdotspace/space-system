@@ -20,18 +20,18 @@ import { HeartIcon as HeartFilledIcon } from "@heroicons/react/24/solid";
 import { CastWithInteractions, EmbedUrl, User } from "@neynar/nodejs-sdk/build/api";
 import { hexToBytes, bytesToHex } from "@noble/ciphers/utils";
 import { ErrorBoundary } from "@sentry/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Properties } from "csstype";
 import { get, includes, isObject, isUndefined, map } from "lodash";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FaReply } from "react-icons/fa6";
 import { IoMdShare } from "react-icons/io";
 import CreateCast, { DraftType } from "./CreateCast";
 import { renderEmbedForUrl, type CastEmbed } from "./Embeds";
 import { AnalyticsEvent } from "@/common/constants/analyticsEvents";
-import { useToastStore } from "@/common/data/stores/toastStore";
 
 function isEmbedUrl(maybe: unknown): maybe is EmbedUrl {
   return isObject(maybe) && typeof maybe["url"] === "string";
@@ -146,7 +146,7 @@ const isUrlAlreadyEmbedded = (
   embedUrls: Array<EmbedUrl | { cast_id?: { hash?: string | Uint8Array } }>
 ): boolean => {
   const urlTweetId = getTweetIdFromUrl(url);
-  
+
   return embedUrls.some((embed) => {
     if (isEmbedUrl(embed)) {
       if (embed.url === url) return true;
@@ -311,11 +311,13 @@ const CastAttributionSecondary = ({ cast }) => {
 };
 
 const CastReactions = ({ cast }: { cast: CastWithInteractions }) => {
+  const queryClient = useQueryClient();
   const [didLike, setDidLike] = useState(cast.viewer_context?.liked ?? false);
   const [didRecast, setDidRecast] = useState(cast.viewer_context?.recasted ?? false);
-  const { signer, fid: userFid, requestSignerAuthorization } =
-    useFarcasterSigner("render-cast");
-  const { showToast } = useToastStore();
+  const [showSetupModal, setShowSetupModal] = useState(false);
+  const [reactionError, setReactionError] = useState<string | null>(null);
+
+  const { signer, fid: userFid, requestSignerAuthorization, isLoadingSigner } = useFarcasterSigner("create-cast");
   const { setModalOpen, getIsAccountReady } = useAppStore((state) => ({
     setModalOpen: state.setup.setModalOpen,
     getIsAccountReady: state.getIsAccountReady,
@@ -332,6 +334,72 @@ const CastReactions = ({ cast }: { cast: CastWithInteractions }) => {
   const [replyCastDraft, setReplyCastDraft] = useState<Partial<DraftType>>();
   type ReplyCastType = "reply" | "quote";
   const [replyCastType, setReplyCastType] = useState<ReplyCastType>();
+
+  // Extract the actual reaction publishing logic - same pattern as CreateCast
+  const publishReactionForCast = useCallback(
+    async (key: CastReactionType, isActive: boolean) => {
+      if (key === CastReactionType.replies) {
+        onReply?.();
+        return;
+      }
+
+      if (key === CastReactionType.quote) {
+        onQuote?.();
+        return;
+      }
+
+      // Track analytics
+      if (key === CastReactionType.likes) {
+        trackAnalyticsEvent(AnalyticsEvent.LIKE, {
+          username: cast.author.username,
+          castId: cast.hash,
+        });
+      } else if (key === CastReactionType.recasts) {
+        trackAnalyticsEvent(AnalyticsEvent.RECAST, {
+          username: cast.author.username,
+          castId: cast.hash,
+        });
+      }
+
+      const reactionBodyType: ReactionType = key === CastReactionType.likes ? ReactionType.LIKE : ReactionType.RECAST;
+      const reaction = {
+        type: reactionBodyType,
+        targetCastId: castId,
+      };
+
+      let success = false;
+
+      if (isActive) {
+        success = await removeReaction({
+          authorFid: userFid,
+          signer: signer!,
+          reaction,
+        });
+      } else {
+        success = await publishReaction({
+          authorFid: userFid,
+          signer: signer!,
+          reaction,
+        });
+      }
+
+      if (!success) {
+        throw new Error("Failed to publish reaction to Farcaster");
+      }
+
+      // Update local state
+      if (key === CastReactionType.likes) {
+        setDidLike(!isActive);
+      } else if (key === CastReactionType.recasts) {
+        setDidRecast(!isActive);
+      }
+
+      // Invalidate queries to refresh the feed data
+      queryClient.invalidateQueries({ queryKey: ["casts"] });
+      queryClient.invalidateQueries({ queryKey: ["cast-by-keyword"] });
+    },
+    [cast, userFid, signer, queryClient]
+  );
 
   const getReactions = () => {
     const repliesCount = cast.replies?.count || 0;
@@ -357,69 +425,89 @@ const CastReactions = ({ cast }: { cast: CastWithInteractions }) => {
     };
   };
 
+  // When signer becomes available, close modal
+  useEffect(() => {
+    if (!signer || userFid < 0 || signer.scheme === 0) {
+      return;
+    }
+
+    console.log("[CastReactions] Signer is ready, closing setup modal");
+
+    // Log signer key for debugging
+    signer
+      .getSignerKey()
+      .then((keyResult) => {
+        if (keyResult.isOk()) {
+          const key = keyResult.value;
+          console.log("[CastReactions] Signer public key:", {
+            keyHex: Array.from(key)
+              .map((b) => b.toString(16).padStart(2, "0"))
+              .join(""),
+            keyLength: key.length,
+          });
+        } else {
+          console.error("[CastReactions] Failed to get signer key:", keyResult.error);
+        }
+      })
+      .catch((e) => {
+        console.error("[CastReactions] Exception getting signer key:", e);
+      });
+
+    console.log("[CastReactions] Signer details:", {
+      scheme: signer.scheme,
+      userFid,
+    });
+
+    // Close the setup modal now that signer is ready
+    // User will need to click like/recast again to publish
+    // This gives time for the signer to be fully synced
+    setShowSetupModal(false);
+  }, [signer, userFid]);
+
   const onClickReaction = async (key: CastReactionType, isActive: boolean) => {
+    console.log("[CastReactions] onClickReaction called for:", key, "isActive:", isActive);
+
     if (key === CastReactionType.links) {
       return;
     }
 
     if (!getIsAccountReady()) {
-      setModalOpen(true);
+      console.log("[CastReactions] Account not ready");
+      setShowSetupModal(true);
       return;
     }
 
-    // We check if we have the signer before proceeding
-    if (isUndefined(signer) || userFid < 0) {
-      await requestSignerAuthorization();
+    // Require valid FID and signer
+    if (userFid < 0 || isUndefined(signer)) {
+      console.log("[CastReactions] Missing FID or signer, opening setup modal");
+      setShowSetupModal(true);
       return;
     }
 
+    // Verify signer key is available
+    if (signer.scheme === 0) {
+      console.log("[CastReactions] Signer not ready (scheme is NONE)");
+      setReactionError("Signer is not ready yet. Please wait a moment and try again.");
+      setShowSetupModal(true);
+      return;
+    }
+
+    // Publish the reaction
     try {
-      if (key === CastReactionType.replies) {
-        onReply?.();
-        return;
-      }
-
-      if (key === CastReactionType.quote) {
-        onQuote?.();
-        return;
-      }
-
-      // We only perform analytics and state modification actions
-      // when we are sure that we can proceed
+      setReactionError(null);
+      await publishReactionForCast(key, isActive);
+    } catch (error) {
+      console.error("[CastReactions] Error publishing reaction:", error);
+      // Reset the optimistic state on error
       if (key === CastReactionType.likes) {
-        trackAnalyticsEvent(AnalyticsEvent.LIKE, {
-          username: cast.author.username,
-          castId: cast.hash,
-        });
         setDidLike(!isActive);
       } else if (key === CastReactionType.recasts) {
-        trackAnalyticsEvent(AnalyticsEvent.RECAST, {
-          username: cast.author.username,
-          castId: cast.hash,
-        });
         setDidRecast(!isActive);
       }
-
-      const reactionBodyType: ReactionType = key === CastReactionType.likes ? ReactionType.LIKE : ReactionType.RECAST;
-      const reaction = {
-        type: reactionBodyType,
-        targetCastId: castId,
-      };
-      if (isActive) {
-        await removeReaction({
-          authorFid: userFid,
-          signer,
-          reaction,
-        });
-      } else {
-        await publishReaction({
-          authorFid: userFid,
-          signer,
-          reaction,
-        });
-      }
-    } catch (error) {
-      console.error(`Error in onClickReaction: ${error}`);
+      // Show error message
+      const errorMsg = error instanceof Error ? error.message : "Failed to publish reaction";
+      setReactionError(errorMsg);
+      setShowSetupModal(true);
     }
   };
 
@@ -519,12 +607,59 @@ const CastReactions = ({ cast }: { cast: CastWithInteractions }) => {
             e.stopPropagation();
             const url = `${window.location.origin}/homebase/c/${cast.author.username}/${cast.hash}`;
             navigator.clipboard.writeText(url);
-            showToast("Link copied", 2000);
           }}
         >
           <IoMdShare className="w-4 h-4" aria-hidden="true" />
         </div>
       </div>
+      <Modal open={showSetupModal} setOpen={setShowSetupModal} focusMode showClose={true}>
+        <div className="flex flex-col gap-4">
+          <h2 className="text-lg font-bold">{reactionError ? "Signer Error" : "Connect Farcaster"}</h2>
+          {reactionError ? (
+            <>
+              <p className="text-sm opacity-75">Failed to publish reaction: {reactionError}</p>
+              <p className="text-sm opacity-75 font-semibold mt-3">
+                Close this and try clicking like/recast again. If it continues to fail, try creating a cast first to
+                validate your signer.
+              </p>
+              <button
+                onClick={() => {
+                  setReactionError(null);
+                }}
+                className="mt-4 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-semibold"
+              >
+                Close
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm opacity-75">You need to authorize a signer before you can like or recast casts.</p>
+              {isLoadingSigner && (
+                <div className="text-xs opacity-60 italic mt-2">
+                  <p>⟳ Waiting for Warpcast to register your signer...</p>
+                  <p className="text-xs opacity-50 mt-1">This may take 10-30 seconds. Please keep this window open.</p>
+                </div>
+              )}
+              <button
+                onClick={async () => {
+                  await requestSignerAuthorization();
+                }}
+                disabled={isLoadingSigner}
+                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isLoadingSigner ? (
+                  <>
+                    <span className="inline-block animate-spin mr-1">↻</span>
+                    Connecting...
+                  </>
+                ) : (
+                  "Connect Farcaster"
+                )}
+              </button>
+            </>
+          )}
+        </div>
+      </Modal>
     </>
   );
 };
@@ -664,9 +799,9 @@ const EnhancedLinkify: React.FC<{ children: string; style?: React.CSSProperties 
     return typeof href === "string" && SPOTIFY_TRACK_URL_REGEX.test(href);
   }
   const filtered = linkifyText(children).filter((part) => {
-  if (typeof part === "string" && SPOTIFY_TRACK_URL_REGEX.test(part)) return false;
-  if (hasSpotifyHref(part) === true) return false;
-  return true;
+    if (typeof part === "string" && SPOTIFY_TRACK_URL_REGEX.test(part)) return false;
+    if (hasSpotifyHref(part) === true) return false;
+    return true;
   });
   return <span style={style}>{filtered}</span>;
 };
@@ -709,10 +844,10 @@ const CastBodyComponent = ({
     textUrlsToRemove.forEach((u) => {
       filteredText = filteredText.replace(u, "");
     });
-  // Normalizes whitespace after removing URLs
+    // Normalizes whitespace after removing URLs
     filteredText = filteredText.replace(/\n{3,}/g, "\n\n").trim();
   } catch (e) {
-  // Error filtering URLs
+    // Error filtering URLs
   }
 
   return (
