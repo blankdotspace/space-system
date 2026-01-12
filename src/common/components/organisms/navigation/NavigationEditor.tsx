@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useMemo, useState, useRef } from "react";
+import React, { useMemo, useState, useRef, startTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Reorder } from "framer-motion";
 import { map } from "lodash";
 import { mergeClasses } from "@/common/lib/utils/mergeClasses";
 import { SystemConfig, NavigationItem } from "@/config/systemConfig";
-import { Button } from "@/common/components/atoms/button";
 import { FaPlus } from "react-icons/fa6";
 import { toast } from "sonner";
 import EditableText from "@/common/components/atoms/editable-text";
@@ -83,6 +83,8 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
   onLogout,
   onLogin,
 }) => {
+  const router = useRouter();
+  
   // Memoize filtered items to avoid recalculating on every render
   const editableItems = useMemo(
     () => items.filter((item) => item.id !== "notifications"),
@@ -215,10 +217,29 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
           });
 
           // Immediately update the URL if we're currently on this item's page
+          // Handle both base URLs (e.g., /new-item) and tab URLs (e.g., /new-item/Settings)
           // This matches the tab rename pattern (see TabBar.tsx switchTabTo)
-          if (newHref && pathname === oldHref && newHref !== oldHref) {
-            console.log('[NavigationEditor] Updating URL from', oldHref, 'to', newHref);
-            window.history.replaceState(null, "", newHref);
+          if (newHref && pathname && newHref !== oldHref) {
+            let newUrl: string | null = null;
+            
+            if (pathname === oldHref) {
+              // Exact match: update base URL
+              newUrl = newHref;
+            } else if (pathname.startsWith(oldHref + '/')) {
+              // Tab URL: preserve the tab part (e.g., /new-item/Settings -> /renamed-item/Settings)
+              const remainingPath = pathname.slice(oldHref.length);
+              newUrl = newHref + remainingPath;
+            }
+            
+            if (newUrl) {
+              console.log('[NavigationEditor] Updating URL from', pathname, 'to', newUrl);
+              // Use startTransition to make the navigation non-blocking
+              // This prevents UI blocking and reduces the chance of 404 flashes
+              // The router.replace() ensures Next.js re-resolves the route with the new navSlug
+              startTransition(() => {
+                router.replace(newUrl);
+              });
+            }
           }
 
           toast.success("Navigation item updated");
@@ -241,7 +262,7 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
         }
       }
     },
-    [localNavigation, onRename, pathname]
+    [localNavigation, onRename, pathname, router]
   );
 
   return (
@@ -259,7 +280,12 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
               if (item.requiresAuth && !isLoggedIn) return null;
 
               const IconComp = iconFor(item.icon);
-              const isSelected = pathname !== null && pathname === item.href;
+              // Match if pathname exactly equals href, or if pathname starts with href + "/"
+              // This allows tabs like /home/Settings to match the /home navigation item
+              const isSelected = pathname !== null && (
+                pathname === item.href || 
+                (item.href.startsWith('/') && pathname.startsWith(item.href + '/'))
+              );
 
               return (
                 <Reorder.Item
@@ -270,7 +296,7 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
                   dragListener={true}
                 >
                 <Link
-                  href={item.href}
+                  href={isSelected ? "#" : item.href}
                   className={mergeClasses(
                     "flex relative items-center p-2 rounded-lg w-full group",
                     isSelected ? "bg-gray-100" : "hover:bg-gray-100",
@@ -278,23 +304,21 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
                     isShrunk ? "justify-center" : ""
                   )}
                   onClick={(e) => {
-                    // Prevent navigation only if clicking on delete button, icon button, or input field
-                    const target = e.target as HTMLElement;
-                    if (
-                      target.closest('button[aria-label*="Delete"]') ||
-                      target.closest('button[aria-label*="Change icon"]') ||
-                      target.tagName === "INPUT"
-                    ) {
+                    // Prevent navigation for selected items (matches reorderable-tab pattern)
+                    // Allow normal Link navigation for non-selected items
+                    if (isSelected) {
                       e.preventDefault();
                       e.stopPropagation();
                     }
                   }}
-                  onKeyDown={(e) => {
-                    // Allow keyboard navigation but prevent during drag
-                    if (e.key === "Enter" && !e.currentTarget.closest('[data-dragging="true"]')) {
-                      // Navigation handled by Link component
+                  onDoubleClick={(e) => {
+                    // Prevent navigation on double-click for selected items
+                    if (isSelected) {
+                      e.preventDefault();
+                      e.stopPropagation();
                     }
                   }}
+                  onDragStart={(e) => e.preventDefault()}
                   draggable={false}
                   aria-label={isShrunk ? item.label : undefined}
                   aria-current={isSelected ? "page" : undefined}
@@ -320,14 +344,20 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
                     </div>
                     {!isShrunk && (
                       <div className="ms-3 flex-1 flex items-center min-w-0">
-                        <EditableText
-                          initialText={item.label}
-                          updateMethod={(oldLabel, newLabel) =>
-                            handleRename(item.id, oldLabel, newLabel)
-                          }
-                          validateInput={validateNavItemLabel}
-                          maxLength={NAVIGATION_MAX_LABEL_LENGTH}
-                        />
+                        {isSelected ? (
+                          <div className="cursor-text">
+                            <EditableText
+                              initialText={item.label}
+                              updateMethod={(oldLabel, newLabel) =>
+                                handleRename(item.id, oldLabel, newLabel)
+                              }
+                              validateInput={validateNavItemLabel}
+                              maxLength={NAVIGATION_MAX_LABEL_LENGTH}
+                            />
+                          </div>
+                        ) : (
+                          <span className="whitespace-nowrap">{item.label}</span>
+                        )}
                       </div>
                     )}
                     {!isShrunk && openIconSelectorId === item.id && (

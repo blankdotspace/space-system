@@ -12,12 +12,13 @@
  * - Renders PublicSpace component with complete nav page space data
  * 
  * Data Flow:
- * 1. Receives serializable nav page data from server-side page component (or null if not found)
- * 2. If null, checks local navigation store to find uncommitted nav items
- * 3. Constructs space data from local stores if found
- * 4. Adds isEditable function that checks if current user identity is in admin list
- * 5. Adds spacePageUrl function for tab navigation using navSlug
- * 6. Passes complete NavPageSpacePageData to PublicSpace for rendering
+ * 1. Receives serializable nav page data from server-side page component (remote database data)
+ * 2. Checks local navigation store FIRST to find uncommitted nav items (prioritizes local over remote)
+ * 3. Falls back to server data only if not found locally
+ * 4. Constructs space data from local stores or uses server data
+ * 5. Adds isEditable function that checks if current user identity is in admin list
+ * 6. Adds spacePageUrl function for tab navigation using navSlug
+ * 7. Passes complete NavPageSpacePageData to PublicSpace for rendering
  * 
  * Editability Logic:
  * - User can edit if their identityPublicKey is in adminIdentityPublicKeys
@@ -64,48 +65,65 @@ export default function NavPageSpace({
   const currentUserIdentityPublicKey = useCurrentSpaceIdentityPublicKey();
   const localNavigation = useAppStore((state) => state.navigation.localNavigation);
   const spaceLocalSpaces = useAppStore((state) => state.space.localSpaces);
+  const hrefMappings = useAppStore((state) => state.navigation.hrefMappings);
 
-  // If server didn't find it, check local stores for uncommitted nav items
+  // Prioritize local (uncommitted) navigation items over remote data
+  // This ensures users see their uncommitted changes (new items, renamed items, etc.)
   const spaceData = useMemo(() => {
+    const currentHref = `/${navSlug}`;
+    
+    // Check if this navSlug corresponds to an old href in the mapping (rename transition)
+    const mappedHref = hrefMappings[currentHref];
+    const lookupHref = mappedHref || currentHref;
+    
+    // Check local navigation items first (for uncommitted changes)
+    // Try both the current href and the mapped href (if any)
+    const localNavItem = localNavigation.find(
+      (item) => (item.href === lookupHref || item.href === currentHref) && item.spaceId
+    );
+
+    if (localNavItem && localNavItem.spaceId) {
+      // Find the space in localSpaces
+      const localSpace = spaceLocalSpaces[localNavItem.spaceId];
+      if (localSpace) {
+        // Get default tab from local space order, or use "Home"
+        const defaultTab = localSpace.order && localSpace.order.length > 0 
+          ? localSpace.order[0] 
+          : "Home";
+        const activeTab = providedTabName || defaultTab;
+
+        // Use local (uncommitted) data
+        return {
+          spaceId: localNavItem.spaceId,
+          spaceName: navSlug,
+          spaceType: SPACE_TYPES.NAV_PAGE,
+          updatedAt: localSpace.updatedAt || new Date().toISOString(),
+          defaultTab,
+          currentTab: activeTab,
+          spaceOwnerFid: undefined,
+          config: INITIAL_SPACE_CONFIG_EMPTY,
+          navSlug,
+          adminIdentityPublicKeys, // Use admin keys from server config
+        };
+      }
+    }
+
+    // Fall back to server data (remote database) if not found locally
     if (serverSpaceData) {
       return serverSpaceData;
     }
 
-    // Check local navigation items for this navSlug
-    const localNavItem = localNavigation.find(
-      (item) => item.href === `/${navSlug}` && item.spaceId
-    );
-
-    if (!localNavItem || !localNavItem.spaceId) {
-      return null;
-    }
-
-    // Find the space in localSpaces
-    const localSpace = spaceLocalSpaces[localNavItem.spaceId];
-    if (!localSpace) {
-      return null;
-    }
-
-    // Get default tab from local space order, or use "Home"
-    const defaultTab = localSpace.order && localSpace.order.length > 0 
-      ? localSpace.order[0] 
-      : "Home";
-    const activeTab = providedTabName || defaultTab;
-
-    // Construct space data from local stores
-    return {
-      spaceId: localNavItem.spaceId,
-      spaceName: navSlug,
-      spaceType: SPACE_TYPES.NAV_PAGE,
-      updatedAt: localSpace.updatedAt || new Date().toISOString(),
-      defaultTab,
-      currentTab: activeTab,
-      spaceOwnerFid: undefined,
-      config: INITIAL_SPACE_CONFIG_EMPTY,
-      navSlug,
-      adminIdentityPublicKeys, // Use admin keys from server config
-    };
-  }, [serverSpaceData, localNavigation, spaceLocalSpaces, navSlug, providedTabName, adminIdentityPublicKeys]);
+    // Not found in either local or remote
+    return null;
+  }, [
+    localNavigation,
+    spaceLocalSpaces,
+    navSlug,
+    providedTabName,
+    adminIdentityPublicKeys,
+    serverSpaceData,
+    hrefMappings,
+  ]);
 
   // Add isEditable and spacePageUrl logic on the client side
   // IMPORTANT: This hook must be called before any early returns to satisfy Rules of Hooks

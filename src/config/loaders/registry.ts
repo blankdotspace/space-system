@@ -80,7 +80,7 @@ export function normalizeDomain(domain: string): string {
  * Transform a database row to SystemConfig format.
  * This replaces the RPC function transformation, done in application code.
  */
-function transformRowToSystemConfig(row: CommunityConfigRow): SystemConfig {
+function transformRowToSystemConfig(row: CommunityConfigRow, communityId: string): SystemConfig {
   return {
     brand: row.brand_config as unknown as SystemConfig['brand'],
     assets: row.assets_config as unknown as SystemConfig['assets'],
@@ -90,7 +90,21 @@ function transformRowToSystemConfig(row: CommunityConfigRow): SystemConfig {
     ui: (row.ui_config ?? null) as unknown as SystemConfig['ui'],
     adminIdentityPublicKeys: row.admin_identity_public_keys ?? [],
     theme: themes, // Themes come from shared file, not database
+    communityId, // The database community_id used to load this config
   };
+}
+
+/**
+ * Clean up expired cache entries to prevent memory leaks.
+ * Should be called periodically or before write operations.
+ */
+function cleanupExpiredCacheEntries(): void {
+  const now = Date.now();
+  for (const [key, entry] of SYSTEM_CONFIG_CACHE.entries()) {
+    if (entry.expiresAt <= now) {
+      SYSTEM_CONFIG_CACHE.delete(key);
+    }
+  }
 }
 
 /**
@@ -110,8 +124,15 @@ function readSystemConfigCache(communityId: string): SystemConfig | null | undef
 
 /**
  * Store a SystemConfig value in the cache with a short TTL.
+ * Cleans up expired entries before writing to prevent unbounded growth.
  */
 function writeSystemConfigCache(communityId: string, value: SystemConfig | null) {
+  // Clean up expired entries periodically to prevent memory leaks
+  // Do this on write since writes are less frequent than reads
+  if (SYSTEM_CONFIG_CACHE.size > 10) {
+    cleanupExpiredCacheEntries();
+  }
+  
   SYSTEM_CONFIG_CACHE.set(communityId, {
     expiresAt: Date.now() + SYSTEM_CONFIG_CACHE_TTL_MS,
     value,
@@ -228,7 +249,7 @@ async function loadCommunityConfigFromDatabase(communityId: string): Promise<Sys
   }
 
   // Transform to SystemConfig
-  const systemConfig = transformRowToSystemConfig(data);
+  const systemConfig = transformRowToSystemConfig(data, communityId);
   
   // Cache the result
   writeSystemConfigCache(communityId, systemConfig);

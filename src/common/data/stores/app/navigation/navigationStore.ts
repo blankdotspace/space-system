@@ -34,6 +34,11 @@ interface NavigationStoreState {
   
   // Local (staged) navigation items
   localNavigation: NavigationItem[];
+  
+  // Temporary mapping of old href -> new href during rename transitions
+  // Used to prevent 404 flashes when Next.js re-resolves routes
+  // Format: { [oldHref]: newHref }
+  hrefMappings: Record<string, string>;
 }
 
 interface NavigationStoreActions {
@@ -57,6 +62,9 @@ interface NavigationStoreActions {
   
   // Check if there are uncommitted changes
   hasUncommittedChanges: () => boolean;
+  
+  // Clear href mappings (used after navigation completes)
+  clearHrefMappings: (oldHrefs?: string[]) => void;
 }
 
 export type NavigationStore = NavigationStoreState & NavigationStoreActions;
@@ -64,6 +72,7 @@ export type NavigationStore = NavigationStoreState & NavigationStoreActions;
 export const navigationStoreDefaults: NavigationStoreState = {
   remoteNavigation: [],
   localNavigation: [],
+  hrefMappings: {},
 };
 
 export const createNavigationStoreFunc = (
@@ -260,6 +269,9 @@ export const createNavigationStoreFunc = (
       newHref = sanitizedHref;
     }
     
+    // Save old href before updating
+    const oldHref = currentItem.href;
+    
     // Apply updates
     set((draft) => {
       if (updates.label !== undefined) {
@@ -268,6 +280,11 @@ export const createNavigationStoreFunc = (
       // Update href if it changed (either explicitly or auto-generated from label)
       if (updates.href !== undefined || (updates.label !== undefined && newHref !== currentItem.href)) {
         draft.navigation.localNavigation[itemIndex].href = newHref;
+        // Store temporary mapping of old href -> new href to prevent 404 flashes
+        // during route re-resolution
+        if (oldHref !== newHref) {
+          draft.navigation.hrefMappings[oldHref] = newHref;
+        }
       }
       if (updates.icon !== undefined) {
         draft.navigation.localNavigation[itemIndex].icon = updates.icon;
@@ -326,6 +343,23 @@ export const createNavigationStoreFunc = (
         localItem.icon !== remoteItem.icon ||
         localItem.spaceId !== remoteItem.spaceId;
     });
+  },
+  
+  clearHrefMappings: (oldHrefs) => {
+    if (!oldHrefs) {
+      // Clear all mappings
+      set((draft) => {
+        draft.navigation.hrefMappings = {};
+      }, "clearHrefMappings");
+      return;
+    }
+    
+    // Clear specific mappings
+    set((draft) => {
+      oldHrefs.forEach((oldHref) => {
+        delete draft.navigation.hrefMappings[oldHref];
+      });
+    }, "clearHrefMappings");
   },
   
   commitNavigationChanges: async (communityId: string, existingNavigationConfig?: NavigationConfig | null) => {

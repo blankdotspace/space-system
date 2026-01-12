@@ -6,6 +6,7 @@ import { useAppStore } from "@/common/data/stores/app";
 import { SystemConfig, NavigationItem } from "@/config/systemConfig";
 import { NAVIGATION_REORDER_DEBOUNCE_MS } from "./constants";
 import { normalizeNavigationError, getUserFriendlyMessage } from "./errorHandling";
+import { DEFAULT_COMMUNITY_ID } from "@/config/loaders/registry";
 
 export interface UseNavigationReturn {
   localNavigation: NavigationItem[];
@@ -165,7 +166,7 @@ export function useNavigation(
     }
     
     console.log('[useNavigation] Starting commit:', {
-      communityId: systemConfig.community?.type || "nouns",
+      communityId: systemConfig.communityId || DEFAULT_COMMUNITY_ID,
       localItemCount: localNavigation.length,
       items: localNavigation.map(i => ({ id: i.id, label: i.label, href: i.href, spaceId: i.spaceId }))
     });
@@ -175,7 +176,7 @@ export function useNavigation(
       // Pass existing navigation config to preserve fields like logoTooltip, showMusicPlayer, showSocials
       // Reconstruct from systemConfig.navigation which has the current values
       await commitNavigationChanges(
-        systemConfig.community?.type || "nouns",
+        systemConfig.communityId || DEFAULT_COMMUNITY_ID,
         systemConfig.navigation
       );
       console.log('[useNavigation] Commit successful');
@@ -204,7 +205,7 @@ export function useNavigation(
   }, [
     hasUncommittedChanges,
     commitNavigationChanges,
-    systemConfig.community?.type,
+    systemConfig.communityId,
     systemConfig.navigation,
     setNavEditMode,
     localNavigation,
