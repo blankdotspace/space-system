@@ -133,7 +133,7 @@ NavigationItemComponent.displayName = 'NavigationItem';
  * Memoized navigation item component with custom comparison
  * 
  * Only re-renders when props that affect rendering actually change.
- * Compares systemConfig by community type (stable) rather than object reference
+ * Compares systemConfig by communityId (stable) rather than object reference
  * to avoid unnecessary re-renders when systemConfig object reference changes.
  */
 export const NavigationItem = React.memo(
@@ -146,8 +146,8 @@ export const NavigationItem = React.memo(
       prevProps.disable === nextProps.disable &&
       prevProps.openInNewTab === nextProps.openInNewTab &&
       prevProps.badgeText === nextProps.badgeText &&
-      // Compare systemConfig by stable community type instead of object reference
-      prevProps.systemConfig.community?.type === nextProps.systemConfig.community?.type
+      // Compare systemConfig by stable communityId instead of object reference
+      prevProps.systemConfig.communityId === nextProps.systemConfig.communityId
     );
   }
 );
@@ -219,7 +219,7 @@ NavigationButtonComponent.displayName = 'NavigationButton';
  * Memoized navigation button component with custom comparison
  * 
  * Only re-renders when props that affect rendering actually change.
- * Compares systemConfig by community type (stable) rather than object reference.
+ * Compares systemConfig by communityId (stable) rather than object reference.
  */
 export const NavigationButton = React.memo(
   NavigationButtonComponent,
@@ -229,8 +229,8 @@ export const NavigationButton = React.memo(
       prevProps.shrunk === nextProps.shrunk &&
       prevProps.disable === nextProps.disable &&
       prevProps.badgeText === nextProps.badgeText &&
-      // Compare systemConfig by stable community type instead of object reference
-      prevProps.systemConfig.community?.type === nextProps.systemConfig.community?.type
+      // Compare systemConfig by stable communityId instead of object reference
+      prevProps.systemConfig.communityId === nextProps.systemConfig.communityId
     );
   }
 );
