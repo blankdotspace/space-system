@@ -314,6 +314,7 @@ const Navigation = React.memo(
 
   // Cache for wrapper components to prevent remounts
   const iconWrapperCacheRef = useRef<Map<string, React.FC>>(new Map());
+  const MAX_ICON_CACHE = 50;
 
   // Reusable component factory for URL icons
   const createUrlIconWrapper = useCallback((src: string): React.FC => {
@@ -357,6 +358,14 @@ const Navigation = React.memo(
             <IconComponent className="w-5 h-5" aria-hidden="true" />
           ));
           ReactIconWrapper.displayName = `ReactIcon(${key})`;
+          
+          // Evict oldest entry if cache exceeds max size
+          if (iconWrapperCacheRef.current.size >= MAX_ICON_CACHE) {
+            const oldestKey = iconWrapperCacheRef.current.keys().next().value;
+            if (oldestKey) {
+              iconWrapperCacheRef.current.delete(oldestKey);
+            }
+          }
           iconWrapperCacheRef.current.set(key, ReactIconWrapper);
           return ReactIconWrapper;
         }
@@ -364,6 +373,14 @@ const Navigation = React.memo(
         // Handle custom icon URLs
         if (key.startsWith('http://') || key.startsWith('https://')) {
           const CustomIconWrapper = createUrlIconWrapper(key);
+          
+          // Evict oldest entry if cache exceeds max size
+          if (iconWrapperCacheRef.current.size >= MAX_ICON_CACHE) {
+            const oldestKey = iconWrapperCacheRef.current.keys().next().value;
+            if (oldestKey) {
+              iconWrapperCacheRef.current.delete(oldestKey);
+            }
+          }
           iconWrapperCacheRef.current.set(key, CustomIconWrapper);
           return CustomIconWrapper;
         }
@@ -373,6 +390,11 @@ const Navigation = React.memo(
       }
     }
   }, [iconPack, createUrlIconWrapper]);
+
+  // Clear icon cache on navigation/route changes to prevent memory growth
+  useEffect(() => {
+    iconWrapperCacheRef.current.clear();
+  }, [pathname]);
   
   // Process nav items: adjust labels and hrefs based on login status when needed
   const allNavItems = configuredNavItems.map((item) => {
