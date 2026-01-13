@@ -145,8 +145,9 @@ const Portfolio: React.FC<FidgetArgs<PortfolioFidgetSettings>> = ({ settings }) 
     settings;
 
   const { user } = usePrivy();
-  const [effectiveUsername, setEffectiveUsername] = useState(farcasterUsername);
-  const [effectiveWalletAddress, setEffectiveWalletAddress] = useState(walletAddresses);
+  const [effectiveUsername, setEffectiveUsername] = useState<string | null>(null);
+  const [effectiveWalletAddress, setEffectiveWalletAddress] = useState<string | null>(null);
+  const [isReady, setIsReady] = useState(false);
 
   // Get current user's FID - try both authenticatorConfig and associatedFids
   const currentFid = useAppStore((state) => {
@@ -173,12 +174,14 @@ const Portfolio: React.FC<FidgetArgs<PortfolioFidgetSettings>> = ({ settings }) 
     const fetchUsername = async () => {
       if (!currentFid) {
         setEffectiveUsername(farcasterUsername);
+        setIsReady(true);
         return;
       }
 
       // Try Neynar data first
       if (farcasterUser?.users?.[0]?.username && !isPending) {
         setEffectiveUsername(farcasterUser.users[0].username);
+        setIsReady(true);
         return;
       }
 
@@ -188,6 +191,7 @@ const Portfolio: React.FC<FidgetArgs<PortfolioFidgetSettings>> = ({ settings }) 
           const username = await getUsernameForFid(currentFid);
           if (username) {
             setEffectiveUsername(username);
+            setIsReady(true);
             return;
           }
         } catch (error) {
@@ -196,6 +200,7 @@ const Portfolio: React.FC<FidgetArgs<PortfolioFidgetSettings>> = ({ settings }) 
       }
 
       setEffectiveUsername(farcasterUsername);
+      setIsReady(true);
     };
 
     fetchUsername();
@@ -207,13 +212,14 @@ const Portfolio: React.FC<FidgetArgs<PortfolioFidgetSettings>> = ({ settings }) 
     } else {
       setEffectiveWalletAddress(walletAddresses);
     }
+    setIsReady(true);
   }, [user?.wallet?.address, walletAddresses]);
 
   const baseUrl = "https://balance-fidget.replit.app";
   const url =
-    trackType === "address"
+    trackType === "address" && effectiveWalletAddress
       ? `${baseUrl}/portfolio/${encodeURIComponent(effectiveWalletAddress)}`
-      : trackType === "farcaster"
+      : trackType === "farcaster" && effectiveUsername
         ? `${baseUrl}/fc/${encodeURIComponent(effectiveUsername)}`
         : baseUrl;
 
