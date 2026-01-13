@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import TextInput from "@/common/components/molecules/TextInput";
 import { FidgetArgs, FidgetModule, FidgetProperties, FidgetSettingsStyle } from "@/common/fidgets";
 import { defaultStyleFields, WithMargin, ErrorWrapper } from "@/fidgets/helpers";
@@ -183,6 +183,7 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) 
   const [videoError, setVideoError] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isTradeModalOpen, setIsTradeModalOpen] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
     const fetchCoinData = async () => {
@@ -498,6 +499,7 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) 
               <div className="relative w-full h-full">
                 <video
                   key={videoData.url}
+                  ref={videoRef}
                   src={videoData.url}
                   className="w-full h-full object-cover"
                   controls={isVideoPlaying}
@@ -517,11 +519,8 @@ const ZoraCoins: React.FC<FidgetArgs<ZoraCoinsFidgetSettings>> = ({ settings }) 
                     <button
                       className="w-16 h-16 flex items-center justify-center bg-white bg-opacity-90 rounded-full hover:bg-opacity-100 transition-all"
                       onClick={() => {
-                        const video = document.querySelector("video");
-                        if (video) {
-                          video.play();
-                          setIsVideoPlaying(true);
-                        }
+                        videoRef.current?.play();
+                        setIsVideoPlaying(true);
                       }}
                     >
                       <svg className="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24">

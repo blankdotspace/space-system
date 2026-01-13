@@ -5,6 +5,7 @@ import { BsCoin } from "react-icons/bs";
 import { parseEther, formatEther } from "viem";
 import { useAccount, useWalletClient, usePublicClient } from "wagmi";
 import Modal from "@/common/components/molecules/Modal";
+import { useEthUsdPrice } from "@/fidgets/nouns-home/price";
 
 interface TradeModalProps {
   isOpen: boolean;
@@ -35,11 +36,15 @@ export const TradeModal: React.FC<TradeModalProps> = ({ isOpen, onClose, coinDat
   const { data: walletClient } = useWalletClient();
   const publicClient = usePublicClient();
 
+  // Fetch real-time ETH price from Coingecko with fallback
+  const liveEthPrice = useEthUsdPrice();
+  const ETH_PRICE_USD = liveEthPrice ?? 3000; // Fallback to $3000 if fetch fails
+  const isUsingFallbackPrice = liveEthPrice === null;
+
   const coinImage = coinData.mediaContent?.previewImage?.medium || 
                     coinData.mediaContent?.previewImage?.small;
 
-  // Calculate conversions
-  const ETH_PRICE_USD = 3000; // TODO: Fetch real-time ETH price from oracle
+  // Calculate conversions using real-time ETH price
   const coinPriceInEth = parseFloat(coinData.tokenPrice.priceInUsdc) / ETH_PRICE_USD;
   
   let displayAmount = "";
@@ -188,6 +193,15 @@ export const TradeModal: React.FC<TradeModalProps> = ({ isOpen, onClose, coinDat
             <div className="text-sm text-gray-400">${parseFloat(coinData.tokenPrice.priceInUsdc).toFixed(6)}</div>
           </div>
         </div>
+
+        {/* ETH Price Indicator */}
+        {isUsingFallbackPrice && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <div className="text-xs text-yellow-800">
+              ⚠️ Using estimated ETH price at ${ETH_PRICE_USD.toLocaleString()}/ETH (live price unavailable)
+            </div>
+          </div>
+        )}
 
         {/* Buy/Sell Toggle */}
         <div className="flex gap-2">
