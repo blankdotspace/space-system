@@ -677,6 +677,30 @@ export const createSpaceStoreFunc = (
   loadSpaceTab: async (spaceId, tabName) => {
     const supabase = createClient();
     try {
+      // Check if tab exists locally first
+      const localSpace = get().space.localSpaces[spaceId];
+      const localTab = localSpace?.tabs?.[tabName];
+      const remoteSpace = get().space.remoteSpaces[spaceId];
+      const remoteTab = remoteSpace?.tabs?.[tabName];
+      
+      // If tab exists locally but not remotely, it hasn't been committed yet
+      // Skip storage fetch to avoid 400/404 errors for uncommitted tabs
+      if (localTab && !remoteTab) {
+        // Tab exists locally but not in storage - it's a new uncommitted tab
+        // Initialize remote space entry if needed, but don't overwrite local
+        set((draft) => {
+          if (isUndefined(draft.space.remoteSpaces[spaceId])) {
+            draft.space.remoteSpaces[spaceId] = {
+              tabs: {},
+              order: [],
+              updatedAt: moment().toISOString(),
+              id: spaceId,
+            };
+          }
+        }, "loadSpaceTab-initRemote");
+        return; // Use local tab, no need to fetch from storage
+      }
+      
       // Fetch the public URL for the space tab file
       const {
         data: { publicUrl },
@@ -700,13 +724,30 @@ export const createSpaceStoreFunc = (
         });
         data = response.data;
       } catch (axiosError: any) {
+        // Handle 400/404 errors gracefully (tab doesn't exist in storage)
+        const status = axiosError?.response?.status;
+        if (status === 400 || status === 404) {
+          // Tab doesn't exist in storage - use local if available, otherwise return
+          if (localTab) {
+            // Local tab exists, use it (might be uncommitted)
+            return;
+          }
+          // No local tab either - tab truly doesn't exist
+          return;
+        }
+        
         // Check if response is HTML (404 error page)
         if (axiosError?.response?.data) {
           const blob = axiosError.response.data as Blob;
           const textContent = await blob.text();
           if (textContent.trim().startsWith("<!DOCTYPE") || textContent.trim().startsWith("<html")) {
-            console.warn(`Space tab ${spaceId}/tabs/${tabName} not found in storage (404)`);
-            return; // Tab doesn't exist in storage, use local if available
+            // HTML error page - tab doesn't exist in storage
+            if (localTab) {
+              // Local tab exists, use it
+              return;
+            }
+            // No local tab - tab doesn't exist
+            return;
           }
         }
         throw axiosError; // Re-throw if it's a different error
@@ -716,8 +757,13 @@ export const createSpaceStoreFunc = (
       
       // Check if response is HTML (404 error page) instead of JSON
       if (textContent.trim().startsWith("<!DOCTYPE") || textContent.trim().startsWith("<html")) {
-        console.warn(`Space tab ${spaceId}/tabs/${tabName} not found in storage (404 HTML response)`);
-        return; // Tab doesn't exist in storage, use local if available
+        // HTML error page - tab doesn't exist in storage
+        if (localTab) {
+          // Local tab exists, use it
+          return;
+        }
+        // No local tab - tab doesn't exist
+        return;
       }
 
       // Parse the file data and decrypt it
