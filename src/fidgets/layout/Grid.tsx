@@ -154,6 +154,12 @@ const Grid: LayoutFidget<GridLayoutProps> = ({
   hasFeed,
   fid,
 }) => {
+  // Ensure fidgetTrayContents is always an array to prevent errors
+  const safeFidgetTrayContents = Array.isArray(fidgetTrayContents) ? fidgetTrayContents : [];
+  
+  // Ensure layoutConfig.layout is always an array to prevent errors
+  const safeLayout = Array.isArray(layoutConfig?.layout) ? layoutConfig.layout : [];
+
   // State to handle selecting, dragging, and Grid edit functionality
   const [element, setElement] = useState<HTMLDivElement | null>(
     portalRef.current,
@@ -215,7 +221,7 @@ const Grid: LayoutFidget<GridLayoutProps> = ({
     }
     
     // Check for collisions with existing items
-    for (const item of layoutConfig.layout) {
+    for (const item of safeLayout) {
       // Skip the item we're excluding (useful for resizing/moving)
       if (excludeItemId && item.i === excludeItemId) {
         continue;
@@ -232,9 +238,9 @@ const Grid: LayoutFidget<GridLayoutProps> = ({
     }
     
     return true;
-  }, [layoutConfig.layout, memoizedGridDetails.cols, memoizedGridDetails.maxRows]);
+  }, [safeLayout, memoizedGridDetails.cols, memoizedGridDetails.maxRows]);
 
-  const saveTrayContents = async (newTrayData: typeof fidgetTrayContents) => {
+  const saveTrayContents = async (newTrayData: typeof safeFidgetTrayContents) => {
     return await saveConfig({
       fidgetTrayContents: newTrayData,
     });
@@ -408,7 +414,7 @@ const Grid: LayoutFidget<GridLayoutProps> = ({
       toast("No space available on the grid. Fidget added to the tray.", {
         duration: 2000,
       });
-      const newTrayContents = [...fidgetTrayContents, newFidgetInstanceData];
+      const newTrayContents = [...safeFidgetTrayContents, newFidgetInstanceData];
       saveTrayContents(newTrayContents);
     }
 
@@ -494,7 +500,7 @@ const Grid: LayoutFidget<GridLayoutProps> = ({
 
   function removeFidgetFromTray(fidgetId: string) {
     const newFidgetTrayContents = reject(
-      fidgetTrayContents,
+      safeFidgetTrayContents,
       (fidget) => fidget.id === fidgetId,
     );
 
@@ -503,7 +509,7 @@ const Grid: LayoutFidget<GridLayoutProps> = ({
 
   function removeFidgetFromGrid(fidgetId: string) {
     //Make new layout with item removed
-    const newLayout = reject(layoutConfig.layout, (x) => x.i == fidgetId);
+    const newLayout = reject(safeLayout, (x) => x.i == fidgetId);
 
     saveLayout(newLayout);
   }
@@ -512,8 +518,8 @@ const Grid: LayoutFidget<GridLayoutProps> = ({
     unselectFidget();
 
     // Create new state objects
-    const newLayout = layoutConfig.layout.filter((item) => item.i !== fidgetId);
-    const newTrayContents = fidgetTrayContents.filter(
+    const newLayout = safeLayout.filter((item) => item.i !== fidgetId);
+    const newTrayContents = safeFidgetTrayContents.filter(
       (fidget) => fidget.id !== fidgetId,
     );
     const { [fidgetId]: _removed, ...newFidgetInstanceDatums } =
@@ -534,7 +540,7 @@ const Grid: LayoutFidget<GridLayoutProps> = ({
 
   function moveFidgetFromGridToTray(fidgetId: string) {
     const newFidgetTrayContents = [
-      ...fidgetTrayContents,
+      ...safeFidgetTrayContents,
       fidgetInstanceDatums[fidgetId],
     ];
     saveTrayContents(newFidgetTrayContents);
@@ -638,7 +644,7 @@ const Grid: LayoutFidget<GridLayoutProps> = ({
           selectedFidgetID={selectedFidgetID}
           currentFidgetSettings={currentFidgetSettings}
           setExternalDraggedItem={setExternalDraggedItem}
-          fidgetTrayContents={fidgetTrayContents}
+          fidgetTrayContents={safeFidgetTrayContents}
           fidgetInstanceDatums={fidgetInstanceDatums}
           saveFidgetInstanceDatums={saveFidgetInstanceDatums}
           saveTrayContents={saveTrayContents}
@@ -649,7 +655,7 @@ const Grid: LayoutFidget<GridLayoutProps> = ({
           onExportConfig={exportSpaceConfig}
           getCurrentSpaceContext={() => ({
             fidgetInstanceDatums,
-            fidgetTrayContents,
+            fidgetTrayContents: safeFidgetTrayContents,
             layoutConfig,
             theme,
             layoutID: layoutConfig.layout.length > 0 ? 'grid' : undefined,
@@ -702,7 +708,7 @@ const Grid: LayoutFidget<GridLayoutProps> = ({
       },
       theme: exportTheme,
       fidgetInstanceDatums: fidgetInstanceDatums,
-      fidgetTrayContents: fidgetTrayContents,
+      fidgetTrayContents: safeFidgetTrayContents,
       isEditable: false,
       timestamp: new Date().toISOString(),
       fid: fid,
