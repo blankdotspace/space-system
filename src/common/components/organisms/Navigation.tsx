@@ -312,6 +312,23 @@ const Navigation = React.memo(
     ...GiIcons,
   }), []);
 
+  // Cache for wrapper components to prevent remounts
+  const iconWrapperCacheRef = useRef<Map<string, React.FC>>(new Map());
+
+  // Reusable component factory for URL icons
+  const createUrlIconWrapper = useCallback((src: string): React.FC => {
+    const CustomIconWrapper = React.memo(() => (
+      <img 
+        src={src} 
+        alt="icon" 
+        className="w-5 h-5 rounded object-contain" 
+        aria-hidden="true"
+      />
+    ));
+    CustomIconWrapper.displayName = `CustomIcon(${src})`;
+    return CustomIconWrapper;
+  }, []);
+
   const iconFor = useCallback((key?: string): React.FC => {
     // Handle legacy icon keys for backward compatibility
     switch (key) {
@@ -322,32 +339,40 @@ const Navigation = React.memo(
       case 'space': return RocketIcon;
       case 'robot': return RobotIcon;
       default: {
+        if (!key) {
+          return HomeIcon;
+        }
+
+        // Check cache first
+        const cached = iconWrapperCacheRef.current.get(key);
+        if (cached) {
+          return cached;
+        }
+
         // Handle react-icons names (e.g., 'FaHouse', 'FaRss')
         // Use w-5 h-5 (20px) to match visual size of standard nav icons (w-6 h-6 custom SVGs)
-        if (key && iconPack[key as keyof typeof iconPack]) {
+        if (iconPack[key as keyof typeof iconPack]) {
           const IconComponent = iconPack[key as keyof typeof iconPack] as IconType;
-          const ReactIconWrapper = () => <IconComponent className="w-5 h-5" aria-hidden="true" />;
+          const ReactIconWrapper = React.memo(() => (
+            <IconComponent className="w-5 h-5" aria-hidden="true" />
+          ));
           ReactIconWrapper.displayName = `ReactIcon(${key})`;
+          iconWrapperCacheRef.current.set(key, ReactIconWrapper);
           return ReactIconWrapper;
         }
+
         // Handle custom icon URLs
-        if (key && (key.startsWith('http://') || key.startsWith('https://'))) {
-          const CustomIconWrapper = () => (
-            <img 
-              src={key} 
-              alt="icon" 
-              className="w-5 h-5 rounded object-contain" 
-              aria-hidden="true"
-            />
-          );
-          CustomIconWrapper.displayName = 'CustomIcon';
+        if (key.startsWith('http://') || key.startsWith('https://')) {
+          const CustomIconWrapper = createUrlIconWrapper(key);
+          iconWrapperCacheRef.current.set(key, CustomIconWrapper);
           return CustomIconWrapper;
         }
+
         // Default fallback
         return HomeIcon;
       }
     }
-  }, [iconPack]);
+  }, [iconPack, createUrlIconWrapper]);
   
   // Process nav items: adjust labels and hrefs based on login status when needed
   const allNavItems = configuredNavItems.map((item) => {
@@ -762,8 +787,8 @@ const Navigation = React.memo(
                         </Button>
                       </div>
                     </div>
-                  ) : hasUncommittedChanges ? (
-                    // Normal state with changes - X and Save buttons
+                  ) : (
+                    // Always show X and Save buttons
                     <div className="gap-2 flex items-center w-full">
                       <Button
                         onClick={handleCancelClick}
@@ -792,15 +817,6 @@ const Navigation = React.memo(
                         )}
                       </Button>
                     </div>
-                  ) : (
-                    // No changes - full width Exit button
-                    <Button
-                      onClick={handleCancel}
-                      variant="secondary"
-                      className="w-full"
-                    >
-                      <span>Exit Edit Mode</span>
-                    </Button>
                   )
                 ) : (
                   <Button

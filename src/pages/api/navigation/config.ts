@@ -188,65 +188,11 @@ async function updateNavigationConfig(
     return;
   }
 
-  // Clean up spaces for deleted navigation items
-  // oldNavConfig already defined above
+  // Calculate deleted items (before update, for later cleanup)
   const oldItems = oldNavConfig?.items || [];
   const newItems = updateRequest.navigationConfig.items || [];
-  
-  // Find deleted items by comparing old vs new (using IDs, so renames don't affect this)
   const newItemIds = new Set(newItems.map((item: any) => item.id));
   const deletedItems = oldItems.filter((item: any) => !newItemIds.has(item.id));
-  
-  // Delete spaces for deleted nav items
-  for (const item of deletedItems) {
-    if (item.spaceId) {
-      try {
-        // List all tab files in the space directory
-        // This lists actual files from storage, so tab renames don't matter - we delete whatever exists
-        const { data: tabFiles } = await supabase.storage
-          .from("spaces")
-          .list(`${item.spaceId}/tabs`);
-        
-        // Build list of all file paths to delete
-        const pathsToDelete: string[] = [];
-        
-        // Add tabOrder
-        pathsToDelete.push(`${item.spaceId}/tabOrder`);
-        
-        // Add all tab files (using actual file names from storage, handles renames correctly)
-        if (tabFiles) {
-          for (const tabFile of tabFiles) {
-            pathsToDelete.push(`${item.spaceId}/tabs/${tabFile.name}`);
-          }
-        }
-        
-        // Delete all storage files
-        if (pathsToDelete.length > 0) {
-          const { error: deleteError } = await supabase.storage
-            .from("spaces")
-            .remove(pathsToDelete);
-          
-          if (deleteError) {
-            console.warn(`Failed to delete storage files for space ${item.spaceId}:`, deleteError);
-          }
-        }
-        
-        // Delete space registration from database
-        const { error: registrationError } = await supabase
-          .from("spaceRegistrations")
-          .delete()
-          .eq("spaceId", item.spaceId)
-          .eq("spaceType", SPACE_TYPES.NAV_PAGE);
-        
-        if (registrationError) {
-          console.warn(`Failed to delete space registration for ${item.spaceId}:`, registrationError);
-        }
-      } catch (spaceDeleteError: any) {
-        // Log but don't fail the entire update if space deletion fails
-        console.warn(`Failed to delete space ${item.spaceId} for deleted nav item:`, spaceDeleteError);
-      }
-    }
-  }
 
   // Merge new items with existing config to preserve other fields (logoTooltip, showMusicPlayer, showSocials)
   // Start with existing config to preserve optional fields, then override with new config (which includes items)
@@ -270,8 +216,9 @@ async function updateNavigationConfig(
   // This provides runtime safety while working around TypeScript's Json type limitations
   const navigationConfigJson: Json = JSON.parse(JSON.stringify(mergedNavigationConfig));
 
-  // Update the navigation_config column with merged config
+  // Update the navigation_config column with merged config FIRST
   // Use .select() to verify that a row was actually updated
+  // This ensures we only perform cleanup operations after confirming the update succeeded
   console.log('[API] Updating navigation config in database');
   const { data: updatedRows, error: updateError } = await supabase
     .from("community_configs")
@@ -325,6 +272,67 @@ async function updateNavigationConfig(
     updatedRowsCount: updatedRows.length,
     finalItemCount: mergedNavigationConfig.items?.length || 0
   });
+
+  // Only perform cleanup operations AFTER confirming the database update succeeded
+  // This prevents inconsistent state if the update fails (we don't delete storage/registrations
+  // if the config update didn't commit)
+  if (deletedItems.length > 0) {
+    console.log('[API] Cleaning up spaces for deleted navigation items:', {
+      deletedItemCount: deletedItems.length,
+      deletedSpaceIds: deletedItems.map((item: any) => item.spaceId).filter(Boolean)
+    });
+
+    for (const item of deletedItems) {
+      if (item.spaceId) {
+        try {
+          // List all tab files in the space directory
+          // This lists actual files from storage, so tab renames don't matter - we delete whatever exists
+          const { data: tabFiles } = await supabase.storage
+            .from("spaces")
+            .list(`${item.spaceId}/tabs`);
+          
+          // Build list of all file paths to delete
+          const pathsToDelete: string[] = [];
+          
+          // Add tabOrder
+          pathsToDelete.push(`${item.spaceId}/tabOrder`);
+          
+          // Add all tab files (using actual file names from storage, handles renames correctly)
+          if (tabFiles) {
+            for (const tabFile of tabFiles) {
+              pathsToDelete.push(`${item.spaceId}/tabs/${tabFile.name}`);
+            }
+          }
+          
+          // Delete all storage files
+          if (pathsToDelete.length > 0) {
+            const { error: deleteError } = await supabase.storage
+              .from("spaces")
+              .remove(pathsToDelete);
+            
+            if (deleteError) {
+              console.warn(`Failed to delete storage files for space ${item.spaceId}:`, deleteError);
+            }
+          }
+          
+          // Delete space registration from database
+          const { error: registrationError } = await supabase
+            .from("spaceRegistrations")
+            .delete()
+            .eq("spaceId", item.spaceId)
+            .eq("spaceType", SPACE_TYPES.NAV_PAGE);
+          
+          if (registrationError) {
+            console.warn(`Failed to delete space registration for ${item.spaceId}:`, registrationError);
+          }
+        } catch (spaceDeleteError: any) {
+          // Log but don't fail the entire update if space deletion fails
+          // The config update already succeeded, so this is best-effort cleanup
+          console.warn(`Failed to delete space ${item.spaceId} for deleted nav item:`, spaceDeleteError);
+        }
+      }
+    }
+  }
 
   res.status(200).json({
     result: "success",
