@@ -153,11 +153,12 @@ export const createNavigationStoreFunc = (
       spaceId: spaceId,
     };
       
-      set((draft) => {
-        // Add to space store's localSpaces so PublicSpace can find it
+    // Atomically add both the local space and navigation item in a single set call
+    set((draft) => {
+      // Add to space store's localSpaces so PublicSpace can find it
       // Initialize with default "Home" tab so the space can be viewed immediately
-        draft.space.localSpaces[spaceId] = {
-          id: spaceId,
+      draft.space.localSpaces[spaceId] = {
+        id: spaceId,
         updatedAt: timestamp,
         tabs: {
           Home: {
@@ -171,13 +172,11 @@ export const createNavigationStoreFunc = (
             timestamp: timestamp,
           },
         },
-          order: ["Home"], // Initial default tab
-          changedNames: {},
-          deletedTabs: [],
-        };
-      }, "createNavigationItem-addLocalSpace");
-    
-    set((draft) => {
+        order: ["Home"], // Initial default tab
+        changedNames: {},
+        deletedTabs: [],
+      };
+      // Add to local navigation
       draft.navigation.localNavigation.push(cloneDeep(newItem));
     }, "createNavigationItem");
     
@@ -197,13 +196,19 @@ export const createNavigationStoreFunc = (
     console.log('[navigationStore] Deleting navigation item:', {
       itemId,
       label: item?.label,
-      href: item?.href
+      href: item?.href,
+      spaceId: item?.spaceId
     });
     set((draft) => {
       // Remove from local navigation
       draft.navigation.localNavigation = draft.navigation.localNavigation.filter(
         (item) => item.id !== itemId
       );
+      // Remove associated local space if it exists
+      if (item?.spaceId && draft.space.localSpaces[item.spaceId]) {
+        delete draft.space.localSpaces[item.spaceId];
+        console.log('[navigationStore] Deleted associated local space:', item.spaceId);
+      }
     }, "deleteNavigationItem");
     console.log('[navigationStore] Navigation item deleted, remaining items:', get().navigation.localNavigation.length);
   },
@@ -328,13 +333,16 @@ export const createNavigationStoreFunc = (
   
   hasUncommittedChanges: () => {
     const state = get().navigation;
+    const spaceState = get().space;
+    
+    // Check navigation item changes
     // Compare arrays directly - check length, order, and content
     if (state.localNavigation.length !== state.remoteNavigation.length) {
       return true;
     }
     
     // Check if order changed or any item properties changed
-    return state.localNavigation.some((localItem, index) => {
+    const hasNavChanges = state.localNavigation.some((localItem, index) => {
       const remoteItem = state.remoteNavigation[index];
       return !remoteItem || 
         localItem.id !== remoteItem.id ||
@@ -343,6 +351,89 @@ export const createNavigationStoreFunc = (
         localItem.icon !== remoteItem.icon ||
         localItem.spaceId !== remoteItem.spaceId;
     });
+    
+    if (hasNavChanges) {
+      return true;
+    }
+    
+    // Check if any navigation item's space has uncommitted changes
+    // This handles the case where a user customizes a space in nav edit mode
+    // without changing the navigation items themselves
+    const hasSpaceChanges = state.localNavigation.some((item) => {
+      if (!item.spaceId) {
+        return false;
+      }
+      
+      const localSpace = spaceState.localSpaces[item.spaceId];
+      const remoteSpace = spaceState.remoteSpaces[item.spaceId];
+      
+      // If local space doesn't exist, no changes
+      if (!localSpace) {
+        return false;
+      }
+      
+      // Check if space has uncommitted changes:
+      // 1. changedNames or deletedTabs are non-empty
+      // 2. Tabs differ from remote
+      // 3. Order differs from remote
+      if (Object.keys(localSpace.changedNames || {}).length > 0) {
+        return true;
+      }
+      
+      if ((localSpace.deletedTabs || []).length > 0) {
+        return true;
+      }
+      
+      // Compare tabs
+      const localTabNames = Object.keys(localSpace.tabs || {});
+      const remoteTabNames = Object.keys(remoteSpace?.tabs || {});
+      
+      if (localTabNames.length !== remoteTabNames.length) {
+        return true;
+      }
+      
+      // Compare order
+      const localOrder = localSpace.order || [];
+      const remoteOrder = remoteSpace?.order || [];
+      
+      if (localOrder.length !== remoteOrder.length) {
+        return true;
+      }
+      
+      if (localOrder.some((tab, index) => tab !== remoteOrder[index])) {
+        return true;
+      }
+      
+      // Compare individual tab configs by checking timestamps
+      // If a local tab has a newer timestamp than the remote tab, or doesn't exist remotely,
+      // it means there are uncommitted changes
+      for (const tabName of localTabNames) {
+        const localTab = localSpace.tabs[tabName];
+        const remoteTab = remoteSpace?.tabs?.[tabName];
+        
+        // If local tab exists but remote doesn't, it's a new tab (uncommitted)
+        if (!remoteTab) {
+          return true;
+        }
+        
+        // Compare timestamps - if local timestamp is newer, there are uncommitted changes
+        if (localTab.timestamp && remoteTab.timestamp) {
+          const localTimestamp = moment(localTab.timestamp);
+          const remoteTimestamp = moment(remoteTab.timestamp);
+          
+          if (localTimestamp.isAfter(remoteTimestamp)) {
+            return true;
+          }
+        } else if (localTab.timestamp && !remoteTab.timestamp) {
+          // Local has timestamp but remote doesn't - uncommitted
+          return true;
+        }
+      }
+      
+      return false;
+    });
+    
+    return hasSpaceChanges;
   },
   
   clearHrefMappings: (oldHrefs) => {
@@ -525,10 +616,65 @@ export const createNavigationStoreFunc = (
         }, "commitNavigationChanges-updateSpaceId");
       }
       
-      // Step 2: Space cleanup for deleted items is handled server-side in the navigation config API endpoint
+      // Step 2: Commit space changes for ALL navigation items (not just new ones)
+      // This handles the case where a user customizes a space in nav edit mode
+      // We need to commit space changes for existing spaces, not just new ones
+      console.log('[navigationStore] Committing space changes for all navigation items');
+      
+      const allSpaceIds = new Set(
+        state.localNavigation
+          .map(item => item.spaceId)
+          .filter((spaceId): spaceId is string => !!spaceId)
+      );
+      
+      // Commit space changes for all spaces (including existing ones that were customized)
+      // Skip spaces that were just registered (already committed above)
+      const existingSpaceIds = Array.from(allSpaceIds).filter(
+        spaceId => !spacesToCreate.some(s => s.spaceId === spaceId)
+      );
+      
+      console.log('[navigationStore] Committing changes for existing spaces:', {
+        existingSpaceCount: existingSpaceIds.length,
+        existingSpaceIds
+      });
+      
+      for (const spaceId of existingSpaceIds) {
+        const localSpace = get().space.localSpaces[spaceId];
+        
+        // Only commit if local space exists and has changes
+        if (localSpace) {
+          const remoteSpace = get().space.remoteSpaces[spaceId];
+          const hasChanges = 
+            Object.keys(localSpace.changedNames || {}).length > 0 ||
+            (localSpace.deletedTabs || []).length > 0 ||
+            Object.keys(localSpace.tabs || {}).length > 0; // At least has some tabs
+          
+          if (hasChanges) {
+            try {
+              console.log('[navigationStore] Committing space changes for existing space:', spaceId);
+              await get().space.commitAllSpaceChanges(spaceId);
+              console.log('[navigationStore] Space changes committed successfully for existing space:', spaceId);
+            } catch (spaceError: any) {
+              // Fail the entire commit if space commit fails
+              const errorMessage = spaceError?.response?.data?.error?.message 
+                || spaceError?.message 
+                || `Unknown error committing space changes for ${spaceId}`;
+              
+              console.error(`Space commit failed for ${spaceId}:`, spaceError);
+              
+              throw new Error(
+                `Failed to commit space changes for navigation item space "${spaceId}": ${errorMessage}. ` +
+                `Navigation commit aborted to maintain data consistency.`
+              );
+            }
+          }
+        }
+      }
+      
+      // Step 3: Space cleanup for deleted items is handled server-side in the navigation config API endpoint
       // The endpoint compares old vs new navigation config to identify deleted spaces and cleans them up
       
-      // Step 3: Update navigation config in database
+      // Step 4: Update navigation config in database
       // Filter out notifications - it's hardcoded and not stored in config
       const itemsToCommit = state.localNavigation.filter(item => item.id !== 'notifications');
       
@@ -568,7 +714,7 @@ export const createNavigationStoreFunc = (
       await axiosBackend.put("/api/navigation/config", signedRequest);
       console.log('[navigationStore] Navigation config update request successful');
       
-      // Step 4: Update local state to reflect committed changes
+      // Step 5: Update local state to reflect committed changes
       set((draft) => {
         draft.navigation.remoteNavigation = cloneDeep(itemsToCommit);
         // Also update localNavigation to remove notifications if it exists
