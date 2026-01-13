@@ -12,6 +12,9 @@ import {
   loadSystemConfigById,
 } from './loaders';
 
+// Track domains we've already warned about to avoid spam
+const warnedDomains = new Set<string>();
+
 /**
  * Load system configuration from database (SERVER-ONLY)
  * 
@@ -70,9 +73,13 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
       return resolution.config;
     }
     // Domain provided but config not found - fall back to default
-    console.warn(
-      `[Config] Community config not found for domain: "${domain}", falling back to default: "${DEFAULT_COMMUNITY_ID}"`
-    );
+    // Only warn once per domain to avoid console spam
+    if (!warnedDomains.has(domain)) {
+      warnedDomains.add(domain);
+      console.warn(
+        `[Config] Community config not found for domain: "${domain}", falling back to default: "${DEFAULT_COMMUNITY_ID}"`
+      );
+    }
     return await loadSystemConfigById(DEFAULT_COMMUNITY_ID);
   }
 
