@@ -90,6 +90,7 @@ export type AuthenticatorManager = {
   getInitializedAuthenticators: () => Promise<string[]>;
   installAuthenticators: (authenticatorIds: string[]) => Promise<void>;
   CurrentInitializerComponent?: React.FC;
+  hasCurrentInitializer: boolean;
   lastUpdatedAt: string;
 };
 
@@ -256,6 +257,7 @@ export const AuthenticatorManagerProvider: React.FC<
             done={completeInstallingCurrentInitializer}
           />
         ),
+      hasCurrentInitializer: !!currentInitializer,
       lastUpdatedAt: moment().toISOString(),
     }),
     [
