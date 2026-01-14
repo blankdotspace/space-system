@@ -2,8 +2,9 @@
 
 import { Avatar, AvatarImage } from "@/common/components/atoms/avatar";
 import Modal from "@/common/components/molecules/Modal";
-import { trackAnalyticsEvent } from "@/common/lib/utils/analyticsUtils";
+import { AnalyticsEvent } from "@/common/constants/analyticsEvents";
 import { useAppStore } from "@/common/data/stores/app";
+import { trackAnalyticsEvent } from "@/common/lib/utils/analyticsUtils";
 import { formatTimeAgo } from "@/common/lib/utils/date";
 import { mergeClasses as classNames } from "@/common/lib/utils/mergeClasses";
 import { useFarcasterSigner } from "@/fidgets/farcaster/index";
@@ -18,7 +19,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartFilledIcon } from "@heroicons/react/24/solid";
 import { CastWithInteractions, EmbedUrl, User } from "@neynar/nodejs-sdk/build/api";
-import { hexToBytes, bytesToHex } from "@noble/ciphers/utils";
+import { bytesToHex, hexToBytes } from "@noble/ciphers/utils";
 import { ErrorBoundary } from "@sentry/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Properties } from "csstype";
@@ -31,7 +32,6 @@ import { FaReply } from "react-icons/fa6";
 import { IoMdShare } from "react-icons/io";
 import CreateCast, { DraftType } from "./CreateCast";
 import { renderEmbedForUrl, type CastEmbed } from "./Embeds";
-import { AnalyticsEvent } from "@/common/constants/analyticsEvents";
 
 function isEmbedUrl(maybe: unknown): maybe is EmbedUrl {
   return isObject(maybe) && typeof maybe["url"] === "string";
@@ -314,12 +314,10 @@ const CastReactions = ({ cast }: { cast: CastWithInteractions }) => {
   const queryClient = useQueryClient();
   const [didLike, setDidLike] = useState(cast.viewer_context?.liked ?? false);
   const [didRecast, setDidRecast] = useState(cast.viewer_context?.recasted ?? false);
-  const [showSetupModal, setShowSetupModal] = useState(false);
-  const [reactionError, setReactionError] = useState<string | null>(null);
+  const [pendingReaction, setPendingReaction] = useState<{ key: CastReactionType; isActive: boolean } | null>(null);
 
-  const { signer, fid: userFid, requestSignerAuthorization, isLoadingSigner } = useFarcasterSigner("create-cast");
-  const { setModalOpen, getIsAccountReady } = useAppStore((state) => ({
-    setModalOpen: state.setup.setModalOpen,
+  const { signer, fid: userFid, requestSignerAuthorization } = useFarcasterSigner("create-cast");
+  const { getIsAccountReady } = useAppStore((state) => ({
     getIsAccountReady: state.getIsAccountReady,
   }));
 
@@ -361,42 +359,63 @@ const CastReactions = ({ cast }: { cast: CastWithInteractions }) => {
         });
       }
 
+      // Verify signer is functional before attempting to publish
+      if (!signer || signer.scheme === 0) {
+        throw new Error("Signer is not available or not functional");
+      }
+
+      // Verify userFid is valid
+      if (!userFid || userFid < 0) {
+        throw new Error("User FID is not available");
+      }
+
+      // Test if signer can actually get the key
+      const keyTest = await signer.getSignerKey();
+      if (!keyTest.isOk()) {
+        const keyError = keyTest.isErr() ? keyTest.error : new Error("Unknown error");
+        throw new Error(`Signer cannot retrieve public key: ${keyError instanceof Error ? keyError.message : String(keyError)}`);
+      }
+
       const reactionBodyType: ReactionType = key === CastReactionType.likes ? ReactionType.LIKE : ReactionType.RECAST;
       const reaction = {
         type: reactionBodyType,
         targetCastId: castId,
       };
 
-      let success = false;
-
-      if (isActive) {
-        success = await removeReaction({
-          authorFid: userFid,
-          signer: signer!,
-          reaction,
-        });
-      } else {
-        success = await publishReaction({
-          authorFid: userFid,
-          signer: signer!,
-          reaction,
-        });
-      }
-
-      if (!success) {
-        throw new Error("Failed to publish reaction to Farcaster");
-      }
-
-      // Update local state
+      // Update optimistic state immediately
       if (key === CastReactionType.likes) {
         setDidLike(!isActive);
       } else if (key === CastReactionType.recasts) {
         setDidRecast(!isActive);
       }
 
-      // Invalidate queries to refresh the feed data
-      queryClient.invalidateQueries({ queryKey: ["casts"] });
-      queryClient.invalidateQueries({ queryKey: ["cast-by-keyword"] });
+      try {
+        if (isActive) {
+          await removeReaction({
+            authorFid: userFid,
+            signer: signer!,
+            reaction,
+          });
+        } else {
+          await publishReaction({
+            authorFid: userFid,
+            signer: signer!,
+            reaction,
+          });
+        }
+
+        // Invalidate queries to refresh the feed data
+        queryClient.invalidateQueries({ queryKey: ["casts"] });
+        queryClient.invalidateQueries({ queryKey: ["cast-by-keyword"] });
+      } catch (error) {
+        // Revert optimistic state on error
+        if (key === CastReactionType.likes) {
+          setDidLike(isActive);
+        } else if (key === CastReactionType.recasts) {
+          setDidRecast(isActive);
+        }
+        throw error;
+      }
     },
     [cast, userFid, signer, queryClient]
   );
@@ -425,76 +444,55 @@ const CastReactions = ({ cast }: { cast: CastWithInteractions }) => {
     };
   };
 
-  // When signer becomes available, close modal
+  // When signer becomes available, try to execute pending reaction
   useEffect(() => {
-    if (!signer || userFid < 0 || signer.scheme === 0) {
+    // Only execute if we have a valid signer (scheme !== 0) and a pending reaction
+    if (!signer || signer.scheme === 0 || !pendingReaction) {
       return;
     }
 
-    console.log("[CastReactions] Signer is ready, closing setup modal");
-
-    // Log signer key for debugging
-    signer
-      .getSignerKey()
-      .then((keyResult) => {
-        if (keyResult.isOk()) {
-          const key = keyResult.value;
-          console.log("[CastReactions] Signer public key:", {
-            keyHex: Array.from(key)
-              .map((b) => b.toString(16).padStart(2, "0"))
-              .join(""),
-            keyLength: key.length,
-          });
-        } else {
-          console.error("[CastReactions] Failed to get signer key:", keyResult.error);
-        }
-      })
-      .catch((e) => {
-        console.error("[CastReactions] Exception getting signer key:", e);
-      });
-
-    console.log("[CastReactions] Signer details:", {
-      scheme: signer.scheme,
-      userFid,
-    });
-
-    // Close the setup modal now that signer is ready
-    // User will need to click like/recast again to publish
-    // This gives time for the signer to be fully synced
-    setShowSetupModal(false);
-  }, [signer, userFid]);
+    const { key, isActive } = pendingReaction;
+    setPendingReaction(null);
+    
+    // Small delay to ensure signer is fully synced
+    const timeoutId = setTimeout(async () => {
+      try {
+        await publishReactionForCast(key, isActive);
+      } catch (error) {
+        // Error already logged in publishReactionForCast
+      }
+    }, 500);
+    
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [signer?.scheme, pendingReaction]);
 
   const onClickReaction = async (key: CastReactionType, isActive: boolean) => {
-    console.log("[CastReactions] onClickReaction called for:", key, "isActive:", isActive);
-
     if (key === CastReactionType.links) {
       return;
     }
 
     if (!getIsAccountReady()) {
-      console.log("[CastReactions] Account not ready");
-      setShowSetupModal(true);
       return;
     }
 
-    // Require valid FID and signer
-    if (userFid < 0 || isUndefined(signer)) {
-      console.log("[CastReactions] Missing FID or signer, opening setup modal");
-      setShowSetupModal(true);
+    // Simple check: if no signer, request authorization and store pending reaction (exactly like CreateCast)
+    if (isUndefined(signer)) {
+      setPendingReaction({ key, isActive });
+      await requestSignerAuthorization();
       return;
     }
 
-    // Verify signer key is available
+    // Verify signer is functional before using
     if (signer.scheme === 0) {
-      console.log("[CastReactions] Signer not ready (scheme is NONE)");
-      setReactionError("Signer is not ready yet. Please wait a moment and try again.");
-      setShowSetupModal(true);
+      setPendingReaction({ key, isActive });
+      await requestSignerAuthorization();
       return;
     }
 
     // Publish the reaction
     try {
-      setReactionError(null);
       await publishReactionForCast(key, isActive);
     } catch (error) {
       console.error("[CastReactions] Error publishing reaction:", error);
@@ -504,10 +502,13 @@ const CastReactions = ({ cast }: { cast: CastWithInteractions }) => {
       } else if (key === CastReactionType.recasts) {
         setDidRecast(!isActive);
       }
-      // Show error message
+      // Only request authorization if error is specifically about signer not being available
       const errorMsg = error instanceof Error ? error.message : "Failed to publish reaction";
-      setReactionError(errorMsg);
-      setShowSetupModal(true);
+      if (errorMsg.includes("Signer is not available") || errorMsg.includes("Signer cannot retrieve")) {
+        setPendingReaction({ key, isActive });
+        await requestSignerAuthorization();
+      }
+      // For other errors (like backend validation), just show the error - don't request authorization
     }
   };
 
@@ -529,7 +530,6 @@ const CastReactions = ({ cast }: { cast: CastWithInteractions }) => {
 
   const onReply = () => {
     if (!getIsAccountReady()) {
-      setModalOpen(true);
       return;
     }
     trackAnalyticsEvent(AnalyticsEvent.REPLY, {
@@ -558,7 +558,6 @@ const CastReactions = ({ cast }: { cast: CastWithInteractions }) => {
 
   const onQuote = () => {
     if (!getIsAccountReady()) {
-      setModalOpen(true);
       return;
     }
     trackAnalyticsEvent(AnalyticsEvent.RECAST, {
@@ -612,54 +611,6 @@ const CastReactions = ({ cast }: { cast: CastWithInteractions }) => {
           <IoMdShare className="w-4 h-4" aria-hidden="true" />
         </div>
       </div>
-      <Modal open={showSetupModal} setOpen={setShowSetupModal} focusMode showClose={true}>
-        <div className="flex flex-col gap-4">
-          <h2 className="text-lg font-bold">{reactionError ? "Signer Error" : "Connect Farcaster"}</h2>
-          {reactionError ? (
-            <>
-              <p className="text-sm opacity-75">Failed to publish reaction: {reactionError}</p>
-              <p className="text-sm opacity-75 font-semibold mt-3">
-                Close this and try clicking like/recast again. If it continues to fail, try creating a cast first to
-                validate your signer.
-              </p>
-              <button
-                onClick={() => {
-                  setReactionError(null);
-                }}
-                className="mt-4 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-semibold"
-              >
-                Close
-              </button>
-            </>
-          ) : (
-            <>
-              <p className="text-sm opacity-75">You need to authorize a signer before you can like or recast casts.</p>
-              {isLoadingSigner && (
-                <div className="text-xs opacity-60 italic mt-2">
-                  <p>⟳ Waiting for Warpcast to register your signer...</p>
-                  <p className="text-xs opacity-50 mt-1">This may take 10-30 seconds. Please keep this window open.</p>
-                </div>
-              )}
-              <button
-                onClick={async () => {
-                  await requestSignerAuthorization();
-                }}
-                disabled={isLoadingSigner}
-                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isLoadingSigner ? (
-                  <>
-                    <span className="inline-block animate-spin mr-1">↻</span>
-                    Connecting...
-                  </>
-                ) : (
-                  "Connect Farcaster"
-                )}
-              </button>
-            </>
-          )}
-        </div>
-      </Modal>
     </>
   );
 };

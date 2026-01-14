@@ -1,12 +1,13 @@
 "use client";
-import { useAppStore } from "@/common/data/stores/app";
-import { useLogin, usePrivy } from "@privy-io/react-auth";
-import React, { useEffect, useState } from "react";
-import { SetupStep } from "@/common/data/stores/app/setup";
-import LoadingScreen from "../organisms/LoadingScreen";
-import Spinner from "../atoms/spinner";
+import React from "react";
 import { useAuthenticatorManager } from "@/authenticators/AuthenticatorManager";
 import Modal from "@/common/components/molecules/Modal";
+import { useAppStore } from "@/common/data/stores/app";
+import { SetupStep } from "@/common/data/stores/app/setup";
+import { useLogin, usePrivy } from "@privy-io/react-auth";
+import { useEffect, useState } from "react";
+import Spinner from "../atoms/spinner";
+import LoadingScreen from "../organisms/LoadingScreen";
 const LoginModal = ({
   open,
   setOpen,
@@ -38,7 +39,7 @@ const LoginModal = ({
     },
   });
   const [errored, setErrored] = useState(false);
-  const { CurrentInitializerComponent } = useAuthenticatorManager();
+  const { CurrentInitializerComponent, hasCurrentInitializer, lastUpdatedAt } = useAuthenticatorManager();
 
   useEffect(() => {
     if (
@@ -50,6 +51,22 @@ const LoginModal = ({
       login();
     }
   }, [currentStep, open, ready, authenticated]);
+
+  // Open modal automatically when CurrentInitializerComponent exists (for signer authorization)
+  // This allows signer authorization to work even when setup is already done
+  useEffect(() => {
+    if (hasCurrentInitializer && !open && authenticated) {
+      setOpen(true);
+    }
+  }, [hasCurrentInitializer, open, authenticated, setOpen]);
+
+  // Close modal automatically if setup is done and no CurrentInitializerComponent is present
+  // Also listen to lastUpdatedAt to ensure we react when the authenticator state changes
+  useEffect(() => {
+    if (open && authenticated && currentStep === SetupStep.DONE && !hasCurrentInitializer) {
+      setOpen(false);
+    }
+  }, [open, authenticated, currentStep, hasCurrentInitializer, lastUpdatedAt, setOpen]);
 
   function getModalContent() {
     if (!ready) {
@@ -83,13 +100,26 @@ const LoginModal = ({
         "One second..."
       );
 
+    // If setup is done but we have a CurrentInitializerComponent (for signer authorization), show it
+    if (currentStep === SetupStep.DONE && hasCurrentInitializer && CurrentInitializerComponent) {
+      return <CurrentInitializerComponent />;
+    }
+
     return <LoadingScreen text={currentStep} />;
   }
+
+  // Modal should be open if:
+  // 1. Normal setup flow (authenticated && currentStep !== DONE)
+  // 2. OR hasCurrentInitializer exists (for signer authorization after setup is done)
+  // But only if hasCurrentInitializer exists when setup is done
+  const shouldOpenModal = authenticated && (
+    currentStep !== SetupStep.DONE || (currentStep === SetupStep.DONE && hasCurrentInitializer)
+  );
 
   return (
     <Modal
       setOpen={setOpen}
-      open={open && authenticated && currentStep !== SetupStep.DONE}
+      open={open && shouldOpenModal}
       showClose={showClose}
     >
       {getModalContent()}
