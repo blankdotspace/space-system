@@ -70,9 +70,7 @@ async function linkFidToIdentity(
   let signingPublicKey: string | null = null;
   let signingKeyLastValidatedAt: string | null = null;
   if (hasSigningKeyInfo) {
-    console.log("[fid-link] Checking signing key info");
     if (typeof reqBody.signature !== "string") {
-      console.log("[fid-link] signature is not string:", typeof reqBody.signature);
       res.status(400).json({
         result: "error",
         error: {
@@ -82,7 +80,6 @@ async function linkFidToIdentity(
       return;
     }
     if (typeof reqBody.signingPublicKey !== "string") {
-      console.log("[fid-link] signingPublicKey is not string:", typeof reqBody.signingPublicKey);
       res.status(400).json({
         result: "error",
         error: {
@@ -91,7 +88,6 @@ async function linkFidToIdentity(
       });
       return;
     }
-    console.log("[fid-link] Validating signature");
     if (
       !validateSignable(
         {
@@ -101,7 +97,6 @@ async function linkFidToIdentity(
         "signingPublicKey",
       )
     ) {
-      console.log("[fid-link] Signature validation failed");
       res.status(400).json({
         result: "error",
         error: {
@@ -110,20 +105,11 @@ async function linkFidToIdentity(
       });
       return;
     }
-    console.log("[fid-link] Checking signing key validity for FID");
     const isKeyValid = await checkSigningKeyValidForFid(reqBody.fid, reqBody.signingPublicKey);
-    if (!isKeyValid) {
-      console.log("[fid-link] Signing key not valid for FID, but allowing registration anyway");
-      // Don't fail here - allow registration even if key validation fails
-      // The key might be pending or in a different state
-      signingPublicKey = reqBody.signingPublicKey;
-      signature = reqBody.signature;
-      signingKeyLastValidatedAt = moment().toISOString();
-    } else {
-      signingPublicKey = reqBody.signingPublicKey;
-      signature = reqBody.signature;
-      signingKeyLastValidatedAt = moment().toISOString();
-    }
+    if (!isKeyValid) 
+    signingPublicKey = reqBody.signingPublicKey;
+    signature = reqBody.signature;
+    signingKeyLastValidatedAt = moment().toISOString();
   }
   const { data: checkExistsData } = await createSupabaseServerClient()
     .from("fidRegistrations")
