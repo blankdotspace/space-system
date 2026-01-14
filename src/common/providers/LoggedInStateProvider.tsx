@@ -135,23 +135,18 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
 
   const inferFidFromWallet = async (): Promise<number | undefined> => {
     if (!user?.wallet?.address) {
-      console.log("[inferFidFromWallet] No wallet address available");
       return undefined;
     }
     try {
-      console.log("[inferFidFromWallet] Fetching FID for wallet:", user.wallet.address);
       const response = await fetch(
         `/api/farcaster/neynar/users?addresses=${user.wallet.address}`,
       );
       if (!response.ok) {
-        console.log("[inferFidFromWallet] API response not OK:", response.status, response.statusText);
         return undefined;
       }
       const data = await response.json();
-      console.log("[inferFidFromWallet] API response data:", data);
       const users = data?.users ?? [];
       if (users.length === 0) {
-        console.log("[inferFidFromWallet] No users found in response");
         return undefined;
       }
       
@@ -185,10 +180,8 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
       });
 
       if (!matchingUser) {
-        console.log("[inferFidFromWallet] No matching Neynar user for wallet");
         return undefined;
       }
-      console.log("[inferFidFromWallet] Found FID:", matchingUser.fid);
       return matchingUser.fid;
     } catch (e) {
       console.error("[inferFidFromWallet] Error inferring FID from wallet:", e);
@@ -235,34 +228,24 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
 
   const registerAccounts = async () => {
     let currentIdentity = getCurrentIdentity()!;
-    console.log("[registerAccounts] Starting, current FIDs:", currentIdentity.associatedFids);
     if (currentIdentity.associatedFids.length > 0) {
-      console.log("[registerAccounts] FIDs already exist, skipping registration");
       setCurrentStep(SetupStep.ACCOUNTS_REGISTERED);
     } else {
-      console.log("[registerAccounts] No FIDs found, loading from server...");
       await loadFidsForCurrentIdentity();
       currentIdentity = getCurrentIdentity()!;
-      console.log("[registerAccounts] After loadFidsForCurrentIdentity, FIDs:", currentIdentity.associatedFids);
       if (currentIdentity.associatedFids.length === 0) {
-        console.log("[registerAccounts] No FIDs from server, attempting to infer from wallet...");
         const fidFromWallet = await inferFidFromWallet();
-        console.log("[registerAccounts] Inferred FID from wallet:", fidFromWallet);
         if (!isUndefined(fidFromWallet)) {
           try {
-            console.log("[registerAccounts] Registering FID without signer:", fidFromWallet);
             await registerFidForCurrentIdentity(fidFromWallet);
-            console.log("[registerAccounts] FID registered, reloading...");
             await loadFidsForCurrentIdentity();
             currentIdentity = getCurrentIdentity()!;
-            console.log("[registerAccounts] After registration, FIDs:", currentIdentity.associatedFids);
           } catch (e) {
             console.error("[registerAccounts] Error registering FID from wallet:", e);
             // Continue to fallback flow if registration fails
           }
         }
         if (currentIdentity.associatedFids.length === 0) {
-          console.log("[registerAccounts] No FID found/inferred, falling back to signer flow...");
           await authenticatorManager.installAuthenticators([
             FARCASTER_AUTHENTICATOR_NAME,
           ]);
@@ -271,15 +254,13 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
           ]);
           const signerReady = await waitForAuthenticator(FARCASTER_AUTHENTICATOR_NAME);
           if (signerReady) {
-            let fidResult: { value: number } | undefined;
             try {
-            const fidResultTemp = (await authenticatorManager.callMethod({
+            const fidResult = (await authenticatorManager.callMethod({
               requestingFidgetId: "root",
               authenticatorId: FARCASTER_AUTHENTICATOR_NAME,
               methodName: "getAccountFid",
               isLookup: true,
             })) as { value: number };
-            fidResult = fidResultTemp;
             const publicKeyResult = (await authenticatorManager.callMethod({
               requestingFidgetId: "root",
               authenticatorId: FARCASTER_AUTHENTICATOR_NAME,
@@ -302,22 +283,10 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
               fidResult.value,
               bytesToHex(publicKeyResult.value),
               signForFid,
-            );
-            console.log("[registerAccounts] FID registered with signer, reloading...");
-            await loadFidsForCurrentIdentity();
+              );
+              await loadFidsForCurrentIdentity();
             } catch (e) {
-              console.error("Error registering FID with signer:", e);
-              // Try registering without signer as fallback
-              if (fidResult) {
-                try {
-                  console.log("[registerAccounts] Retrying registration without signer");
-                  await registerFidForCurrentIdentity(fidResult.value);
-                  console.log("[registerAccounts] FID registered without signer, reloading...");
-                  await loadFidsForCurrentIdentity();
-                } catch (retryError) {
-                  console.error("Error registering FID without signer:", retryError);
-                }
-              }
+              console.error("[registerAccounts] Error registering FID with signer:", e);
             }
           }
         }
