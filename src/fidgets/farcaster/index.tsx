@@ -134,9 +134,8 @@ export function useFarcasterSigner(
     try {
       await authenticatorManager.installAuthenticators([authenticatorName]);
       authenticatorManager.initializeAuthenticators([authenticatorName]);
-      // Give a bit of time for the authenticator to initialize
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    } finally {
+    } catch (error) {
+      console.error("[useFarcasterSigner] Error requesting signer authorization:", error);
       setIsLoadingSigner(false);
     }
   }, [authenticatorManager, authenticatorName]);
@@ -146,11 +145,12 @@ export function useFarcasterSigner(
   useEffect(() => {
     if (currentIdentityFids.length > 0) {
       setFid(currentIdentityFids[0]);
-    } else {
-      // Try to load FIDs if not already loaded
-      loadFids();
+      setHasLoadedFids(true);
+    } else if (!hasLoadedFids) {
+      // Try to load FIDs only once if not already loaded
+      loadFids().then(() => setHasLoadedFids(true));
     }
-  }, [currentIdentityFids, loadFids]);
+  }, [currentIdentityFids]);
 
   // Check if signer is already initialized on mount or when FID becomes available
   useEffect(() => {
@@ -325,7 +325,7 @@ export function useFarcasterSigner(
     }
 
     const syncFidRegistration = async () => {
-    try {
+      try {
       const publicKeyResult = await authenticatorManager.callMethod({
         requestingFidgetId: fidgetId,
         authenticatorId: FARCASTER_AUTHENTICATOR_NAME,
@@ -352,7 +352,7 @@ export function useFarcasterSigner(
           bytesToHex(publicKeyResult.value as Uint8Array),
           signForFid,
         );
-        await loadFids();
+        setHasSyncedFid(true);
         }
       } catch (error) {
         console.error("Error syncing FID registration with signer:", error);
