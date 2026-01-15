@@ -80,10 +80,6 @@ const BASE_DIRECTORY_SETTINGS = {
 };
 const DIRECTORY_FETCH_TIMEOUT_MS = 25000;
 
-function rootKeyPath(identityPublicKey: string, walletAddress: string): string {
-  return `identities/${identityPublicKey}/${walletAddress}/root.json`;
-}
-
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -107,7 +103,7 @@ function normalizeHandle(handle: string | null): string | null {
       const path = url.pathname.replace(/^\/+/, "");
       return path.length > 0 ? path : null;
     } catch {
-      return trimmed;
+      return null;
     }
   }
   return trimmed.startsWith("@") ? trimmed.slice(1) : trimmed;
@@ -650,7 +646,7 @@ function buildSocialTabConfig(
 ): JsonRecord {
   const castButton = isRecord(uiConfig.castButton) ? uiConfig.castButton : {};
   const background = getString(castButton.backgroundColor) ?? DEFAULT_THEME.properties.background;
-  const uiFont = getString(uiConfig.url) ?? DEFAULT_THEME.properties.font;
+  const uiFont = getString(uiConfig.font) ?? DEFAULT_THEME.properties.font;
 
   const theme = {
     id: "Social-Theme",
@@ -1102,12 +1098,11 @@ Deno.serve(async (req: Request) => {
 
       const { data: existingIdentities } = await supabase
         .from("walletIdentities")
-        .select("identityPublicKey, walletAddress");
+        .select("identityPublicKey, walletAddress")
+        .ilike("walletAddress", walletAddress)
+        .limit(1);
 
-      const existingIdentity = existingIdentities?.find(
-        (identity) =>
-          identity.walletAddress.toLowerCase() === walletAddress.toLowerCase(),
-      );
+      const existingIdentity = existingIdentities?.[0];
 
       return new Response(
         JSON.stringify({
@@ -1168,12 +1163,11 @@ Deno.serve(async (req: Request) => {
 
     const { data: existingIdentities, error: fetchError } = await supabase
       .from("walletIdentities")
-      .select("*");
+      .select("identityPublicKey, walletAddress")
+      .ilike("walletAddress", walletAddress)
+      .limit(1);
 
-    const existingIdentity = existingIdentities?.find(
-      (identity) =>
-        identity.walletAddress.toLowerCase() === walletAddress.toLowerCase(),
-    );
+    const existingIdentity = existingIdentities?.[0];
 
     if (fetchError) {
       console.error("Error fetching identity:", fetchError);
@@ -1248,10 +1242,7 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      const keyFilePath = rootKeyPath(
-        identityRequest.identityPublicKey,
-        identityRequest.walletAddress,
-      );
+      const keyFilePath = `${identityRequest.identityPublicKey}/keys/root/${identityRequest.walletAddress}`;
       const keyFileContent = JSON.stringify(signedKeyFile);
 
       const { error: storageError } = await supabase.storage
