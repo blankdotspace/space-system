@@ -56,7 +56,7 @@ import { NavigationItem } from "@/config/systemConfig";
 import { useCurrentSpaceIdentityPublicKey } from "@/common/lib/hooks/useCurrentSpaceIdentityPublicKey";
 import { useSidebarContext } from "./Sidebar";
 import { useNavigation } from "./navigation/useNavigation";
-import { NavigationItem as NavItemComponent, NavigationButton, NavigationItemProps, NavigationButtonProps, NavIconBadge } from "./navigation/NavigationItem";
+import { NavigationItem as NavItemComponent, NavigationButton } from "./navigation/NavigationItem";
 import { NavigationEditor } from "./navigation/NavigationEditor";
 import { NavigationErrorBoundary } from "./navigation/ErrorBoundary";
 
