@@ -1,6 +1,7 @@
 import React from "react";
 import { NextApiRequest, NextApiResponse } from "next";
 import { ImageResponse } from "next/og";
+import { getOgFonts } from "@/common/lib/utils/ogFonts";
 
 export const config = {
   runtime: "edge",
@@ -35,13 +36,24 @@ export default async function GET(
     timeRemaining: params.get("timeRemaining") || "",
   };
 
-  return new ImageResponse(<ProposalCard data={data} />, {
+  const fonts = await getOgFonts();
+  const fontFamily = fonts ? "Noto Sans, Noto Sans Symbols 2" : "sans-serif";
+
+  return new ImageResponse(<ProposalCard data={data} fontFamily={fontFamily} />, {
     width: 1200,
     height: 630,
+    ...(fonts ? { fonts } : {}),
+    emoji: "twemoji",
   });
 }
 
-const ProposalCard = ({ data }: { data: ProposalCardData }) => {
+const ProposalCard = ({
+  data,
+  fontFamily,
+}: {
+  data: ProposalCardData;
+  fontFamily: string;
+}) => {
   // Simple vote formatting
   const formatVotes = (votes: string) => {
     const num = Number(votes) || 0;
@@ -71,7 +83,7 @@ const ProposalCard = ({ data }: { data: ProposalCardData }) => {
         background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
         color: "white",
         gap: "32px",
-        fontFamily: "Arial, sans-serif",
+        fontFamily,
       }}
     >
       <div

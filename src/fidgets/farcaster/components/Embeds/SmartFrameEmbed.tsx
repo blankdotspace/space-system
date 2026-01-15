@@ -7,17 +7,37 @@ import {
   isLikelyFrameUrl,
 } from "@/common/lib/utils/frameDetection";
 import Loading from "@/common/components/molecules/Loading";
+import { type EmbedUrlMetadata } from "@neynar/nodejs-sdk/build/api/models";
 
 interface SmartFrameEmbedProps {
   url: string;
+  allowOpenGraph?: boolean;
+  metadata?: EmbedUrlMetadata;
 }
 
-const SmartFrameEmbed: React.FC<SmartFrameEmbedProps> = ({ url }) => {
+const SmartFrameEmbed: React.FC<SmartFrameEmbedProps> = ({
+  url,
+  allowOpenGraph = true,
+  metadata,
+}) => {
   const [isFrameV2, setIsFrameV2] = useState<boolean | null>(null);
   const [isFrameV1, setIsFrameV1] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (metadata?.frame) {
+      setIsFrameV2(true);
+      setIsFrameV1(false);
+      setIsLoading(false);
+      return;
+    }
+    if (metadata?.html) {
+      setIsFrameV2(false);
+      setIsFrameV1(false);
+      setIsLoading(false);
+      return;
+    }
+
     const abortController = new AbortController();
     let isCancelled = false;
 
@@ -85,7 +105,7 @@ const SmartFrameEmbed: React.FC<SmartFrameEmbedProps> = ({ url }) => {
       isCancelled = true;
       abortController.abort();
     };
-  }, [url]);
+  }, [metadata?.frame, metadata?.html, url]);
 
   // Show loading state with a more neutral placeholder
   if (isLoading) {
@@ -109,7 +129,11 @@ const SmartFrameEmbed: React.FC<SmartFrameEmbedProps> = ({ url }) => {
   }
 
   // If it's neither Frame V1 nor V2, render as OpenGraph metadata card
-  return <OpenGraphEmbed url={url} />;
+  if (!allowOpenGraph) {
+    return null;
+  }
+
+  return <OpenGraphEmbed url={url} metadata={metadata} />;
 };
 
 export default SmartFrameEmbed;

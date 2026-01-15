@@ -23,14 +23,18 @@ import {
 } from "../molecules/CastModalHelpers";
 import { toFarcasterCdnUrl } from "@/common/lib/utils/farcasterCdn";
 import { useUIColors } from "@/common/lib/hooks/useUIColors";
+import { SystemConfig } from "@/config";
 
+type MobileHeaderProps = {
+  systemConfig: SystemConfig;
+};
 
-const MobileHeader = () => {
+const MobileHeader = ({ systemConfig }: MobileHeaderProps) => {
   const setModalOpen = useAppStore((state) => state.setup.setModalOpen);
   const isLoggedIn = useAppStore((state) => state.getIsAccountReady());
   const isInitializing = useAppStore((state) => state.getIsInitializing());
   
-  const uiColors = useUIColors();
+  const uiColors = useUIColors({ systemConfig });
 
   const { setEditMode, sidebarEditable } = useSidebarContext();
 
@@ -130,7 +134,10 @@ const MobileHeader = () => {
           size="icon" 
           disabled
           className="text-white font-medium rounded-md"
-          style={{ backgroundColor: uiColors.primaryColor }}
+          style={{ 
+            backgroundColor: uiColors.primaryColor,
+            fontFamily: uiColors.fontFamily,
+          }}
         >
           <span className="animate-spin">⏳</span>
         </Button>
@@ -142,8 +149,12 @@ const MobileHeader = () => {
           size="icon" 
           onClick={() => setCastOpen(true)} 
           aria-label="Cast"
-          className="text-white font-medium rounded-md transition-colors"
-          style={{ backgroundColor: uiColors.castButton.backgroundColor }}
+          className="font-medium rounded-md transition-colors"
+          style={{ 
+            backgroundColor: uiColors.castButton.backgroundColor,
+            color: uiColors.castButtonFontColor,
+            fontFamily: uiColors.fontFamily,
+          }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = uiColors.castButton.hoverColor;
           }}
@@ -157,7 +168,7 @@ const MobileHeader = () => {
             e.currentTarget.style.backgroundColor = uiColors.castButton.hoverColor;
           }}
         >
-          <RiQuillPenLine className="w-5 h-5 text-white" />
+          <RiQuillPenLine className="w-5 h-5" style={{ color: uiColors.castButtonFontColor }} />
         </Button>
       );
     }
@@ -167,7 +178,10 @@ const MobileHeader = () => {
         onClick={openLogin} 
         withIcon
         className="text-white font-medium rounded-md transition-colors"
-        style={{ backgroundColor: uiColors.primaryColor }}
+        style={{ 
+          backgroundColor: uiColors.primaryColor,
+          fontFamily: uiColors.fontFamily,
+        }}
         onMouseEnter={(e) => {
           e.currentTarget.style.backgroundColor = uiColors.primaryHoverColor;
         }}
@@ -252,15 +266,23 @@ const MobileHeader = () => {
   }, [shouldConfirmCastClose]);
 
   return (
-    <header className="z-30 flex items-center justify-between h-14 px-4 bg-white overflow-hidden sticky top-0">
+    <header
+      className="z-30 flex items-center justify-between h-14 px-4 overflow-hidden sticky top-0"
+      style={{
+        backgroundColor: uiColors.backgroundColor,
+        color: uiColors.fontColor,
+        fontFamily: uiColors.fontFamily,
+      }}
+    >
       <div className="flex items-center gap-2">{isLoggedIn ? userAvatar : menuButton}</div>
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-        <BrandHeader />
+        <BrandHeader systemConfig={systemConfig} />
       </div>
       <div className="flex items-center gap-2">{actionButton}</div>
       <Drawer open={navOpen} onOpenChange={handleDrawerOpenChange}>
         <DrawerContent className="p-0" showCloseButton={false}>
           <Navigation
+            systemConfig={systemConfig}
             isEditable={sidebarEditable}
             enterEditMode={enterEditMode}
             mobile
@@ -284,11 +306,13 @@ const MobileHeader = () => {
             <CreateCast
               afterSubmit={closeCastModal}
               onShouldConfirmCloseChange={setShouldConfirmCastClose}
+              systemConfig={systemConfig}
             />
             <CastDiscardPrompt
               open={showCastDiscardPrompt}
               onClose={handleCancelDiscard}
               onDiscard={handleDiscardCast}
+              systemConfig={systemConfig}
             />
           </>
         </CastModalPortalBoundary>

@@ -16,6 +16,7 @@ nounspace.ts/
 ├── supabase/                 # Database configuration
 ├── tests/                    # Test files
 ├── .husky/                   # Git hooks
+├── middleware.ts             # Next.js middleware (domain detection)
 ├── package.json              # Dependencies
 ├── next.config.mjs           # Next.js configuration
 ├── tailwind.config.js        # Tailwind CSS configuration
@@ -43,9 +44,8 @@ src/app/
 │   ├── MobileViewSimplified.tsx # Mobile layout
 │   └── MobilePreview.tsx    # Mobile preview
 ├── api/                     # API routes
-├── explore/                 # Discovery pages
-├── frames/                  # Frame-related routes
-├── home/                    # Home page
+├── [navSlug]/               # Dynamic navigation pages (home, explore, etc.)
+│   └── [[...tabName]]/     # Tab-based navigation
 ├── notifications/           # Notifications
 ├── privacy/                 # Privacy page
 ├── pwa/                     # PWA configuration
@@ -131,30 +131,44 @@ src/constants/
 
 ### 5. System Configuration (`src/config/`)
 
-Whitelabeling and system configuration for community customization:
+Whitelabeling and system configuration with domain-based multi-tenant support. Configurations are stored in Supabase and loaded dynamically based on request domain. See [Configuration System](SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW.md) for details.
 
 ```
 src/config/                  # System configuration
-├── brand/                   # Brand identity configuration
-│   └── nouns.brand.ts      # Nouns brand config (name, tagline, etc.)
-├── assets/                  # Asset configuration
-│   └── nouns.assets.ts     # Nouns asset config (logos, icons)
-├── theme/                   # Theme configuration
-│   └── nouns.theme.ts      # Nouns theme config (colors, fonts)
-├── community/               # Community-specific configuration
-│   └── nouns.community.ts  # Community URLs, contracts, tokens
-├── fidgets/                 # Fidget configuration
-│   └── nouns.fidgets.ts    # Enabled/disabled fidgets
-├── spaces/                  # Initial space configurations
-│   ├── nouns.home.ts       # Home page configuration
-│   └── initial*.ts         # Initial space templates
-└── systemConfig.ts          # Main system configuration interface
+├── nouns/                   # Nouns community configuration (fallback)
+│   ├── nouns.brand.ts      # Brand identity
+│   ├── nouns.assets.ts     # Visual assets
+│   ├── nouns.community.ts  # Community integration
+│   ├── nouns.fidgets.ts    # Enabled/disabled fidgets
+│   ├── nouns.home.ts      # Home page config (legacy)
+│   ├── nouns.explore.ts   # Explore page config (legacy)
+│   ├── nouns.navigation.ts # Navigation config
+│   ├── nouns.theme.ts      # Theme config (references shared)
+│   ├── nouns.ui.ts         # UI colors
+│   └── initialSpaces/      # Nouns space creator implementations (used by all communities)
+├── clanker/                 # Clanker community configuration (fallback)
+├── example/                 # Example community configuration (fallback)
+├── shared/                  # Shared configuration
+│   └── themes.ts           # Shared theme definitions (all communities)
+├── loaders/                 # Configuration loading
+│   ├── types.ts            # Loader interfaces
+│   ├── registry.ts         # Domain resolution
+│   ├── runtimeLoader.ts    # Runtime config loader
+│   ├── utils.ts            # Utility functions
+│   └── index.ts            # Public API
+├── systemConfig.ts          # System configuration interface
+├── index.ts                 # Main configuration loader
+└── initialSpaceConfig.ts    # Base space configuration
 ```
 
 **Key Features:**
+- **Database-Backed**: Configs stored in Supabase, loaded dynamically
+- **Multi-Tenant**: Domain-based community detection via middleware
+- **Runtime Loading**: All communities load config from database at runtime
 - **Whitelabeling Support**: Complete brand customization through configuration
 - **Community Integration**: URLs, social handles, governance links, contract addresses
-- **Theme System**: Customizable colors, fonts, and visual styling
+- **Shared Themes**: Themes stored in shared file, not per-community
+- **Pages as Spaces**: Navigation pages stored as Spaces in Storage
 - **Fidget Management**: Enable/disable specific fidgets per community
 - **Space Templates**: Configurable initial space configurations
 

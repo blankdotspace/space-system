@@ -1,13 +1,13 @@
 import { SpaceConfig } from "@/app/(spaces)/Space";
-import { cloneDeep } from "lodash";
 import { INITIAL_SPACE_CONFIG_EMPTY } from "../../initialSpaceConfig";
 import { Address } from "viem";
+import { deepClone } from "@/common/lib/utils/deepClone";
 
 export const createInitalProposalSpaceConfigForProposalId = (
   proposalId: string,
   proposerAddress: Address
 ): Omit<SpaceConfig, "isEditable"> => {
-  const config = cloneDeep(INITIAL_SPACE_CONFIG_EMPTY);
+  const config = deepClone(INITIAL_SPACE_CONFIG_EMPTY);
 
   config.fidgetInstanceDatums = {
     "iframe:2f0a1c7b-da0c-474c-ad30-59915d0096b1": {

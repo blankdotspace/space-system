@@ -1,12 +1,11 @@
 // This file contains only the SystemConfig interface
 // Individual configurations are imported from their respective folders
 
-import { Address } from "viem";
-
 export type CommunityTokenNetwork = "mainnet" | "base" | "polygon" | "eth";
 
 export interface CommunityErc20Token {
   address: string;
+  name?: string;
   symbol: string;
   decimals: number;
   network?: CommunityTokenNetwork;
@@ -14,6 +13,7 @@ export interface CommunityErc20Token {
 
 export interface CommunityNftToken {
   address: string;
+  name?: string;
   symbol: string;
   type: "erc721" | "erc1155" | string;
   network?: CommunityTokenNetwork;
@@ -30,17 +30,22 @@ export interface SystemConfig {
   theme: ThemeConfig;
   community: CommunityConfig;
   fidgets: FidgetConfig;
-  homePage: HomePageConfig;
-  explorePage: ExplorePageConfig;
   navigation?: NavigationConfig;
   ui?: UIConfig;
+  adminIdentityPublicKeys?: string[]; // identityPublicKey values of users who can edit nav pages
+  communityId: string; // The database community_id used to load this config
 }
 
 export interface UIConfig {
+  url?: string;
+  fontColor?: string;
+  castButtonFontColor?: string;
+  backgroundColor?: string;
   primaryColor: string;
   primaryHoverColor: string;
   primaryActiveColor: string;
   castButton: {
+    fontColor?: string;
     backgroundColor: string;
     hoverColor: string;
     activeColor: string;
@@ -48,9 +53,7 @@ export interface UIConfig {
 }
 
 export interface BrandConfig {
-  name: string;
   displayName: string;
-  tagline: string;
   description: string;
   miniAppTags: string[];
 }
@@ -100,34 +103,58 @@ export interface ThemeProperties {
 }
 
 
-export type CommunityContractsConfig = {
-  nouns: Address;
-  auctionHouse: Address;
-  space: Address;
-  nogs: Address;
-} & Record<string, Address>;
-
 export interface CommunityConfig {
   type: string;
   urls: {
     website: string;
     discord: string;
-    twitter: string;
-    github: string;
-    forum: string;
   };
-  social: {
-    farcaster: string;
-    discord: string;
-    twitter: string;
+  social?: {
+    farcaster?: string;
+    x?: string;
   };
-  governance: {
-    proposals: string;
-    delegates: string;
-    treasury: string;
+  miniapp?: MiniAppConfig;
+  governance?: {
+    snapshotSpace?: string;
+    nounishGov?: string;
   };
-  tokens: CommunityTokensConfig;
-  contracts: CommunityContractsConfig;
+  tokens?: CommunityTokensConfig;
+}
+
+export interface MiniAppAccountAssociation {
+  header: string;
+  payload: string;
+  signature: string;
+}
+
+export interface MiniAppManifestOverrides {
+  name?: string;
+  subtitle?: string;
+  description?: string;
+  screenshotUrls?: string[];
+  primaryCategory?: string;
+  tags?: string[];
+  heroImageUrl?: string;
+  tagline?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogImageUrl?: string;
+  imageUrl?: string;
+  buttonTitle?: string;
+  homeUrl?: string;
+  iconUrl?: string;
+  splashImageUrl?: string;
+  splashBackgroundColor?: string;
+  noindex?: boolean;
+  requiredChains?: string[];
+  requiredCapabilities?: string[];
+  canonicalDomain?: string;
+}
+
+export interface MiniAppConfig {
+  accountAssociation?: MiniAppAccountAssociation;
+  accountAssociations?: Record<string, MiniAppAccountAssociation>;
+  manifest?: MiniAppManifestOverrides;
 }
 
 export interface FidgetConfig {
@@ -135,7 +162,7 @@ export interface FidgetConfig {
   disabled: string[];
 }
 
-export interface HomePageConfig {
+export interface NavPageConfig {
   defaultTab: string;
   tabOrder: string[];
   tabs: {
@@ -153,8 +180,6 @@ export interface HomePageConfig {
   };
 }
 
-export type ExplorePageConfig = HomePageConfig;
-
 export interface NavigationConfig {
   items: NavigationItem[];
   logoTooltip?: LogoTooltipConfig;
@@ -171,9 +196,10 @@ export interface NavigationItem {
   id: string;
   label: string;
   href: string;
-  icon?: 'home' | 'explore' | 'notifications' | 'search' | 'space' | 'robot' | 'custom';
+  icon?: string; // Icon name from react-icons (e.g., 'FaHouse', 'FaRss') or URL for custom icons
   openInNewTab?: boolean;
   requiresAuth?: boolean;
+  spaceId?: string; // Optional reference to Space for page content (navPage type)
 }
 
 export interface TabConfig {

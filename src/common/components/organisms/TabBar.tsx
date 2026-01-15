@@ -13,7 +13,8 @@ import { TooltipProvider } from "../atoms/tooltip";
 import ClaimButtonWithModal from "../molecules/ClaimButtonWithModal";
 import { useSidebarContext } from "./Sidebar";
 import TokenDataHeader from "./TokenDataHeader";
-import { validateTabName } from "@/common/utils/tabUtils";
+import { validateTabName, generateUniqueName } from "@/common/utils/tabUtils";
+import { useUIColors } from "@/common/lib/hooks/useUIColors";
 
 interface TabBarProps {
   inHomebase: boolean;
@@ -33,7 +34,7 @@ interface TabBarProps {
   isEditable?: boolean;
 }
 
-const isEditableTab = (tabName: string, defaultTab: string) => 
+const isEditableTab = (tabName: string, defaultTab: string) =>
   tabName !== defaultTab;
 
 function TabBar({
@@ -55,6 +56,39 @@ function TabBar({
 }: TabBarProps) {
   const isMobile = useIsMobile();
   const { setEditMode } = useSidebarContext();
+  const uiColors = useUIColors();
+  const castButtonColors = React.useMemo(
+    () => ({
+      backgroundColor: uiColors.castButton.backgroundColor,
+      hoverColor: uiColors.castButton.hoverColor,
+      activeColor: uiColors.castButton.activeColor,
+      fontColor: uiColors.castButtonFontColor,
+    }),
+    [
+      uiColors.castButton.backgroundColor,
+      uiColors.castButton.hoverColor,
+      uiColors.castButton.activeColor,
+      uiColors.castButtonFontColor,
+    ],
+  );
+  const customizeButtonStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      "--cast-bg-color": castButtonColors.backgroundColor,
+      "--cast-hover-color": castButtonColors.hoverColor,
+      "--cast-active-color": castButtonColors.activeColor,
+      backgroundColor: "var(--cast-bg-color)",
+      color: castButtonColors.fontColor,
+      fontFamily: uiColors.fontFamily,
+      boxShadow: "none",
+    }),
+    [
+      castButtonColors.activeColor,
+      castButtonColors.backgroundColor,
+      castButtonColors.fontColor,
+      castButtonColors.hoverColor,
+      uiColors.fontFamily,
+    ],
+  );
 
   const { getIsLoggedIn, getIsInitializing, homebaseLoadTab, setCurrentTabName } = useAppStore((state) => ({
     setModalOpen: state.setup.setModalOpen,
@@ -104,15 +138,14 @@ function TabBar({
           switchTabTo(finalTabName, false);
         }
         
-        // Commit the order (createTab already updated local state)
-        commitTabOrder();
+        // Tab creation is staged - commit via commitAllSpaceChanges
       } catch (error) {
         console.error("Error creating tab:", error);
         toast.error("Failed to create tab. Please try again.");
         // TODO: Rollback optimistic changes if needed
       }
     }, 300),
-    [tabList, createTab, commitTabOrder, switchTabTo]
+    [tabList, createTab, switchTabTo]
   );
 
   const debouncedDeleteTab = React.useCallback(
@@ -177,16 +210,15 @@ function TabBar({
         // Update current tab name in store and URL
         switchTabTo(uniqueName);
         
-        // Wait for rename to complete, then commit
+        // Wait for rename to complete
         await renamePromise;
-        commitTab(uniqueName);
-        commitTabOrder();
+        // Rename is staged - commit via commitAllSpaceChanges
         
       } catch (error) {
         console.error("Error in handleRenameTab:", error);
       }
     }, 300),
-    [renameTab, switchTabTo, commitTab, commitTabOrder, tabList]
+    [renameTab, switchTabTo, tabList]
   );
 
   function generateNewTabName(): string {
@@ -204,14 +236,7 @@ function TabBar({
       return null;
     }
 
-    let uniqueName = tabName;
-    let iter = 1;
-    
-    while (tabList.includes(uniqueName) && iter <= 100) {
-      uniqueName = `${tabName} - ${iter++}`;
-    }
-    
-    return iter > 100 ? null : uniqueName;
+    return generateUniqueName(tabName, tabList);
   }
 
   const handleTabClick = React.useCallback((tabName: string, e?: React.MouseEvent) => {
@@ -236,22 +261,31 @@ function TabBar({
   const debouncedReorder = React.useCallback(
     debounce((newOrder) => {
       updateTabOrder(newOrder);
-      commitTabOrder();
+      // Order update is staged - commit via commitAllSpaceChanges
     }, 300),
-    [updateTabOrder, commitTabOrder]
+    [updateTabOrder]
   );
 
   const isLoggedIn = getIsLoggedIn();
 
   return (
     <TooltipProvider>
-      <div className="flex flex-col md:flex-row justify-start md:h-16 z-30 bg-white w-full"> 
+      <div
+        className="flex flex-col md:flex-row justify-start md:h-16 z-30 w-full"
+        style={{ backgroundColor: uiColors.backgroundColor }}
+      > 
         {isTokenPage && contractAddress && (
-          <div className="flex flex-row justify-start h-16 w-full md:w-fit z-20 bg-white">
+          <div
+            className="flex flex-row justify-start h-16 w-full md:w-fit z-20"
+            style={{ backgroundColor: uiColors.backgroundColor }}
+          >
             <TokenDataHeader />
           </div>
         )}
-        <div className="flex w-full h-16 bg-white items-center justify-between"> 
+        <div
+          className="flex w-full h-16 items-center justify-between"
+          style={{ backgroundColor: uiColors.backgroundColor }}
+        > 
           {/* Tabs Section - grows until it hits buttons */}
           <div className="flex-1 min-w-0 overflow-hidden">
             <div className="overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -291,10 +325,15 @@ function TabBar({
               {!inEditMode && (
                 <Button
                   onClick={() => setEditMode(true)}
-                  className="flex items-center rounded-xl p-2 bg-[#F3F4F6] hover:bg-sky-100 text-[#1C64F2] font-semibold shadow-md"
+                  className="flex items-center rounded-md p-2 font-semibold transition-colors bg-[var(--cast-bg-color)] hover:bg-[var(--cast-hover-color)] active:bg-[var(--cast-active-color)] focus:bg-[var(--cast-hover-color)] focus-visible:outline-none focus-visible:ring-0"
+                  style={customizeButtonStyle}
                 >
                   <FaPaintbrush />
-                  {!isMobile && <span className="ml-2">Customize</span>}
+                  {!isMobile && (
+                    <span className="ml-2">
+                      Customize
+                    </span>
+                  )}
                 </Button>
               )}
               {(inEditMode) && (

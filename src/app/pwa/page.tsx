@@ -3,18 +3,9 @@
 import React, { useState, useEffect } from 'react'
 import { subscribeUser, unsubscribeUser, sendNotification } from './actions'
 
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
-
-  const rawData = window.atob(base64)
-  const outputArray = new Uint8Array(rawData.length)
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i)
-  }
-  return outputArray
-}
+// Opt out of static generation - this page is client-only and uses browser APIs
+// Note: revalidate is not needed for client components
+export const dynamic = 'force-dynamic'
 
 function PushNotificationManager() {
   const [isSupported, setIsSupported] = useState(false)
@@ -23,6 +14,8 @@ function PushNotificationManager() {
   const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
+    if (typeof window === 'undefined') return; // Guard against SSR
+    
     if ('serviceWorker' in navigator && 'PushManager' in window) {
       setIsSupported(true)
       registerServiceWorker()
@@ -44,6 +37,23 @@ function PushNotificationManager() {
     } catch (error) {
       console.error('Service worker registration failed:', error)
     }
+  }
+
+  function urlBase64ToUint8Array(base64String: string): Uint8Array {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+    
+    if (typeof window === 'undefined') {
+      throw new Error('window is not available');
+    }
+    
+    const rawData = window.atob(base64)
+    const outputArray = new Uint8Array(rawData.length)
+
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i)
+    }
+    return outputArray
   }
 
   async function subscribeToPush() {
@@ -116,6 +126,8 @@ function InstallPrompt() {
   const [isStandalone, setIsStandalone] = useState(false)
 
   useEffect(() => {
+    if (typeof window === 'undefined') return; // Guard against SSR
+    
     setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream)
     setIsStandalone(window.matchMedia('(display-mode: standalone)').matches)
   }, [])
@@ -146,6 +158,17 @@ function InstallPrompt() {
 }
 
 export default function Page() {
+  // Client-side only - browser APIs required
+  const [isClient, setIsClient] = React.useState(false);
+  
+  React.useEffect(() => {
+    setIsClient(true);
+  }, []);
+  
+  if (!isClient) {
+    return null; // Don't render anything during SSR/prerender
+  }
+  
   return (
     <div>
       <PushNotificationManager />

@@ -1,6 +1,3 @@
-export const dynamic = "force-static";
-export const revalidate = 60;
-
 import React from "react";
 import { loadProposalSpaceData } from "./utils";
 import SpaceNotFound from "@/app/(spaces)/SpaceNotFound";

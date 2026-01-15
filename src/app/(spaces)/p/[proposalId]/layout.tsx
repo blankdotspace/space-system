@@ -1,13 +1,30 @@
 import { Metadata } from "next/types";
 import React from "react";
-import { WEBSITE_URL } from "@/constants/app";
 import { loadProposalData, calculateTimeRemaining } from "./utils";
-import { defaultFrame } from "@/constants/metadata";
+import { loadSystemConfig, type SystemConfig } from "@/config";
+import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
+import { buildDefaultFrameMetadata, getDefaultFrameAssets } from "@/common/lib/utils/defaultMetadata";
+import { buildMiniAppEmbed } from "@/common/lib/utils/miniAppEmbed";
+import { resolveMiniAppDomain } from "@/common/lib/utils/miniAppDomain";
 
-const defaultMetadata = {
-  other: {
-    'fc:frame': JSON.stringify(defaultFrame),
-  },
+const buildDefaultMetadata = async (systemConfig: SystemConfig, baseUrl: string): Promise<Metadata> => {
+  const { defaultFrame, defaultImage, splashImageUrl } = await getDefaultFrameAssets(systemConfig, baseUrl);
+  const brandName = systemConfig.brand.displayName;
+  const miniAppDomain = resolveMiniAppDomain(baseUrl);
+  const defaultMiniApp = buildMiniAppEmbed({
+    imageUrl: defaultImage,
+    buttonTitle: `Open ${brandName}`,
+    actionUrl: baseUrl,
+    actionName: brandName,
+    splashImageUrl,
+  });
+  return {
+    other: {
+      "fc:frame": JSON.stringify(defaultFrame),
+      "fc:miniapp": JSON.stringify(defaultMiniApp),
+      "fc:miniapp:domain": miniAppDomain,
+    },
+  };
 };
 
 export async function generateMetadata({ 
@@ -15,7 +32,12 @@ export async function generateMetadata({
 }: { 
   params: Promise<{ proposalId: string }> 
 }): Promise<Metadata> {
+  const systemConfig = await loadSystemConfig();
+  const baseUrl = await resolveBaseUrl({ systemConfig });
+  const brandName = systemConfig.brand.displayName;
+  const miniAppDomain = resolveMiniAppDomain(baseUrl);
   const { proposalId } = await params;
+  const defaultMetadata = await buildDefaultMetadata(systemConfig, baseUrl);
   
   if (!proposalId) {
     return defaultMetadata;
@@ -26,19 +48,19 @@ export async function generateMetadata({
     const proposalAbort = new AbortController();
     const proposalData = await Promise.race([
       loadProposalData(proposalId, proposalAbort.signal),
-      new Promise<null>((_, reject) => 
+      new Promise<never>((_, reject) =>
         setTimeout(() => {
           proposalAbort.abort();
-          reject(new Error('Proposal data fetch timeout'));
-        }, 8000)
-      )
+          reject(new Error("Proposal data fetch timeout"));
+        }, 8000),
+      ),
     ]);
 
     if (!proposalData || proposalData.title === "Error loading proposal") {
       return defaultMetadata;
     }
 
-    const frameUrl = `${WEBSITE_URL}/p/${proposalId}`;
+    const frameUrl = `${baseUrl}/p/${proposalId}`;
     
     // Generate beautiful thumbnail URL with all voting data
     const thumbnailParams = new URLSearchParams({
@@ -62,7 +84,7 @@ export async function generateMetadata({
       thumbnailParams.set("timeRemaining", "Voting ended");
     }
     
-    const dynamicThumbnailUrl = `${WEBSITE_URL}/api/metadata/proposal-thumbnail?${thumbnailParams.toString()}`;
+    const dynamicThumbnailUrl = `${baseUrl}/api/metadata/proposal-thumbnail?${thumbnailParams.toString()}`;
 
   const proposalFrame = {
     version: "next",
@@ -72,12 +94,20 @@ export async function generateMetadata({
       action: {
         type: "launch_frame",
         url: frameUrl,
-        name: `Proposal ${proposalData.id} on Nounspace`,
+        name: `Proposal ${proposalData.id} on ${brandName}`,
         splashImageUrl: dynamicThumbnailUrl,
         splashBackgroundColor: "#FFFFFF",
       },
     },
   };
+
+  const proposalMiniApp = buildMiniAppEmbed({
+    imageUrl: dynamicThumbnailUrl,
+    buttonTitle: `View Proposal ${proposalData.id}`,
+    actionUrl: frameUrl,
+    actionName: `Proposal ${proposalData.id} on ${brandName}`,
+    splashImageUrl: dynamicThumbnailUrl,
+  });
 
   const getProposerDisplay = () => {
     if (proposalData.signers && proposalData.signers.length > 0) {
@@ -95,11 +125,11 @@ export async function generateMetadata({
   };
 
   const metadataWithFrame = {
-    title: `Proposal: ${proposalData.title} | Nounspace`,
-    description: `Proposal by ${getProposerDisplay()} on Nounspace. Explore the details and discussions around this proposal.`,
+    title: `Proposal: ${proposalData.title} | ${brandName}`,
+    description: `Proposal by ${getProposerDisplay()} on ${brandName}. Explore the details and discussions around this proposal.`,
     openGraph: {
       title: `Prop ${proposalData.id}: ${proposalData.title}`,
-      description: `Proposal by ${getProposerDisplay()} on Nounspace. View voting details and participate in the discussion.`,
+      description: `Proposal by ${getProposerDisplay()} on ${brandName}. View voting details and participate in the discussion.`,
       images: [
         {
           url: dynamicThumbnailUrl,
@@ -113,11 +143,13 @@ export async function generateMetadata({
     twitter: {
       card: "summary_large_image",
       title: `Prop ${proposalData.id}: ${proposalData.title}`,
-      description: `Proposal by ${getProposerDisplay()} on Nounspace. View voting details and participate in the discussion.`,
+      description: `Proposal by ${getProposerDisplay()} on ${brandName}. View voting details and participate in the discussion.`,
       images: [dynamicThumbnailUrl],
     },
     other: {
       "fc:frame": JSON.stringify(proposalFrame),
+      "fc:miniapp": JSON.stringify(proposalMiniApp),
+      "fc:miniapp:domain": miniAppDomain,
     },
   };
 

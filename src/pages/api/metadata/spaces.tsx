@@ -3,6 +3,7 @@ import React from "react";
 import { NextApiRequest, NextApiResponse } from "next";
 import { ImageResponse } from "next/og";
 import { toFarcasterCdnUrl } from "@/common/lib/utils/farcasterCdn";
+import { getOgFonts } from "@/common/lib/utils/ogFonts";
 
 export const config = {
   runtime: "edge",
@@ -31,13 +32,40 @@ export default async function GET(
     bio: params.get("bio") || "",
   };
 
-  return new ImageResponse(<ProfileCard userMetadata={userMetadata} />, {
-    width: 1200,
-    height: 630,
-  });
+  const fonts = await getOgFonts();
+  const fontFamily = fonts ? "Noto Sans, Noto Sans Symbols 2" : "sans-serif";
+
+  return new ImageResponse(
+    <ProfileCard userMetadata={userMetadata} fontFamily={fontFamily} />,
+    {
+      width: 1200,
+      height: 630,
+      ...(fonts ? { fonts } : {}),
+      emoji: "twemoji",
+    },
+  );
 }
 
-const ProfileCard = ({ userMetadata }: { userMetadata: UserMetadata }) => {
+const resolveOgAvatarUrl = (url: string): string => {
+  if (!url) return url;
+  try {
+    const parsedUrl = new URL(url);
+    if (parsedUrl.hostname.endsWith("imagedelivery.net")) {
+      return url;
+    }
+  } catch {
+    return url;
+  }
+  return toFarcasterCdnUrl(url, "anim=false,fit=contain,f=png,w=576");
+};
+
+const ProfileCard = ({
+  userMetadata,
+  fontFamily,
+}: {
+  userMetadata: UserMetadata;
+  fontFamily: string;
+}) => {
   return (
     <div
       style={{
@@ -47,34 +75,39 @@ const ProfileCard = ({ userMetadata }: { userMetadata: UserMetadata }) => {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        justifyContent: "center",
+        justifyContent: "space-between",
         background: "white",
-        gap: "0px",
+        gap: "24px",
+        fontFamily,
       }}
     >
-      <img
-        src={toFarcasterCdnUrl(userMetadata.pfpUrl || "")}
-        width={"180px"}
-        height={"180px"}
-        style={{ borderRadius: "300px" }}
-      />
-      <p
-        style={{
-          fontSize: "64px",
-          fontWeight: "bold",
-        }}
-      >
-        @{userMetadata.username}
-      </p>
-      <div
-        style={{
-          fontSize: "22px",
-          display: "flex",
-          textAlign: "center",
-          maxWidth: "600px",
-        }}
-      >
-        {userMetadata.bio}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+        {userMetadata.pfpUrl ? (
+          <img
+            src={resolveOgAvatarUrl(userMetadata.pfpUrl)}
+            width={"180px"}
+            height={"180px"}
+            style={{ borderRadius: "300px" }}
+          />
+        ) : null}
+        <p
+          style={{
+            fontSize: "64px",
+            fontWeight: "bold",
+          }}
+        >
+          @{userMetadata.username}
+        </p>
+        <div
+          style={{
+            fontSize: "22px",
+            display: "flex",
+            textAlign: "center",
+            maxWidth: "600px",
+          }}
+        >
+          {userMetadata.bio}
+        </div>
       </div>
     </div>
   );

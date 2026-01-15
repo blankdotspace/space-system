@@ -1,16 +1,16 @@
 import { SpaceConfig } from "@/app/(spaces)/Space";
 import { FilterType, FeedType } from "@neynar/nodejs-sdk/build/api";
-import { cloneDeep } from "lodash";
 import { getLayoutConfig } from "@/common/utils/layoutFormatUtils";
 import { INITIAL_SPACE_CONFIG_EMPTY } from "../../initialSpaceConfig";
+import { deepClone } from "@/common/lib/utils/deepClone";
 
-const INITIAL_CHANNEL_SPACE_CONFIG = cloneDeep(INITIAL_SPACE_CONFIG_EMPTY);
+const INITIAL_CHANNEL_SPACE_CONFIG = deepClone(INITIAL_SPACE_CONFIG_EMPTY);
 INITIAL_CHANNEL_SPACE_CONFIG.tabNames = ["Channel"];
 
 const createInitialChannelSpaceConfig = (
   channelId: string,
 ): Omit<SpaceConfig, "isEditable"> => {
-  const config = cloneDeep(INITIAL_CHANNEL_SPACE_CONFIG);
+  const config = deepClone(INITIAL_CHANNEL_SPACE_CONFIG);
 
   config.fidgetInstanceDatums = {
     "feed:channel": {

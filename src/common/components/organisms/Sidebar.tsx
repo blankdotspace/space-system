@@ -8,13 +8,15 @@ import React, {
   useMemo,
 } from "react";
 import Navigation from "./Navigation";
-export interface SidebarProps {}
+import { SystemConfig } from "@/config";
 
 export type SidebarContextProviderProps = { children: React.ReactNode };
 
 export type SidebarContextValue = {
   editMode: boolean;
   setEditMode: (value: boolean) => void;
+  navEditMode: boolean;
+  setNavEditMode: (value: boolean) => void;
   sidebarEditable: boolean;
   setSidebarEditable: (value: boolean) => void;
   portalRef: React.RefObject<HTMLDivElement>;
@@ -28,6 +30,7 @@ export const SidebarContextProvider: React.FC<SidebarContextProviderProps> = ({
   children,
 }) => {
   const [editMode, setEditMode] = useState(false);
+  const [navEditMode, setNavEditMode] = useState(false);
   const [sidebarEditable, setSidebarEditable] = useState(false);
   const portalRef = useRef<HTMLDivElement>(null);
 
@@ -35,11 +38,13 @@ export const SidebarContextProvider: React.FC<SidebarContextProviderProps> = ({
     () => ({
       editMode,
       setEditMode,
+      navEditMode,
+      setNavEditMode,
       sidebarEditable,
       setSidebarEditable,
       portalRef,
     }),
-    [editMode, sidebarEditable, portalRef],
+    [editMode, navEditMode, sidebarEditable, portalRef],
   );
 
   return (
@@ -51,8 +56,12 @@ export const useSidebarContext = (): SidebarContextValue => {
   return useContext(SidebarContext);
 };
 
-export const Sidebar: React.FC<SidebarProps> = () => {
-  const { editMode, setEditMode, sidebarEditable, portalRef } =
+type SidebarProps = {
+  systemConfig: SystemConfig;
+};
+
+export const Sidebar: React.FC<SidebarProps> = ({ systemConfig }) => {
+  const { editMode, setEditMode, navEditMode, sidebarEditable, portalRef } =
     useSidebarContext();
 
   function enterEditMode() {
@@ -66,7 +75,8 @@ export const Sidebar: React.FC<SidebarProps> = () => {
 
   // Retornando às classes originais para preservar funcionalidade completa
   // Isso mantém o comportamento de expansão/contração da barra lateral
-  const navWrapperClass = editMode
+  // Hide sidebar only for page edit mode, not navigation edit mode
+  const navWrapperClass = editMode && !navEditMode
     ? "hidden"
     : "md:flex mx-auto h-screen hidden relative z-50";
 
@@ -75,6 +85,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
       <div ref={portalRef} className={editMode ? "w-full" : ""}></div>
       <div className={navWrapperClass} style={navStyles}>
         <Navigation
+          systemConfig={systemConfig}
           isEditable={sidebarEditable}
           enterEditMode={enterEditMode}
         />
