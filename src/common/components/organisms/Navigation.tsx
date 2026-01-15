@@ -27,6 +27,7 @@ import { Button } from "../atoms/button";
 import BrandHeader from "../molecules/BrandHeader";
 import Modal from "../molecules/Modal";
 import useNotificationBadgeText from "@/common/lib/hooks/useNotificationBadgeText";
+import { useUIColors } from "@/common/lib/hooks/useUIColors";
 import { UserTheme } from "@/common/lib/theme";
 import { useUserTheme } from "@/common/lib/theme/UserThemeProvider";
 import { trackAnalyticsEvent } from "@/common/lib/utils/analyticsUtils";
@@ -55,7 +56,7 @@ import { NavigationItem } from "@/config/systemConfig";
 import { useCurrentSpaceIdentityPublicKey } from "@/common/lib/hooks/useCurrentSpaceIdentityPublicKey";
 import { useSidebarContext } from "./Sidebar";
 import { useNavigation } from "./navigation/useNavigation";
-import { NavigationItem as NavItemComponent, NavigationButton } from "./navigation/NavigationItem";
+import { NavigationItem as NavItemComponent, NavigationButton, NavigationItemProps, NavigationButtonProps, NavIconBadge } from "./navigation/NavigationItem";
 import { NavigationEditor } from "./navigation/NavigationEditor";
 import { NavigationErrorBoundary } from "./navigation/ErrorBoundary";
 
@@ -128,7 +129,6 @@ const Navigation = React.memo(
 
   const [shrunk, setShrunk] = useState(mobile ? false : true);
   const forcedExpansionRef = useRef(false);
-<<<<<<< HEAD
 
   // Force sidebar to remain expanded while in navigation edit mode
   // Use a ref to track if we've already forced expansion in this edit session
@@ -401,9 +401,8 @@ const Navigation = React.memo(
     }
     return item;
   });
-<<<<<<< HEAD
 
-  const NavItem: React.FC<NavItemProps> = ({
+  const NavItem: React.FC<NavigationItemProps> = ({
     label,
     Icon,
     href,
@@ -457,7 +456,7 @@ const Navigation = React.memo(
     );
   };
 
-  const NavButton: React.FC<NavButtonProps> = ({
+  const NavButton: React.FC<NavigationButtonProps> = ({
     label,
     Icon,
     onClick,
