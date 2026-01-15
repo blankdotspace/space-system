@@ -1,7 +1,15 @@
 import { createSupabaseServerClient } from '@/common/data/database/supabase/clients/server';
 import { Database } from '@/supabase/database';
-import { SystemConfig } from '../systemConfig';
+import {
+  nounsAssets,
+  nounsBrand,
+  nounsCommunity,
+  nounsFidgets,
+  nounsNavigation,
+  nounsUI,
+} from '../nouns';
 import { themes } from '../shared/themes';
+import { SystemConfig } from '../systemConfig';
 
 export const DEFAULT_COMMUNITY_ID = 'nounspace.com';
 
@@ -12,10 +20,12 @@ export const DEFAULT_COMMUNITY_ID = 'nounspace.com';
  * Useful for staging environments, special domains, etc.
  * 
  * Examples:
- * - staging.nounspace.com -> nounspace.com
+ * - staging.nounspace.com -> nounspace.com (DEFAULT_COMMUNITY_ID)
+ * - nounspace.vercel.app -> nounspace.com (DEFAULT_COMMUNITY_ID) (Vercel preview deployments)
  */
 const DOMAIN_TO_COMMUNITY_MAP: Record<string, string> = {
   'staging.nounspace.com': DEFAULT_COMMUNITY_ID,
+  'nounspace.vercel.app': DEFAULT_COMMUNITY_ID,
 };
 
 type CommunityConfigRow = Database['public']['Tables']['community_configs']['Row'];
@@ -37,26 +47,46 @@ const SYSTEM_CONFIG_CACHE_TTL_MS = 60_000;
 
 /**
  * Resolve community ID from domain.
- * Simple priority: special mapping → domain as-is
- * Throws error if domain cannot be resolved (no default fallback).
+ * 
+ * The domain is used to infer the community ID.
+ * Supports both production domains and localhost subdomains for local testing.
+ * 
+ * Priority:
+ * 1. Special domain mappings (DOMAIN_TO_COMMUNITY_MAP)
+ * 2. Vercel preview deployments handling
+ * 3. Localhost subdomain handling
+ * 4. Normal domain resolution (subdomain extraction, etc.)
+ * 
+ * @param domain The domain/hostname
+ * @returns The community ID inferred from domain, or throws if cannot be determined
  */
 function resolveCommunityIdFromDomain(domain: string): string {
+  if (!domain) {
+    throw new Error(
+      `❌ Cannot resolve community ID: domain is empty or undefined.`
+    );
+  }
+
   const normalizedDomain = normalizeDomain(domain);
   
   if (!normalizedDomain) {
     throw new Error(
-      `❌ Cannot resolve community ID: domain "${domain}" normalized to empty string. ` +
-      `Domain must be a valid, non-empty value.`
+      `❌ Cannot resolve community ID: domain "${domain}" normalized to empty string.`
     );
   }
   
-  // Priority 1: Special domain mappings (from DOMAIN_TO_COMMUNITY_MAP)
+  // Priority 1: Check special domain mappings first (highest priority)
   if (normalizedDomain in DOMAIN_TO_COMMUNITY_MAP) {
     return DOMAIN_TO_COMMUNITY_MAP[normalizedDomain];
   }
-
-  if (domain.endsWith('.vercel.app')) {
-    const subdomain = domain.replace('.vercel.app', '');
+  
+  // Priority 2: Handle Vercel preview deployments (e.g., nounspace.vercel.app, branch-nounspace.vercel.app)
+  if (normalizedDomain.endsWith('.vercel.app') && normalizedDomain.includes('nounspace')) {
+    return DEFAULT_COMMUNITY_ID;
+  }
+  
+  if (normalizedDomain.endsWith('.vercel.app')) {
+    const subdomain = normalizedDomain.replace('.vercel.app', '');
     const parts = subdomain.split('-').filter(Boolean);
     const hashIndex = parts.findIndex(
       (part, index) => index > 0 && index < parts.length - 1 && /^[a-z0-9]{7,}$/.test(part)
@@ -69,7 +99,29 @@ function resolveCommunityIdFromDomain(domain: string): string {
     }
   }
   
-  // Priority 3: Domain as community ID (e.g., example.nounspace.com → example.nounspace.com)
+  // Priority 3: Support localhost subdomains for local testing
+  if (normalizedDomain.includes('localhost')) {
+    const parts = normalizedDomain.split('.');
+    if (parts.length > 1 && parts[0] !== 'localhost') {
+      // Has subdomain before localhost
+      return parts[0];
+    }
+    // Just localhost - use default community ID
+    return DEFAULT_COMMUNITY_ID;
+  }
+  
+  // Priority 4: Production domain: extract subdomain or use domain as community ID
+  if (normalizedDomain.includes('.')) {
+    const parts = normalizedDomain.split('.');
+    if (parts.length > 2) {
+     
+      return parts[0];
+    }
+    // Use domain name without TLD as community ID (e.g., example.com -> example)
+    return parts[0];
+  }
+  
+  // Single word domain - use as community ID
   return normalizedDomain;
 } 
 
@@ -272,8 +324,24 @@ async function loadCommunityConfigFromDatabase(communityId: string): Promise<Sys
 }
 
 /**
+ * Create a fallback SystemConfig when database config is not found.
+ * Uses the default Nouns configuration.
+ */
+function createFallbackSystemConfig(): SystemConfig {
+  return {
+    brand: nounsBrand,
+    assets: nounsAssets,
+    community: nounsCommunity,
+    theme: themes,
+    fidgets: nounsFidgets,
+    navigation: nounsNavigation,
+    ui: nounsUI,
+  };
+}
+
+/**
  * Load SystemConfig by community ID (when ID is already known).
- * Throws an error if config is not found (use when config must exist).
+ * Returns fallback config if not found in database (instead of throwing error).
  */
 export async function loadSystemConfigById(
   communityId: string
@@ -287,10 +355,17 @@ export async function loadSystemConfigById(
   const config = await loadCommunityConfigFromDatabase(communityId);
   
   if (!config) {
-    throw new Error(
-      `❌ Failed to load config from database for community: "${communityId}". ` +
-      `Check: Does a record exist in community_configs with community_id="${communityId}" and is_published=true?`
-    );
+    // Config not found - use fallback instead of throwing error
+    // Only log in production or when not using default community (expected in dev)
+    if (process.env.NODE_ENV === 'production' || communityId !== DEFAULT_COMMUNITY_ID) {
+      console.warn(
+        `⚠️ Config not found for community "${communityId}" in database. Using fallback default config.`
+      );
+    }
+    const fallbackConfig = createFallbackSystemConfig();
+    // Cache the fallback config to avoid repeated warnings
+    writeSystemConfigCache(communityId, fallbackConfig);
+    return fallbackConfig;
   }
   
   return config;
