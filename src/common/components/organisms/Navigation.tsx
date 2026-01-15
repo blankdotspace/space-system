@@ -108,7 +108,7 @@ const Navigation = React.memo(
   } = useNavigation(systemConfig, setNavEditMode);
   
   // Destructure navigation from systemConfig early
-  const { community, navigation, ui } = systemConfig;
+  const { community, navigation } = systemConfig;
   
   const logout = useLogout();
   const notificationBadgeText = useNotificationBadgeText();
@@ -401,88 +401,6 @@ const Navigation = React.memo(
     }
     return item;
   });
-
-  const NavItem: React.FC<NavigationItemProps> = ({
-    label,
-    Icon,
-    href,
-    onClick,
-    disable = false,
-    openInNewTab = false,
-    badgeText = null,
-  }) => {
-    const handleClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>) => {
-      if (disable) {
-        e.preventDefault();
-        return;
-      }
-      
-      const isPrimary = e.button === 0;
-      const hasMod = e.metaKey || e.ctrlKey || e.shiftKey || e.altKey;
-      
-      if (!openInNewTab && href && href.startsWith("/") && isPrimary && !hasMod) {
-        e.preventDefault();
-        router.push(href);
-        // Execute callbacks after navigation
-        React.startTransition(() => {
-          onClick?.();
-          onNavigate?.();
-        });
-        return;
-      }
-      onClick?.();
-      onNavigate?.();
-    }, [onClick, onNavigate, href, disable, openInNewTab, router]);
-    return (
-      <li>
-        <Link
-          href={disable ? "#" : href}
-          className={mergeClasses(
-            "flex relative items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 w-full group",
-            href === pathname ? "bg-gray-100" : "",
-            shrunk ? "justify-center" : "",
-            disable ? "opacity-50 cursor-not-allowed pointer-events-none" : ""
-          )}
-          style={navTextStyle}
-          onClick={handleClick}
-          rel={openInNewTab ? "noopener noreferrer" : undefined}
-          target={openInNewTab ? "_blank" : undefined}
-        >
-          {badgeText && <NavIconBadge systemConfig={systemConfig}>{badgeText}</NavIconBadge>}
-          <Icon />
-          {!shrunk && <span className="ms-3 relative z-10">{label}</span>}
-        </Link>
-      </li>
-    );
-  };
-
-  const NavButton: React.FC<NavigationButtonProps> = ({
-    label,
-    Icon,
-    onClick,
-    disable = false,
-    badgeText = null,
-  }) => {
-    return (
-      <li>
-        <button
-          disabled={disable}
-          className={mergeClasses(
-            "flex relative items-center p-2 text-gray-900 rounded-lg dark:text-white w-full group",
-            "hover:bg-gray-100 dark:hover:bg-gray-700",
-            shrunk ? "justify-center" : "",
-            disable ? "opacity-50 cursor-not-allowed pointer-events-none" : ""
-          )}
-          style={navTextStyle}
-          onClick={onClick}
-        >
-          {badgeText && <NavIconBadge systemConfig={systemConfig}>{badgeText}</NavIconBadge>}
-          <Icon aria-hidden="true" />
-          {!shrunk && <span className="ms-3 relative z-10">{label}</span>}
-        </button>
-      </li>
-    );
-  };
   
   // Get store functions for editor
   const { deleteNavigationItem, renameNavigationItem } = useAppStore((state) => ({
