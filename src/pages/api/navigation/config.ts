@@ -16,6 +16,7 @@ import {
   validateNavItemLabel,
   validateNavItemHref,
 } from "@/common/utils/navUtils";
+import moment from "moment";
 
 export type UnsignedUpdateNavigationConfigRequest = {
   communityId: string;
@@ -31,16 +32,74 @@ export type UpdateNavigationConfigResponse = NounspaceResponse<boolean>;
 function isUpdateNavigationConfigRequest(
   thing: unknown,
 ): thing is UpdateNavigationConfigRequest {
-  return (
-    isSignable(thing) &&
-    typeof thing["communityId"] === "string" &&
-    typeof thing["publicKey"] === "string" &&
-    typeof thing["timestamp"] === "string" &&
-    thing["navigationConfig"] !== undefined &&
-    typeof thing["navigationConfig"] === "object" &&
-    (thing["navigationConfig"]["items"] === undefined ||
-      isArray(thing["navigationConfig"]["items"]))
-  );
+  if (
+    !isSignable(thing) ||
+    typeof thing["communityId"] !== "string" ||
+    typeof thing["publicKey"] !== "string" ||
+    typeof thing["timestamp"] !== "string" ||
+    thing["navigationConfig"] === undefined ||
+    typeof thing["navigationConfig"] !== "object"
+  ) {
+    return false;
+  }
+
+  const navigationConfig = thing["navigationConfig"];
+  
+  // If items is present, validate it's an array and each item has required fields
+  if (navigationConfig["items"] !== undefined) {
+    if (!isArray(navigationConfig["items"])) {
+      return false;
+    }
+    
+    // Validate each item's shape
+    for (const item of navigationConfig["items"]) {
+      if (
+        typeof item !== "object" ||
+        item === null ||
+        typeof item["id"] !== "string" ||
+        typeof item["label"] !== "string" ||
+        typeof item["href"] !== "string"
+      ) {
+        return false;
+      }
+    }
+  }
+  
+  return true;
+}
+
+/**
+ * Validates that a timestamp is fresh to prevent replay attacks.
+ * 
+ * Checks that the timestamp:
+ * - Is not more than 15 minutes old (prevents replay attacks)
+ * - Is not more than 5 minutes in the future (handles clock skew)
+ * 
+ * @param timestamp - ISO 8601 timestamp string
+ * @returns true if timestamp is valid and fresh, false otherwise
+ */
+function isTimestampFresh(timestamp: string): boolean {
+  const requestTime = moment(timestamp);
+  const now = moment();
+  
+  // Check if timestamp is valid
+  if (!requestTime.isValid()) {
+    return false;
+  }
+  
+  // Check if timestamp is not more than 15 minutes old
+  const fifteenMinutesAgo = now.clone().subtract(15, 'minutes');
+  if (requestTime.isBefore(fifteenMinutesAgo)) {
+    return false;
+  }
+  
+  // Check if timestamp is not more than 5 minutes in the future (clock skew tolerance)
+  const fiveMinutesFromNow = now.clone().add(5, 'minutes');
+  if (requestTime.isAfter(fiveMinutesFromNow)) {
+    return false;
+  }
+  
+  return true;
 }
 
 async function updateNavigationConfig(
@@ -76,6 +135,22 @@ async function updateNavigationConfig(
       result: "error",
       error: {
         message: "Invalid signature",
+      },
+    });
+    return;
+  }
+  
+  // Validate timestamp freshness to prevent replay attacks
+  if (!isTimestampFresh(updateRequest.timestamp)) {
+    console.error('[API] Timestamp validation failed:', {
+      timestamp: updateRequest.timestamp,
+      isOld: moment(updateRequest.timestamp).isBefore(moment().subtract(15, 'minutes')),
+      isFuture: moment(updateRequest.timestamp).isAfter(moment().add(5, 'minutes')),
+    });
+    res.status(400).json({
+      result: "error",
+      error: {
+        message: "Request timestamp is invalid or too old. Please try again.",
       },
     });
     return;
