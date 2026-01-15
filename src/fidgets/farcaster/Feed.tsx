@@ -483,6 +483,39 @@ const Feed: React.FC<FidgetArgs<FeedFidgetSettings, FeedFidgetData>> = ({
     return "";
   };
 
+  // Helper for rendering the banner
+  const renderBanner = (
+    selectPlatform: Platform,
+    feedType: FeedType | "for_you" | "trending",
+    filterType: FilterType,
+    settings: {
+      Xhandle?: string;
+      channel?: string;
+      username?: string;
+      users?: string;
+      keyword?: string;
+    },
+    showBanner: boolean
+  ): React.ReactNode => {
+    const text = getBannerText(selectPlatform, feedType, filterType, settings);
+    if (!text) return null;
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className={`sticky top-0 z-10 transform transition-transform duration-200 ease-in-out ${
+          showBanner ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
+        }`}
+      >
+        <div className="w-full px-4 py-2 bg-white/90 dark:bg-black/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800">
+          <div className="text-sm font-bold text-gray-500 dark:text-gray-400 text-center">
+            {text}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   useEffect(() => {
     if (prevFeedType !== feedType) {
       setIsTransitioning(true);
@@ -687,33 +720,20 @@ const Feed: React.FC<FidgetArgs<FeedFidgetSettings, FeedFidgetData>> = ({
       }}
     >
       {/* Feed settings banner: shows a short summary of active filter/feed and hides on scroll */}
-      {showBannerSetting && !isThreadView && !isTransitioning && (
-        (() => {
-          const text = getBannerText(selectPlatform, feedType as FeedType | "for_you" | "trending", filterType, {
+      {showBannerSetting && !isThreadView && !isTransitioning &&
+        renderBanner(
+          selectPlatform,
+          feedType as FeedType | "for_you" | "trending",
+          filterType,
+          {
             Xhandle,
             channel,
             username,
             users,
             keyword,
-          });
-          if (!text) return null;
-          return (
-            <div
-              role="status"
-              aria-live="polite"
-              className={`sticky top-0 z-10 transform transition-transform duration-200 ease-in-out ${
-                showBanner ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
-              }`}
-            >
-              <div className="w-full px-4 py-2 bg-white/90 dark:bg-black/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800">
-                <div className="text-sm font-bold text-gray-500 dark:text-gray-400 text-center">
-                  {text}
-                </div>
-              </div>
-            </div>
-          );
-        })()
-      )}
+          },
+          showBanner
+        )}
       {isTransitioning ? (
         <div className="h-full w-full flex justify-center items-center">
           <Loading />
