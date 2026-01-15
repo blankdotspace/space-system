@@ -18,7 +18,6 @@ declare global {
     doNotTrack?: string;
   }
   interface Navigator {
-    doNotTrack?: string;
     msDoNotTrack?: string;
   }
 }
@@ -36,6 +35,7 @@ const isDoNotTrackEnabled = (): boolean => {
   }
 
   // Standard DNT check (most browsers)
+  // navigator.doNotTrack can be "1", "0", or null
   if (navigator.doNotTrack === "1") {
     return true;
   }
@@ -46,7 +46,7 @@ const isDoNotTrackEnabled = (): boolean => {
   }
 
   // Legacy IE/Edge support
-  if (navigator.msDoNotTrack === "1") {
+  if ((navigator as any).msDoNotTrack === "1") {
     return true;
   }
 
