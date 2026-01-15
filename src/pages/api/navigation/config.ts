@@ -47,7 +47,9 @@ async function updateNavigationConfig(
   req: NextApiRequest,
   res: NextApiResponse<UpdateNavigationConfigResponse>,
 ) {
-  console.log('[API] Received navigation config update request');
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[API] Received navigation config update request');
+  }
   const updateRequest = req.body;
 
   if (!isUpdateNavigationConfigRequest(updateRequest)) {
@@ -79,22 +81,25 @@ async function updateNavigationConfig(
     return;
   }
   
-  // Debug: log what we received
-  console.log('[API] Received navigation items:', {
-    communityId: updateRequest.communityId,
-    itemCount: updateRequest.navigationConfig.items?.length || 0,
-    items: updateRequest.navigationConfig.items?.map((item: NavigationItem) => ({
-      id: item.id,
-      label: item.label,
-      href: item.href,
-      spaceId: item.spaceId
-    }))
-  });
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[API] Received navigation items:', {
+      communityId: updateRequest.communityId,
+      itemCount: updateRequest.navigationConfig.items?.length || 0,
+      items: updateRequest.navigationConfig.items?.map((item: NavigationItem) => ({
+        id: item.id,
+        label: item.label,
+        href: item.href,
+        spaceId: item.spaceId
+      }))
+    });
+  }
 
   const supabase = createSupabaseServerClient();
 
   // Check if the identity is an admin for this community and get current config
-  console.log('[API] Fetching community config for:', updateRequest.communityId);
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[API] Fetching community config for:', updateRequest.communityId);
+  }
   const { data: config, error: fetchError } = await supabase
     .from("community_configs")
     .select("admin_identity_public_keys, navigation_config")
@@ -117,11 +122,13 @@ async function updateNavigationConfig(
   }
   
   const oldNavConfig = (config.navigation_config as unknown as NavigationConfig) || {};
-  console.log('[API] Community config found:', {
-    communityId: updateRequest.communityId,
-    adminKeyCount: config.admin_identity_public_keys?.length || 0,
-    currentItemCount: oldNavConfig?.items?.length || 0
-  });
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[API] Community config found:', {
+      communityId: updateRequest.communityId,
+      adminKeyCount: config.admin_identity_public_keys?.length || 0,
+      currentItemCount: oldNavConfig?.items?.length || 0
+    });
+  }
   
   // oldNavConfig is now available for use below
 
@@ -201,16 +208,18 @@ async function updateNavigationConfig(
     ...updateRequest.navigationConfig, // This includes items and any other fields if explicitly provided
   };
 
-  console.log('[API] Merged navigation config:', {
-    oldItemCount: oldNavConfig?.items?.length || 0,
-    newItemCount: updateRequest.navigationConfig.items?.length || 0,
-    mergedItemCount: mergedNavigationConfig.items?.length || 0,
-    preservedFields: {
-      logoTooltip: mergedNavigationConfig.logoTooltip,
-      showMusicPlayer: mergedNavigationConfig.showMusicPlayer,
-      showSocials: mergedNavigationConfig.showSocials
-    }
-  });
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[API] Merged navigation config:', {
+      oldItemCount: oldNavConfig?.items?.length || 0,
+      newItemCount: updateRequest.navigationConfig.items?.length || 0,
+      mergedItemCount: mergedNavigationConfig.items?.length || 0,
+      preservedFields: {
+        logoTooltip: mergedNavigationConfig.logoTooltip,
+        showMusicPlayer: mergedNavigationConfig.showMusicPlayer,
+        showSocials: mergedNavigationConfig.showSocials
+      }
+    });
+  }
 
   // Convert to Json type by serializing/deserializing to ensure JSON compatibility
   // This provides runtime safety while working around TypeScript's Json type limitations
@@ -219,7 +228,9 @@ async function updateNavigationConfig(
   // Update the navigation_config column with merged config FIRST
   // Use .select() to verify that a row was actually updated
   // This ensures we only perform cleanup operations after confirming the update succeeded
-  console.log('[API] Updating navigation config in database');
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[API] Updating navigation config in database');
+  }
   const { data: updatedRows, error: updateError } = await supabase
     .from("community_configs")
     .update({
@@ -267,20 +278,24 @@ async function updateNavigationConfig(
     return;
   }
   
-  console.log('[API] Navigation config updated successfully:', {
-    communityId: updateRequest.communityId,
-    updatedRowsCount: updatedRows.length,
-    finalItemCount: mergedNavigationConfig.items?.length || 0
-  });
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[API] Navigation config updated successfully:', {
+      communityId: updateRequest.communityId,
+      updatedRowsCount: updatedRows.length,
+      finalItemCount: mergedNavigationConfig.items?.length || 0
+    });
+  }
 
   // Only perform cleanup operations AFTER confirming the database update succeeded
   // This prevents inconsistent state if the update fails (we don't delete storage/registrations
   // if the config update didn't commit)
   if (deletedItems.length > 0) {
-    console.log('[API] Cleaning up spaces for deleted navigation items:', {
-      deletedItemCount: deletedItems.length,
-      deletedSpaceIds: deletedItems.map((item: any) => item.spaceId).filter(Boolean)
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[API] Cleaning up spaces for deleted navigation items:', {
+        deletedItemCount: deletedItems.length,
+        deletedSpaceIds: deletedItems.map((item: any) => item.spaceId).filter(Boolean)
+      });
+    }
 
     for (const item of deletedItems) {
       if (item.spaceId) {

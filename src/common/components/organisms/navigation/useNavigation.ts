@@ -82,10 +82,12 @@ export function useNavigation(
   useEffect(() => {
     // Only load on initial mount when store is empty, and only load once
     if (!hasLoadedNavigationRef.current && localNavigation.length === 0) {
-      console.log('[useNavigation] Loading navigation from config:', {
-        itemCount: initialNavigationConfigRef.current?.items?.length || 0,
-        items: initialNavigationConfigRef.current?.items?.map(i => ({ id: i.id, label: i.label, href: i.href }))
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[useNavigation] Loading navigation from config:', {
+          itemCount: initialNavigationConfigRef.current?.items?.length || 0,
+          items: initialNavigationConfigRef.current?.items?.map(i => ({ id: i.id, label: i.label, href: i.href }))
+        });
+      }
       loadNavigation(initialNavigationConfigRef.current);
       hasLoadedNavigationRef.current = true;
     }
@@ -100,10 +102,12 @@ export function useNavigation(
    */
   const debouncedUpdateOrder = useMemo(
     () => debounce((newOrder: NavigationItem[]) => {
-      console.log('[useNavigation] Updating navigation order:', {
-        itemCount: newOrder.length,
-        order: newOrder.map(i => ({ id: i.id, label: i.label }))
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[useNavigation] Updating navigation order:', {
+          itemCount: newOrder.length,
+          order: newOrder.map(i => ({ id: i.id, label: i.label }))
+        });
+      }
       updateNavigationOrder(newOrder);
     }, NAVIGATION_REORDER_DEBOUNCE_MS),
     [updateNavigationOrder]
@@ -130,10 +134,12 @@ export function useNavigation(
 
     // Check if we've reached the target (or if we were already there)
     if (pathname === pendingCancelTargetRef.current) {
-      console.log('[useNavigation] Navigation completed, resetting navigation changes:', {
-        target: pendingCancelTargetRef.current,
-        currentPathname: pathname
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[useNavigation] Navigation completed, resetting navigation changes:', {
+          target: pendingCancelTargetRef.current,
+          currentPathname: pathname
+        });
+      }
       
       // Navigation completed - safe to reset now
       pendingCancelTargetRef.current = null; // Clear before reset to avoid loops
@@ -160,16 +166,20 @@ export function useNavigation(
    */
   const handleCommit = useCallback(async () => {
     if (!hasUncommittedChanges()) {
-      console.log('[useNavigation] Commit skipped: no uncommitted changes');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[useNavigation] Commit skipped: no uncommitted changes');
+      }
       toast.info("No changes to commit");
       return;
     }
     
-    console.log('[useNavigation] Starting commit:', {
-      communityId: systemConfig.communityId || DEFAULT_COMMUNITY_ID,
-      localItemCount: localNavigation.length,
-      items: localNavigation.map(i => ({ id: i.id, label: i.label, href: i.href, spaceId: i.spaceId }))
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[useNavigation] Starting commit:', {
+        communityId: systemConfig.communityId || DEFAULT_COMMUNITY_ID,
+        localItemCount: localNavigation.length,
+        items: localNavigation.map(i => ({ id: i.id, label: i.label, href: i.href, spaceId: i.spaceId }))
+      });
+    }
     
     setIsCommitting(true);
     try {
@@ -179,7 +189,9 @@ export function useNavigation(
         systemConfig.communityId || DEFAULT_COMMUNITY_ID,
         systemConfig.navigation
       );
-      console.log('[useNavigation] Commit successful');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[useNavigation] Commit successful');
+      }
       toast.success("Navigation changes committed");
       setNavEditMode(false);
     } catch (error: unknown) {
@@ -219,10 +231,12 @@ export function useNavigation(
    * This prevents a 404 flash by keeping uncommitted items available during navigation.
    */
   const handleCancel = useCallback(() => {
-    console.log('[useNavigation] Canceling navigation changes:', {
-      localItemCount: localNavigation.length,
-      remoteItemCount: systemConfig.navigation?.items?.length || 0
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[useNavigation] Canceling navigation changes:', {
+        localItemCount: localNavigation.length,
+        remoteItemCount: systemConfig.navigation?.items?.length || 0
+      });
+    }
     
     // Navigate to first navigation item before canceling
     // Use systemConfig.navigation which has the committed/remote state
@@ -232,14 +246,18 @@ export function useNavigation(
     if (firstNavItem?.href) {
       // If we're already on the target path, reset immediately
       if (pathname === firstNavItem.href) {
-        console.log('[useNavigation] Already on target path, resetting immediately');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[useNavigation] Already on target path, resetting immediately');
+        }
         resetNavigationChanges();
         toast.info("Navigation changes cancelled");
         setNavEditMode(false);
         return;
       }
       
-      console.log('[useNavigation] Navigating to first item before cancel:', firstNavItem.href);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[useNavigation] Navigating to first item before cancel:', firstNavItem.href);
+      }
       
       // Store the target - reset will happen in useEffect once navigation completes
       // This ensures uncommitted items remain available during navigation transition
@@ -250,7 +268,9 @@ export function useNavigation(
       
       // Note: resetNavigationChanges will be called in useEffect once pathname === firstNavItem.href
     } else {
-      console.log('[useNavigation] No navigation items found, resetting immediately');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[useNavigation] No navigation items found, resetting immediately');
+      }
       // If no navigation items, just reset immediately (no navigation needed)
       resetNavigationChanges();
       toast.info("Navigation changes cancelled");
@@ -266,23 +286,29 @@ export function useNavigation(
    * The href is auto-generated from the label if not provided.
    */
   const handleCreateItem = useCallback(async () => {
-    console.log('[useNavigation] Creating new navigation item');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[useNavigation] Creating new navigation item');
+    }
     try {
       const newItem = await createNavigationItem({
         label: "New Item",
         // href will be auto-generated from label if not provided
         icon: "custom",
       });
-      console.log('[useNavigation] Navigation item created:', {
-        id: newItem.id,
-        label: newItem.label,
-        href: newItem.href,
-        spaceId: newItem.spaceId
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[useNavigation] Navigation item created:', {
+          id: newItem.id,
+          label: newItem.label,
+          href: newItem.href,
+          spaceId: newItem.spaceId
+        });
+      }
       toast.success("Navigation item created");
       // Automatically navigate to the new item
       if (newItem?.href) {
-        console.log('[useNavigation] Navigating to new item:', newItem.href);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[useNavigation] Navigating to new item:', newItem.href);
+        }
         router.push(newItem.href);
       }
     } catch (error: unknown) {

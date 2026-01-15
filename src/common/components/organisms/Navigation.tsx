@@ -150,7 +150,9 @@ const Navigation = React.memo(
   // Force sidebar to remain expanded while in navigation edit mode
   useEffect(() => {
     if (navEditMode && shrunk) {
-      console.log('[Navigation] Forcing sidebar expansion due to navigation edit mode');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Navigation] Forcing sidebar expansion due to navigation edit mode');
+      }
       setShrunk(false);
     }
   }, [navEditMode, shrunk]);
@@ -539,7 +541,9 @@ const Navigation = React.memo(
 
     // Navigate to the closest item if we were on the deleted item
     if (closestItem && closestItem.href) {
-      console.log('[Navigation] Navigating to closest nav item after deletion:', closestItem.href);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Navigation] Navigating to closest nav item after deletion:', closestItem.href);
+      }
       router.push(closestItem.href);
     }
   }, [localNavigation, pathname, deleteNavigationItem, router]);
