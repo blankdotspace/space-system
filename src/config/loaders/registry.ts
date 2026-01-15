@@ -80,12 +80,8 @@ function resolveCommunityIdFromDomain(domain: string): string {
     return DOMAIN_TO_COMMUNITY_MAP[normalizedDomain];
   }
   
-  // Priority 2: Handle Vercel preview deployments (e.g., nounspace.vercel.app, branch-nounspace.vercel.app)
-  if (normalizedDomain.endsWith('.vercel.app') && normalizedDomain.includes('nounspace')) {
-    return DEFAULT_COMMUNITY_ID;
-  }
-  
   if (normalizedDomain.endsWith('.vercel.app')) {
+    // First, try to extract community from subdomain pattern (e.g., branch-nounspace-hash.vercel.app)
     const subdomain = normalizedDomain.replace('.vercel.app', '');
     const parts = subdomain.split('-').filter(Boolean);
     const hashIndex = parts.findIndex(
@@ -97,6 +93,8 @@ function resolveCommunityIdFromDomain(domain: string): string {
         return candidate;
       }
     }
+    // For any Vercel preview deployment (including space-system-*), use default community as fallback
+    return DEFAULT_COMMUNITY_ID;
   }
   
   // Priority 3: Support localhost subdomains for local testing
