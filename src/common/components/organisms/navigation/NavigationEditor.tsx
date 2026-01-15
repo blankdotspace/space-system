@@ -140,10 +140,12 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
 
   // Handle icon selection
   const handleIconSelect = (itemId: string, iconName: string) => {
-    console.log('[NavigationEditor] Icon selected:', {
-      itemId,
-      iconName
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[NavigationEditor] Icon selected:', {
+        itemId,
+        iconName
+      });
+    }
     try {
       onRename(itemId, { icon: iconName });
       setOpenIconSelectorId(null);
@@ -191,16 +193,20 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
   const handleRename = React.useCallback(
     (itemId: string, oldLabel: string, newLabel: string) => {
       if (oldLabel !== newLabel) {
-        console.log('[NavigationEditor] Renaming navigation item:', {
-          itemId,
-          oldLabel,
-          newLabel,
-          currentPathname: pathname
-        });
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[NavigationEditor] Renaming navigation item:', {
+            itemId,
+            oldLabel,
+            newLabel,
+            currentPathname: pathname
+          });
+        }
         try {
           const item = localNavigation.find((i) => i.id === itemId);
           if (!item) {
-            console.warn('[NavigationEditor] Rename failed: item not found', itemId);
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('[NavigationEditor] Rename failed: item not found', itemId);
+            }
             return;
           }
 
@@ -209,12 +215,14 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
           // Perform the rename - store handles validation, uniqueness, and updates href
           // Returns the new href so we can update the URL immediately
           const newHref = onRename(itemId, { label: newLabel });
-          console.log('[NavigationEditor] Rename successful:', {
-            itemId,
-            oldHref,
-            newHref,
-            willUpdateURL: newHref && pathname === oldHref && newHref !== oldHref
-          });
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[NavigationEditor] Rename successful:', {
+              itemId,
+              oldHref,
+              newHref,
+              willUpdateURL: newHref && pathname === oldHref && newHref !== oldHref
+            });
+          }
 
           // Immediately update the URL if we're currently on this item's page
           // Handle both base URLs (e.g., /new-item) and tab URLs (e.g., /new-item/Settings)
@@ -232,7 +240,9 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
             }
             
             if (newUrl) {
-              console.log('[NavigationEditor] Updating URL from', pathname, 'to', newUrl);
+              if (process.env.NODE_ENV === 'development') {
+                console.log('[NavigationEditor] Updating URL from', pathname, 'to', newUrl);
+              }
               // Use startTransition to make the navigation non-blocking
               // This prevents UI blocking and reduces the chance of 404 flashes
               // The router.replace() ensures Next.js re-resolves the route with the new navSlug
@@ -372,11 +382,13 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        console.log('[NavigationEditor] Deleting navigation item:', {
-                          itemId: item.id,
-                          label: item.label,
-                          href: item.href
-                        });
+                        if (process.env.NODE_ENV === 'development') {
+                          console.log('[NavigationEditor] Deleting navigation item:', {
+                            itemId: item.id,
+                            label: item.label,
+                            href: item.href
+                          });
+                        }
                         onDelete(item.id);
                         toast.success("Navigation item deleted");
                       }}
@@ -384,11 +396,13 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
                           e.stopPropagation();
-                          console.log('[NavigationEditor] Deleting navigation item (keyboard):', {
-                            itemId: item.id,
-                            label: item.label,
-                            href: item.href
-                          });
+                          if (process.env.NODE_ENV === 'development') {
+                            console.log('[NavigationEditor] Deleting navigation item (keyboard):', {
+                              itemId: item.id,
+                              label: item.label,
+                              href: item.href
+                            });
+                          }
                           onDelete(item.id);
                           toast.success("Navigation item deleted");
                         }
