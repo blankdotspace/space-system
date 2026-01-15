@@ -81,6 +81,11 @@ function resolveCommunityIdFromDomain(domain: string): string {
   }
   
   if (normalizedDomain.endsWith('.vercel.app')) {
+    // Special handling for space-system-* deployments - always use default community
+    if (normalizedDomain.includes('space-system')) {
+      return DEFAULT_COMMUNITY_ID;
+    }
+    
     // First, try to extract community from subdomain pattern (e.g., branch-nounspace-hash.vercel.app)
     const subdomain = normalizedDomain.replace('.vercel.app', '');
     const parts = subdomain.split('-').filter(Boolean);
@@ -93,7 +98,7 @@ function resolveCommunityIdFromDomain(domain: string): string {
         return candidate;
       }
     }
-    // For any Vercel preview deployment (including space-system-*), use default community as fallback
+    // For any other Vercel preview deployment, use default community as fallback
     return DEFAULT_COMMUNITY_ID;
   }
   
