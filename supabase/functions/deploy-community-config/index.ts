@@ -69,6 +69,17 @@ const FARCASTER_AVATAR = "/images/farcaster.jpeg";
 const DISCORD_AVATAR =
   "https://play-lh.googleusercontent.com/0oO5sAneb9lJP6l8c6DH4aj6f85qNpplQVHmPmbbBxAukDnlO7DarDW0b-kEIHa8SQ=w240-h480-rw";
 
+const EXPLORE_FULL_WIDTH = 12;
+const EXPLORE_FULL_HEIGHT = 24;
+const EXPLORE_RESIZE_HANDLES = ["s", "w", "e", "n", "sw", "nw", "se", "ne"];
+const EXPLORE_DEFAULT_NETWORK = "mainnet";
+const EXPLORE_CHANNEL_NETWORK = "base";
+const BASE_DIRECTORY_SETTINGS = {
+  layoutStyle: "cards",
+  include: "holdersWithFarcasterAccount",
+};
+const DIRECTORY_FETCH_TIMEOUT_MS = 25000;
+
 function rootKeyPath(identityPublicKey: string, walletAddress: string): string {
   return `identities/${identityPublicKey}/${walletAddress}/root.json`;
 }
@@ -112,6 +123,332 @@ function normalizeUuid(value: string | null): string | null {
   }
   const trimmed = value.trim();
   return isUuid(trimmed) ? trimmed : null;
+}
+
+function sanitizeTabKey(value: string, fallback: string): string {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : fallback;
+}
+
+function slugify(value: string, fallback: string): string {
+  const normalized = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return normalized.length > 0 ? normalized : fallback;
+}
+
+function uniqueTabName(baseName: string, used: Set<string>): string {
+  let candidate = baseName;
+  let counter = 2;
+  while (used.has(candidate)) {
+    candidate = `${baseName} ${counter}`;
+    counter += 1;
+  }
+  used.add(candidate);
+  return candidate;
+}
+
+function createExploreTheme(idSuffix: string): JsonRecord {
+  return {
+    id: `explore-${idSuffix}-theme`,
+    name: `${DEFAULT_THEME.name} Explore`,
+    properties: {
+      ...DEFAULT_THEME.properties,
+      fidgetBorderRadius: "0px",
+      gridSpacing: "0",
+    },
+  };
+}
+
+function normalizeTokenNetwork(network: string | null, defaultNetwork: string): string {
+  if (!network) {
+    return defaultNetwork;
+  }
+  const normalized = network.trim().toLowerCase();
+  if (normalized === "eth") {
+    return "mainnet";
+  }
+  if (normalized === "mainnet" || normalized === "base" || normalized === "polygon") {
+    return normalized;
+  }
+  return defaultNetwork;
+}
+
+function resolveCommunityBaseUrl(communityId: string): string | null {
+  const trimmed = communityId.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const candidate =
+    trimmed.startsWith("http://") || trimmed.startsWith("https://")
+      ? trimmed
+      : `https://${trimmed}`;
+  try {
+    const url = new URL(candidate);
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return null;
+  }
+}
+
+async function fetchJsonWithTimeout(url: string, timeoutMs: number): Promise<unknown> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(`Request failed: ${response.status}`);
+    }
+    return await response.json();
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function normalizeAddress(address: string): string {
+  return address.toLowerCase();
+}
+
+function buildEtherscanUrl(address?: string | null): string | null {
+  return address ? `https://etherscan.io/address/${normalizeAddress(address)}` : null;
+}
+
+function extractNeynarPrimaryAddress(user: unknown): string | null {
+  if (!user || typeof user !== "object") {
+    return null;
+  }
+
+  const verified = (user as { verified_addresses?: any }).verified_addresses;
+  if (verified && typeof verified === "object") {
+    const primary = verified.primary;
+    if (primary && typeof primary.eth_address === "string" && primary.eth_address) {
+      return normalizeAddress(primary.eth_address);
+    }
+    if (Array.isArray(verified.eth_addresses)) {
+      const candidate = verified.eth_addresses.find(
+        (value: unknown): value is string => typeof value === "string" && value.length > 0,
+      );
+      if (candidate) {
+        return normalizeAddress(candidate);
+      }
+    }
+  }
+
+  const custody = (user as { custody_address?: string | null }).custody_address;
+  if (typeof custody === "string" && custody) {
+    return normalizeAddress(custody);
+  }
+
+  const verifications = (user as { verifications?: string[] }).verifications;
+  if (Array.isArray(verifications)) {
+    const candidate = verifications.find(
+      (value): value is string => typeof value === "string" && value.length > 0,
+    );
+    if (candidate) {
+      return normalizeAddress(candidate);
+    }
+  }
+
+  const authAddresses = (user as { auth_addresses?: Array<{ address?: string }> }).auth_addresses;
+  if (Array.isArray(authAddresses)) {
+    const entry = authAddresses.find(
+      (item) => item && typeof item.address === "string" && item.address.length > 0,
+    );
+    if (entry?.address) {
+      return normalizeAddress(entry.address);
+    }
+  }
+
+  return null;
+}
+
+function extractNeynarSocialAccounts(user: unknown): {
+  xHandle: string | null;
+  xUrl: string | null;
+  githubHandle: string | null;
+  githubUrl: string | null;
+} {
+  if (!user || typeof user !== "object") {
+    return { xHandle: null, xUrl: null, githubHandle: null, githubUrl: null };
+  }
+
+  const verifiedAccounts = (user as { verified_accounts?: Array<any> }).verified_accounts;
+  let xHandle: string | null = null;
+  let xUrl: string | null = null;
+  let githubHandle: string | null = null;
+  let githubUrl: string | null = null;
+
+  if (Array.isArray(verifiedAccounts)) {
+    for (const account of verifiedAccounts) {
+      const platform =
+        typeof account?.platform === "string" ? account.platform.toLowerCase() : "";
+      const username =
+        typeof account?.username === "string" ? account.username.replace(/^@/, "").trim() : "";
+      if (!username) continue;
+
+      if (!xHandle && (platform === "x" || platform === "twitter")) {
+        xHandle = username;
+        xUrl = `https://twitter.com/${username}`;
+      } else if (!githubHandle && platform === "github") {
+        githubHandle = username;
+        githubUrl = `https://github.com/${username}`;
+      }
+    }
+  }
+
+  return { xHandle, xUrl, githubHandle, githubUrl };
+}
+
+function extractViewerContext(user: unknown): { following?: boolean | null } | null {
+  if (!user || typeof user !== "object") {
+    return null;
+  }
+  const context = (user as { viewer_context?: { following?: boolean | null } | null })
+    .viewer_context;
+  if (!context || typeof context !== "object") {
+    return null;
+  }
+  const following = context.following;
+  if (typeof following === "boolean" || following === null) {
+    return { following };
+  }
+  return null;
+}
+
+function getNestedUser(user: unknown): any | null {
+  if (!user || typeof user !== "object") {
+    return null;
+  }
+  if ("user" in user && (user as { user?: unknown }).user) {
+    return getNestedUser((user as { user?: unknown }).user);
+  }
+  return user;
+}
+
+function mapNeynarUserToMember(user: any): JsonRecord {
+  const primaryAddress = extractNeynarPrimaryAddress(user);
+  const { xHandle, xUrl, githubHandle, githubUrl } = extractNeynarSocialAccounts(user);
+  const fid = typeof user?.fid === "number" ? user.fid : null;
+  const address = fid ? `fc_fid_${fid}` : `fc_fid_${crypto.randomUUID()}`;
+  return {
+    address,
+    balanceRaw: "0",
+    balanceFormatted: "",
+    username: user?.username ?? null,
+    displayName: user?.display_name ?? null,
+    fid,
+    pfpUrl: user?.pfp_url ?? null,
+    followers: typeof user?.follower_count === "number" ? user.follower_count : null,
+    lastTransferAt: null,
+    ensName: null,
+    ensAvatarUrl: null,
+    primaryAddress,
+    etherscanUrl: buildEtherscanUrl(primaryAddress),
+    xHandle,
+    xUrl,
+    githubHandle,
+    githubUrl,
+    viewerContext: extractViewerContext(user),
+  };
+}
+
+function sortMembersByFollowers(members: JsonRecord[]): JsonRecord[] {
+  return [...members].sort((a, b) => {
+    const aFollowers = typeof a.followers === "number" ? a.followers : 0;
+    const bFollowers = typeof b.followers === "number" ? b.followers : 0;
+    return bFollowers - aFollowers;
+  });
+}
+
+async function fetchTokenDirectoryData(
+  baseUrl: string,
+  network: string,
+  contractAddress: string,
+  assetType: "token" | "nft",
+): Promise<JsonRecord | null> {
+  const url = new URL("/api/token/directory", baseUrl);
+  url.searchParams.set("network", network);
+  url.searchParams.set("contractAddress", contractAddress);
+  url.searchParams.set("assetType", assetType);
+  url.searchParams.set("pageSize", "1000");
+
+  try {
+    const payload = await fetchJsonWithTimeout(url.toString(), DIRECTORY_FETCH_TIMEOUT_MS);
+    if (!payload || typeof payload !== "object") {
+      return null;
+    }
+    const result = (payload as { result?: unknown }).result;
+    if (result !== "success") {
+      return null;
+    }
+    const value = (payload as { value?: any }).value;
+    if (!value || typeof value !== "object") {
+      return null;
+    }
+    const members = Array.isArray(value.members) ? value.members : null;
+    if (!members) {
+      return null;
+    }
+    const fetchedAt = typeof value.fetchedAt === "string"
+      ? value.fetchedAt
+      : new Date().toISOString();
+    return {
+      members,
+      tokenSymbol: value.tokenSymbol ?? null,
+      tokenDecimals: typeof value.tokenDecimals === "number" ? value.tokenDecimals : null,
+      lastUpdatedTimestamp: fetchedAt,
+      lastFetchSettings: {
+        source: "tokenHolders",
+        network,
+        contractAddress,
+        assetType,
+      },
+    };
+  } catch (error) {
+    console.error("Directory fetch failed:", error);
+    return null;
+  }
+}
+
+async function fetchChannelDirectoryData(
+  baseUrl: string,
+  channelName: string,
+): Promise<JsonRecord | null> {
+  const url = new URL("/api/farcaster/neynar/channel/members", baseUrl);
+  url.searchParams.set("id", channelName);
+  url.searchParams.set("limit", "100");
+
+  try {
+    const payload = await fetchJsonWithTimeout(url.toString(), DIRECTORY_FETCH_TIMEOUT_MS);
+    if (!payload || typeof payload !== "object") {
+      return null;
+    }
+    const membersArray = Array.isArray((payload as { members?: unknown }).members)
+      ? (payload as { members: unknown[] }).members
+      : null;
+    if (!membersArray) {
+      return null;
+    }
+    const users = membersArray
+      .map((entry) => getNestedUser(entry))
+      .filter((entry): entry is Record<string, unknown> => !!entry);
+    const members = sortMembersByFollowers(users.map(mapNeynarUserToMember));
+    return {
+      members,
+      tokenSymbol: null,
+      tokenDecimals: null,
+      lastUpdatedTimestamp: new Date().toISOString(),
+      lastFetchSettings: {
+        source: "farcasterChannel",
+        channelName,
+        channelFilter: "members",
+      },
+    };
+  } catch (error) {
+    console.error("Channel directory fetch failed:", error);
+    return null;
+  }
 }
 
 function createSignedFile(
@@ -213,6 +550,56 @@ function buildHomeTabConfig(website: string | null, timestamp: string): JsonReco
     isEditable: false,
     fidgetTrayContents: [],
     theme,
+    timestamp,
+  };
+}
+
+function buildExploreTabConfig(
+  name: string,
+  idSuffix: string,
+  settings: JsonRecord,
+  timestamp: string,
+  data: JsonRecord,
+): JsonRecord {
+  const fidgetId = `Directory:${idSuffix}`;
+  return {
+    fidgetInstanceDatums: {
+      [fidgetId]: {
+        config: {
+          data,
+          editable: false,
+          settings,
+        },
+        fidgetType: "Directory",
+        id: fidgetId,
+      },
+    },
+    layoutID: `explore-${idSuffix}-layout`,
+    layoutDetails: {
+      layoutConfig: {
+        layout: [
+          {
+            w: EXPLORE_FULL_WIDTH,
+            h: EXPLORE_FULL_HEIGHT,
+            x: 0,
+            y: 0,
+            i: fidgetId,
+            minW: EXPLORE_FULL_WIDTH,
+            maxW: EXPLORE_FULL_WIDTH,
+            minH: 8,
+            maxH: 36,
+            moved: false,
+            static: false,
+            resizeHandles: [...EXPLORE_RESIZE_HANDLES],
+            isBounded: false,
+          },
+        ],
+      },
+      layoutFidget: "grid",
+    },
+    theme: createExploreTheme(idSuffix),
+    fidgetTrayContents: [],
+    isEditable: false,
     timestamp,
   };
 }
@@ -432,6 +819,34 @@ function buildSocialTabConfig(
   };
 }
 
+function buildTokenDirectorySettings(
+  address: string,
+  assetType: "token" | "nft",
+  network: string,
+): JsonRecord {
+  return {
+    ...BASE_DIRECTORY_SETTINGS,
+    source: "tokenHolders",
+    network,
+    contractAddress: address,
+    assetType,
+    sortBy: "tokenHoldings",
+  };
+}
+
+function buildChannelDirectorySettings(channel: string): JsonRecord {
+  return {
+    ...BASE_DIRECTORY_SETTINGS,
+    source: "farcasterChannel",
+    network: EXPLORE_CHANNEL_NETWORK,
+    contractAddress: "",
+    assetType: "token",
+    sortBy: "followers",
+    channelName: channel,
+    channelFilter: "members",
+  };
+}
+
 function findHomeItemIndex(items: unknown[]): number {
   return items.findIndex((item) => {
     if (!isRecord(item)) {
@@ -453,6 +868,33 @@ function getHomeNavSpaceId(navigationConfig: unknown): string | null {
     return null;
   }
   const item = navigationConfig.items[homeIndex];
+  if (!isRecord(item)) {
+    return null;
+  }
+  return normalizeUuid(getString(item.spaceId));
+}
+
+function findExploreItemIndex(items: unknown[]): number {
+  return items.findIndex((item) => {
+    if (!isRecord(item)) {
+      return false;
+    }
+    const id = getString(item.id);
+    const href = getString(item.href);
+    const label = getString(item.label)?.toLowerCase();
+    return id === "explore" || href === "/explore" || label === "explore";
+  });
+}
+
+function getExploreNavSpaceId(navigationConfig: unknown): string | null {
+  if (!isRecord(navigationConfig) || !Array.isArray(navigationConfig.items)) {
+    return null;
+  }
+  const exploreIndex = findExploreItemIndex(navigationConfig.items);
+  if (exploreIndex === -1) {
+    return null;
+  }
+  const item = navigationConfig.items[exploreIndex];
   if (!isRecord(item)) {
     return null;
   }
@@ -488,6 +930,37 @@ function ensureHomeNavItem(
   };
 }
 
+function ensureExploreNavItem(
+  navigationConfig: unknown,
+  spaceId: string,
+): JsonRecord {
+  const base = isRecord(navigationConfig) ? { ...navigationConfig } : {};
+  const items = Array.isArray(base.items) ? [...base.items] : [];
+  const exploreIndex = findExploreItemIndex(items);
+
+  if (exploreIndex >= 0 && isRecord(items[exploreIndex])) {
+    items[exploreIndex] = {
+      ...items[exploreIndex],
+      spaceId,
+    };
+  } else {
+    const homeIndex = findHomeItemIndex(items);
+    const insertIndex = homeIndex >= 0 ? homeIndex + 1 : items.length;
+    items.splice(insertIndex, 0, {
+      id: "explore",
+      label: "Explore",
+      href: "/explore",
+      icon: "explore",
+      spaceId,
+    });
+  }
+
+  return {
+    ...base,
+    items,
+  };
+}
+
 async function spaceIdExists(
   supabase: ReturnType<typeof createClient>,
   spaceId: string,
@@ -505,7 +978,7 @@ async function spaceIdExists(
   return !!data?.spaceId;
 }
 
-async function findHomeSpaceByName(
+async function findNavSpaceByName(
   supabase: ReturnType<typeof createClient>,
   spaceName: string,
 ): Promise<string | null> {
@@ -824,6 +1297,7 @@ Deno.serve(async (req: Request) => {
 
     const nowIso = new Date().toISOString();
     const homeSpaceName = `${communityId}-home`;
+    const exploreSpaceName = `${communityId}-explore`;
     let homeSpaceId = getHomeNavSpaceId(navigationConfig);
     let createdHomeSpace = false;
 
@@ -850,7 +1324,7 @@ Deno.serve(async (req: Request) => {
 
     if (!homeSpaceId) {
       try {
-        homeSpaceId = await findHomeSpaceByName(supabase, homeSpaceName);
+        homeSpaceId = await findNavSpaceByName(supabase, homeSpaceName);
       } catch (error) {
         console.error("Error looking up home space:", error);
         return new Response(
@@ -914,6 +1388,19 @@ Deno.serve(async (req: Request) => {
     const displayName =
       getString(isRecord(brandConfig) ? brandConfig.displayName : null) ??
       communityId;
+    const tokensConfig = isRecord(communityConfigObj.tokens)
+      ? communityConfigObj.tokens
+      : {};
+    const erc20Tokens = Array.isArray(tokensConfig.erc20Tokens)
+      ? tokensConfig.erc20Tokens
+      : [];
+    const nftTokens = Array.isArray(tokensConfig.nftTokens)
+      ? tokensConfig.nftTokens
+      : [];
+    const communityBaseUrl = resolveCommunityBaseUrl(communityId);
+    if (!communityBaseUrl) {
+      console.warn("Invalid community base URL for directory fetches:", communityId);
+    }
 
     const shouldSeedStorage =
       createdHomeSpace || !(await spaceHasTabs(supabase, homeSpaceId));
@@ -971,10 +1458,278 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    const exploreTabs: Array<{ name: string; config: JsonRecord }> = [];
+    const exploreTabOrder: string[] = [];
+    const usedExploreTabNames = new Set<string>();
+    const exploreCandidates: Array<
+      | {
+          type: "token" | "nft";
+          baseName: string;
+          settings: JsonRecord;
+          idFallback: string;
+          network: string;
+          contractAddress: string;
+          assetType: "token" | "nft";
+        }
+      | {
+          type: "channel";
+          baseName: string;
+          settings: JsonRecord;
+          idFallback: string;
+          channelName: string;
+        }
+    > = [];
+
+    erc20Tokens.forEach((token, index) => {
+      if (!isRecord(token)) {
+        return;
+      }
+      const address = getString(token.address);
+      const symbol = getString(token.symbol);
+      if (!address || !symbol) {
+        return;
+      }
+      const network = normalizeTokenNetwork(
+        getString(token.network),
+        EXPLORE_DEFAULT_NETWORK,
+      );
+      exploreCandidates.push({
+        type: "token",
+        baseName: sanitizeTabKey(symbol, `Token ${index + 1}`),
+        settings: buildTokenDirectorySettings(address, "token", network),
+        idFallback: `token-${index + 1}`,
+        network,
+        contractAddress: address,
+        assetType: "token",
+      });
+    });
+
+    nftTokens.forEach((token, index) => {
+      if (!isRecord(token)) {
+        return;
+      }
+      const address = getString(token.address);
+      if (!address) {
+        return;
+      }
+      const collectionName =
+        getString(token.name) ??
+        getString(token.symbol) ??
+        `Collection ${index + 1}`;
+      const network = normalizeTokenNetwork(
+        getString(token.network),
+        EXPLORE_DEFAULT_NETWORK,
+      );
+      exploreCandidates.push({
+        type: "nft",
+        baseName: sanitizeTabKey(collectionName, `Collection ${index + 1}`),
+        settings: buildTokenDirectorySettings(address, "nft", network),
+        idFallback: `collection-${index + 1}`,
+        network,
+        contractAddress: address,
+        assetType: "nft",
+      });
+    });
+
+    const normalizedChannel = farcaster?.trim().replace(/^\/+/, "") ?? null;
+    if (normalizedChannel) {
+      exploreCandidates.push({
+        type: "channel",
+        baseName: sanitizeTabKey(normalizedChannel, "Channel"),
+        settings: buildChannelDirectorySettings(normalizedChannel),
+        idFallback: `channel-${exploreCandidates.length + 1}`,
+        channelName: normalizedChannel,
+      });
+    }
+
+    const fetchedCandidates = await Promise.all(
+      exploreCandidates.map(async (candidate) => {
+        if (!communityBaseUrl) {
+          return null;
+        }
+        const data =
+          candidate.type === "channel"
+            ? await fetchChannelDirectoryData(communityBaseUrl, candidate.channelName)
+            : await fetchTokenDirectoryData(
+                communityBaseUrl,
+                candidate.network,
+                candidate.contractAddress,
+                candidate.assetType,
+              );
+        if (!data) {
+          return null;
+        }
+        return { ...candidate, data };
+      }),
+    );
+    const readyCandidates = fetchedCandidates.filter(
+      (candidate): candidate is NonNullable<typeof candidate> => !!candidate,
+    );
+
+    const nameCounts = new Map<string, number>();
+    readyCandidates.forEach((candidate) => {
+      const key = candidate.baseName.toLowerCase();
+      nameCounts.set(key, (nameCounts.get(key) ?? 0) + 1);
+    });
+
+    readyCandidates.forEach((candidate) => {
+      const key = candidate.baseName.toLowerCase();
+      const needsSuffix = (nameCounts.get(key) ?? 0) > 1;
+      const suffix =
+        candidate.type === "token"
+          ? "Token"
+          : candidate.type === "nft"
+          ? "NFT"
+          : "channel";
+      const baseName = needsSuffix
+        ? `${candidate.baseName} ${suffix}`
+        : candidate.baseName;
+      const tabName = uniqueTabName(baseName, usedExploreTabNames);
+      const idSuffix = slugify(tabName, candidate.idFallback);
+      exploreTabs.push({
+        name: tabName,
+        config: buildExploreTabConfig(tabName, idSuffix, candidate.settings, nowIso, candidate.data),
+      });
+      exploreTabOrder.push(tabName);
+    });
+
+    let exploreSpaceId: string | null = null;
+    let createdExploreSpace = false;
+    const shouldCreateExplore = exploreTabs.length > 0;
+
+    if (shouldCreateExplore) {
+      exploreSpaceId = getExploreNavSpaceId(navigationConfig);
+
+      if (exploreSpaceId) {
+        try {
+          const exists = await spaceIdExists(supabase, exploreSpaceId);
+          if (!exists) {
+            exploreSpaceId = null;
+          }
+        } catch (error) {
+          console.error("Error checking explore spaceId:", error);
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: "Failed to validate explore spaceId",
+            }),
+            {
+              status: 500,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+      }
+
+      if (!exploreSpaceId) {
+        try {
+          exploreSpaceId = await findNavSpaceByName(supabase, exploreSpaceName);
+        } catch (error) {
+          console.error("Error looking up explore space:", error);
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: "Failed to resolve explore space",
+            }),
+            {
+              status: 500,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+      }
+
+      if (!exploreSpaceId) {
+        const { data: insertedSpace, error: insertSpaceError } = await supabase
+          .from("spaceRegistrations")
+          .insert({
+            fid: null,
+            spaceName: exploreSpaceName,
+            spaceType: "navPage",
+            identityPublicKey,
+            signature: "not applicable, machine generated file",
+            timestamp: nowIso,
+          })
+          .select("spaceId")
+          .maybeSingle();
+
+        if (insertSpaceError || !insertedSpace?.spaceId) {
+          console.error("Error creating explore space:", insertSpaceError);
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: "Failed to create explore space",
+            }),
+            {
+              status: 500,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+
+        exploreSpaceId = insertedSpace.spaceId;
+        createdExploreSpace = true;
+      }
+
+      if (!exploreSpaceId) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Explore space ID is missing after creation",
+          }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      const shouldSeedExplore =
+        createdExploreSpace || !(await spaceHasTabs(supabase, exploreSpaceId));
+
+      if (shouldSeedExplore) {
+        try {
+          for (const tab of exploreTabs) {
+            await uploadTabFile(
+              supabase,
+              exploreSpaceId,
+              tab.name,
+              tab.config,
+              identityPublicKey,
+              nowIso,
+            );
+          }
+          await uploadTabOrder(
+            supabase,
+            exploreSpaceId,
+            exploreTabOrder,
+            identityPublicKey,
+            nowIso,
+          );
+        } catch (error) {
+          console.error("Error uploading explore space files:", error);
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: "Failed to upload explore space files",
+            }),
+            {
+              status: 500,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+      }
+    }
+
     const navigationConfigWithHome = ensureHomeNavItem(
       navigationConfig,
       homeSpaceId,
     );
+    const navigationConfigFinal =
+      shouldCreateExplore && exploreSpaceId
+        ? ensureExploreNavItem(navigationConfigWithHome, exploreSpaceId)
+        : navigationConfigWithHome;
 
     const { data: configData, error: configError } = await supabase
       .from("community_configs")
@@ -985,7 +1740,7 @@ Deno.serve(async (req: Request) => {
           assets_config: assetsConfig,
           community_config: communityConfig,
           fidgets_config: fidgetsConfig,
-          navigation_config: navigationConfigWithHome,
+          navigation_config: navigationConfigFinal,
           ui_config: uiConfig,
           is_published: true,
           admin_identity_public_keys: adminKeys,
