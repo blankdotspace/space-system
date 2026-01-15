@@ -693,13 +693,47 @@ export const createNavigationStoreFunc = (
       for (const spaceId of existingSpaceIds) {
         const localSpace = get().space.localSpaces[spaceId];
         
-        // Only commit if local space exists and has changes
+        // Only commit if local space exists and has actual uncommitted changes
         if (localSpace) {
           const remoteSpace = get().space.remoteSpaces[spaceId];
+          
+          // Check for precise uncommitted changes:
+          // 1. Tabs that have been renamed (changedNames)
+          // 2. Tabs that have been deleted (deletedTabs)
+          // 3. New tabs (exist in local but not in remote)
+          // 4. Modified tabs (local timestamp is newer than remote)
           const hasChanges = 
             Object.keys(localSpace.changedNames || {}).length > 0 ||
             (localSpace.deletedTabs || []).length > 0 ||
-            Object.keys(localSpace.tabs || {}).length > 0; // At least has some tabs
+            (() => {
+              // Check for new or modified tabs
+              const localTabNames = Object.keys(localSpace.tabs || {});
+              
+              // Check for new tabs (in local but not in remote)
+              if (localTabNames.some(tabName => !remoteSpace?.tabs?.[tabName])) {
+                return true;
+              }
+              
+              // Check for modified tabs (local timestamp is newer than remote)
+              for (const tabName of localTabNames) {
+                const localTab = localSpace.tabs[tabName];
+                const remoteTab = remoteSpace?.tabs?.[tabName];
+                
+                if (localTab?.timestamp && remoteTab?.timestamp) {
+                  const localTimestamp = moment(localTab.timestamp);
+                  const remoteTimestamp = moment(remoteTab.timestamp);
+                  
+                  if (localTimestamp.isAfter(remoteTimestamp)) {
+                    return true;
+                  }
+                } else if (localTab?.timestamp && !remoteTab?.timestamp) {
+                  // Local has timestamp but remote doesn't - uncommitted
+                  return true;
+                }
+              }
+              
+              return false;
+            })();
           
           if (hasChanges) {
             try {

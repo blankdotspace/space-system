@@ -128,6 +128,7 @@ const Navigation = React.memo(
 
   const [shrunk, setShrunk] = useState(mobile ? false : true);
   const forcedExpansionRef = useRef(false);
+<<<<<<< HEAD
 
   // Force sidebar to remain expanded while in navigation edit mode
   // Use a ref to track if we've already forced expansion in this edit session
@@ -144,16 +145,6 @@ const Navigation = React.memo(
     // Clear the ref when exiting edit mode
     if (!navEditMode) {
       forcedExpansionRef.current = false;
-    }
-  }, [navEditMode, shrunk]);
-
-  // Force sidebar to remain expanded while in navigation edit mode
-  useEffect(() => {
-    if (navEditMode && shrunk) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[Navigation] Forcing sidebar expansion due to navigation edit mode');
-      }
-      setShrunk(false);
     }
   }, [navEditMode, shrunk]);
 
