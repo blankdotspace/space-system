@@ -12,7 +12,7 @@ interface NavIconBadgeProps {
   systemConfig: SystemConfig;
 }
 
-const NavIconBadge: React.FC<NavIconBadgeProps> = ({ children, systemConfig }) => {
+export const NavIconBadge: React.FC<NavIconBadgeProps> = ({ children, systemConfig }) => {
   const uiColors = useUIColors({ systemConfig });
   return (
     <Badge
