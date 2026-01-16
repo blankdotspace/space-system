@@ -39,6 +39,9 @@ interface DeployRequest {
   fidgetsConfig: Record<string, unknown>;
   navigationConfig: Record<string, unknown>;
   uiConfig: Record<string, unknown>;
+  customDomain?: string;
+  adminEmail?: string;
+  customDomainAuthorized?: boolean;
 }
 
 type JsonRecord = Record<string, unknown>;
@@ -90,6 +93,28 @@ function getString(value: unknown): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeDomainValue(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) {
+    return null;
+  }
+  const candidate =
+    trimmed.startsWith("http://") || trimmed.startsWith("https://")
+      ? trimmed
+      : `https://${trimmed}`;
+  try {
+    const url = new URL(candidate);
+    const host = url.hostname.toLowerCase();
+    const normalized = host.startsWith("www.") ? host.slice(4) : host;
+    return normalized.includes(".") ? normalized : null;
+  } catch {
+    return null;
+  }
 }
 
 function normalizeHandle(handle: string | null): string | null {
@@ -1133,6 +1158,9 @@ Deno.serve(async (req: Request) => {
       fidgetsConfig,
       navigationConfig,
       uiConfig,
+      customDomain,
+      adminEmail,
+      customDomainAuthorized,
     } = requestData;
 
     if (!walletAddress || !communityId) {
@@ -1287,6 +1315,102 @@ Deno.serve(async (req: Request) => {
     }
 
     const nowIso = new Date().toISOString();
+    const normalizedCommunityDomain = normalizeDomainValue(communityId);
+    const rawCustomDomain = getString(customDomain);
+    const normalizedCustomDomain = normalizeDomainValue(rawCustomDomain);
+
+    if (rawCustomDomain && !normalizedCustomDomain) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Custom domain is invalid or unsupported",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    if (normalizedCustomDomain && normalizedCustomDomain.endsWith(".blank.space")) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Custom domain cannot be a blank.space subdomain",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    if (
+      normalizedCustomDomain &&
+      normalizedCommunityDomain &&
+      normalizedCustomDomain === normalizedCommunityDomain
+    ) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Custom domain must be different from the blank.space subdomain",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    if (normalizedCustomDomain) {
+      const { data: existingDomain } = await supabase
+        .from("community_domains")
+        .select("community_id")
+        .eq("domain", normalizedCustomDomain)
+        .maybeSingle();
+
+      if (existingDomain?.community_id && existingDomain.community_id !== communityId) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Custom domain is already in use by another community",
+          }),
+          {
+            status: 409,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+    }
+
+    if (normalizedCommunityDomain) {
+      const { data: existingBlankDomain } = await supabase
+        .from("community_domains")
+        .select("community_id")
+        .eq("domain", normalizedCommunityDomain)
+        .maybeSingle();
+
+      if (existingBlankDomain?.community_id && existingBlankDomain.community_id !== communityId) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Blank.space subdomain is already in use by another community",
+          }),
+          {
+            status: 409,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+    }
+
+    const communityConfigPayload = isRecord(communityConfig)
+      ? {
+          ...communityConfig,
+          ...(normalizedCustomDomain ? { domain: normalizedCustomDomain } : {}),
+        }
+      : communityConfig;
+
     const homeSpaceName = `${communityId}-home`;
     const exploreSpaceName = `${communityId}-explore`;
     let homeSpaceId = getHomeNavSpaceId(navigationConfig);
@@ -1363,7 +1487,9 @@ Deno.serve(async (req: Request) => {
       createdHomeSpace = true;
     }
 
-    const communityConfigObj = isRecord(communityConfig) ? communityConfig : {};
+    const communityConfigObj = isRecord(communityConfigPayload)
+      ? communityConfigPayload
+      : {};
     const communityUrls = isRecord(communityConfigObj.urls)
       ? communityConfigObj.urls
       : {};
@@ -1722,25 +1848,33 @@ Deno.serve(async (req: Request) => {
         ? ensureExploreNavItem(navigationConfigWithHome, exploreSpaceId)
         : navigationConfigWithHome;
 
+    const normalizedAdminEmail = getString(adminEmail);
+    const upsertPayload: Record<string, unknown> = {
+      community_id: communityId,
+      brand_config: brandConfig,
+      assets_config: assetsConfig,
+      community_config: communityConfigPayload,
+      fidgets_config: fidgetsConfig,
+      navigation_config: navigationConfigFinal,
+      ui_config: uiConfig,
+      is_published: true,
+      admin_identity_public_keys: adminKeys,
+      updated_at: nowIso,
+    };
+
+    if (typeof customDomainAuthorized === "boolean") {
+      upsertPayload.custom_domain_authorized = customDomainAuthorized;
+    }
+
+    if (normalizedAdminEmail) {
+      upsertPayload.admin_email = normalizedAdminEmail;
+    }
+
     const { data: configData, error: configError } = await supabase
       .from("community_configs")
-      .upsert(
-        {
-          community_id: communityId,
-          brand_config: brandConfig,
-          assets_config: assetsConfig,
-          community_config: communityConfig,
-          fidgets_config: fidgetsConfig,
-          navigation_config: navigationConfigFinal,
-          ui_config: uiConfig,
-          is_published: true,
-          admin_identity_public_keys: adminKeys,
-          updated_at: nowIso,
-        },
-        {
-          onConflict: "community_id",
-        },
-      )
+      .upsert(upsertPayload, {
+        onConflict: "community_id",
+      })
       .select()
       .maybeSingle();
 
@@ -1757,6 +1891,54 @@ Deno.serve(async (req: Request) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         },
       );
+    }
+
+    const domainRows: Array<{
+      community_id: string;
+      domain: string;
+      domain_type: string;
+      updated_at: string;
+    }> = [];
+
+    if (normalizedCommunityDomain) {
+      domainRows.push({
+        community_id: communityId,
+        domain: normalizedCommunityDomain,
+        domain_type: normalizedCommunityDomain.endsWith(".blank.space")
+          ? "blank_subdomain"
+          : "custom",
+        updated_at: nowIso,
+      });
+    }
+
+    if (normalizedCustomDomain) {
+      domainRows.push({
+        community_id: communityId,
+        domain: normalizedCustomDomain,
+        domain_type: "custom",
+        updated_at: nowIso,
+      });
+    }
+
+    if (domainRows.length > 0) {
+      const { error: domainError } = await supabase
+        .from("community_domains")
+        .upsert(domainRows, { onConflict: "community_id,domain_type" });
+
+      if (domainError) {
+        console.error("Error saving community domain mappings:", domainError);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Failed to save community domain mappings",
+            details: domainError.message,
+          }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
     }
 
     return new Response(

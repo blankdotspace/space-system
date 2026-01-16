@@ -25,7 +25,7 @@ Browser Request (example.nounspace.com)
   ↓
 Next.js Middleware (middleware.ts)
   ├─ Detects domain from headers
-  ├─ Resolves community ID (example.nounspace.com → "example")
+  ├─ Resolves community ID (example.nounspace.com → mapped community_id)
   └─ Sets headers: x-community-id, x-detected-domain
   ↓
 Server Component (layout.tsx, page.tsx, etc.)
@@ -116,7 +116,8 @@ export function MyComponent() {
 2. **Development Override** (`NEXT_PUBLIC_TEST_COMMUNITY`) - For local testing only
 3. **Domain Resolution** - From middleware headers (production or localhost subdomains)
    - **Special Domain Mappings** (checked first) - Configured in `src/config/loaders/registry.ts`
-   - **Normal Domain Resolution** - Subdomain extraction (e.g., `example.nounspace.com` → `example`)
+   - **Community Domain Mappings** - Look up the hostname in `community_domains`
+   - **Legacy Fallback** - Use the normalized hostname as `community_id` if no mapping exists
 
 **Note:** If no community ID can be resolved, the system will error when attempting to load config. In development, always set `NEXT_PUBLIC_TEST_COMMUNITY` or use localhost subdomains (e.g., `example.localhost:3000`).
 
@@ -148,7 +149,18 @@ CREATE TABLE community_configs (
     fidgets_config JSONB NOT NULL,         -- Enabled/disabled fidgets
     navigation_config JSONB,              -- Navigation items (with spaceId refs)
     ui_config JSONB,                       -- UI colors
+    custom_domain_authorized BOOLEAN DEFAULT false,
+    admin_email TEXT,
     is_published BOOLEAN DEFAULT true
+);
+
+CREATE TABLE community_domains (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    community_id VARCHAR(50) NOT NULL REFERENCES community_configs(community_id) ON DELETE CASCADE,
+    domain TEXT NOT NULL UNIQUE,
+    domain_type TEXT NOT NULL CHECK (domain_type IN ('blank_subdomain', 'custom')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 ```
 
@@ -278,7 +290,7 @@ NavPageClient (Client Component)
 
 1. **Middleware runs first:**
    - Detects domain: `example.nounspace.com`
-   - Sets header: `x-community-id: "example"`
+   - Sets header: `x-community-id: mapped community_id`
 
 2. **NavPage Server Component:**
    - Loads `SystemConfig` → gets navigation items
@@ -390,15 +402,15 @@ export const INITIAL_HOMEBASE_CONFIG = nounsINITIAL_HOMEBASE_CONFIG;
 ```
 1. Request arrives at middleware.ts
    └─ Domain: "example.nounspace.com"
-   └─ Resolves to: "example"
-   └─ Sets header: x-community-id = "example"
+   └─ Resolves to: mapped community_id
+   └─ Sets header: x-community-id = mapped community_id
 
 2. Server Component calls loadSystemConfig()
-   └─ Reads x-community-id header: "example"
-   └─ Calls RuntimeConfigLoader.load({ communityId: "example" })
+   └─ Reads x-community-id header: mapped community_id
+   └─ Calls RuntimeConfigLoader.load({ communityId: mapped community_id })
 
 3. RuntimeConfigLoader
-   └─ Calls Supabase RPC: get_active_community_config("example")
+   └─ Calls Supabase RPC: get_active_community_config(mapped community_id)
    └─ Receives JSONB config from database
    └─ Merges with themes from shared/themes.ts
    └─ Returns SystemConfig
@@ -410,7 +422,7 @@ export const INITIAL_HOMEBASE_CONFIG = nounsINITIAL_HOMEBASE_CONFIG;
 
 ```
 1. Request: example.nounspace.com/home
-   └─ Middleware detects domain → sets x-community-id: "example"
+   └─ Middleware detects domain → sets x-community-id: mapped community_id
 
 2. NavPage Server Component loads
    └─ Calls: await loadSystemConfig()
@@ -481,14 +493,14 @@ RootLayout (Server Component)
 
 ### Local Testing
 
-1. **Localhost Subdomains**: `example.localhost:3000` → detects "example"
+1. **Localhost Subdomains**: `example.localhost:3000` → resolves via community_domains or fallback
 2. **Environment Override**: `NEXT_PUBLIC_TEST_COMMUNITY=example npm run dev`
 
 **Note:** If neither method is used, the system will error when attempting to load config. Always set `NEXT_PUBLIC_TEST_COMMUNITY` or use localhost subdomains in development.
 
 ### Production
 
-- Domain-based detection: `example.nounspace.com` → "example"
+- Domain-based detection: `example.nounspace.com` → mapped community_id
 - Requires valid domain resolution (no fallback)
 
 ---
