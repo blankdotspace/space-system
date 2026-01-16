@@ -155,6 +155,7 @@ export {
   getNestedUser,
   mapNeynarUserToMember,
   createDefaultMemberForCsv,
+  extractViewerContext,
   type NeynarUser,
 } from "./utils/memberData";
 

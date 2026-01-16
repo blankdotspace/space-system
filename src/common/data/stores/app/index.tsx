@@ -34,6 +34,10 @@ import {
 } from "./chat/chatStore";
 import { usePrivy } from "@privy-io/react-auth";
 import { createCurrentSpaceStoreFunc, CurrentSpaceStore } from "./currentSpace";
+import {
+  NavigationStore,
+  createNavigationStoreFunc,
+} from "./navigation/navigationStore";
 import React from "react";
 
 export type AppStore = {
@@ -44,6 +48,7 @@ export type AppStore = {
   currentSpace: CurrentSpaceStore;
   checkpoints: CheckpointStore;
   chat: ChatStore;
+  navigation: NavigationStore;
   logout: () => void;
   getIsAccountReady: () => boolean;
   getIsInitializing: () => boolean;
@@ -60,6 +65,7 @@ const makeStoreFunc: MatativeConfig<AppStore> = (set, get, state) => ({
   currentSpace: createCurrentSpaceStoreFunc(set, get),
   checkpoints: createCheckpointStoreFunc(set, get),
   chat: createChatStoreFunc(set, get),
+  navigation: createNavigationStoreFunc(set, get),
   logout: () => {
     get().account.reset();
     get().homebase.clearHomebase();

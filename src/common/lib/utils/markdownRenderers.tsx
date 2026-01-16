@@ -1,6 +1,8 @@
 "use client";
 import React from "react";
 
+import { resolveIpfsUrl } from "@/common/lib/utils/url";
+
 type MarkdownProps = {
   node?: any;
   alt?: any;
@@ -21,21 +23,23 @@ export const MarkdownRenderers = (linkColor?: string) => ({
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
+        width: "100%",
       }}
     >
       <img
         {...props}
         alt={alt}
-        src={src}
+        src={resolveIpfsUrl(src)}
         title={title}
         style={{
           display: "inline-block",
           maxWidth: "100%",
-          height: "100%",
+          height: "auto",
           maxHeight: "345px",
           borderRadius: "10px",
           marginTop: "20px",
           marginBottom: "20px",
+          objectFit: "contain",
         }}
       />
     </span>

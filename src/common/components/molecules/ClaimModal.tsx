@@ -2,6 +2,7 @@ import React from "react";
 import Modal from "../molecules/Modal";
 import { Button } from "../atoms/button";
 import { useAppStore } from "@/common/data/stores/app";
+import { useUIColors } from "@/common/lib/hooks/useUIColors";
 
 interface ClaimModalProps {
   isModalOpen: boolean;
@@ -19,6 +20,7 @@ const ClaimModal: React.FC<ClaimModalProps> = ({
       setModalOpen: state.setup.setModalOpen,
     }),
   );
+  const uiColors = useUIColors();
 
   const handleSignInClick = () => {
     setModalOpen(true);
@@ -49,9 +51,14 @@ const ClaimModal: React.FC<ClaimModalProps> = ({
       />
       <div className="flex flex-col items-center justify-center p-4">
         <Button
-          className="line-clamp-1 min-w-40 max-w-xs truncate"
-          variant="primary"
-          color="primary"
+          className="line-clamp-1 min-w-40 max-w-xs truncate text-white font-medium transition-colors"
+          style={{ backgroundColor: uiColors.primaryColor }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = uiColors.primaryHoverColor;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = uiColors.primaryColor;
+          }}
           onClick={handleSignInClick}
         >
           Sign In

@@ -13,12 +13,21 @@ import {
     FaChevronLeft,
     FaChevronRight,
     FaDiscord,
+    FaPencil,
+    FaX,
+    FaFloppyDisk,
+    FaSpinner,
+    FaTriangleExclamation,
 } from "react-icons/fa6";
+import * as FaIcons from "react-icons/fa6";
+import * as BsIcons from "react-icons/bs";
+import * as GiIcons from "react-icons/gi";
+import type { IconType } from "react-icons";
 import { Button } from "../atoms/button";
 import BrandHeader from "../molecules/BrandHeader";
 import Modal from "../molecules/Modal";
-import { Badge } from "@/common/components/atoms/badge";
 import useNotificationBadgeText from "@/common/lib/hooks/useNotificationBadgeText";
+import { useUIColors } from "@/common/lib/hooks/useUIColors";
 import { UserTheme } from "@/common/lib/theme";
 import { useUserTheme } from "@/common/lib/theme/UserThemeProvider";
 import { trackAnalyticsEvent } from "@/common/lib/utils/analyticsUtils";
@@ -42,41 +51,27 @@ import {
 } from "../molecules/CastModalHelpers";
 import SearchModal, { SearchModalHandle } from "./SearchModal";
 import { toFarcasterCdnUrl } from "@/common/lib/utils/farcasterCdn";
-import { loadSystemConfig } from "@/config";
-
-type NavItemProps = {
-  label: string;
-  active?: boolean;
-  Icon: React.FC;
-  href: string;
-  disable?: boolean;
-  openInNewTab?: boolean;
-  badgeText?: string | null;
-  onClick?: () => void;
-};
-
-type NavButtonProps = Omit<NavItemProps, "href" | "openInNewTab">;
+import { SystemConfig } from "@/config";
+import { NavigationItem } from "@/config/systemConfig";
+import { useCurrentSpaceIdentityPublicKey } from "@/common/lib/hooks/useCurrentSpaceIdentityPublicKey";
+import { useSidebarContext } from "./Sidebar";
+import { useNavigation } from "./navigation/useNavigation";
+import { NavigationItem as NavItemComponent, NavigationButton } from "./navigation/NavigationItem";
+import { NavigationEditor } from "./navigation/NavigationEditor";
+import { NavigationErrorBoundary } from "./navigation/ErrorBoundary";
 
 type NavProps = {
+  systemConfig: SystemConfig;
   isEditable: boolean;
   enterEditMode?: () => void;
   mobile?: boolean;
   onNavigate?: () => void;
 };
 
-const NavIconBadge = ({ children }) => {
-  return (
-    <Badge
-      variant="primary"
-      className="justify-center text-[11px]/[12px] min-w-[18px] min-h-[18px] font-medium shadow-md px-[3px] rounded-full absolute left-[19px] top-[4px]"
-    >
-      {children}
-    </Badge>
-  );
-};
-
+const NAV_BORDER_COLOR = "rgba(128, 128, 128, 0.5)";
 const Navigation = React.memo(
 ({
+  systemConfig,
   isEditable,
   enterEditMode,
   mobile = false,
@@ -90,31 +85,114 @@ const Navigation = React.memo(
       getIsInitializing: state.getIsInitializing,
     })
   );
+  const { navEditMode, setNavEditMode } = useSidebarContext();
+  const currentUserIdentityPublicKey = useCurrentSpaceIdentityPublicKey();
   const userTheme: UserTheme = useUserTheme();
-
+  const uiColors = useUIColors({ systemConfig });
+  
+  // Check if user is admin (can edit navigation)
+  const adminIdentityPublicKeys = systemConfig.adminIdentityPublicKeys || [];
+  const isNavigationEditable = currentUserIdentityPublicKey 
+    ? adminIdentityPublicKeys.includes(currentUserIdentityPublicKey)
+    : false;
+  
+  // Use navigation hook for store access and handlers
+  const {
+    localNavigation,
+    hasUncommittedChanges,
+    navItemsToDisplay,
+    debouncedUpdateOrder,
+    handleCommit,
+    handleCancel,
+    handleCreateItem,
+    isCommitting,
+  } = useNavigation(systemConfig, setNavEditMode);
+  
+  // Destructure navigation from systemConfig early
+  const { community, navigation } = systemConfig;
+  
   const logout = useLogout();
   const notificationBadgeText = useNotificationBadgeText();
   const pathname = usePathname();
-  const { community, navigation } = loadSystemConfig();
   const discordUrl = community?.urls?.discord || "https://discord.gg/eYQeXU2WuH";
+  
+  // Get cast button colors from config, with fallback to blue
+  const castButtonColors = {
+    backgroundColor: uiColors.castButton.backgroundColor,
+    hoverColor: uiColors.castButton.hoverColor,
+    activeColor: uiColors.castButton.activeColor,
+    fontColor: uiColors.castButtonFontColor,
+  };
+  const navTextStyle: React.CSSProperties = {
+    color: uiColors.fontColor,
+    fontFamily: uiColors.fontFamily,
+    backgroundColor: uiColors.backgroundColor,
+  };
 
   const [shrunk, setShrunk] = useState(mobile ? false : true);
+  const forcedExpansionRef = useRef(false);
+
+  // Force sidebar to remain expanded while in navigation edit mode
+  // Use a ref to track if we've already forced expansion in this edit session
+  // to prevent render loops if external code flips shrunk back to true
+  useEffect(() => {
+    if (navEditMode && shrunk && !forcedExpansionRef.current) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Navigation] Forcing sidebar expansion due to navigation edit mode');
+      }
+      setShrunk(false);
+      forcedExpansionRef.current = true;
+    }
+    
+    // Clear the ref when exiting edit mode
+    if (!navEditMode) {
+      forcedExpansionRef.current = false;
+    }
+  }, [navEditMode, shrunk]);
 
   const toggleSidebar = () => {
-    if (mobile) return;
+    if (mobile || navEditMode) return; // Disable toggle during navigation edit mode
     setShrunk((prev) => !prev);
   };
+
+  const router = useRouter();
 
   function handleLogout() {
     router.push("/home");
     logout();
   }
+  
+  // For backwards compatibility with code that uses configuredNavItems
+  const configuredNavItems = navItemsToDisplay;
 
   const openModal = () => setModalOpen(true);
 
   const [showCastModal, setShowCastModal] = useState(false);
   const [shouldConfirmCastClose, setShouldConfirmCastClose] = useState(false);
   const [showCastDiscardPrompt, setShowCastDiscardPrompt] = useState(false);
+  const [showConfirmCancel, setShowConfirmCancel] = useState(false);
+
+  // Reset confirmation state when exiting edit mode
+  useEffect(() => {
+    if (!navEditMode) {
+      setShowConfirmCancel(false);
+    }
+  }, [navEditMode]);
+
+  // Handler for cancel button click - shows confirmation if there are changes
+  const handleCancelClick = useCallback(() => {
+    if (hasUncommittedChanges) {
+      setShowConfirmCancel(true);
+    } else {
+      handleCancel();
+    }
+  }, [hasUncommittedChanges, handleCancel]);
+
+  // Handler for confirmed cancel
+  const handleConfirmedCancel = useCallback(() => {
+    setShowConfirmCancel(false);
+    handleCancel();
+  }, [handleCancel]);
 
   const closeCastModal = useCallback(() => {
     setShowCastModal(false);
@@ -207,7 +285,7 @@ const Navigation = React.memo(
   const isInitializing = getIsInitializing();
   const { data } = useLoadFarcasterUser(fid);
   const user = useMemo(() => first(data?.users), [data]);
-  const username = useMemo(() => user?.username, [user]);
+  const username = useMemo(() => user?.username ?? undefined, [user]);
 
   const CurrentUserImage = useCallback(
     () =>
@@ -222,20 +300,96 @@ const Navigation = React.memo(
     [user]
   );
 
-  const router = useRouter();
+  // Icon pack mapping for react-icons (matches IconSelector)
+  const iconPack = useMemo(() => ({
+    ...FaIcons,
+    ...BsIcons,
+    ...GiIcons,
+  }), []);
+
+  // Cache for wrapper components to prevent remounts
+  const iconWrapperCacheRef = useRef<Map<string, React.FC>>(new Map());
+  const MAX_ICON_CACHE = 50;
+
+  // Reusable component factory for URL icons
+  const createUrlIconWrapper = useCallback((src: string): React.FC => {
+    const CustomIconWrapper = React.memo(() => (
+      <img 
+        src={src} 
+        alt="icon" 
+        className="w-5 h-5 rounded object-contain" 
+        aria-hidden="true"
+      />
+    ));
+    CustomIconWrapper.displayName = `CustomIcon(${src})`;
+    return CustomIconWrapper;
+  }, []);
 
   const iconFor = useCallback((key?: string): React.FC => {
+    // Handle legacy icon keys for backward compatibility
     switch (key) {
       case 'home': return HomeIcon;
       case 'explore': return ExploreIcon;
       case 'notifications': return NotificationsIcon;
+      case 'search': return SearchIcon;
       case 'space': return RocketIcon;
       case 'robot': return RobotIcon;
-      default: return HomeIcon;
-    }
-  }, []);
+      default: {
+        if (!key) {
+          return HomeIcon;
+        }
 
-  const configuredNavItems = navigation?.items || [];
+        // Check cache first
+        const cached = iconWrapperCacheRef.current.get(key);
+        if (cached) {
+          return cached;
+        }
+
+        // Handle react-icons names (e.g., 'FaHouse', 'FaRss')
+        // Use w-5 h-5 (20px) to match visual size of standard nav icons (w-6 h-6 custom SVGs)
+        if (iconPack[key as keyof typeof iconPack]) {
+          const IconComponent = iconPack[key as keyof typeof iconPack] as IconType;
+          const ReactIconWrapper = React.memo(() => (
+            <IconComponent className="w-5 h-5" aria-hidden="true" />
+          ));
+          ReactIconWrapper.displayName = `ReactIcon(${key})`;
+          
+          // Evict oldest entry if cache exceeds max size
+          if (iconWrapperCacheRef.current.size >= MAX_ICON_CACHE) {
+            const oldestKey = iconWrapperCacheRef.current.keys().next().value;
+            if (oldestKey) {
+              iconWrapperCacheRef.current.delete(oldestKey);
+            }
+          }
+          iconWrapperCacheRef.current.set(key, ReactIconWrapper);
+          return ReactIconWrapper;
+        }
+
+        // Handle custom icon URLs
+        if (key.startsWith('http://') || key.startsWith('https://')) {
+          const CustomIconWrapper = createUrlIconWrapper(key);
+          
+          // Evict oldest entry if cache exceeds max size
+          if (iconWrapperCacheRef.current.size >= MAX_ICON_CACHE) {
+            const oldestKey = iconWrapperCacheRef.current.keys().next().value;
+            if (oldestKey) {
+              iconWrapperCacheRef.current.delete(oldestKey);
+            }
+          }
+          iconWrapperCacheRef.current.set(key, CustomIconWrapper);
+          return CustomIconWrapper;
+        }
+
+        // Default fallback
+        return HomeIcon;
+      }
+    }
+  }, [iconPack, createUrlIconWrapper]);
+
+  // Clear icon cache on navigation/route changes to prevent memory growth
+  useEffect(() => {
+    iconWrapperCacheRef.current.clear();
+  }, [pathname]);
   
   // Process nav items: adjust labels and hrefs based on login status when needed
   const allNavItems = configuredNavItems.map((item) => {
@@ -249,84 +403,60 @@ const Navigation = React.memo(
     }
     return item;
   });
+  
+  // Get store functions for editor
+  const { deleteNavigationItem, renameNavigationItem } = useAppStore((state) => ({
+    deleteNavigationItem: state.navigation.deleteNavigationItem,
+    renameNavigationItem: state.navigation.renameNavigationItem,
+  }));
 
-  const NavItem: React.FC<NavItemProps> = ({
-    label,
-    Icon,
-    href,
-    onClick,
-    disable = false,
-    openInNewTab = false,
-    badgeText = null,
-  }) => {
-    const handleClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>) => {
-      if (disable) {
-        e.preventDefault();
-        return;
-      }
-      
-      const isPrimary = e.button === 0;
-      const hasMod = e.metaKey || e.ctrlKey || e.shiftKey || e.altKey;
-      
-      if (!openInNewTab && href && href.startsWith("/") && isPrimary && !hasMod) {
-        e.preventDefault();
-        router.push(href);
-        // Execute callbacks after navigation
-        React.startTransition(() => {
-          onClick?.();
-          onNavigate?.();
-        });
-        return;
-      }
-      onClick?.();
-      onNavigate?.();
-    }, [onClick, onNavigate, href, disable, openInNewTab, router]);
-    return (
-      <li>
-        <Link
-          href={disable ? "#" : href}
-          className={mergeClasses(
-            "flex relative items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 w-full group",
-            href === pathname ? "bg-gray-100" : "",
-            shrunk ? "justify-center" : ""
-          )}
-          onClick={handleClick}
-          rel={openInNewTab ? "noopener noreferrer" : undefined}
-          target={openInNewTab ? "_blank" : undefined}
-        >
-          {badgeText && <NavIconBadge>{badgeText}</NavIconBadge>}
-          <Icon />
-          {!shrunk && <span className="ms-3 relative z-10">{label}</span>}
-        </Link>
-      </li>
-    );
-  };
+  /**
+   * Handles deletion of a navigation item
+   * If the current pathname matches the deleted item, navigates to the closest nav item
+   */
+  const handleDeleteItem = useCallback((itemId: string) => {
+    const itemToDelete = localNavigation.find(item => item.id === itemId);
+    if (!itemToDelete) {
+      console.warn('[Navigation] Item not found for deletion:', itemId);
+      deleteNavigationItem(itemId);
+      return;
+    }
 
-  const NavButton: React.FC<NavButtonProps> = ({
-    label,
-    Icon,
-    onClick,
-    disable = false,
-    badgeText = null,
-  }) => {
-    return (
-      <li>
-        <button
-          disabled={disable}
-          className={mergeClasses(
-            "flex relative items-center p-2 text-gray-900 rounded-lg dark:text-white w-full group",
-            "hover:bg-gray-100 dark:hover:bg-gray-700",
-            shrunk ? "justify-center" : ""
-          )}
-          onClick={onClick}
-        >
-          {badgeText && <NavIconBadge>{badgeText}</NavIconBadge>}
-          <Icon aria-hidden="true" />
-          {!shrunk && <span className="ms-3 relative z-10">{label}</span>}
-        </button>
-      </li>
+    // Check if current pathname matches the deleted item's href
+    const isCurrentItem = pathname !== null && (
+      pathname === itemToDelete.href ||
+      (itemToDelete.href.startsWith('/') && pathname.startsWith(itemToDelete.href + '/'))
     );
-  };
+
+    // Find the closest item BEFORE deleting (if we're on the deleted item)
+    let closestItem: NavigationItem | undefined;
+    if (isCurrentItem && localNavigation.length > 1) {
+      const currentIndex = localNavigation.findIndex(item => item.id === itemId);
+      
+      // Find the closest item: try previous, then next, otherwise first
+      if (currentIndex > 0) {
+        // Use previous item
+        closestItem = localNavigation[currentIndex - 1];
+      } else if (currentIndex < localNavigation.length - 1) {
+        // Use next item
+        closestItem = localNavigation[currentIndex + 1];
+      } else {
+        // Use first item (shouldn't happen if length > 1, but just in case)
+        closestItem = localNavigation[0];
+      }
+    }
+
+    // Delete the item
+    deleteNavigationItem(itemId);
+
+    // Navigate to the closest item if we were on the deleted item
+    if (closestItem && closestItem.href) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Navigation] Navigating to closest nav item after deletion:', closestItem.href);
+      }
+      router.push(closestItem.href);
+    }
+  }, [localNavigation, pathname, deleteNavigationItem, router]);
 
   const openSearchModal = useCallback(() => {
     if (!searchRef?.current) return;
@@ -341,12 +471,13 @@ const Navigation = React.memo(
     <nav
       id="logo-sidebar"
       className={mergeClasses(
-        "border-r-2 bg-white",
+        "border-r",
         mobile
           ? "w-[270px]"
           : "w-full transition-transform -translate-x-full sm:translate-x-0"
       )}
       aria-label="Sidebar"
+      style={{ ...navTextStyle, borderColor: NAV_BORDER_COLOR }}
     >
       <Modal
         open={showCastModal}
@@ -361,11 +492,13 @@ const Navigation = React.memo(
             <CreateCast
               afterSubmit={closeCastModal}
               onShouldConfirmCloseChange={setShouldConfirmCastClose}
+              systemConfig={systemConfig}
             />
             <CastDiscardPrompt
               open={showCastDiscardPrompt}
               onClose={handleCancelDiscard}
               onDiscard={handleDiscardCast}
+              systemConfig={systemConfig}
             />
           </>
         </CastModalPortalBoundary>
@@ -387,10 +520,14 @@ const Navigation = React.memo(
               : "w-[270px]"
           )}
         >
-          {!mobile && (
+          {!mobile && !navEditMode && (
             <button
               onClick={toggleSidebar}
-              className="absolute right-0 top-4 transform translate-x-1/2 bg-white rounded-full border border-gray-200 shadow-sm p-2 hover:bg-gray-50 sidebar-expand-button z-50"
+              className="absolute right-0 top-4 transform translate-x-1/2 rounded-full border border-gray-200 shadow-sm p-2 sidebar-expand-button z-50"
+              style={{
+                backgroundColor: uiColors.backgroundColor,
+                borderColor: NAV_BORDER_COLOR,
+              }}
               aria-label={shrunk ? "Expand sidebar" : "Collapse sidebar"}
             >
               {shrunk ? (
@@ -402,7 +539,7 @@ const Navigation = React.memo(
           )}
 
           <div className="-mt-6 pb-6">
-            <BrandHeader />
+            <BrandHeader systemConfig={systemConfig} />
           </div>
           <div
             className={mergeClasses(
@@ -411,110 +548,277 @@ const Navigation = React.memo(
             )}
           >
             <div className="flex-auto">
-              <ul className="space-y-2">
-                {allNavItems.map((item) => {
-                  if (item.requiresAuth && !isLoggedIn) return null;
-                  const IconComp = iconFor(item.icon);
-                  const badge = item.id === 'notifications' ? notificationBadgeText : null;
-                  return (
-                    <NavItem
-                      key={item.id}
-                      label={item.label}
-                      Icon={IconComp}
-                      href={item.href}
-                      onClick={() => {
-                        if (item.id === 'explore') trackAnalyticsEvent(AnalyticsEvent.CLICK_EXPLORE);
-                        if (item.id === 'notifications') trackAnalyticsEvent(AnalyticsEvent.CLICK_NOTIFICATIONS);
-                        if (item.id === 'home') trackAnalyticsEvent(AnalyticsEvent.CLICK_HOMEBASE);
-                        if (item.id === 'space-token') trackAnalyticsEvent(AnalyticsEvent.CLICK_SPACE_FAIR_LAUNCH);
-                      }}
-                      openInNewTab={item.openInNewTab}
-                      badgeText={badge}
+              {navEditMode && isNavigationEditable ? (
+                <NavigationErrorBoundary
+                  onError={(error, errorInfo) => {
+                    // Log to error service in production
+                    if (process.env.NODE_ENV === "production") {
+                      // TODO: Integrate with error logging service
+                      // logErrorToService(error, errorInfo);
+                    }
+                  }}
+                >
+                  <NavigationEditor
+                  items={navItemsToDisplay}
+                  isShrunk={shrunk}
+                  isLoggedIn={isLoggedIn}
+                  isInitializing={isInitializing}
+                  username={username ? username : undefined}
+                  notificationBadgeText={notificationBadgeText}
+                  systemConfig={systemConfig}
+                  localNavigation={localNavigation}
+                  pathname={pathname}
+                  iconFor={iconFor}
+                  CurrentUserImage={CurrentUserImage}
+                  onReorder={debouncedUpdateOrder}
+                  onRename={renameNavigationItem}
+                  onDelete={handleDeleteItem}
+                  onCreate={handleCreateItem}
+                  onCommit={handleCommit}
+                  onCancel={handleCancel}
+                  hasUncommittedChanges={hasUncommittedChanges}
+                  isCommitting={isCommitting}
+                  onOpenSearch={openSearchModal}
+                  onLogout={handleLogout}
+                  onLogin={openModal}
+                  />
+                </NavigationErrorBoundary>
+              ) : (
+                // Normal mode: show regular navigation items
+                <ul className="space-y-2">
+                  {allNavItems.filter(item => item.id !== 'notifications').map((item) => {
+                    if (item.requiresAuth && !isLoggedIn) return null;
+                    const IconComp = iconFor(item.icon);
+                    return (
+                      <NavItemComponent
+                        key={item.id}
+                        label={item.label}
+                        Icon={IconComp}
+                        href={item.href}
+                        onClick={() => {
+                          if (item.id === 'explore') trackAnalyticsEvent(AnalyticsEvent.CLICK_EXPLORE);
+                          if (item.id === 'home') trackAnalyticsEvent(AnalyticsEvent.CLICK_HOMEBASE);
+                          if (item.id === 'space-token') trackAnalyticsEvent(AnalyticsEvent.CLICK_SPACE_FAIR_LAUNCH);
+                        }}
+                        openInNewTab={item.openInNewTab}
+                        shrunk={shrunk}
+                        systemConfig={systemConfig}
+                        onNavigate={onNavigate}
+                      />
+                    );
+                  })}
+                  {isLoggedIn && (
+                    <NavItemComponent
+                      label="Notifications"
+                      Icon={NotificationsIcon}
+                      href="/notifications"
+                      onClick={() => trackAnalyticsEvent(AnalyticsEvent.CLICK_NOTIFICATIONS)}
+                      badgeText={notificationBadgeText}
+                      shrunk={shrunk}
+                      systemConfig={systemConfig}
+                      onNavigate={onNavigate}
                     />
-                  );
-                })}
-                <NavButton
+                  )}
+                <NavigationButton
                   label="Search"
                   Icon={SearchIcon}
                   onClick={() => {
                     openSearchModal();
                     trackAnalyticsEvent(AnalyticsEvent.CLICK_SEARCH);
                   }}
+                  shrunk={shrunk}
+                  systemConfig={systemConfig}
                 />
                 {isLoggedIn && (
-                  <NavItem
-                    label={"My Space"}
+                  <NavItemComponent
+                    label="My Space"
                     Icon={CurrentUserImage}
                     href={`/s/${username}`}
                     onClick={() =>
                       trackAnalyticsEvent(AnalyticsEvent.CLICK_MY_SPACE)
                     }
+                    shrunk={shrunk}
+                    systemConfig={systemConfig}
+                    onNavigate={onNavigate}
                   />
                 )}
                 {isLoggedIn && (
-                  <NavButton
-                    label={"Logout"}
+                  <NavigationButton
+                    label="Logout"
                     Icon={LogoutIcon}
                     onClick={handleLogout}
+                    shrunk={shrunk}
+                    systemConfig={systemConfig}
                   />
                 )}
                 {!isLoggedIn && (
-                  <NavButton
+                  <NavigationButton
                     label={isInitializing ? "Complete Signup" : "Login"}
                     Icon={LoginIcon}
                     onClick={openModal}
+                    shrunk={shrunk}
+                    systemConfig={systemConfig}
+                  />
+                )}
+                {/* Edit Navigation Button - only show if user is admin */}
+                {isNavigationEditable && !mobile && (
+                  <NavigationButton
+                    label={navEditMode ? "Exit Edit" : "Edit Nav"}
+                    Icon={navEditMode ? LogoutIcon : () => (
+                      <div className="w-6 h-6 flex items-center justify-center">
+                        <FaPencil className="w-4 h-4 text-gray-800 dark:text-white" />
+                      </div>
+                    )}
+                    onClick={() => {
+                      setNavEditMode(!navEditMode);
+                    }}
+                    shrunk={shrunk}
+                    systemConfig={systemConfig}
                   />
                 )}
               </ul>
+              )}
             </div>
           </div>
-          <div className="flex flex-col flex-auto justify-between border-t px-4">
-            <div
-              className={mergeClasses("mt-8 px-2", shrunk ? "px-0" : "px-2")}
-            >
-              <Player
-                url={userTheme?.properties?.musicURL || NOUNISH_LOWFI_URL}
-                shrunk={shrunk}
-              />
-            </div>
+          <div
+            className="flex flex-col flex-auto justify-between border-t px-4"
+            style={{ borderColor: NAV_BORDER_COLOR }}
+          >
+            {navigation?.showMusicPlayer !== false && (
+              <div
+                className={mergeClasses("mt-8 px-2", shrunk ? "px-0" : "px-2")}
+              >
+                <Player
+                  url={userTheme?.properties?.musicURL || NOUNISH_LOWFI_URL}
+                  shrunk={shrunk}
+                  fontColor={uiColors.fontColor}
+                  fontFamily={uiColors.fontFamily}
+                  borderColor={NAV_BORDER_COLOR}
+                />
+              </div>
+            )}
             {isLoggedIn && (
               <div
                 className={mergeClasses(
-                  "pt-3 flex items-center gap-2 justify-center",
+                  "pt-3 flex items-center gap-2",
+                  navEditMode && isNavigationEditable ? "" : "justify-center",
                   shrunk ? "flex-col gap-1" : ""
                 )}
               >
-                <Button
-                  onClick={openCastModal}
-                  variant="primary"
-                  width="auto"
-                  className="flex items-center justify-center w-12 h-12"
-                >
-                  {shrunk ? <span className="sr-only">Cast</span> : "Cast"}
-                  {shrunk && (
-                    <span className="text-lg font-bold">
-                      <RiQuillPenLine />
-                    </span>
-                  )}
-                </Button>
+                {navEditMode && isNavigationEditable ? (
+                  showConfirmCancel ? (
+                    // Confirmation state - Back and Exit buttons
+                    <div className="w-full flex flex-col gap-2">
+                      <p className="w-full text-center text-xs pt-1 pl-8 pr-8">
+                        If you exit, any changes made will not be saved.
+                      </p>
+                      <div className="gap-2 flex items-center w-full">
+                        <Button
+                          onClick={() => setShowConfirmCancel(false)}
+                          size="icon"
+                          variant="secondary"
+                        >
+                          <FaChevronLeft aria-hidden="true" />
+                        </Button>
+                        <Button
+                          onClick={handleConfirmedCancel}
+                          variant="destructive"
+                          className="flex-1"
+                          withIcon
+                        >
+                          <FaTriangleExclamation
+                            className="h-8l shrink-0"
+                            aria-hidden="true"
+                          />
+                          <span>Exit</span>
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    // Always show X and Save buttons
+                    <div className="gap-2 flex items-center w-full">
+                      <Button
+                        onClick={handleCancelClick}
+                        size="icon"
+                        variant="secondary"
+                      >
+                        <FaX aria-hidden="true" />
+                      </Button>
+                      <Button
+                        onClick={handleCommit}
+                        disabled={isCommitting}
+                        variant="primary"
+                        className="flex-1"
+                        withIcon
+                      >
+                        {isCommitting ? (
+                          <>
+                            <FaSpinner className="animate-spin" aria-hidden="true" />
+                            <span>Committing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <FaFloppyDisk aria-hidden="true" />
+                            <span>Save</span>
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )
+                ) : (
+                  <Button
+                    onClick={openCastModal}
+                    id="open-cast-modal-button"
+                    width="auto"
+                    className="flex items-center justify-center w-12 h-12 font-medium rounded-md transition-colors"
+                    style={{
+                      backgroundColor: castButtonColors.backgroundColor,
+                      color: castButtonColors.fontColor,
+                      fontFamily: uiColors.fontFamily,
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = castButtonColors.backgroundColor;
+                    }}
+                    onMouseDown={(e) => {
+                      e.currentTarget.style.backgroundColor = castButtonColors.activeColor;
+                    }}
+                    onMouseUp={(e) => {
+                      e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
+                    }}
+                  >
+                    {shrunk ? <span className="sr-only">Cast</span> : "Cast"}
+                    {shrunk && (
+                      <span className="text-lg font-bold">
+                        <RiQuillPenLine />
+                      </span>
+                    )}
+                  </Button>
+                )}
               </div>
             )}
             {!isLoggedIn && (
               <div className="flex flex-col items-center gap-2">
-                <Link
-                href={discordUrl}
-                  className={mergeClasses(
-                    "flex items-center p-2 text-gray-900 rounded-lg dark:text-white group w-full gap-2 text-lg font-medium",
-                    shrunk ? "justify-center gap-0" : ""
-                  )}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                >
-                  <FaDiscord className="text-[#5865f2] w-6 h-6" />
-                  {!shrunk && "Join"}
-                </Link>
+                {navigation?.showSocials !== false && (
+                  <Link
+                    href={discordUrl}
+                    className={mergeClasses(
+                      "flex items-center p-2 text-gray-900 rounded-lg dark:text-white group w-full gap-2 text-lg font-medium",
+                      shrunk ? "justify-center gap-0" : ""
+                    )}
+                    style={navTextStyle}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    <FaDiscord className="text-[#5865f2] w-6 h-6" />
+                    {!shrunk && "Join"}
+                  </Link>
+                )}
                 <div
                   className="flex flex-col items-center text-xs text-gray-500 mt-5"
+                  style={navTextStyle}
                 >
                   <Link href="/terms" className="hover:underline">
                     Terms
@@ -526,6 +830,7 @@ const Navigation = React.memo(
               </div>
             )}
           </div>
+          
         </div>
       </div>
     </nav>

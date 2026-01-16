@@ -8,17 +8,17 @@ interface BadgeProps {
 const getStatusBadgeColor = (status: ProposalStatus): string => {
   switch (status) {
     case "Pending":
-      return "bg-yellow-500 w-16";
+      return "bg-yellow-500 min-w-16 text-center";
     case "Active":
-      return "bg-blue-400 w-16";
+      return "bg-blue-400 min-w-16 text-center";
     case "Passed":
-      return "bg-green-500 w-16";
+      return "bg-green-500 min-w-16 text-center";
     case "Failed":
-      return "bg-red-500 w-16";
+      return "bg-red-500 min-w-16 text-center";
     case "Closed":
-      return "bg-gray-500 w-16";
+      return "bg-gray-500 min-w-16 text-center";
     default:
-      return "bg-gray-500 w-16";
+      return "bg-gray-500 min-w-16 text-center";
   }
 };
 

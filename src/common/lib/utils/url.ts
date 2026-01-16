@@ -1,3 +1,11 @@
+export const resolveIpfsUrl = (url: string): string => {
+  if (!url) return url;
+  if (url.startsWith('ipfs://')) {
+    return url.replace('ipfs://', 'https://ipfs.io/ipfs/');
+  }
+  return url;
+};
+
 export const isValidUrl = (url: string): boolean => {
   try {
     return Boolean(new URL(url));

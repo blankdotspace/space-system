@@ -4,24 +4,23 @@ import { Button } from "@/common/components/atoms/button";
 import Spinner from "@/common/components/atoms/spinner";
 import HTMLInput from "@/common/components/molecules/HTMLInput";
 import { useToastStore } from "@/common/data/stores/toastStore";
-import { useAppStore } from "@/common/data/stores/app";
 import { ThemeSettingsTooltip } from "./components/ThemeSettingsTooltip";
 import { AnalyticsEvent } from "@/common/constants/analyticsEvents";
 import { analytics } from "@/common/providers/AnalyticsProvider";
-import { usePrivy } from "@privy-io/react-auth";
-import { Address, formatUnits, zeroAddress } from "viem";
-import { base } from "viem/chains";
-import { useBalance } from "wagmi";
-import { SPACE_CONTRACT_ADDR } from "@/constants/spaceToken";
+import { useTokenGate } from "@/common/lib/hooks/useTokenGate";
+import { MIN_SPACE_TOKENS_FOR_UNLOCK } from "@/common/constants/gates";
+import type { SystemConfig } from "@/config";
 
 interface BackgroundGeneratorProps {
   backgroundHTML: string;
   onChange: (value: string) => void;
+  systemConfig?: SystemConfig;
 }
 
 export const BackgroundGenerator = ({
   backgroundHTML,
   onChange,
+  systemConfig,
 }: BackgroundGeneratorProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateText, setGenerateText] = useState("Generate");
@@ -48,20 +47,8 @@ export const BackgroundGenerator = ({
     "Animated purple gradient",
   ];
 
-  const { user } = usePrivy();
-  const result = useBalance({
-    address: (user?.wallet?.address as Address) || zeroAddress,
-    token: SPACE_CONTRACT_ADDR as Address,
-    chainId: base.id,
-  });
-  const spaceHoldAmount = result?.data
-    ? parseInt(formatUnits(result.data.value, result.data.decimals))
-    : 0;
-  const userHoldEnoughSpace = spaceHoldAmount >= 1111;
-  const spaceLoading = result.isLoading || result.isFetching;
-  const { hasNogs } = useAppStore((state) => ({
-    hasNogs: state.account.hasNogs,
-  }));
+  // Use token gate hook for ERC20 token gating
+  const { hasEnoughTokens: userHoldEnoughSpace, isLoading: spaceLoading, hasNogs } = useTokenGate(systemConfig);
 
   // Sync gate state with token data
   useEffect(() => {
@@ -189,7 +176,7 @@ export const BackgroundGenerator = ({
       {showBanner && (
         <div className="flex gap-1 items-center border-2 border-red-600 text-red-600 bg-red-100 rounded-lg p-2 text-sm font-medium">
           <p>
-            Hold at least 1,111{" "}
+            Hold at least {MIN_SPACE_TOKENS_FOR_UNLOCK.toLocaleString()}{" "}
             <a
               target="_blank"
               rel="noreferrer"

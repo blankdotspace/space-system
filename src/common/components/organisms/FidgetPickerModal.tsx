@@ -11,11 +11,13 @@ import {
   MiniAppFidgetOption
 } from "@/common/types/fidgetOptions";
 import { Input } from "../atoms/input";
+import Image from "next/image";
+import clankerLogo from "@/config/clanker/assets/nobg.png";
 
 import { Search } from "lucide-react";
 
 // Tag configuration for consistent styling - Core 8 categories
-const TAG_CONFIG: Record<string, { color: string; icon: string; displayName?: string }> = {
+const TAG_CONFIG: Record<string, { color: string; icon: string | any; displayName?: string }> = {
   // Core Categories
   'social': { color: 'bg-pink-100 text-pink-800', icon: '👥', displayName: 'Social' },
   'defi': { color: 'bg-green-100 text-green-800', icon: '💰', displayName: 'DeFi' },
@@ -58,7 +60,7 @@ const TAG_CONFIG: Record<string, { color: string; icon: string; displayName?: st
   'tiktok': { color: 'bg-black text-white', icon: '🎵' },
   'skateboarding': { color: 'bg-orange-100 text-orange-800', icon: '🛹' },
   'aerodrome': { color: 'bg-blue-100 text-blue-800', icon: '✈️' },
-  'clanker': { color: 'bg-purple-100 text-purple-800', icon: '📊' },
+  'clanker': { color: 'bg-purple-100 text-purple-800', icon: clankerLogo, displayName: 'Clanker' },
   'scheduling': { color: 'bg-blue-100 text-blue-800', icon: '📅' },
   'presentations': { color: 'bg-gray-100 text-gray-800', icon: '📊' },
   'networking': { color: 'bg-blue-100 text-blue-800', icon: '👥' },
@@ -116,12 +118,31 @@ export const FidgetPickerModal: React.FC<FidgetPickerModalProps> = ({
   
   const service = FidgetOptionsService.getInstance();
 
-  // Get only the main category tags for filtering
+  // Get only the main category tags for filtering, sorted by order
   const mainCategoryTags = useMemo(() => {
-    const mainCategories = ['social', 'defi', 'tools', 'content', 'games', 'governance', 'mini-apps', 'social-impact'];
-    return mainCategories.filter(category => 
+    const categoryOrder: Record<string, number> = {
+      'clanker': 0,
+      'social': 1,
+      'defi': 2,
+      'content': 3,
+      'tools': 4,
+      'games': 5,
+      'governance': 6,
+      'social-impact': 7,
+      'mini-apps': 99,
+    };
+    
+    const mainCategories = ['clanker', 'social', 'defi', 'tools', 'content', 'games', 'governance', 'mini-apps', 'social-impact'];
+    const availableCategories = mainCategories.filter(category => 
       fidgetOptions.some(option => option.tags.includes(category))
     );
+    
+    // Sort by order, with clanker first
+    return availableCategories.sort((a, b) => {
+      const orderA = categoryOrder[a] ?? 999;
+      const orderB = categoryOrder[b] ?? 999;
+      return orderA - orderB;
+    });
   }, [fidgetOptions]);
 
   // Debounced search function
@@ -394,14 +415,24 @@ export const FidgetPickerModal: React.FC<FidgetPickerModalProps> = ({
                   <button
                     key={tag}
                     onClick={() => handleTagSelect(tag)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
+                    className={`flex items-center whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
                       isSelected
                         ? `${config.color} ring-2 ring-offset-2 ring-blue-500 shadow-sm`
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
-                    <span className="mr-1">{config.icon}</span>
-                    {config.displayName || tag}
+                    {typeof config.icon === 'object' || (typeof config.icon === 'string' && (config.icon.startsWith('http') || config.icon.startsWith('/'))) ? (
+                      <Image
+                        src={config.icon}
+                        alt={config.displayName || tag}
+                        width={11}
+                        height={11}
+                        className="w-[11px] h-[11px] mr-1 object-contain flex-shrink-0"
+                      />
+                    ) : (
+                      <span className="mr-1 flex-shrink-0">{config.icon}</span>
+                    )}
+                    <span className="flex-shrink-0">{config.displayName || tag}</span>
                   </button>
                 );
               })}

@@ -1,6 +1,8 @@
-import { WEBSITE_URL } from "@/constants/app";
 import { merge } from "lodash";
 import { Metadata } from "next";
+import { WEBSITE_URL } from "@/constants/app";
+import type { MetadataContext } from "@/common/lib/utils/metadataContext";
+import { normalizeTwitterHandle } from "@/common/lib/utils/normalizeTwitterHandle";
 
 export type UserMetadata = {
   fid?: number;
@@ -8,25 +10,33 @@ export type UserMetadata = {
   displayName?: string;
   pfpUrl?: string;
   bio?: string;
+  walletAddress?: string;
 };
 
 export const getUserMetadataStructure = (
   userMetadata: UserMetadata,
+  context?: MetadataContext,
 ): Metadata => {
   if (!userMetadata) {
     return {};
   }
 
   const { username, displayName, pfpUrl, bio } = userMetadata;
+  const baseUrl = context?.baseUrl ?? WEBSITE_URL;
+  const brandName = context?.brandName ?? "Nounspace";
+  const twitterHandle = normalizeTwitterHandle(context?.twitterHandle);
 
-  const title = `${displayName} (@${username}) on Nounspace`;
-  const spaceUrl = `https://nounspace.com/s/${username}`;
+  const title = `${displayName} (@${username}) on ${brandName}`;
+  const spaceUrl = username ? `${baseUrl}/s/${username}` : undefined;
 
-  const encodedDisplayName = encodeURIComponent(displayName || "");
-  const encodedPfpUrl = encodeURIComponent(pfpUrl || "");
-  const encodedBio = encodeURIComponent(bio || "");
+  const params = new URLSearchParams({
+    username: username || "",
+    displayName: displayName || "",
+    pfpUrl: pfpUrl || "",
+    bio: bio || "",
+  });
 
-  const ogImageUrl = `${WEBSITE_URL}/api/metadata/spaces?username=${username}&displayName=${encodedDisplayName}&pfpUrl=${encodedPfpUrl}&bio=${encodedBio}`;
+  const ogImageUrl = `${baseUrl}/api/metadata/spaces?${params.toString()}`;
   const ogImage = {
     url: ogImageUrl,
     width: 1200,
@@ -42,9 +52,9 @@ export const getUserMetadataStructure = (
     },
     twitter: {
       title,
-      site: "https://nounspace.com/",
       images: [ogImage],
       card: "summary_large_image",
+      ...(twitterHandle ? { site: twitterHandle } : {}),
     },
   };
 
@@ -59,8 +69,6 @@ export const getUserMetadataStructure = (
       },
     });
   }
-
-
 
   return metadata;
 };

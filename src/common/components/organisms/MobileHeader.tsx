@@ -22,12 +22,19 @@ import {
   CastDiscardPrompt,
 } from "../molecules/CastModalHelpers";
 import { toFarcasterCdnUrl } from "@/common/lib/utils/farcasterCdn";
+import { useUIColors } from "@/common/lib/hooks/useUIColors";
+import { SystemConfig } from "@/config";
 
+type MobileHeaderProps = {
+  systemConfig: SystemConfig;
+};
 
-const MobileHeader = () => {
+const MobileHeader = ({ systemConfig }: MobileHeaderProps) => {
   const setModalOpen = useAppStore((state) => state.setup.setModalOpen);
   const isLoggedIn = useAppStore((state) => state.getIsAccountReady());
   const isInitializing = useAppStore((state) => state.getIsInitializing());
+  
+  const uiColors = useUIColors({ systemConfig });
 
   const { setEditMode, sidebarEditable } = useSidebarContext();
 
@@ -123,25 +130,76 @@ const MobileHeader = () => {
     if (isInitializing && !timedOut) {
       // Shows a loading while initializing
       return (
-        <Button variant="primary" size="icon" disabled>
+        <Button 
+          size="icon" 
+          disabled
+          className="text-white font-medium rounded-md"
+          style={{ 
+            backgroundColor: uiColors.primaryColor,
+            fontFamily: uiColors.fontFamily,
+          }}
+        >
           <span className="animate-spin">⏳</span>
         </Button>
       );
     }
     if (isLoggedIn) {
       return (
-        <Button variant="primary" size="icon" onClick={() => setCastOpen(true)} aria-label="Cast">
-          <RiQuillPenLine className="w-5 h-5 text-white" />
+        <Button 
+          size="icon" 
+          onClick={() => setCastOpen(true)} 
+          aria-label="Cast"
+          className="font-medium rounded-md transition-colors"
+          style={{ 
+            backgroundColor: uiColors.castButton.backgroundColor,
+            color: uiColors.castButtonFontColor,
+            fontFamily: uiColors.fontFamily,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = uiColors.castButton.hoverColor;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = uiColors.castButton.backgroundColor;
+          }}
+          onMouseDown={(e) => {
+            e.currentTarget.style.backgroundColor = uiColors.castButton.activeColor;
+          }}
+          onMouseUp={(e) => {
+            e.currentTarget.style.backgroundColor = uiColors.castButton.hoverColor;
+          }}
+        >
+          <RiQuillPenLine className="w-5 h-5" style={{ color: uiColors.castButtonFontColor }} />
         </Button>
       );
     }
     return (
-      <Button variant="primary" size="sm" onClick={openLogin} withIcon>
+      <Button 
+        size="sm" 
+        onClick={openLogin} 
+        withIcon
+        className="text-white font-medium rounded-md transition-colors"
+        style={{ 
+          backgroundColor: uiColors.primaryColor,
+          fontFamily: uiColors.fontFamily,
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = uiColors.primaryHoverColor;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = uiColors.primaryColor;
+        }}
+        onMouseDown={(e) => {
+          e.currentTarget.style.backgroundColor = uiColors.primaryActiveColor;
+        }}
+        onMouseUp={(e) => {
+          e.currentTarget.style.backgroundColor = uiColors.primaryHoverColor;
+        }}
+      >
         <LogIn size={16} />
         Sign In
       </Button>
     );
-  }, [isLoggedIn, isInitializing, timedOut, openLogin]);
+  }, [isLoggedIn, isInitializing, timedOut, openLogin, uiColors]);
 
   // Memoize drawer change handler
   const handleDrawerOpenChange = useCallback((open: boolean) => {
@@ -208,15 +266,23 @@ const MobileHeader = () => {
   }, [shouldConfirmCastClose]);
 
   return (
-    <header className="z-30 flex items-center justify-between h-14 px-4 bg-white overflow-hidden sticky top-0">
+    <header
+      className="z-30 flex items-center justify-between h-14 px-4 overflow-hidden sticky top-0"
+      style={{
+        backgroundColor: uiColors.backgroundColor,
+        color: uiColors.fontColor,
+        fontFamily: uiColors.fontFamily,
+      }}
+    >
       <div className="flex items-center gap-2">{isLoggedIn ? userAvatar : menuButton}</div>
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-        <BrandHeader />
+        <BrandHeader systemConfig={systemConfig} />
       </div>
       <div className="flex items-center gap-2">{actionButton}</div>
       <Drawer open={navOpen} onOpenChange={handleDrawerOpenChange}>
         <DrawerContent className="p-0" showCloseButton={false}>
           <Navigation
+            systemConfig={systemConfig}
             isEditable={sidebarEditable}
             enterEditMode={enterEditMode}
             mobile
@@ -240,11 +306,13 @@ const MobileHeader = () => {
             <CreateCast
               afterSubmit={closeCastModal}
               onShouldConfirmCloseChange={setShouldConfirmCastClose}
+              systemConfig={systemConfig}
             />
             <CastDiscardPrompt
               open={showCastDiscardPrompt}
               onClose={handleCancelDiscard}
               onDiscard={handleDiscardCast}
+              systemConfig={systemConfig}
             />
           </>
         </CastModalPortalBoundary>

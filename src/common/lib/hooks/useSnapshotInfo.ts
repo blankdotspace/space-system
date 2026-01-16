@@ -1,15 +1,16 @@
 // src/hooks/useSnapshotProposals.ts
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 interface FetchSpaceParams {
   ens: string;
+  apiUrl?: string;
 }
 
 const spaceQuery = (ens: string) => `
 query Spaces {
   spaces(
-    where: { id: "${ens}" }
+    where: { id_in: ["${ens}"] }
   ) {
     id
     name
@@ -46,17 +47,17 @@ query Spaces {
 }
 `;
 
-export const useSnapShotInfo = ({ ens }: FetchSpaceParams) => {
+export const useSnapShotInfo = ({ ens, apiUrl = "https://hub.snapshot.org/graphql" }: FetchSpaceParams) => {
   const [snapShotInfo, setSnapShotInfo] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProposals = async () => {
       try {
-        const response = await fetch("https://hub.snapshot.org/graphql", {
+        const response = await fetch(apiUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: spaceQuery(ens) }),
+          body: JSON.stringify({ query: spaceQuery(ens?.toLowerCase()) }),
         });
         if (response.ok) {
           const data = await response.json();

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="256" viewBox="0 0 512 256">
+  <rect width="100%" height="100%" fill="#ffffff"/>
+  <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#000" font-family="Inter, Arial, sans-serif" font-size="28">Nouns Logo</text>
+  <rect x="8" y="8" width="496" height="240" fill="none" stroke="#e5e5e5" stroke-width="2"/>
+</svg>
+

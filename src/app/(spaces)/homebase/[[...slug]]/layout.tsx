@@ -1,19 +1,68 @@
 import React from "react";
 import type { Metadata } from "next/types";
 
-import { WEBSITE_URL } from "@/constants/app";
 import { CastParamType } from "@neynar/nodejs-sdk/build/api";
 import neynar from "@/common/data/api/neynar";
 import { getCastMetadataStructure } from "@/common/lib/utils/castMetadata";
-import { defaultFrame } from "@/constants/metadata";
+import { loadSystemConfig, type SystemConfig } from "@/config";
+import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
+import type { Embed } from "@neynar/nodejs-sdk/build/api";
+import { buildDefaultFrameMetadata, getDefaultFrameAssets } from "@/common/lib/utils/defaultMetadata";
+import { buildMiniAppEmbed } from "@/common/lib/utils/miniAppEmbed";
+import { resolveMiniAppDomain } from "@/common/lib/utils/miniAppDomain";
 
-const defaultMetadata = {
-  other: {
-    "fc:frame": JSON.stringify(defaultFrame),
-  },
-};
+async function buildDefaultMetadata(systemConfig: SystemConfig, baseUrl: string): Promise<Metadata> {
+  const { defaultFrame, defaultImage, splashImageUrl } = await getDefaultFrameAssets(systemConfig, baseUrl);
+  const brandName = systemConfig.brand.displayName;
+  const miniAppDomain = resolveMiniAppDomain(baseUrl);
+  const defaultMiniApp = buildMiniAppEmbed({
+    imageUrl: defaultImage,
+    buttonTitle: `Open ${brandName}`,
+    actionUrl: baseUrl,
+    actionName: brandName,
+    splashImageUrl,
+  });
+  return {
+    other: {
+      "fc:frame": JSON.stringify(defaultFrame),
+      "fc:miniapp": JSON.stringify(defaultMiniApp),
+      "fc:miniapp:domain": miniAppDomain,
+    },
+  };
+}
 
-export async function generateMetadata({ params }): Promise<Metadata> {
+function resolveCastEmbedImageUrl(embeds?: Embed[]): string | undefined {
+  if (!embeds || embeds.length === 0) {
+    return undefined;
+  }
+
+  for (const embed of embeds) {
+    if ("url" in embed) {
+      const ogImageUrl = embed.metadata?.html?.ogImage?.[0]?.url;
+      if (ogImageUrl) {
+        return ogImageUrl;
+      }
+
+      if (embed.metadata?.content_type?.startsWith("image/")) {
+        return embed.url;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug?: string[] }>;
+}): Promise<Metadata> {
+  const systemConfig = await loadSystemConfig();
+  const baseUrl = await resolveBaseUrl({ systemConfig });
+  const brandName = systemConfig.brand.displayName;
+  const miniAppDomain = resolveMiniAppDomain(baseUrl);
+  const twitterHandle = systemConfig.community.social?.x;
+  const { splashImageUrl } = await getDefaultFrameAssets(systemConfig, baseUrl);
   const { slug } = await params;
   const segments: string[] = Array.isArray(slug) ? slug : [];
   let castHash: string | undefined;
@@ -27,7 +76,7 @@ export async function generateMetadata({ params }): Promise<Metadata> {
   }
 
   if (!castHash) {
-    return defaultMetadata;
+    return buildDefaultMetadata(systemConfig, baseUrl);
   }
 
   try {
@@ -35,16 +84,21 @@ export async function generateMetadata({ params }): Promise<Metadata> {
       identifier: castHash,
       type: CastParamType.Hash,
     });
+    const embedImageUrl = resolveCastEmbedImageUrl(cast.embeds);
 
-    const baseMetadata = getCastMetadataStructure({
-      hash: cast.hash,
-      username: cast.author.username,
-      displayName: cast.author.display_name,
-      pfpUrl: cast.author.pfp_url,
-      text: cast.text,
-    });
+    const baseMetadata = getCastMetadataStructure(
+      {
+        hash: cast.hash,
+        username: cast.author.username,
+        displayName: cast.author.display_name,
+        pfpUrl: cast.author.pfp_url,
+        text: cast.text,
+        embedImageUrl,
+      },
+      { baseUrl, brandName, twitterHandle },
+    );
 
-    const castUrl = `${WEBSITE_URL}/homebase/c/${cast.author.username}/${cast.hash}`;
+    const castUrl = `${baseUrl}/homebase/c/${cast.author.username}/${cast.hash}`;
     const ogImageUrl = baseMetadata.openGraph?.images?.[0]?.url ?? "";
 
     const castFrame = {
@@ -55,21 +109,36 @@ export async function generateMetadata({ params }): Promise<Metadata> {
         action: {
           type: "launch_frame",
           url: castUrl,
-          name: `Cast by @${cast.author.username} on Nounspace`,
-          splashImageUrl: `${WEBSITE_URL}/images/nounspace_logo.png`,
+          name: `Cast by @${cast.author.username} on ${brandName}`,
+          splashImageUrl,
           splashBackgroundColor: "#FFFFFF",
         },
       },
     };
 
+    const castMiniApp = buildMiniAppEmbed({
+      imageUrl: ogImageUrl,
+      buttonTitle: `View @${cast.author.username}'s Cast`,
+      actionUrl: castUrl,
+      actionName: `Cast by @${cast.author.username} on ${brandName}`,
+      splashImageUrl,
+    });
+
     return {
       ...baseMetadata,
-      other: { "fc:frame": JSON.stringify(castFrame) },
+      other: {
+        "fc:frame": JSON.stringify(castFrame),
+        "fc:miniapp": JSON.stringify(castMiniApp),
+        "fc:miniapp:domain": miniAppDomain,
+      },
     };
   } catch (error) {
     console.error("Error generating cast metadata:", error);
-    const baseMetadata = getCastMetadataStructure({ hash: castHash, username });
-    const castUrl = username && castHash ? `${WEBSITE_URL}/homebase/c/${username}/${castHash}` : undefined;
+    const baseMetadata = getCastMetadataStructure(
+      { hash: castHash, username },
+      { baseUrl, brandName, twitterHandle },
+    );
+    const castUrl = username && castHash ? `${baseUrl}/homebase/c/${username}/${castHash}` : undefined;
     const ogImageUrl = baseMetadata.openGraph?.images?.[0]?.url ?? "";
     const castFrame = {
       version: "next",
@@ -79,13 +148,27 @@ export async function generateMetadata({ params }): Promise<Metadata> {
         action: {
           type: "launch_frame",
           url: castUrl,
-          name: "Farcaster Cast on Nounspace",
-          splashImageUrl: `${WEBSITE_URL}/images/nounspace_logo.png`,
+          name: `Farcaster Cast on ${brandName}`,
+          splashImageUrl,
           splashBackgroundColor: "#FFFFFF",
         },
       },
     };
-    return { ...baseMetadata, other: { "fc:frame": JSON.stringify(castFrame) } };
+    const castMiniApp = buildMiniAppEmbed({
+      imageUrl: ogImageUrl,
+      buttonTitle: "View Cast",
+      actionUrl: castUrl ?? baseUrl,
+      actionName: `Farcaster Cast on ${brandName}`,
+      splashImageUrl,
+    });
+    return {
+      ...baseMetadata,
+      other: {
+        "fc:frame": JSON.stringify(castFrame),
+        "fc:miniapp": JSON.stringify(castMiniApp),
+        "fc:miniapp:domain": miniAppDomain,
+      },
+    };
   }
 }
 

@@ -1,4 +1,5 @@
 import React from "react";
+import SpotifyEmbed from "./SpotifyEmbed";
 import EmbededCast from "./EmbededCast";
 import OnchainEmbed from "./OnchainEmbed";
 import TweetEmbed from "./TweetEmbed";
@@ -10,6 +11,7 @@ import SmartFrameEmbed from "./SmartFrameEmbed";
 import ZoraEmbed from "./ZoraEmbed";
 import { isImageUrl, isVideoUrl } from "@/common/lib/utils/urls";
 import CreateCastImage from "./createCastImage";
+import { type EmbedUrlMetadata } from "@neynar/nodejs-sdk/build/api/models";
 
 export type CastEmbed = {
   url?: string;
@@ -18,11 +20,13 @@ export type CastEmbed = {
     hash: string | Uint8Array;
   };
   key?: string;
+  metadata?: EmbedUrlMetadata;
 };
 
 export const renderEmbedForUrl = (
-  { url, castId, key }: CastEmbed,
-  isCreateCast: boolean
+  { url, castId, key, metadata }: CastEmbed,
+  isCreateCast: boolean,
+  allowOpenGraph = true
 ) => {
   if (castId) {
     return <EmbededCast castId={castId} key={key} />;
@@ -64,10 +68,19 @@ export const renderEmbedForUrl = (
     return <ZoraEmbed url={url} key={key} />;
   } else if (url.includes("paragraph.xyz") || url.includes("pgrph.xyz")) {
     return <ParagraphXyzEmbed url={url} key={key} />;
+  } else if (url.startsWith("https://open.spotify.com/track")) {
+    return <SpotifyEmbed url={url} key={key} />;
   } else if (!isImageUrl(url)) {
     // Use smart frame detection to render Frame v2 when possible
     // Falls back to legacy frame system if Frame v2 metadata is not detected
-    return <SmartFrameEmbed url={url} key={key} />;
+    return (
+      <SmartFrameEmbed
+        url={url}
+        key={key}
+        allowOpenGraph={allowOpenGraph}
+        metadata={metadata}
+      />
+    );
   } else {
     return null;
   }

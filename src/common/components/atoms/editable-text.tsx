@@ -1,6 +1,7 @@
 import React from "react";
 import _ from "lodash";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { validateTabName } from "@/common/utils/tabUtils";
 
 const inputValue = (e: any): string => e.target.value;
 
@@ -8,28 +9,53 @@ function isEnterOrEscapeKeyEvent(event: React.KeyboardEvent<HTMLInputElement>) {
   return event.key === "Enter" || event.key === "Escape";
 }
 
-const EditableText = ({ initialText, updateMethod }) => {
+interface EditableTextProps {
+  initialText: string;
+  updateMethod: (oldText: string, newText: string) => void;
+  validateInput?: (text: string) => string | null; // Returns error message or null
+  maxLength?: number;
+}
+
+const EditableText = ({ 
+  initialText, 
+  updateMethod,
+  validateInput,
+  maxLength = 22,
+}: EditableTextProps) => {
   const [isEditing, setisEditing] = useState(false);
   const [text, settext] = useState(initialText);
 
+  // Sync text state when initialText changes (when not editing)
+  useEffect(() => {
+    if (!isEditing) {
+      settext(initialText);
+    }
+  }, [initialText, isEditing]);
+
   const onEditEnd = () => {
-    // Validate characters before calling updateMethod
-    if (/[^a-zA-Z0-9-_ ]/.test(text)) {
+    const trimmedText = text.trim();
+    
+    // Use provided validation function, or fall back to default tab name validation
+    const validationError = validateInput 
+      ? validateInput(trimmedText)
+      : validateTabName(trimmedText);
+    
+    if (validationError) {
       // Reset text to original and stay in edit mode
       settext(initialText);
-      console.warn("Invalid characters in tab name:", text);
+      console.warn("Invalid input:", validationError);
       return; // Don't exit edit mode, don't call updateMethod
     }
     
     setisEditing(false);
-    updateMethod(initialText, text);
+    updateMethod(initialText, trimmedText);
   };
 
   return isEditing ? (
     <input
       value={text}
-      className="bg-transparent border-none"
-      maxLength={22}
+      className="bg-transparent border-none outline-none w-full min-w-0"
+      maxLength={maxLength}
       onKeyDown={(event) => {
         if (isEnterOrEscapeKeyEvent(event)) {
           event.preventDefault();
@@ -39,10 +65,26 @@ const EditableText = ({ initialText, updateMethod }) => {
       }}
       onChange={_.flow(inputValue, settext)}
       onBlur={onEditEnd}
+      onClick={(e) => {
+        // Prevent navigation when clicking on input
+        e.stopPropagation();
+      }}
+      onDoubleClick={(e) => {
+        // Prevent navigation when double-clicking on input (select all text)
+        e.stopPropagation();
+        e.preventDefault();
+      }}
       autoFocus
     />
   ) : (
-    <div className="select-none" onDoubleClick={() => setisEditing(true)}>
+    <div 
+      className="select-none min-w-0" 
+      onDoubleClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setisEditing(true);
+      }}
+    >
       {text}
     </div>
   );

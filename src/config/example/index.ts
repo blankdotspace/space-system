@@ -1,22 +1,9 @@
-import { exampleBrand } from './example.brand';
-import { exampleAssets } from './example.assets';
-import { exampleTheme } from './example.theme';
-import { exampleCommunity } from './example.community';
-import { exampleFidgets } from './example.fidgets';
-import { exampleHomePage } from './example.home';
-
-export const exampleSystemConfig = {
-  brand: exampleBrand,
-  assets: exampleAssets,
-  theme: exampleTheme,
-  community: exampleCommunity,
-  fidgets: exampleFidgets,
-  homePage: exampleHomePage,
-};
-
+// Export individual config pieces (used by seed scripts and page configs)
 export { exampleBrand } from './example.brand';
 export { exampleAssets } from './example.assets';
 export { exampleTheme } from './example.theme';
 export { exampleCommunity } from './example.community';
 export { exampleFidgets } from './example.fidgets';
 export { exampleHomePage } from './example.home';
+export { exampleExplorePage } from './example.explore';
+export { exampleUI } from './example.ui';

@@ -9,6 +9,7 @@ import {
 } from "../atoms/tooltip";
 import { useToken } from "@/common/providers/TokenProvider";
 import { Address } from "viem";
+import { useUIColors } from "@/common/lib/hooks/useUIColors";
 
 interface ClaimButtonWithModalProps {
   contractAddress?: Address;
@@ -20,6 +21,7 @@ const ClaimButtonWithModal: React.FC<ClaimButtonWithModalProps> = ({
   tokenSymbol,
 }) => {
   const [isModalOpen, setModalOpenState] = React.useState(false);
+  const uiColors = useUIColors();
   let tokenData: ReturnType<typeof useToken>["tokenData"] | null = null;
   try {
     // Attempt to read token data if a TokenProvider is present
@@ -49,9 +51,14 @@ const ClaimButtonWithModal: React.FC<ClaimButtonWithModalProps> = ({
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              className="line-clamp-1 min-w-40 max-w-xs truncate"
-              variant="primary"
-              color="primary"
+              className="line-clamp-1 min-w-40 max-w-xs truncate text-white font-medium transition-colors"
+              style={{ backgroundColor: uiColors.primaryColor }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = uiColors.primaryHoverColor;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = uiColors.primaryColor;
+              }}
               onClick={handleClaimClick}
             >
               Claim this Space

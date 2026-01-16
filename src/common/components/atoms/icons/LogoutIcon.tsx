@@ -2,7 +2,7 @@ import React from "react";
 
 const LogoutIcon = () => (
   <svg
-    className="w-[24px] h-[24px] text-gray-800 dark:text-white scale-x-[-1] translate-x-[2px]"
+    className="w-[24px] h-[24px] text-current scale-x-[-1] translate-x-[2px]"
     aria-hidden="true"
     xmlns="http://www.w3.org/2000/svg"
     width="24"

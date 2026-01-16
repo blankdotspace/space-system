@@ -3,7 +3,10 @@ import {
   extractNeynarPrimaryAddress,
   extractNeynarSocialAccounts,
 } from "@/common/data/api/token/utils";
-import type { DirectoryMemberData } from "../types";
+import type {
+  DirectoryMemberData,
+  DirectoryMemberViewerContext,
+} from "../types";
 
 /**
  * Type for Neynar user objects
@@ -14,7 +17,27 @@ export type NeynarUser = {
   display_name?: string | null;
   pfp_url?: string | null;
   follower_count?: number | null;
+  viewer_context?: {
+    following?: boolean | null;
+  } | null;
 };
+
+export function extractViewerContext(
+  user: NeynarUser | undefined,
+): DirectoryMemberViewerContext | null {
+  if (!user || typeof user !== "object") {
+    return null;
+  }
+  const context = user.viewer_context;
+  if (!context || typeof context !== "object") {
+    return null;
+  }
+  const following = context.following;
+  if (typeof following === "boolean" || following === null) {
+    return { following };
+  }
+  return null;
+}
 
 /**
  * Helper to normalize various user shapes coming from Neynar
@@ -54,6 +77,7 @@ export function mapNeynarUserToMember(u: NeynarUser): DirectoryMemberData {
     xUrl: userXUrl,
     githubHandle: userGithubHandle,
     githubUrl: userGithubUrl,
+    viewerContext: extractViewerContext(u),
   };
 }
 
@@ -84,6 +108,7 @@ export function createDefaultMemberForCsv(
       xUrl: null,
       githubHandle: null,
       githubUrl: null,
+      viewerContext: null,
     };
   }
   if (type === "fid") {
@@ -106,6 +131,7 @@ export function createDefaultMemberForCsv(
       xUrl: null,
       githubHandle: null,
       githubUrl: null,
+      viewerContext: null,
     };
   }
   // address
@@ -128,6 +154,7 @@ export function createDefaultMemberForCsv(
     xUrl: null,
     githubHandle: null,
     githubUrl: null,
+    viewerContext: null,
   };
 }
 

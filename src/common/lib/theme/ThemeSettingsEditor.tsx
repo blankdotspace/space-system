@@ -1,6 +1,5 @@
 /* eslint-disable react/react-in-jsx-scope */
 import { Button } from "@/common/components/atoms/button";
-import BackArrowIcon from "@/common/components/atoms/icons/BackArrow";
 import {
   Tabs,
   TabsContent
@@ -29,6 +28,8 @@ import { SparklesIcon } from "@heroicons/react/24/solid";
 import { useCallback, useEffect, useState } from "react";
 import { FaFloppyDisk, FaTriangleExclamation, FaX } from "react-icons/fa6";
 import { MdMenuBook } from "react-icons/md";
+import { useSidebarContext } from "@/common/components/organisms/Sidebar";
+import BackArrowIcon from "@/common/components/atoms/icons/BackArrow";
 import CodeTabContent from "./components/CodeTabContent";
 import MobileTabContent from "./components/MobileTabContent";
 import SpaceTabContent from "./components/SpaceTabContent";
@@ -185,6 +186,9 @@ export function ThemeSettingsEditor({
   const { mobilePreview, setMobilePreview } = useMobilePreview();
   const [tabValue, setTabValue] = useState(mobilePreview ? ThemeEditorTab.MOBILE : ThemeEditorTab.SPACE);
   const [showVibeEditor, setShowVibeEditor] = useState(false);
+  
+  // Check if we're in navigation edit mode - if so, show back button instead of save/exit
+  const { navEditMode, setEditMode } = useSidebarContext();
 
   // Our theme and mobile app helpers
   const { activeTheme, themePropSetter, handleApplyTheme } = useThemeManager(theme, saveTheme);
@@ -427,7 +431,26 @@ export function ThemeSettingsEditor({
 
           {/* Actions */}
           <div className="shrink-0 flex flex-col gap-3 pb-8">
-            {showConfirmCancel ? (
+            {navEditMode ? (
+              // Back Button (shows when in nav edit mode)
+              // Space changes are staged but not committed until nav commits
+              <div className="gap-2 pt-2 flex items-center justify-center">
+                <Button
+                  onClick={() => {
+                    // Save theme locally but don't commit - changes will be committed with nav
+                    saveTheme(theme);
+                    // Exit space edit mode to return to nav edit mode
+                    setEditMode(false);
+                  }}
+                  variant="secondary"
+                  width="auto"
+                  withIcon
+                >
+                  <BackArrowIcon />
+                  <span>Back to Navigation</span>
+                </Button>
+              </div>
+            ) : showConfirmCancel ? (
               // Back Button and Exit Button (shows second)
               <>
                 <p className="w-full text-center text-xs pt-1 pl-8 pr-8">

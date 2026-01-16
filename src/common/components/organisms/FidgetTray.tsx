@@ -11,6 +11,7 @@ import {
   TooltipProvider,
 } from "@/common/components/atoms/tooltip";
 import { FaInfoCircle } from "react-icons/fa";
+import { useUIColors } from "@/common/lib/hooks/useUIColors";
 export interface FidgetTrayProps {
   setExternalDraggedItem: Dispatch<
     SetStateAction<{ i: string; w: number; h: number } | undefined>
@@ -29,9 +30,12 @@ export const FidgetTray: React.FC<FidgetTrayProps> = ({
   contents,
   setExternalDraggedItem,
   openFidgetPicker,
+  saveTrayContents,
+  removeFidget,
   selectedFidgetID,
   selectFidget,
 }) => {
+  const uiColors = useUIColors();
   const hasContents = contents.length > 0;
   
   return (
@@ -111,7 +115,18 @@ export const FidgetTray: React.FC<FidgetTrayProps> = ({
           );
         })}
         <div className="flex justify-center items-center w-full">
-          <Button onClick={openFidgetPicker} withIcon variant="primary">
+          <Button 
+            onClick={openFidgetPicker} 
+            withIcon
+            className="text-white font-medium transition-colors"
+            style={{ backgroundColor: uiColors.primaryColor }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = uiColors.primaryHoverColor;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = uiColors.primaryColor;
+            }}
+          >
             <div className="text-white [&_svg_path]:stroke-white">
               <AddFidgetIcon />
             </div>

@@ -1,9 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, { useMemo } from "react";
 import Image from "next/image";
-import { getYouTubeId, isYouTubeUrl } from "@/common/lib/utils/youtubeUtils";
+import { getYouTubeId } from "@/common/lib/utils/youtubeUtils";
+import {
+  type EmbedUrlMetadata,
+  type OgObject,
+} from "@neynar/nodejs-sdk/build/api/models";
 
 interface OpenGraphEmbedProps {
   url: string;
+  metadata?: EmbedUrlMetadata;
 }
 
 interface OpenGraphData {
@@ -14,36 +19,33 @@ interface OpenGraphData {
   url?: string;
 }
 
-const OpenGraphEmbed: React.FC<OpenGraphEmbedProps> = ({ url }) => {
-  const [ogData, setOgData] = useState<OpenGraphData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const pickOgImage = (ogImage?: OgObject["ogImage"]) => {
+  if (!ogImage) return undefined;
+  if (typeof ogImage === "string") return ogImage;
+  if (!Array.isArray(ogImage)) return undefined;
+  const withUrl = ogImage.find((image) => Boolean(image?.url));
+  return withUrl?.url;
+};
 
-  useEffect(() => {
-    if (isYouTubeUrl(url)) {
-      setIsLoading(false);
-      return;
-    }
-    const fetchOGData = async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch(
-          `/api/opengraph?url=${encodeURIComponent(url)}`
-        );
-        if (!response.ok) {
-          throw new Error(`Failed to fetch: ${response.statusText}`);
-        }
-        const data = await response.json();
-        setOgData(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Unknown error");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchOGData();
-  }, [url]);
+const buildOgDataFromMetadata = (
+  url: string,
+  metadata?: EmbedUrlMetadata
+): OpenGraphData | null => {
+  const html = metadata?.html;
+  if (!html) return null;
 
+  const image = pickOgImage(html.ogImage);
+
+  return {
+    title: html.ogTitle || html.ogSiteName,
+    description: html.ogDescription,
+    image,
+    siteName: html.ogSiteName,
+    url: html.ogUrl || url,
+  };
+};
+
+const OpenGraphEmbed: React.FC<OpenGraphEmbedProps> = ({ url, metadata }) => {
   const youtubeId = getYouTubeId(url);
   if (youtubeId) {
     return (
@@ -59,28 +61,24 @@ const OpenGraphEmbed: React.FC<OpenGraphEmbedProps> = ({ url }) => {
     );
   }
 
-  if (isLoading) {
-    return (
-      <div className="border border-gray-200 rounded-lg p-4 w-full max-w-2xl">
-        <div className="animate-pulse">
-          <div className="bg-gray-300 h-4 rounded w-3/4 mb-2"></div>
-          <div className="bg-gray-300 h-3 rounded w-1/2"></div>
-        </div>
-      </div>
-    );
-  }
+  const ogData = useMemo(
+    () => buildOgDataFromMetadata(url, metadata),
+    [metadata, url]
+  );
 
-  if (error || !ogData) {
-    return (
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center text-blue-500 hover:text-blue-700 hover:underline"
-      >
-        🔗 {new URL(url).hostname}
-      </a>
-    );
+  const domain = useMemo(() => {
+    try {
+      return new URL(ogData?.url || url).hostname.replace(/^www\./, "");
+    } catch (err) {
+      console.debug("Failed to parse domain for OpenGraph embed", err);
+      return "";
+    }
+  }, [ogData?.url, url]);
+
+  const title = ogData?.title || ogData?.siteName || domain;
+
+  if (!ogData?.image || !title) {
+    return null;
   }
 
   return (
@@ -88,36 +86,29 @@ const OpenGraphEmbed: React.FC<OpenGraphEmbedProps> = ({ url }) => {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="block border border-gray-200 rounded-lg overflow-hidden hover:border-gray-300 transition-colors w-full max-w-2xl"
+      className="block w-full max-w-full sm:max-w-[400px]"
     >
-      {ogData.image && (
-        <div className="relative w-full h-48">
-          <Image
-            src={ogData.image}
-            alt={ogData.title || "Link preview"}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          />
-        </div>
-      )}
-      <div className="p-4">
-        {ogData.title && (
-          <h3 className="font-semibold text-gray-900 mb-1 line-clamp-2">
-            {ogData.title}
-          </h3>
-        )}
-        {ogData.description && (
-          <p className="text-gray-600 text-sm mb-2 line-clamp-2">
-            {ogData.description}
-          </p>
-        )}
-        <div className="flex items-center text-gray-500 text-xs">
-          <span className="truncate">
-            {ogData.siteName || new URL(url).hostname}
-          </span>
+      <div className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl bg-foreground/10">
+        <Image
+          src={ogData.image}
+          alt={title}
+          fill
+          className="object-cover"
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 75vw, 50vw"
+        />
+
+        <div className="absolute bottom-3 left-3 right-3 flex">
+          <div className="inline-flex max-w-full items-center rounded-lg bg-black/65 px-3 py-2 backdrop-blur-sm">
+            <p className="line-clamp-2 text-sm font-semibold leading-snug text-white">
+              {title}
+            </p>
+          </div>
         </div>
       </div>
+
+      {domain ? (
+        <div className="mt-2 text-sm text-foreground/60 pl-3">{domain}</div>
+      ) : null}
     </a>
   );
 };

@@ -112,16 +112,6 @@ export const CURATED_SITES: Omit<CuratedFidgetOption, 'id'>[] = [
     url: 'https://aerodrome.finance/dash?',
     popularity: 80
   },
-  {
-    type: 'curated',
-    name: 'Clanker',
-    description: 'DeFi analytics and tracking',
-    icon: '📊',
-    tags: ['defi', 'analytics', 'clanker'],
-    category: 'defi',
-    url: 'https://clanker.world',
-    popularity: 85
-  },
 
   // Governance
   {

@@ -15,6 +15,8 @@ import {
 import { Action, initialState, reducer, State } from "../utils/stateManagement";
 import voteOnProposal, { ProposalType } from "../utils/voteOnProposal";
 
+import { resolveIpfsUrl } from "@/common/lib/utils/url";
+
 interface Proposal {
   id: string;
   title: string;
@@ -64,8 +66,8 @@ const ProposalItem: React.FC<ProposalItemProps> = memo(
       };
 
       return (
-        extractImageUrl(proposal.body) ||
-        `https://cdn.stamp.fyi/space/${proposal.space.id.toString()}?s=96&cb=80b2fc0910dab4fa`
+        resolveIpfsUrl(extractImageUrl(proposal.body) ||
+        `https://cdn.stamp.fyi/space/${proposal.space.id.toString()}?s=96&cb=80b2fc0910dab4fa`)
       );
     }, [proposal.body, proposal.space.id]);
 

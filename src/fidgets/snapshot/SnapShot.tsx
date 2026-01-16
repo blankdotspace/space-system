@@ -133,6 +133,7 @@ export const SnapShot: React.FC<FidgetArgs<SnapShotSettings>> = ({
     ens: settings.snapshotEns,
     skip,
     first,
+    apiUrl: settings.subgraphUrl,
   });
 
   // Helper function to get CSS variable or fallback to setting value

@@ -23,16 +23,16 @@ We wrote this notice in plain English so you can quickly understand what data we
 | **Account basics** | Farcaster username, wallet address (public key) | You connect a wallet / log in with Farcaster | To recognise you, check token-gated access, show your profile |
 | **Public space settings** | Title, theme, layout, bio | You configure a Space | To display your Space to you and the public |
 | **Dashboard ("Homebase") settings** | Feeds you follow, layout, filters | Saved client-side and synced to us **encrypted** | So your private dashboard loads the same on any device |
-| **Usage analytics** | Page views, button clicks, feature usage, event timestamps, truncated/hashed device ID; **IP address used momentarily for geolocation lookup only** | Automatically via **Segment**, **Mixpanel**, and **Fullstory** SDKs | To troubleshoot bugs, understand which features people like, and improve the app |
-| **Device & browser info** | Browser type, OS, screen size | Segment / Mixpanel / Fullstory | Same as above |
+| **Usage analytics** | Page views, button clicks, feature usage, event timestamps, truncated/hashed device ID; **IP address used momentarily for geolocation lookup only** | Automatically via **Mixpanel** SDK | To troubleshoot bugs, understand which features people like, and improve the app |
+| **Device & browser info** | Browser type, OS, screen size | Mixpanel | Same as above |
 **We do *not* collect:** real name, email, phone number, private keys, or full IP addresses stored alongside your profile.
 ---
 ## **3. Cookies & similar tech**
-We use first-party cookies (or local-storage tokens) plus Segment, Mixpanel, and Fullstory cookies to remember you, measure product usage, and review anonymised session replays for UX improvements. You can clear or block these in your browser settings; the core app will still work but analytics accuracy drops.
+We use first-party cookies (or local-storage tokens) plus Mixpanel cookies to remember you, measure product usage, and review anonymised session replays for UX improvements. You can clear or block these in your browser settings; the core app will still work but analytics accuracy drops.
 ---
 ## **4. How we use your data**
 1. **Provide the service** - load your Spaces, verify token-gated features.
-2. **Improve nounspace** - aggregate analytics and privacy-screened session replays (Segment, Mixpanel, Fullstory) help us see what breaks or what's popular.
+2. **Improve nounspace** - aggregate analytics and privacy-screened session replays (Mixpanel) help us see what breaks or what's popular.
 3. **Security & fraud prevention** - spot abuse or automated attacks.
 4. **Legal compliance** - keep records required by law or to defend our rights.
 We **do not** sell or rent your personal data.
@@ -40,9 +40,7 @@ We **do not** sell or rent your personal data.
 ## **5. When we share data**
 | Who | What they see | Purpose |
 | ----- | ----- | ----- |
-| **Segment** (Twilio Inc.) | Event data, hashed device ID, truncated IP for routing | Routing analytics events to Mixpanel |
-| **Mixpanel Inc.** | Event data, hashed device ID, geolocation derived from IP (city/region), **no raw IP stored** | Product analytics |
-| **Fullstory Inc.** | Event data, hashed device ID, limited session replay snippets (with sensitive views masked) | Understand user flows and improve usability |
+| **Mixpanel Inc.** | Event data, hashed device ID, geolocation derived from IP (city/region), **no raw IP stored** | Product analytics and session replay |
 | **Infrastructure providers** (e.g., cloud hosting) | Encrypted or pseudonymised data in transit/storage | Operate the platform |
 | **Law enforcement** | Data we hold, if legally compelled | Legal compliance |
 | **Community forks** | Open-source code *only*, never your analytics data | GPLv3 requirement |
@@ -56,11 +54,11 @@ We **do not** sell or rent your personal data.
 | Server logs | Up to 30 days for security, then deleted |
 ---
 ## **7. Your choices & rights**
-* **Opt-out of analytics:** Block cookies or use a tracker-blocking browser extension; this disables Segment, Mixpanel, and Fullstory collection.
+* **Opt-out of analytics:** Block cookies or use a tracker-blocking browser extension; this disables Mixpanel collection.
 * **Access / download your data:** DM a mod on Discord or email privacy@nounspace.com with your Farcaster username; we'll export what we have.
 * **Delete dashboard or Space:** Use in-app controls; dashboard data is wiped server-side, Space config removed from our DB (posts on Farcaster remain public).
 * **California & GDPR rights:** You can request deletion, correction, or a copy of your personal data. We honour valid requests within 30 days.
-* **Do-Not-Track signals:** We respect DNT headers by disabling Segment, Mixpanel, and Fullstory when DNT = 1.
+* **Do-Not-Track signals:** We respect DNT headers by disabling Mixpanel when DNT = 1.
 ---
 ## **8. Children's privacy**
 Nounspace is **not intended for children under 13**. If we learn someone under 13 is using nounspace, we'll disable analytics for that user and limit data processing to run the core service.
@@ -105,8 +103,8 @@ We wrote this notice in plain English so you can quickly understand what data we
 | **Account basics** | Farcaster username, wallet address (public key) | You connect a wallet / log in with Farcaster | To recognise you, check token‑gated access, show your profile |
 | **Public space settings** | Title, theme, layout, bio | You configure a Space | To display your Space to you and the public |
 | **Dashboard (“Homebase”) settings** | Feeds you follow, layout, filters | Saved client‑side and synced to us **encrypted** | So your private dashboard loads the same on any device |
-| **Usage analytics** | Page views, button clicks, feature usage, event timestamps, truncated/hashed device ID; **IP address used momentarily for geolocation lookup only** | Automatically via **Segment**, **Mixpanel**, and **Fullstory** SDKs | To troubleshoot bugs, understand which features people like, and improve the app |
-| **Device & browser info** | Browser type, OS, screen size | Segment / Mixpanel / Fullstory | Same as above |
+| **Usage analytics** | Page views, button clicks, feature usage, event timestamps, truncated/hashed device ID; **IP address used momentarily for geolocation lookup only** | Automatically via **Mixpanel** SDK | To troubleshoot bugs, understand which features people like, and improve the app |
+| **Device & browser info** | Browser type, OS, screen size | Mixpanel | Same as above |
 
 **We do *not* collect:** real name, email, phone number, private keys, or full IP addresses stored alongside your profile.
 
@@ -114,7 +112,7 @@ We wrote this notice in plain English so you can quickly understand what data we
 
 ## **3. Cookies & similar tech**
 
-We use first‑party cookies (or local‑storage tokens) plus Segment, Mixpanel, and Fullstory cookies to remember you, measure product usage, and review anonymised session replays for UX improvements. You can clear or block these in your browser settings; the core app will still work but analytics accuracy drops.
+We use first‑party cookies (or local‑storage tokens) plus Mixpanel cookies to remember you, measure product usage, and review anonymised session replays for UX improvements. You can clear or block these in your browser settings; the core app will still work but analytics accuracy drops.
 
 ---
 
@@ -122,7 +120,7 @@ We use first‑party cookies (or local‑storage tokens) plus Segment, Mixpanel,
 
 1. **Provide the service** – load your Spaces, verify token‑gated features.
 
-2. **Improve nounspace** – aggregate analytics and privacy-screened session replays (Segment, Mixpanel, Fullstory) help us see what breaks or what’s popular.
+2. **Improve nounspace** – aggregate analytics and privacy-screened session replays (Mixpanel) help us see what breaks or what’s popular.
 
 3. **Security & fraud prevention** – spot abuse or automated attacks.
 
@@ -136,9 +134,7 @@ We **do not** sell or rent your personal data.
 
 | Who | What they see | Purpose |
 | ----- | ----- | ----- |
-| **Segment** (Twilio Inc.) | Event data, hashed device ID, truncated IP for routing | Routing analytics events to Mixpanel |
-| **Mixpanel Inc.** | Event data, hashed device ID, geolocation derived from IP (city/region), **no raw IP stored** | Product analytics |
-| **Fullstory Inc.** | Event data, hashed device ID, limited session replay snippets (with sensitive views masked) | Understand user flows and improve usability |
+| **Mixpanel Inc.** | Event data, hashed device ID, geolocation derived from IP (city/region), **no raw IP stored** | Product analytics and session replay |
 | **Infrastructure providers** (e.g., cloud hosting) | Encrypted or pseudonymised data in transit/storage | Operate the platform |
 | **Law enforcement** | Data we hold, if legally compelled | Legal compliance |
 | **Community forks** | Open‑source code *only*, never your analytics data | GPLv3 requirement |
@@ -158,7 +154,7 @@ We **do not** sell or rent your personal data.
 
 ## **7. Your choices & rights**
 
-* **Opt‑out of analytics:** Block cookies or use a tracker‑blocking browser extension; this disables Segment, Mixpanel, and Fullstory collection.
+* **Opt‑out of analytics:** Block cookies or use a tracker‑blocking browser extension; this disables Mixpanel collection.
 
 * **Access / download your data:** DM a mod on Discord or email privacy@nounspace.com with your Farcaster username; we’ll export what we have.
 
@@ -166,7 +162,7 @@ We **do not** sell or rent your personal data.
 
 * **California & GDPR rights:** You can request deletion, correction, or a copy of your personal data. We honour valid requests within 30 days.
 
-* **Do‑Not‑Track signals:** We respect DNT headers by disabling Segment, Mixpanel, and Fullstory when DNT = 1.
+* **Do‑Not‑Track signals:** We respect DNT headers by disabling Mixpanel when DNT = 1.
 
 ---
 

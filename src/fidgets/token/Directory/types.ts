@@ -13,6 +13,10 @@ export type DirectoryChannelFilterOption = "members" | "followers" | "all";
 export type CsvTypeOption = "address" | "fid" | "username";
 export type CsvSortOption = "followers" | "csvOrder";
 
+export type DirectoryMemberViewerContext = {
+  following?: boolean | null;
+};
+
 export interface DirectoryMemberData {
   address: string;
   balanceRaw: string;
@@ -31,6 +35,7 @@ export interface DirectoryMemberData {
   xUrl?: string | null;
   githubHandle?: string | null;
   githubUrl?: string | null;
+  viewerContext?: DirectoryMemberViewerContext | null;
 }
 
 export interface DirectoryFidgetData extends FidgetData {

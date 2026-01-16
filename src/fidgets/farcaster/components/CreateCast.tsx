@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 // import neynar from "@/common/data/api/neynar";
 import {
@@ -35,20 +37,15 @@ import {
 } from "@/common/lib/utils/castModalInteractivity";
 import { CAST_MODAL_INTERACTIVE_ATTR } from "@/common/components/molecules/CastModalHelpers";
 import Spinner from "@/common/components/atoms/spinner";
-import { useAppStore } from "@/common/data/stores/app";
 import { useBannerStore } from "@/common/stores/bannerStore";
 import { CastType, Signer } from "@farcaster/core";
 import { PhotoIcon } from "@heroicons/react/20/solid";
-import { usePrivy } from "@privy-io/react-auth";
 import EmojiPicker, {
   Theme,
   EmojiClickData,
 } from "emoji-picker-react";
 import { GoSmiley } from "react-icons/go";
 import { HiOutlineSparkles } from "react-icons/hi2";
-import { Address, formatUnits, zeroAddress } from "viem";
-import { base } from "viem/chains";
-import { useBalance } from "wagmi";
 import { useFarcasterSigner } from "..";
 import {
   FarcasterEmbed,
@@ -61,10 +58,12 @@ import { ChannelPicker } from "./channelPicker";
 import { renderEmbedForUrl } from "./Embeds";
 
 
-import { loadSystemConfig } from "@/config";
+import { useTokenGate } from "@/common/lib/hooks/useTokenGate";
+import { type SystemConfig } from "@/config";
+import { useUIColors } from "@/common/lib/hooks/useUIColors";
 
-const config = loadSystemConfig();
-const SPACE_CONTRACT_ADDR = config.community.contracts.space;
+// SPACE_CONTRACT_ADDR will be loaded when needed (async)
+// For now, we'll use it in a way that handles the Promise
 
 // Fixed missing imports and incorrect object types
 const API_URL = process.env.NEXT_PUBLIC_MOD_PROTOCOL_API_URL!;
@@ -141,6 +140,7 @@ type CreateCastProps = {
   initialDraft?: Partial<DraftType>;
   afterSubmit?: () => void;
   onShouldConfirmCloseChange?: (shouldConfirm: boolean) => void;
+  systemConfig?: SystemConfig;
 };
 
 const SPARKLES_BANNER_KEY = "sparkles-banner-v1";
@@ -149,7 +149,25 @@ const CreateCast: React.FC<CreateCastProps> = ({
   initialDraft,
   afterSubmit = () => {},
   onShouldConfirmCloseChange,
+  systemConfig,
 }) => {
+  const uiColors = useUIColors({ systemConfig });
+  const castButtonColors = useMemo(
+    () => ({
+      backgroundColor: uiColors.castButton.backgroundColor,
+      hoverColor: uiColors.castButton.hoverColor,
+      activeColor: uiColors.castButton.activeColor,
+      fontColor: uiColors.castButtonFontColor,
+      fontFamily: uiColors.fontFamily,
+    }),
+    [
+      uiColors.castButton.backgroundColor,
+      uiColors.castButton.hoverColor,
+      uiColors.castButton.activeColor,
+      uiColors.castButtonFontColor,
+      uiColors.fontFamily,
+    ],
+  );
   const castModalPortalContainer = useCastModalPortalContainer();
   const isMobile = useIsMobile();
   const [currentMod, setCurrentMod] = useState<ModManifest | null>(null);
@@ -370,19 +388,8 @@ const CreateCast: React.FC<CreateCastProps> = ({
   const { isBannerClosed, closeBanner } = useBannerStore();
   const sparklesBannerClosed = isBannerClosed(SPARKLES_BANNER_KEY);
 
-  const { user } = usePrivy();
-  const result = useBalance({
-    address: (user?.wallet?.address as Address) || zeroAddress,
-    token: SPACE_CONTRACT_ADDR as Address,
-    chainId: base.id,
-  });
-  const spaceHoldAmount = result?.data
-    ? parseInt(formatUnits(result.data.value, result.data.decimals))
-    : 0;
-  const userHoldEnoughSpace = spaceHoldAmount >= 1111;
-  const { hasNogs } = useAppStore((state) => ({
-    hasNogs: state.account.hasNogs,
-  }));
+  // Use token gate hook for ERC20 token gating
+  const { hasEnoughTokens: userHoldEnoughSpace, hasNogs } = useTokenGate(systemConfig);
   const [showEnhanceBanner, setShowEnhanceBanner] = useState(false);
 
   useEffect(() => {
@@ -784,7 +791,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
           <div className="w-full h-full min-h-[150px]">{draft.text}</div>
         ) : (
           <div
-            className={`p-2 border-slate-200 rounded-lg border relative ${isDragging ? "ring-2 ring-blue-400 bg-blue-50" : ""}`}
+            className={`p-2 border border-[rgba(128,128,128,0.2)] rounded-lg relative ${isDragging ? "ring-2 ring-blue-400 bg-blue-50" : ""}`}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -853,7 +860,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
               {/* Add media button moved to left side on mobile */}
               {isMobile && (
                 <Button
-                  className="h-10"
+                  className="h-10 border-[rgba(128,128,128,0.2)]"
                   type="button"
                   variant="outline"
                   disabled={isPublishing}
@@ -870,7 +877,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
               {/* Only show Add button here for desktop */}
               {!isMobile && (
                 <Button
-                  className="h-10"
+                  className="h-10 border-[rgba(128,128,128,0.2)]"
                   type="button"
                   variant="outline"
                   disabled={isPublishing}
@@ -941,7 +948,30 @@ const CreateCast: React.FC<CreateCastProps> = ({
               <Button
                 size="lg"
                 type="submit"
-                className="line-clamp-1 w-full"
+                className="line-clamp-1 w-full rounded-md font-semibold transition-colors"
+                style={{
+                  backgroundColor: castButtonColors.backgroundColor,
+                  color: castButtonColors.fontColor,
+                  fontFamily: castButtonColors.fontFamily,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = castButtonColors.backgroundColor;
+                }}
+                onMouseDown={(e) => {
+                  e.currentTarget.style.backgroundColor = castButtonColors.activeColor;
+                }}
+                onMouseUp={(e) => {
+                  e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.backgroundColor = castButtonColors.backgroundColor;
+                }}
                 disabled={isPublishing || isLoadingSigner}
               >
                 {getButtonText()}
@@ -987,9 +1017,31 @@ const CreateCast: React.FC<CreateCastProps> = ({
               <div className="flex flex-row pt-0 justify-end">
                 <Button
                   size="lg"
-                  variant="primary"
                   type="submit"
-                  className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white line-clamp-1 min-w-40 max-w-xs truncate"
+                  className="line-clamp-1 min-w-40 max-w-xs truncate rounded-md font-semibold transition-colors"
+                  style={{
+                    backgroundColor: castButtonColors.backgroundColor,
+                    color: castButtonColors.fontColor,
+                    fontFamily: castButtonColors.fontFamily,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = castButtonColors.backgroundColor;
+                  }}
+                  onMouseDown={(e) => {
+                    e.currentTarget.style.backgroundColor = castButtonColors.activeColor;
+                  }}
+                  onMouseUp={(e) => {
+                    e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.backgroundColor = castButtonColors.backgroundColor;
+                  }}
                   disabled={isPublishing || isLoadingSigner}
                 >
                   {getButtonText()}

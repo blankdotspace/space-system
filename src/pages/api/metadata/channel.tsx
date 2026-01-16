@@ -1,6 +1,7 @@
 import React from "react";
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
+import { getOgFonts } from "@/common/lib/utils/ogFonts";
 
 export const config = {
   runtime: "edge",
@@ -57,13 +58,24 @@ export default async function handler(req: NextRequest) {
     followerCount: Number.isNaN(followerCount) ? undefined : followerCount,
   };
 
-  return new ImageResponse(<ChannelCard metadata={channelMetadata} />, {
+  const fonts = await getOgFonts();
+  const fontFamily = fonts ? "Noto Sans, Noto Sans Symbols 2" : "sans-serif";
+
+  return new ImageResponse(<ChannelCard metadata={channelMetadata} fontFamily={fontFamily} />, {
     width: 1200,
     height: 630,
+    ...(fonts ? { fonts } : {}),
+    emoji: "twemoji",
   });
 }
 
-const ChannelCard = ({ metadata }: { metadata: ChannelMetadata }) => {
+const ChannelCard = ({
+  metadata,
+  fontFamily,
+}: {
+  metadata: ChannelMetadata;
+  fontFamily: string;
+}) => {
   const { channelId, channelName, description, imageUrl, followerCount } = metadata;
 
   const displayName = channelName || channelId || "Channel";
@@ -81,6 +93,7 @@ const ChannelCard = ({ metadata }: { metadata: ChannelMetadata }) => {
         background: "linear-gradient(135deg, #111827, #1f2937)",
         color: "#FFFFFF",
         gap: "40px",
+        fontFamily,
       }}
     >
       <div style={{ display: "flex", flexDirection: "row", gap: "36px", alignItems: "center" }}>
@@ -128,20 +141,7 @@ const ChannelCard = ({ metadata }: { metadata: ChannelMetadata }) => {
           opacity: 0.9,
         }}
       >
-        {description || `Join /${channelId} on Nounspace.`}
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          marginTop: "auto",
-          fontSize: "28px",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          opacity: 0.7,
-        }}
-      >
-        nounspace.com
+        {description || `Join /${channelId} on Farcaster.`}
       </div>
     </div>
   );

@@ -54,8 +54,8 @@ const ProposalPreview: React.FC<ProposalPreviewProps> = memo(({ body }) => {
         "td",
       ],
       protocols: {
-        href: ["http", "https", "mailto"],
-        src: ["http", "https"],
+        href: ["http", "https", "mailto", "ipfs"],
+        src: ["http", "https", "ipfs"],
       },
     }),
     []

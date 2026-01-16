@@ -16,6 +16,7 @@ import MiniAppSdkProvider from "./MiniAppSdkProvider";
 import MobilePreviewProvider from "./MobilePreviewProvider";
 import { SharedDataProvider } from "./SharedDataProvider";
 import { MiniKitContextProvider } from "./MiniKitProvider";
+import { GlobalErrorHandler } from "./GlobalErrorHandler";
 
 const RarelyUpdatedProviders = React.memo(
   function RarelyUpdatedProviders({
@@ -39,28 +40,31 @@ const RarelyUpdatedProviders = React.memo(
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <VersionCheckProivder>
-      <Privy>
-        <Query>
-          <Wagmi>
-            <MiniKitContextProvider>
-              <Theme>
-                <AppStoreProvider>
-                  <UserThemeProvider>
-                    <AuthenticatorProvider>
-                      <LoggedInStateProvider>
-                        <SidebarContextProvider>
-                          <RarelyUpdatedProviders>{children}</RarelyUpdatedProviders>
-                        </SidebarContextProvider>
-                      </LoggedInStateProvider>
-                    </AuthenticatorProvider>
-                  </UserThemeProvider>
-                </AppStoreProvider>
-              </Theme>
-            </MiniKitContextProvider>
-          </Wagmi>
-        </Query>
-      </Privy>
-    </VersionCheckProivder>
+    <>
+      <GlobalErrorHandler />
+      <VersionCheckProivder>
+        <Privy>
+          <Query>
+            <Wagmi>
+              <MiniKitContextProvider>
+                <Theme>
+                  <AppStoreProvider>
+                    <UserThemeProvider>
+                      <AuthenticatorProvider>
+                        <LoggedInStateProvider>
+                          <SidebarContextProvider>
+                            <RarelyUpdatedProviders>{children}</RarelyUpdatedProviders>
+                          </SidebarContextProvider>
+                        </LoggedInStateProvider>
+                      </AuthenticatorProvider>
+                    </UserThemeProvider>
+                  </AppStoreProvider>
+                </Theme>
+              </MiniKitContextProvider>
+            </Wagmi>
+          </Query>
+        </Privy>
+      </VersionCheckProivder>
+    </>
   );
 }

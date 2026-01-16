@@ -5,7 +5,12 @@ import {
   AvatarImage,
 } from "@/common/components/atoms/avatar";
 import BoringAvatar from "boring-avatars";
-import type { DirectoryMemberData, DirectoryFidgetSettings, DirectoryNetwork, DirectoryIncludeOption } from "../types";
+import type {
+  DirectoryMemberData,
+  DirectoryFidgetSettings,
+  DirectoryNetwork,
+  DirectoryIncludeOption,
+} from "../types";
 import { ProfileLink } from "./ProfileLink";
 import { BadgeIcons } from "./BadgeIcons";
 import {
@@ -17,6 +22,10 @@ import {
   formatTokenBalance,
 } from "../utils";
 import { buildEtherscanUrl, getBlockExplorerLink } from "@/common/data/api/token/utils";
+import {
+  DirectoryFollowButton,
+  type DirectoryFollowButtonProps,
+} from "./DirectoryFollowButton";
 
 export type DirectoryListViewProps = {
   members: DirectoryMemberData[];
@@ -25,6 +34,8 @@ export type DirectoryListViewProps = {
   headingTextStyle: React.CSSProperties;
   network: DirectoryNetwork;
   includeFilter: DirectoryIncludeOption;
+  viewerFid: number;
+  signer: DirectoryFollowButtonProps["signer"];
 };
 
 export const DirectoryListView: React.FC<DirectoryListViewProps> = ({
@@ -34,6 +45,8 @@ export const DirectoryListView: React.FC<DirectoryListViewProps> = ({
   headingTextStyle,
   network,
   includeFilter,
+  viewerFid,
+  signer,
 }) => {
   return (
     <ul className="divide-y divide-black/5">
@@ -107,19 +120,27 @@ export const DirectoryListView: React.FC<DirectoryListViewProps> = ({
                 <span className="block truncate text-xs text-muted-foreground">{secondaryLabel}</span>
               )}
             </div>
-            <div className="flex flex-col items-end gap-1 text-right text-xs text-muted-foreground">
-              {(settings.source ?? "tokenHolders") === "tokenHolders" && (
-                <span className="font-semibold" style={headingTextStyle}>
-                  {formatTokenBalance(member.balanceFormatted)}
-                  {tokenSymbol ? ` ${tokenSymbol}` : ""}
-                </span>
-              )}
-              {typeof member.followers === "number" && (
-                <span>{`${member.followers.toLocaleString()} followers`}</span>
-              )}
-              {(settings.source ?? "tokenHolders") === "tokenHolders" && lastActivity && (
-                <span>{lastActivity}</span>
-              )}
+            <div className="ml-auto flex items-center gap-3">
+              <DirectoryFollowButton
+                member={member}
+                viewerFid={viewerFid}
+                signer={signer}
+                className="px-3 py-1 text-xs font-semibold"
+              />
+              <div className="flex flex-col items-end gap-1 text-right text-xs text-muted-foreground">
+                {(settings.source ?? "tokenHolders") === "tokenHolders" && (
+                  <span className="font-semibold" style={headingTextStyle}>
+                    {formatTokenBalance(member.balanceFormatted)}
+                    {tokenSymbol ? ` ${tokenSymbol}` : ""}
+                  </span>
+                )}
+                {typeof member.followers === "number" && (
+                  <span>{`${member.followers.toLocaleString()} followers`}</span>
+                )}
+                {(settings.source ?? "tokenHolders") === "tokenHolders" && lastActivity && (
+                  <span>{lastActivity}</span>
+                )}
+              </div>
             </div>
           </li>
         );
