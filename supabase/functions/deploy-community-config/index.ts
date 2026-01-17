@@ -1016,7 +1016,7 @@ async function findNavSpaceByName(
     throw error;
   }
 
-  return data?.spaceId ?? null;
+  return getString(data?.spaceId ?? null);
 }
 
 async function spaceHasTabs(

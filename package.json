@@ -20,7 +20,8 @@
     "test:watch": "vitest --watch",
     "test:ci": "vitest tests/neynarMiniApp.fast.test.ts tests/miniAppDiscovery.api.fast.test.ts --run --reporter=verbose",
     "seed": "tsx scripts/seed.ts",
-    "seed:check": "tsx scripts/seed.ts --check"
+    "seed:check": "tsx scripts/seed.ts --check",
+    "functions:lint": "supabase functions lint"
   },
   "lint-staged": {
     "src/**/*": "prettier --write --ignore-unknown"
