@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { verifyMessage } from "npm:viem@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -45,6 +46,57 @@ interface DeployRequest {
 }
 
 type JsonRecord = Record<string, unknown>;
+
+/**
+ * Verifies that the wallet signature is valid for the deploy request.
+ * The message format matches what the client signs: nonce string.
+ */
+async function verifyWalletSignature(
+  walletAddress: string,
+  signature: string,
+  nonce: string,
+): Promise<boolean> {
+  try {
+    const message = `Deploy community config\nNonce: ${nonce}`;
+    const isValid = await verifyMessage({
+      address: walletAddress as `0x${string}`,
+      message,
+      signature: signature as `0x${string}`,
+    });
+    return isValid;
+  } catch (error) {
+    console.error("Wallet signature verification failed:", error);
+    return false;
+  }
+}
+
+/**
+ * Verifies the identity request signature for new user registration.
+ * The message format matches what the client signs for identity creation.
+ */
+async function verifyIdentityRequestSignature(
+  identityRequest: IdentityRequest,
+): Promise<boolean> {
+  try {
+    const message = [
+      `${identityRequest.type} identity`,
+      `Public Key: ${identityRequest.identityPublicKey}`,
+      `Wallet: ${identityRequest.walletAddress}`,
+      `Nonce: ${identityRequest.nonce}`,
+      `Timestamp: ${identityRequest.timestamp}`,
+    ].join("\n");
+
+    const isValid = await verifyMessage({
+      address: identityRequest.walletAddress as `0x${string}`,
+      message,
+      signature: identityRequest.signature as `0x${string}`,
+    });
+    return isValid;
+  } catch (error) {
+    console.error("Identity request signature verification failed:", error);
+    return false;
+  }
+}
 
 const DEFAULT_THEME = {
   id: "default",
@@ -1347,6 +1399,40 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Verify wallet signature cryptographically before any DB operations
+    const nonce = requestData.nonce;
+    if (!nonce) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Nonce is required for signature verification",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const isWalletSignatureValid = await verifyWalletSignature(
+      walletAddress,
+      walletSignature,
+      nonce,
+    );
+
+    if (!isWalletSignatureValid) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Invalid wallet signature",
+        }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     const { data: existingIdentities, error: fetchError } = await supabase
       .from("walletIdentities")
       .select("identityPublicKey, walletAddress")
@@ -1395,6 +1481,22 @@ Deno.serve(async (req: Request) => {
           }),
           {
             status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      // Verify identity request signature cryptographically before creating identity
+      const isIdentitySignatureValid = await verifyIdentityRequestSignature(identityRequest);
+
+      if (!isIdentitySignatureValid) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Invalid identity request signature",
+          }),
+          {
+            status: 401,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           }
         );

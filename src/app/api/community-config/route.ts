@@ -177,6 +177,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     if (
       normalizedCustomDomain &&
       normalizedCommunityDomain &&
+      normalizedCommunityDomain.endsWith('.blank.space') &&
       normalizedCustomDomain === normalizedCommunityDomain
     ) {
       return NextResponse.json(
