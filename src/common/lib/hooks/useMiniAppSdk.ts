@@ -4,10 +4,10 @@ import { useCallback, useContext, useEffect, useState } from "react";
 import type {
   CastEmbedLocationContext,
   ChannelLocationContext,
-  FrameContext,
   LauncherLocationContext,
-  NotificationLocationContext
-} from "@farcaster/frame-core/dist/context";
+  MiniAppContext,
+  NotificationLocationContext,
+} from "@farcaster/miniapp-sdk";
 import { MiniAppSdkContext } from "../../providers/MiniAppSdkProvider";
 
 /**
@@ -21,7 +21,9 @@ import { MiniAppSdkContext } from "../../providers/MiniAppSdkProvider";
  */
 export function useMiniAppSdk() {
   const { isInitializing, isReady, error, sdk: sdkInstance } = useContext(MiniAppSdkContext);
-  const [frameContext, setFrameContext] = useState<FrameContext | undefined>(undefined);
+  const [frameContext, setFrameContext] = useState<MiniAppContext | undefined>(
+    undefined,
+  );
 
   // Fetch context when SDK is available
   useEffect(() => {

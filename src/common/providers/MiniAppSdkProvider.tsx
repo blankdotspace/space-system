@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useEffect, useState } from "react";
-import { sdk as frameSdk, Context } from "@farcaster/frame-sdk";
+import { sdk as miniAppSdk, type MiniAppContext } from "@farcaster/miniapp-sdk";
 
 export const MINI_APP_PROVIDER_METADATA = {
   uuid: "nounspace-miniapp-eth-provider",
@@ -23,15 +23,15 @@ declare global {
 }
 
 // Types for the context
-type MiniAppContext = {
+type MiniAppContextState = {
   isInitializing: boolean;
   isReady: boolean;
   error: Error | null;
-  sdk: typeof frameSdk | null;
-  frameContext: Context.FrameContext | null;
+  sdk: typeof miniAppSdk | null;
+  frameContext: MiniAppContext | null;
 };
 
-export const MiniAppSdkContext = createContext<MiniAppContext>({
+export const MiniAppSdkContext = createContext<MiniAppContextState>({
   isInitializing: true,
   isReady: false,
   error: null,
@@ -42,7 +42,7 @@ export const MiniAppSdkContext = createContext<MiniAppContext>({
 export const MiniAppSdkProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [state, setState] = useState<MiniAppContext>({
+  const [state, setState] = useState<MiniAppContextState>({
     isInitializing: true,
     isReady: false,
     error: null,
@@ -59,17 +59,17 @@ export const MiniAppSdkProvider: React.FC<{ children: React.ReactNode }> = ({
     const initializeSdk = async () => {
       try {
         // Initialize the frame SDK
-        await frameSdk.actions.ready();
+        await miniAppSdk.actions.ready();
 
         // Store the sdk reference
         // Get initial frame context - it's a Promise
-        const initialFrameContext = await frameSdk.context;
+        const initialFrameContext = await miniAppSdk.context;
 
         // console.log("Frame SDK initialized successfully.", initialFrameContext);
 
         setState((prev) => ({
           ...prev,
-          sdk: frameSdk,
+          sdk: miniAppSdk,
           frameContext: initialFrameContext,
           isInitializing: false,
           isReady: true,
