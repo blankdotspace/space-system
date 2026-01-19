@@ -1,13 +1,7 @@
 "use client";
 
 import { useCallback, useContext, useEffect, useState } from "react";
-import type {
-  CastEmbedLocationContext,
-  ChannelLocationContext,
-  LauncherLocationContext,
-  MiniAppContext,
-  NotificationLocationContext,
-} from "@farcaster/miniapp-core";
+import type { Context } from "@farcaster/miniapp-core";
 import { MiniAppSdkContext } from "../../providers/MiniAppSdkProvider";
 
 /**
@@ -21,7 +15,9 @@ import { MiniAppSdkContext } from "../../providers/MiniAppSdkProvider";
  */
 export function useMiniAppSdk() {
   const { isInitializing, isReady, error, sdk: sdkInstance } = useContext(MiniAppSdkContext);
-  const [frameContext, setFrameContext] = useState<MiniAppContext | undefined>(
+  const [frameContext, setFrameContext] = useState<
+    Context.MiniAppContext | undefined
+  >(
     undefined,
   );
 
@@ -179,17 +175,17 @@ export function useMiniAppSdk() {
     locationContext: frameContext?.location,
 
     // Access specific location context types if needed
-    castEmbedContext: frameContext?.location?.type === 'cast_embed'
-      ? frameContext.location as CastEmbedLocationContext
+    castEmbedContext: frameContext?.location?.type === "cast_embed"
+      ? (frameContext.location as Context.CastEmbedLocationContext)
       : undefined,
-    notificationContext: frameContext?.location?.type === 'notification'
-      ? frameContext.location as NotificationLocationContext
+    notificationContext: frameContext?.location?.type === "notification"
+      ? (frameContext.location as Context.NotificationLocationContext)
       : undefined,
-    launcherContext: frameContext?.location?.type === 'launcher'
-      ? frameContext.location as LauncherLocationContext
+    launcherContext: frameContext?.location?.type === "launcher"
+      ? (frameContext.location as Context.LauncherLocationContext)
       : undefined,
-    channelContext: frameContext?.location?.type === 'channel'
-      ? frameContext.location as ChannelLocationContext
+    channelContext: frameContext?.location?.type === "channel"
+      ? (frameContext.location as Context.ChannelLocationContext)
       : undefined,
 
     // Actions
