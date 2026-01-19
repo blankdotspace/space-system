@@ -1,5 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
-import { JSDOM } from "jsdom";
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getMetaContent(html: string, property: string): string | null {
+  const escapedProperty = escapeRegExp(property);
+  const patterns = [
+    new RegExp(
+      `<meta\\s+[^>]*(?:property|name)="${escapedProperty}"[^>]*content="([^"]+)"`,
+      "i",
+    ),
+    new RegExp(
+      `<meta\\s+[^>]*content="([^"]+)"[^>]*(?:property|name)="${escapedProperty}"`,
+      "i",
+    ),
+    new RegExp(
+      `<meta\\s+[^>]*(?:property|name)='${escapedProperty}'[^>]*content='([^']+)'`,
+      "i",
+    ),
+    new RegExp(
+      `<meta\\s+[^>]*content='([^']+)'[^>]*(?:property|name)='${escapedProperty}'`,
+      "i",
+    ),
+  ];
+
+  for (const pattern of patterns) {
+    const match = html.match(pattern);
+    if (match?.[1]) {
+      return match[1];
+    }
+  }
+
+  return null;
+}
+
+function resolveMaybeRelativeUrl(value: string | null, baseUrl: string): string | null {
+  if (!value) {
+    return null;
+  }
+
+  if (value.startsWith("http") || value.startsWith("data:")) {
+    return value;
+  }
+
+  try {
+    return new URL(value, baseUrl).toString();
+  } catch {
+    return value;
+  }
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -67,31 +117,27 @@ export async function GET(request: NextRequest) {
     }
 
     const html = await response.text();
-    const dom = new JSDOM(html);
-    const document = dom.window.document;
 
-    // Extract OpenGraph metadata
-    const getMetaContent = (property: string): string | null => {
-      const element = document.querySelector(`meta[property="${property}"], meta[name="${property}"]`);
-      return element?.getAttribute("content") || null;
-    };
+    const title =
+      getMetaContent(html, "og:title") ||
+      getMetaContent(html, "twitter:title") ||
+      html.match(/<title>([^<]+)<\/title>/i)?.[1] ||
+      null;
 
-    const title = getMetaContent("og:title") || 
-                  getMetaContent("twitter:title") || 
-                  document.querySelector("title")?.textContent || 
-                  null;
+    const description =
+      getMetaContent(html, "og:description") ||
+      getMetaContent(html, "twitter:description") ||
+      getMetaContent(html, "description") ||
+      null;
 
-    const description = getMetaContent("og:description") || 
-                       getMetaContent("twitter:description") || 
-                       getMetaContent("description") || 
-                       null;
+    const rawImage =
+      getMetaContent(html, "og:image") ||
+      getMetaContent(html, "twitter:image") ||
+      null;
 
-    const image = getMetaContent("og:image") || 
-                  getMetaContent("twitter:image") || 
-                  null;
+    const image = resolveMaybeRelativeUrl(rawImage, url);
 
-    const siteName = getMetaContent("og:site_name") || 
-                     new URL(url).hostname;
+    const siteName = getMetaContent(html, "og:site_name") || new URL(url).hostname;
 
     const ogData = {
       title,
