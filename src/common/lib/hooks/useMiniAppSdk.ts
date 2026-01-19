@@ -7,7 +7,7 @@ import type {
   LauncherLocationContext,
   MiniAppContext,
   NotificationLocationContext,
-} from "@farcaster/miniapp-sdk";
+} from "@farcaster/miniapp-core";
 import { MiniAppSdkContext } from "../../providers/MiniAppSdkProvider";
 
 /**
