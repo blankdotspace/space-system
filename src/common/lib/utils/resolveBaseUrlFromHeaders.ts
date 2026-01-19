@@ -52,7 +52,11 @@ function parseHostCandidate(value: string): ParsedHost | undefined {
 }
 
 function isVercelDotCom(host: string): boolean {
-  return host === "vercel.com" || host.endsWith(".vercel.com");
+  return (
+    host === "vercel.com" ||
+    host.endsWith(".vercel.com") ||
+    host.endsWith(".vercel.app")
+  );
 }
 
 function normalizeBaseUrl(rawUrl: string): string {
