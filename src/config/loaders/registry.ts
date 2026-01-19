@@ -19,6 +19,12 @@ const DOMAIN_TO_COMMUNITY_MAP: Record<string, string> = {
 };
 
 type CommunityConfigRow = Database['public']['Tables']['community_configs']['Row'];
+type CommunityDomainRow = Database['public']['Tables']['community_domains']['Row'];
+
+type CommunityDomains = {
+  blankSubdomain?: string;
+  customDomain?: string;
+};
 
 /**
  * Cache entry for SystemConfig lookups.
@@ -40,7 +46,24 @@ const SYSTEM_CONFIG_CACHE_TTL_MS = 60_000;
  * Simple priority: special mapping → domain as-is
  * Throws error if domain cannot be resolved (no default fallback).
  */
-function resolveCommunityIdFromDomain(domain: string): string {
+function looksLikeDomain(value: string): boolean {
+  return value.includes('.');
+}
+
+function inferDomainsFromCommunityId(communityId: string): CommunityDomains {
+  const normalized = normalizeDomain(communityId);
+  if (!normalized || !looksLikeDomain(normalized)) {
+    return {};
+  }
+
+  if (normalized.endsWith('.blank.space')) {
+    return { blankSubdomain: normalized };
+  }
+
+  return { customDomain: normalized };
+}
+
+async function resolveCommunityIdFromDomain(domain: string): Promise<string> {
   const normalizedDomain = normalizeDomain(domain);
   
   if (!normalizedDomain) {
@@ -54,8 +77,26 @@ function resolveCommunityIdFromDomain(domain: string): string {
   if (normalizedDomain in DOMAIN_TO_COMMUNITY_MAP) {
     return DOMAIN_TO_COMMUNITY_MAP[normalizedDomain];
   }
+
+  // Priority 2: Community domain mappings (from community_domains table)
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from('community_domains')
+    .select('community_id')
+    .eq('domain', normalizedDomain)
+    .maybeSingle();
+
+  if (error && error.code !== 'PGRST116') {
+    console.error(
+      `[Config] Failed to resolve community domain mapping for "${normalizedDomain}": ${error.message}`
+    );
+  }
+
+  if (data?.community_id) {
+    return data.community_id;
+  }
   
-  // Priority 3: Domain as community ID (e.g., example.nounspace.com → example.nounspace.com)
+  // Priority 3: Domain as community ID (legacy fallback)
   return normalizedDomain;
 } 
 
@@ -69,10 +110,23 @@ function resolveCommunityIdFromDomain(domain: string): string {
 export function normalizeDomain(domain: string): string {
   if (!domain) return '';
 
-  const host = domain.split(':')[0]?.trim().toLowerCase() ?? '';
-  if (!host) return '';
+  const trimmed = domain.trim().toLowerCase();
+  if (!trimmed) return '';
 
-  return host.startsWith('www.') ? host.slice(4) : host;
+  const candidate =
+    trimmed.startsWith('http://') || trimmed.startsWith('https://')
+      ? trimmed
+      : `https://${trimmed}`;
+
+  try {
+    const url = new URL(candidate);
+    const host = url.hostname.toLowerCase();
+    return host.startsWith('www.') ? host.slice(4) : host;
+  } catch {
+    const host = trimmed.split('/')[0]?.split(':')[0] ?? '';
+    if (!host) return '';
+    return host.startsWith('www.') ? host.slice(4) : host;
+  }
 }
 
 
@@ -80,7 +134,13 @@ export function normalizeDomain(domain: string): string {
  * Transform a database row to SystemConfig format.
  * This replaces the RPC function transformation, done in application code.
  */
-function transformRowToSystemConfig(row: CommunityConfigRow, communityId: string): SystemConfig {
+function transformRowToSystemConfig(
+  row: CommunityConfigRow,
+  communityId: string,
+  domains: CommunityDomains
+): SystemConfig {
+  const canonicalDomain = domains.customDomain || domains.blankSubdomain;
+
   return {
     brand: row.brand_config as unknown as SystemConfig['brand'],
     assets: row.assets_config as unknown as SystemConfig['assets'],
@@ -91,6 +151,8 @@ function transformRowToSystemConfig(row: CommunityConfigRow, communityId: string
     adminIdentityPublicKeys: row.admin_identity_public_keys ?? [],
     theme: themes, // Themes come from shared file, not database
     communityId, // The database community_id used to load this config
+    domains,
+    canonicalDomain,
   };
 }
 
@@ -145,8 +207,9 @@ function writeSystemConfigCache(communityId: string, value: SystemConfig | null)
  *
  * Resolution priority:
  * 1) Special domain mappings (DOMAIN_TO_COMMUNITY_MAP)
- * 2) Domain as community_id (e.g., example.nounspace.com → community_id=example.nounspace.com)
- * 3) Default fallback (nounspace.com)
+ * 2) community_domains table lookup
+ * 3) Domain as community_id (legacy fallback)
+ * 4) Default fallback (nounspace.com)
  *
  * A short-lived in-memory cache is used to avoid repeated Supabase lookups for the same
  * community during navigation bursts. Returns the final SystemConfig (transformed and ready to use).
@@ -157,7 +220,7 @@ export async function getCommunityConfigForDomain(
   // Resolve community ID from domain (throws if cannot resolve)
   let communityId: string;
   try {
-    communityId = resolveCommunityIdFromDomain(domain);
+    communityId = await resolveCommunityIdFromDomain(domain);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(`[Config] Failed to resolve community ID from domain "${domain}": ${errorMessage}`);
@@ -178,6 +241,44 @@ export async function getCommunityConfigForDomain(
 
   // Config not found - return null (caller will handle fallback)
   return null;
+}
+
+/**
+ * Load the domains associated with a community (blank subdomain + custom domain).
+ * Falls back to inferring from community_id if no mappings exist.
+ */
+async function loadCommunityDomainsFromDatabase(
+  communityId: string
+): Promise<CommunityDomains> {
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from('community_domains')
+    .select('domain, domain_type')
+    .eq('community_id', communityId);
+
+  if (error) {
+    console.error(
+      `[Config] Failed to load community domains for communityId "${communityId}": ${error.message}`
+    );
+    return inferDomainsFromCommunityId(communityId);
+  }
+
+  if (!data || data.length === 0) {
+    return inferDomainsFromCommunityId(communityId);
+  }
+
+  const domains: CommunityDomains = {};
+  for (const row of data as CommunityDomainRow[]) {
+    const normalized = normalizeDomain(row.domain);
+    if (!normalized) continue;
+    if (row.domain_type === 'blank_subdomain') {
+      domains.blankSubdomain = normalized;
+    } else if (row.domain_type === 'custom') {
+      domains.customDomain = normalized;
+    }
+  }
+
+  return Object.keys(domains).length > 0 ? domains : inferDomainsFromCommunityId(communityId);
 }
 
 /**
@@ -248,8 +349,10 @@ async function loadCommunityConfigFromDatabase(communityId: string): Promise<Sys
     );
   }
 
+  const domains = await loadCommunityDomainsFromDatabase(communityId);
+
   // Transform to SystemConfig
-  const systemConfig = transformRowToSystemConfig(data, communityId);
+  const systemConfig = transformRowToSystemConfig(data, communityId, domains);
   
   // Cache the result
   writeSystemConfigCache(communityId, systemConfig);
