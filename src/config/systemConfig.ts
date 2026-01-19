@@ -24,6 +24,11 @@ export interface CommunityTokensConfig {
   nftTokens?: CommunityNftToken[];
 }
 
+export interface CommunityDomains {
+  blankSubdomain?: string;
+  customDomain?: string;
+}
+
 export interface SystemConfig {
   brand: BrandConfig;
   assets: AssetConfig;
@@ -34,6 +39,8 @@ export interface SystemConfig {
   ui?: UIConfig;
   adminIdentityPublicKeys?: string[]; // identityPublicKey values of users who can edit nav pages
   communityId: string; // The database community_id used to load this config
+  domains?: CommunityDomains; // Domain mappings for this community
+  canonicalDomain?: string; // The canonical domain for SEO/robots
 }
 
 export interface UIConfig {
