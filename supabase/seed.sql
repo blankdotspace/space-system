@@ -186,3 +186,17 @@ INSERT INTO "public"."community_configs" (
     "navigation_config" = EXCLUDED."navigation_config",
     "ui_config" = EXCLUDED."ui_config",
     "updated_at" = now();
+
+-- Domain mappings for seeded communities (dev-friendly defaults)
+INSERT INTO "public"."community_domains" (
+    "community_id",
+    "domain",
+    "domain_type"
+) VALUES
+    ('nouns', 'nouns', 'custom'),
+    ('example', 'example', 'custom'),
+    ('clanker', 'clanker', 'custom')
+ON CONFLICT ("domain") DO UPDATE SET
+    "community_id" = EXCLUDED."community_id",
+    "domain_type" = EXCLUDED."domain_type",
+    "updated_at" = now();
