@@ -1,7 +1,9 @@
 "use client";
 
 import React, { createContext, useEffect, useState } from "react";
-import { sdk as miniAppSdk, type MiniAppContext } from "@farcaster/miniapp-sdk";
+import { sdk as miniAppSdk, Context } from "@farcaster/miniapp-sdk";
+
+type MiniAppContext = Context.MiniAppContext;
 
 export const MINI_APP_PROVIDER_METADATA = {
   uuid: "nounspace-miniapp-eth-provider",

@@ -4,6 +4,12 @@ import { useCallback, useContext, useEffect, useState } from "react";
 import type { Context } from "@farcaster/miniapp-core";
 import { MiniAppSdkContext } from "../../providers/MiniAppSdkProvider";
 
+type CastEmbedLocationContext = Context.CastEmbedLocationContext;
+type ChannelLocationContext = Context.ChannelLocationContext;
+type LauncherLocationContext = Context.LauncherLocationContext;
+type MiniAppContext = Context.MiniAppContext;
+type NotificationLocationContext = Context.NotificationLocationContext;
+
 /**
  * Hook to access the Farcaster Mini App SDK
  * 
