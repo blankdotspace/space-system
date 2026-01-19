@@ -1,6 +1,9 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { verifyMessage } from "npm:viem@2";
+import { ed25519 } from "npm:@noble/curves@1/ed25519";
+import { blake3 } from "npm:@noble/hashes@1/blake3";
+import stringify from "npm:fast-json-stable-stringify@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -49,7 +52,7 @@ type JsonRecord = Record<string, unknown>;
 
 /**
  * Verifies that the wallet signature is valid for the deploy request.
- * The message format matches what the client signs: nonce string.
+ * The message format matches what the launchpad client signs.
  */
 async function verifyWalletSignature(
   walletAddress: string,
@@ -57,7 +60,8 @@ async function verifyWalletSignature(
   nonce: string,
 ): Promise<boolean> {
   try {
-    const message = `Deploy community config\nNonce: ${nonce}`;
+    // Message format from launchpad's generateIdentityMessage(nonce)
+    const message = `SPACE Identity:\n${nonce}\nFor more info: https://nounspace.com/signatures/`;
     const isValid = await verifyMessage({
       address: walletAddress as `0x${string}`,
       message,
@@ -71,27 +75,51 @@ async function verifyWalletSignature(
 }
 
 /**
- * Verifies the identity request signature for new user registration.
- * The message format matches what the client signs for identity creation.
+ * Converts a hex string to Uint8Array.
  */
-async function verifyIdentityRequestSignature(
-  identityRequest: IdentityRequest,
-): Promise<boolean> {
-  try {
-    const message = [
-      `${identityRequest.type} identity`,
-      `Public Key: ${identityRequest.identityPublicKey}`,
-      `Wallet: ${identityRequest.walletAddress}`,
-      `Nonce: ${identityRequest.nonce}`,
-      `Timestamp: ${identityRequest.timestamp}`,
-    ].join("\n");
+function hexToBytes(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
+  }
+  return bytes;
+}
 
-    const isValid = await verifyMessage({
-      address: identityRequest.walletAddress as `0x${string}`,
-      message,
-      signature: identityRequest.signature as `0x${string}`,
-    });
-    return isValid;
+/**
+ * Hashes an object using Blake3 with stable JSON stringify.
+ * Matches the client's hashObject function.
+ */
+function hashObject(obj: object): Uint8Array {
+  const encoder = new TextEncoder();
+  return blake3(encoder.encode(stringify(obj)), { dkLen: 256 });
+}
+
+/**
+ * Verifies the identity request signature for new user registration.
+ * The signature is an Ed25519 signature over a Blake3 hash of the unsigned request.
+ */
+function verifyIdentityRequestSignature(
+  identityRequest: IdentityRequest,
+): boolean {
+  try {
+    // Reconstruct the unsigned identity request (without the signature field)
+    const unsignedRequest = {
+      type: identityRequest.type,
+      identityPublicKey: identityRequest.identityPublicKey,
+      walletAddress: identityRequest.walletAddress,
+      nonce: identityRequest.nonce,
+      timestamp: identityRequest.timestamp,
+    };
+
+    // Hash the unsigned request using Blake3 (same as client)
+    const messageHash = hashObject(unsignedRequest);
+
+    // Convert hex strings to bytes
+    const publicKey = hexToBytes(identityRequest.identityPublicKey);
+    const signature = hexToBytes(identityRequest.signature);
+
+    // Verify Ed25519 signature
+    return ed25519.verify(signature, messageHash, publicKey);
   } catch (error) {
     console.error("Identity request signature verification failed:", error);
     return false;
