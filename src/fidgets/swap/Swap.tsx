@@ -146,6 +146,8 @@ const Swap: React.FC<FidgetArgs<MatchaFidgetSettings>> = ({
     }
     if (optionalFeeRecipient)
       params.append("feeRecipient", optionalFeeRecipient);
+    const matchaRef = process.env.NEXT_PUBLIC_MATCHA_REF || "nounspace";
+    params.append("ref", matchaRef);
     return `${matchaBaseUrl}?${params.toString()}`;
   };
 

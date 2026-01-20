@@ -15,7 +15,8 @@ export function getGeckoIframe(address: Address, network: EtherScanChainName) {
 
 export function getMatchaUrl(address: Address, network: EtherScanChainName) {
   const ethAddress = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
-  return `https://matcha.xyz/trade?sellAddress=${ethAddress}&buyAddress=${address}&sellChain=${network}&buyChain=${EtherScanChains[network]}`;
+  const matchaRef = process.env.NEXT_PUBLIC_MATCHA_REF || "nounspace";
+  return `https://matcha.xyz/trade?sellAddress=${ethAddress}&buyAddress=${address}&sellChain=${network}&buyChain=${EtherScanChains[network]}&ref=${matchaRef}`;
 }
 
 export function getDexScreenerUrl(
