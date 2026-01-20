@@ -179,7 +179,7 @@ const slugifyDisplayName = (displayName: string) => {
   const normalized = displayName
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^\x00-\x7F]/g, "");
+    .replace(/[^\p{ASCII}]/gu, "");
   const slug = normalized
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
@@ -194,6 +194,8 @@ const randomSuffix = (length = 6) => {
   return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("");
 };
 
+const MAX_BLANK_SUBDOMAIN_ATTEMPTS = 100;
+
 const buildBlankSubdomain = async (
   supabase: ReturnType<typeof createClient>,
   displayName: string
@@ -201,7 +203,7 @@ const buildBlankSubdomain = async (
   const baseSlug = slugifyDisplayName(displayName || "space");
   let candidate = `${baseSlug}.blank.space`;
 
-  while (true) {
+  for (let attempt = 0; attempt < MAX_BLANK_SUBDOMAIN_ATTEMPTS; attempt++) {
     const { data, error } = await supabase
       .from("community_domains")
       .select("domain")
@@ -218,6 +220,8 @@ const buildBlankSubdomain = async (
 
     candidate = `${baseSlug}-${randomSuffix(6)}.blank.space`;
   }
+
+  throw new Error("Exceeded max attempts to find available blank subdomain");
 };
 
 function isRecord(value: unknown): value is JsonRecord {
