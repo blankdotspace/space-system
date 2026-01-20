@@ -34,6 +34,7 @@ interface DeployRequest {
   communityId?: string;
   walletSignature: string;
   nonce: string;
+  timestamp: string;
   isNewUser: boolean;
   identityRequest?: IdentityRequest;
   signedKeyFile?: SignedFile;
@@ -50,27 +51,197 @@ interface DeployRequest {
 
 type JsonRecord = Record<string, unknown>;
 
+const IDENTITY_MESSAGE_SUFFIX = "For more info: https://nounspace.com/signatures/";
+
+// TTL for deploy signatures (5 minutes)
+const DEPLOY_SIGNATURE_TTL_MS = 5 * 60 * 1000;
+
+interface DeploySignatureParams {
+  walletAddress: string;
+  signature: string;
+  nonce: string;
+  timestamp: string;
+  communityId: string | null;
+}
+
+/**
+ * Generates the payload-bound message for deploy operations.
+ * This must match the client-side generateDeployMessage function.
+ */
+function buildDeployMessage(
+  communityId: string | null,
+  timestamp: string,
+  nonce: string,
+): string {
+  const targetCommunity = communityId || "new-community";
+  return [
+    "SPACE Deploy:",
+    "Action: deploy-config",
+    `Target: ${targetCommunity}`,
+    `Timestamp: ${timestamp}`,
+    `Nonce: ${nonce}`,
+    IDENTITY_MESSAGE_SUFFIX,
+  ].join("\n");
+}
+
+/**
+ * Validates the timestamp is within the allowed TTL window.
+ */
+function isTimestampValid(timestamp: string): boolean {
+  try {
+    const signedAt = new Date(timestamp).getTime();
+    if (isNaN(signedAt)) {
+      return false;
+    }
+    const now = Date.now();
+    const age = now - signedAt;
+    // Allow a small buffer for clock skew (30 seconds in the future)
+    return age >= -30000 && age <= DEPLOY_SIGNATURE_TTL_MS;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Checks if a nonce has been used by a DIFFERENT wallet (replay attack prevention).
+ * Returns { valid: true } if the nonce is unused or was used by the same wallet (same session).
+ * Returns { valid: false, error } if the nonce was used by a different wallet.
+ *
+ * This allows the same wallet to make multiple calls with the same signature within
+ * the TTL window (needed for the deploy → upload → deploy flow), while preventing
+ * a different wallet from using a captured nonce.
+ */
+async function checkNonceValidity(
+  supabase: ReturnType<typeof createClient>,
+  nonce: string,
+  walletAddress: string,
+): Promise<{ valid: boolean; error?: string }> {
+  const normalizedWallet = walletAddress.toLowerCase();
+
+  const { data, error } = await supabase
+    .from("used_deploy_nonces")
+    .select("wallet_address, expires_at")
+    .eq("nonce", nonce)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error checking nonce:", error);
+    // Fail closed - treat errors as invalid
+    return { valid: false, error: "Failed to validate nonce" };
+  }
+
+  if (!data) {
+    // Nonce not used yet - valid
+    return { valid: true };
+  }
+
+  // Check if it's the same wallet (same session, allow reuse)
+  if (data.wallet_address === normalizedWallet) {
+    // Check if expired
+    const expiresAt = new Date(data.expires_at).getTime();
+    if (Date.now() > expiresAt) {
+      return { valid: false, error: "Nonce has expired" };
+    }
+    return { valid: true };
+  }
+
+  // Different wallet trying to use this nonce - reject
+  return { valid: false, error: "Nonce has already been used" };
+}
+
+/**
+ * Records a nonce usage to prevent replay attacks from different wallets.
+ * Uses upsert to handle the case where the same wallet makes multiple calls.
+ */
+async function recordNonceUsage(
+  supabase: ReturnType<typeof createClient>,
+  nonce: string,
+  walletAddress: string,
+): Promise<boolean> {
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + DEPLOY_SIGNATURE_TTL_MS * 2);
+
+  const { error } = await supabase
+    .from("used_deploy_nonces")
+    .upsert(
+      {
+        nonce,
+        wallet_address: walletAddress.toLowerCase(),
+        used_at: now.toISOString(),
+        expires_at: expiresAt.toISOString(),
+      },
+      { onConflict: "nonce" }
+    );
+
+  if (error) {
+    console.error("Error recording nonce usage:", error);
+    return false;
+  }
+
+  // Clean up expired nonces in the background (don't wait for it)
+  supabase
+    .from("used_deploy_nonces")
+    .delete()
+    .lt("expires_at", now.toISOString())
+    .then(() => {})
+    .catch((err) => console.warn("Failed to clean up expired nonces:", err));
+
+  return true;
+}
+
 /**
  * Verifies that the wallet signature is valid for the deploy request.
- * The message format matches what the launchpad client signs.
+ * Uses a payload-bound message format that includes the community ID and timestamp
+ * to prevent replay attacks and ensure the signature is bound to the specific deploy.
+ *
+ * Validation steps:
+ * 1. Verify timestamp is within TTL window
+ * 2. Check nonce validity (not used by different wallet)
+ * 3. Reconstruct the expected message from parameters
+ * 4. Verify the signature recovers to the expected wallet address
+ * 5. Record nonce usage for replay protection
  */
 async function verifyWalletSignature(
-  walletAddress: string,
-  signature: string,
-  nonce: string,
-): Promise<boolean> {
+  supabase: ReturnType<typeof createClient>,
+  params: DeploySignatureParams,
+): Promise<{ valid: boolean; error?: string }> {
+  const { walletAddress, signature, nonce, timestamp, communityId } = params;
+
   try {
-    // Message format from launchpad's generateIdentityMessage(nonce)
-    const message = `SPACE Identity:\n${nonce}\nFor more info: https://nounspace.com/signatures/`;
+    // Step 1: Validate timestamp is within TTL
+    if (!isTimestampValid(timestamp)) {
+      return { valid: false, error: "Signature has expired or timestamp is invalid" };
+    }
+
+    // Step 2: Check nonce validity (allows same wallet to reuse within TTL)
+    const nonceCheck = await checkNonceValidity(supabase, nonce, walletAddress);
+    if (!nonceCheck.valid) {
+      return { valid: false, error: nonceCheck.error };
+    }
+
+    // Step 3: Build the expected message and verify signature
+    const message = buildDeployMessage(communityId, timestamp, nonce);
     const isValid = await verifyMessage({
       address: walletAddress as `0x${string}`,
       message,
       signature: signature as `0x${string}`,
     });
-    return isValid;
+
+    if (!isValid) {
+      return { valid: false, error: "Invalid wallet signature" };
+    }
+
+    // Step 4: Record nonce usage (after successful verification)
+    const recorded = await recordNonceUsage(supabase, nonce, walletAddress);
+    if (!recorded) {
+      // Log but don't fail - the signature was valid
+      console.warn("Failed to record nonce usage, but signature was valid");
+    }
+
+    return { valid: true };
   } catch (error) {
     console.error("Wallet signature verification failed:", error);
-    return false;
+    return { valid: false, error: "Signature verification failed" };
   }
 }
 
@@ -164,7 +335,7 @@ const BASE_DIRECTORY_SETTINGS = {
 const DIRECTORY_FETCH_TIMEOUT_MS = 25000;
 
 function rootKeyPath(identityPublicKey: string, walletAddress: string): string {
-  return `identities/${identityPublicKey}/${walletAddress}/root.json`;
+  return `${identityPublicKey}/keys/root/${walletAddress}`;
 }
 
 const normalizeDomain = (domain: string) =>
@@ -174,6 +345,56 @@ const normalizeDomain = (domain: string) =>
     .replace(/^https?:\/\//, "")
     .replace(/^www\./, "")
     .replace(/\/+$/, "");
+
+/**
+ * Safely extracts and validates a pure hostname from a subdomain input.
+ * Rejects inputs containing path segments, slashes, or other invalid characters.
+ * Returns null if the input is invalid or cannot be parsed as a valid hostname.
+ */
+function extractValidHostname(input: string): string | null {
+  const trimmed = input.trim().toLowerCase();
+  if (!trimmed) {
+    return null;
+  }
+
+  // Reject if input contains any slashes (path segments)
+  if (trimmed.includes("/") && !trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+    return null;
+  }
+
+  try {
+    // Prepend scheme if not present for URL parsing
+    const urlCandidate = trimmed.startsWith("http://") || trimmed.startsWith("https://")
+      ? trimmed
+      : `https://${trimmed}`;
+
+    const parsed = new URL(urlCandidate);
+
+    // Reject if there's a path beyond the root
+    if (parsed.pathname && parsed.pathname !== "/") {
+      return null;
+    }
+
+    // Reject if there are query params or hash
+    if (parsed.search || parsed.hash) {
+      return null;
+    }
+
+    const hostname = parsed.hostname.toLowerCase();
+
+    // Remove www. prefix if present
+    const cleanHostname = hostname.startsWith("www.") ? hostname.slice(4) : hostname;
+
+    // Basic validation: hostname should not be empty and should contain valid characters
+    if (!cleanHostname || !/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/.test(cleanHostname)) {
+      return null;
+    }
+
+    return cleanHostname;
+  } catch {
+    return null;
+  }
+}
 
 const slugifyDisplayName = (displayName: string) => {
   const normalized = displayName
@@ -1391,6 +1612,8 @@ Deno.serve(async (req: Request) => {
       walletAddress,
       communityId,
       walletSignature,
+      nonce,
+      timestamp,
       isNewUser,
       identityRequest,
       signedKeyFile,
@@ -1431,8 +1654,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Verify wallet signature cryptographically before any DB operations
-    const nonce = requestData.nonce;
     if (!nonce) {
       return new Response(
         JSON.stringify({
@@ -1446,17 +1667,36 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const isWalletSignatureValid = await verifyWalletSignature(
-      walletAddress,
-      walletSignature,
-      nonce,
-    );
-
-    if (!isWalletSignatureValid) {
+    if (!timestamp) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: "Invalid wallet signature",
+          error: "Timestamp is required for signature verification",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Verify wallet signature cryptographically before any DB operations
+    // The signature must be bound to the specific deploy payload (communityId + timestamp + nonce)
+    // The target community ID should match what the client signed (blank subdomain, custom domain, or null for new)
+    const signedTargetCommunityId = blankSubdomain || communityId || customDomain || null;
+    const signatureResult = await verifyWalletSignature(supabase, {
+      walletAddress,
+      signature: walletSignature,
+      nonce,
+      timestamp,
+      communityId: signedTargetCommunityId,
+    });
+
+    if (!signatureResult.valid) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: signatureResult.error || "Invalid wallet signature",
         }),
         {
           status: 401,
@@ -1590,20 +1830,28 @@ Deno.serve(async (req: Request) => {
     }
 
     const normalizedCommunityId = communityId ? normalizeDomainValue(communityId) || "" : "";
-    let resolvedBlankSubdomain = blankSubdomain ? normalizeDomain(blankSubdomain) : "";
+    const displayName =
+      typeof (brandConfig as { displayName?: string })?.displayName === "string"
+        ? (brandConfig as { displayName?: string }).displayName
+        : "";
 
-    if (resolvedBlankSubdomain && !resolvedBlankSubdomain.endsWith(".blank.space")) {
-      resolvedBlankSubdomain = `${resolvedBlankSubdomain}.blank.space`;
+    let resolvedBlankSubdomain = "";
+
+    if (blankSubdomain) {
+      // Use proper URL parsing to extract and validate the hostname
+      const extractedHostname = extractValidHostname(blankSubdomain);
+      if (extractedHostname) {
+        resolvedBlankSubdomain = extractedHostname.endsWith(".blank.space")
+          ? extractedHostname
+          : `${extractedHostname}.blank.space`;
+      }
+      // If extraction failed (invalid input like "foo/bar"), fall through to fallback logic
     }
 
     if (!resolvedBlankSubdomain) {
       if (normalizedCommunityId && normalizedCommunityId.endsWith(".blank.space")) {
         resolvedBlankSubdomain = normalizedCommunityId;
       } else {
-        const displayName =
-          typeof (brandConfig as { displayName?: string })?.displayName === "string"
-            ? (brandConfig as { displayName?: string }).displayName
-            : "";
         resolvedBlankSubdomain = await buildBlankSubdomain(supabase, displayName);
       }
     }
@@ -2310,6 +2558,49 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Check ownership of existing domains before upserting to prevent overwriting
+    // domains owned by other communities
+    const domainNames = domainsToUpsert.map((d) => d.domain);
+    const { data: existingDomains, error: existingDomainsError } = await supabase
+      .from("community_domains")
+      .select("domain, community_id")
+      .in("domain", domainNames);
+
+    if (existingDomainsError) {
+      console.error("Error checking domain ownership:", existingDomainsError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Failed to validate domain ownership",
+          details: existingDomainsError.message,
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Verify ownership: existing domains must belong to this community or not exist
+    const ownershipMismatches = (existingDomains ?? []).filter(
+      (existing) => existing.community_id !== resolvedBlankSubdomain
+    );
+
+    if (ownershipMismatches.length > 0) {
+      const conflictingDomains = ownershipMismatches.map((d) => d.domain).join(", ");
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Domain ownership conflict: ${conflictingDomains} is owned by another community`,
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Safe to upsert: domains either don't exist or belong to this community
     const { error: domainUpsertError } = await supabase
       .from("community_domains")
       .upsert(domainsToUpsert, { onConflict: "domain" });
