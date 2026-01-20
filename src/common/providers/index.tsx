@@ -17,6 +17,8 @@ import MobilePreviewProvider from "./MobilePreviewProvider";
 import { SharedDataProvider } from "./SharedDataProvider";
 import { MiniKitContextProvider } from "./MiniKitProvider";
 import { GlobalErrorHandler } from "./GlobalErrorHandler";
+import { SystemConfigProvider } from "./SystemConfigProvider";
+import { SystemConfig } from "@/config";
 
 const RarelyUpdatedProviders = React.memo(
   function RarelyUpdatedProviders({
@@ -38,33 +40,41 @@ const RarelyUpdatedProviders = React.memo(
   },
 );
 
-export default function Providers({ children }: { children: React.ReactNode }) {
+export default function Providers({
+  children,
+  systemConfig,
+}: {
+  children: React.ReactNode;
+  systemConfig: SystemConfig;
+}) {
   return (
     <>
       <GlobalErrorHandler />
-      <VersionCheckProivder>
-        <Privy>
-          <Query>
-            <Wagmi>
-              <MiniKitContextProvider>
-                <Theme>
-                  <AppStoreProvider>
-                    <UserThemeProvider>
-                      <AuthenticatorProvider>
-                        <LoggedInStateProvider>
-                          <SidebarContextProvider>
-                            <RarelyUpdatedProviders>{children}</RarelyUpdatedProviders>
-                          </SidebarContextProvider>
-                        </LoggedInStateProvider>
-                      </AuthenticatorProvider>
-                    </UserThemeProvider>
-                  </AppStoreProvider>
-                </Theme>
-              </MiniKitContextProvider>
-            </Wagmi>
-          </Query>
-        </Privy>
-      </VersionCheckProivder>
+      <SystemConfigProvider systemConfig={systemConfig}>
+        <VersionCheckProivder>
+          <Privy>
+            <Query>
+              <Wagmi>
+                <MiniKitContextProvider>
+                  <Theme>
+                    <AppStoreProvider>
+                      <UserThemeProvider>
+                        <AuthenticatorProvider>
+                          <LoggedInStateProvider>
+                            <SidebarContextProvider>
+                              <RarelyUpdatedProviders>{children}</RarelyUpdatedProviders>
+                            </SidebarContextProvider>
+                          </LoggedInStateProvider>
+                        </AuthenticatorProvider>
+                      </UserThemeProvider>
+                    </AppStoreProvider>
+                  </Theme>
+                </MiniKitContextProvider>
+              </Wagmi>
+            </Query>
+          </Privy>
+        </VersionCheckProivder>
+      </SystemConfigProvider>
     </>
   );
 }
