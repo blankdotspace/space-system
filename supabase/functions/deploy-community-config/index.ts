@@ -1542,9 +1542,10 @@ const sendEmail = async (payload: { to: string; subject: string; html: string })
 };
 
 Deno.serve(async (req: Request) => {
+  // Handle CORS preflight requests first - must return before any other processing
   if (req.method === "OPTIONS") {
     return new Response(null, {
-      status: 200,
+      status: 204,
       headers: corsHeaders,
     });
   }
