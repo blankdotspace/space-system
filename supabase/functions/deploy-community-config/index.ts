@@ -1831,7 +1831,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const normalizedCommunityId = communityId ? normalizeDomainValue(communityId) || "" : "";
-    const displayName =
+    const brandDisplayName =
       typeof (brandConfig as { displayName?: string })?.displayName === "string"
         ? (brandConfig as { displayName?: string }).displayName
         : "";
@@ -1853,7 +1853,7 @@ Deno.serve(async (req: Request) => {
       if (normalizedCommunityId && normalizedCommunityId.endsWith(".blank.space")) {
         resolvedBlankSubdomain = normalizedCommunityId;
       } else {
-        resolvedBlankSubdomain = await buildBlankSubdomain(supabase, displayName);
+        resolvedBlankSubdomain = await buildBlankSubdomain(supabase, brandDisplayName);
       }
     }
 
