@@ -1,6 +1,7 @@
 import React from "react";
 import { NextApiRequest, NextApiResponse } from "next";
 import { ImageResponse } from "next/og";
+import { getOgFonts } from "@/common/lib/utils/ogFonts";
 
 export const config = {
   runtime: "edge",
@@ -35,13 +36,24 @@ export default async function GET(
     priceChange: params.get("priceChange") || "",
   };
 
-  return new ImageResponse(<TokenCard data={data} />, {
+  const fonts = await getOgFonts();
+  const fontFamily = fonts ? "Noto Sans, Noto Sans Symbols 2" : "sans-serif";
+
+  return new ImageResponse(<TokenCard data={data} fontFamily={fontFamily} />, {
     width: 1200,
     height: 630,
+    ...(fonts ? { fonts } : {}),
+    emoji: "twemoji",
   });
 }
 
-const TokenCard = ({ data }: { data: TokenCardData }) => {
+const TokenCard = ({
+  data,
+  fontFamily,
+}: {
+  data: TokenCardData;
+  fontFamily: string;
+}) => {
   const marketCapNumber = Number(data.marketCap);
   const formattedMarketCap = Number.isFinite(marketCapNumber)
     ? `$${marketCapNumber.toLocaleString(undefined, {
@@ -80,7 +92,7 @@ const TokenCard = ({ data }: { data: TokenCardData }) => {
         background: "black",
         color: "white",
         gap: "32px",
-        fontFamily: "Arial, sans-serif",
+        fontFamily,
       }}
     >
       {data.imageUrl && (

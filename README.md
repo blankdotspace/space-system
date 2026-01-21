@@ -21,11 +21,50 @@ a protocol for decentralized social apps: https://www.farcaster.xyz
    On Mac OS, for example:
    ```bash
    brew install supabase/tap/supabase
+   ```
+
+   Install Docker Desktop on macOS:
+   ```bash
+   brew install --cask docker
+   open /Applications/Docker.app
+   ```
+   Wait for Docker Desktop to finish initializing before continuing.
    
    On Linux:
-   install docker
-   install supabase
-   npx supabase init
+
+   First, install Homebrew (if not already installed):
+   ```bash
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+   ```
+   Follow the instructions in your terminal to add Homebrew to your PATH.
+   Generally, you'll need to run these commands (replace `.bashrc` with your shell configuration file if different):
+
+   ```bash
+   (echo; echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"') >> ~/.bashrc
+   eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+   ```
+   
+   You may also need to install some dependencies first (Debian/Ubuntu):
+   ```bash
+   sudo apt-get install build-essential procps curl file git
+   ```
+
+   Then install Supabase:
+   ```bash
+   brew install supabase/tap/supabase
+   ```
+
+   Install Docker (Debian/Ubuntu):
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y docker.io docker-compose-plugin
+   sudo systemctl enable --now docker
+   sudo usermod -aG docker "$USER"
+   ```
+   Log out/in (or restart your shell) so the new group membership takes effect.
+   For other distros, follow the [official Docker Engine docs](https://docs.docker.com/engine/install/).
+
+   Make sure Docker is installed and running before continuing.
 4. Install dependencies
    ```bash
    yarn install

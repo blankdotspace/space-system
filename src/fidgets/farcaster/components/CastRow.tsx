@@ -2,9 +2,8 @@
 
 import { Avatar, AvatarImage } from "@/common/components/atoms/avatar";
 import Modal from "@/common/components/molecules/Modal";
-import { AnalyticsEvent } from "@/common/constants/analyticsEvents";
-import { useAppStore } from "@/common/data/stores/app";
 import { trackAnalyticsEvent } from "@/common/lib/utils/analyticsUtils";
+import { useAppStore } from "@/common/data/stores/app";
 import { formatTimeAgo } from "@/common/lib/utils/date";
 import { mergeClasses as classNames } from "@/common/lib/utils/mergeClasses";
 import { useFarcasterSigner } from "@/fidgets/farcaster/index";
@@ -19,19 +18,22 @@ import {
 } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartFilledIcon } from "@heroicons/react/24/solid";
 import { CastWithInteractions, EmbedUrl, User } from "@neynar/nodejs-sdk/build/api";
-import { bytesToHex, hexToBytes } from "@noble/ciphers/utils";
+import { hexToBytes, bytesToHex } from "@noble/ciphers/utils";
 import { ErrorBoundary } from "@sentry/react";
-import { useQueryClient } from "@tanstack/react-query";
 import { Properties } from "csstype";
 import { get, includes, isObject, isUndefined, map } from "lodash";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { FaReply } from "react-icons/fa6";
 import { IoMdShare } from "react-icons/io";
 import CreateCast, { DraftType } from "./CreateCast";
 import { renderEmbedForUrl, type CastEmbed } from "./Embeds";
+import { AnalyticsEvent } from "@/common/constants/analyticsEvents";
+import { useToastStore } from "@/common/data/stores/toastStore";
+import { isImageUrl, isVideoUrl } from "@/common/lib/utils/urls";
+import { isLikelyFrameUrl } from "@/common/lib/utils/frameDetection";
 
 function isEmbedUrl(maybe: unknown): maybe is EmbedUrl {
   return isObject(maybe) && typeof maybe["url"] === "string";
@@ -123,6 +125,29 @@ const extractUrlsFromText = (text: string): string[] => {
   return text.match(urlRegex) || [];
 };
 
+const formatUrlForDisplay = (rawUrl: string, maxLength = 60): string => {
+  try {
+    const parsed = new URL(rawUrl);
+    const hostname = parsed.hostname.replace(/^www\./, "");
+    const pathAndQuery =
+      (parsed.pathname === "/" ? "" : parsed.pathname) + parsed.search;
+
+    const combined = pathAndQuery ? `${hostname}${pathAndQuery}` : hostname;
+    if (combined.length <= maxLength) {
+      return combined;
+    }
+
+    const remaining = Math.max(maxLength - hostname.length - 1, 0);
+    if (remaining <= 0) {
+      return `${hostname.slice(0, maxLength - 1)}…`;
+    }
+
+    return `${hostname}${pathAndQuery.slice(0, remaining)}…`;
+  } catch (error) {
+    return rawUrl.length > maxLength ? `${rawUrl.slice(0, maxLength - 1)}…` : rawUrl;
+  }
+};
+
 // Helper: try to extract a tweet id from a URL
 const getTweetIdFromUrl = (u: string) => {
   try {
@@ -146,7 +171,7 @@ const isUrlAlreadyEmbedded = (
   embedUrls: Array<EmbedUrl | { cast_id?: { hash?: string | Uint8Array } }>
 ): boolean => {
   const urlTweetId = getTweetIdFromUrl(url);
-
+  
   return embedUrls.some((embed) => {
     if (isEmbedUrl(embed)) {
       if (embed.url === url) return true;
@@ -160,6 +185,31 @@ const isUrlAlreadyEmbedded = (
 // Helper: extract embed URLs from cast
 const getEmbedUrls = (cast: CastWithInteractions): Array<EmbedUrl | { cast_id?: { hash?: string | Uint8Array } }> => {
   return "embeds" in cast && cast.embeds ? cast.embeds : [];
+};
+
+const isPriorityUrl = (url: string | undefined | null) => {
+  if (!url) return false;
+
+  return (
+    isImageUrl(url) ||
+    isVideoUrl(url) ||
+    isLikelyFrameUrl(url) ||
+    url.startsWith('"chain:') ||
+    (url.startsWith("https://warpcast.com") && !url.includes("/~/")) ||
+    ((url.includes("twitter.com") || url.startsWith("https://x.com")) && url.includes("status/")) ||
+    url.startsWith("https://nouns.build") ||
+    url.includes("zora.co") ||
+    url.startsWith("zoraCoin:") ||
+    url.includes("paragraph.xyz") ||
+    url.includes("pgrph.xyz") ||
+    url.startsWith("https://open.spotify.com/track")
+  );
+};
+
+const isPriorityEmbed = (embed: EmbedUrl | { cast_id?: { hash?: string | Uint8Array } }) => {
+  if (!isEmbedUrl(embed)) return Boolean(embed.cast_id);
+  if (embed.metadata?.frame) return true;
+  return isPriorityUrl(embed.url);
 };
 
 // Helper: check if a URL is a Twitter/X URL
@@ -178,19 +228,46 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
   const embedUrls = getEmbedUrls(cast);
   const textUrls = extractUrlsFromText(cast.text || "");
 
+  const isImageEmbed = (embed: EmbedUrl | { cast_id?: { hash?: string | Uint8Array } }) =>
+    isEmbedUrl(embed) &&
+    (isImageUrl(embed.url) || embed.url.includes("i.imgur.com") || embed.url.startsWith("https://imagedelivery.net"));
+
+  const imageEmbeds = embedUrls.filter(isImageEmbed);
+  const nonImageEmbeds = embedUrls.filter((embed) => !isImageEmbed(embed));
+
   // If no embeds from API and no URLs in text, return null
   if (!embedUrls.length && !textUrls.length) {
     return null;
   }
 
+  const hasPriorityEmbed = nonImageEmbeds.some((embed) => isPriorityEmbed(embed));
+  let hasRenderedOpenGraph = false;
+
   return (
     <ErrorBoundary>
+      {/* Render image embeds as a horizontal scroller */}
+      {imageEmbeds.length > 0 && (
+        <div className="mt-4 flex w-full max-w-full gap-2 overflow-x-auto pb-2">
+          {imageEmbeds.map((embed, i) => {
+            if (!isEmbedUrl(embed)) return null;
+            const embedData: CastEmbed = { url: embed.url, key: embed.url };
+
+            return (
+              <div key={`image-embed-${i}`} className="flex-shrink-0 w-full max-w-[400px]">
+                {renderEmbedForUrl(embedData, false, false)}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Render embeds from API */}
-      {map(embedUrls, (embed, i) => {
+      {map(nonImageEmbeds, (embed, i) => {
         const embedData: CastEmbed = isEmbedUrl(embed)
           ? {
               url: embed.url,
               key: embed.url,
+              metadata: embed.metadata,
             }
           : {
               castId: embed.cast_id as { fid: number; hash: string | Uint8Array } | undefined,
@@ -198,16 +275,48 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
             };
 
         const isTwitterEmbed = isTwitterUrl(isEmbedUrl(embed) ? embed.url : embedData.url);
+        const isVideoEmbed = isEmbedUrl(embed) && isVideoUrl(embed.url);
+
+        const shouldAllowOpenGraph =
+          !hasPriorityEmbed && !hasRenderedOpenGraph && isEmbedUrl(embed) && !isPriorityUrl(embed.url);
+        const renderedEmbed = renderEmbedForUrl(embedData, false, shouldAllowOpenGraph);
+
+        if (shouldAllowOpenGraph && renderedEmbed) {
+          hasRenderedOpenGraph = true;
+        }
+
+        if (!renderedEmbed) {
+          return null;
+        }
+
+        const isFrameEmbed = isEmbedUrl(embed) && Boolean(embed.metadata?.frame);
+        const isOgEmbed = isEmbedUrl(embed) && shouldAllowOpenGraph && !isFrameEmbed;
+        const isCastEmbed = Boolean(embedData.castId);
+        const isImageEmbed = !!(embedData.url && isImageUrl(embedData.url));
+
+        const wrapperClass = classNames(
+          "mt-4 w-full",
+          isFrameEmbed || isOgEmbed || isVideoEmbed ? "max-w-[400px]" : "max-w-full",
+          !isTwitterEmbed && !isFrameEmbed && !isVideoEmbed ? "overflow-hidden max-h-[500px]" : "",
+          isFrameEmbed || isOgEmbed || isVideoEmbed
+            ? ""
+            : "gap-y-4 border border-foreground/15 rounded-xl flex justify-center items-center bg-background/50"
+        );
+
+        // Apply UI config styling for cast embeds and image embeds
+        const embedContainerStyle: React.CSSProperties | undefined =
+          isCastEmbed || isImageEmbed
+            ? {
+                backgroundColor: isCastEmbed ? "rgba(128, 128, 128, 0.5)" : undefined,
+                borderColor: "rgba(128, 128, 128, 0.2)",
+              }
+            : undefined;
 
         return (
           <div
             key={`embed-${i}`}
-            className={classNames(
-              "mt-4 gap-y-4 border border-foreground/15 rounded-xl flex justify-center items-center w-full bg-background/50",
-              // only apply clipping for non-twitter embeds
-              !isTwitterEmbed ? "overflow-hidden max-h-[500px]" : "",
-              embedData.castId ? "max-w-[100%]" : "max-w-max"
-            )}
+            className={wrapperClass}
+            style={embedContainerStyle}
             onClick={(event) => {
               event.stopPropagation();
               if (embedData?.castId?.hash) {
@@ -216,7 +325,7 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
               }
             }}
           >
-            {renderEmbedForUrl(embedData, false)}
+            {renderedEmbed}
           </div>
         );
       })}
@@ -233,17 +342,32 @@ const CastEmbedsComponent = ({ cast, onSelectCast }: CastEmbedsProps) => {
         };
 
         const isTwitterTextUrl = isTwitterUrl(url);
+        const isImageEmbed = isImageUrl(url);
+        const embedContainerStyle: React.CSSProperties | undefined = isImageEmbed
+          ? { borderColor: "rgba(128, 128, 128, 0.2)" }
+          : undefined;
+
+        const shouldAllowOpenGraph = !hasPriorityEmbed && !hasRenderedOpenGraph && !isPriorityUrl(url);
+        const renderedEmbed = renderEmbedForUrl(embedData, false, shouldAllowOpenGraph);
+
+        if (shouldAllowOpenGraph && renderedEmbed) {
+          hasRenderedOpenGraph = true;
+        }
+
+        if (!renderedEmbed) {
+          return null;
+        }
+
+        const wrapperClass = classNames(
+          "mt-4 w-full",
+          shouldAllowOpenGraph ? "max-w-[400px]" : "max-w-full",
+          !isTwitterTextUrl ? "overflow-hidden max-h-[500px]" : "",
+          shouldAllowOpenGraph ? "" : "gap-y-4 border border-foreground/15 rounded-xl flex justify-center items-center bg-background/50"
+        );
 
         return (
-          <div
-            key={`text-url-${i}`}
-            className={classNames(
-              "mt-4 gap-y-4 border border-foreground/15 rounded-xl flex justify-center items-center w-full bg-background/50",
-              !isTwitterTextUrl ? "overflow-hidden max-h-[500px]" : "",
-              "max-w-max"
-            )}
-          >
-            {renderEmbedForUrl(embedData, false)}
+          <div key={`text-url-${i}`} className={wrapperClass} style={embedContainerStyle}>
+            {renderedEmbed}
           </div>
         );
       })}
@@ -311,13 +435,12 @@ const CastAttributionSecondary = ({ cast }) => {
 };
 
 const CastReactions = ({ cast }: { cast: CastWithInteractions }) => {
-  const queryClient = useQueryClient();
   const [didLike, setDidLike] = useState(cast.viewer_context?.liked ?? false);
   const [didRecast, setDidRecast] = useState(cast.viewer_context?.recasted ?? false);
-  const [pendingReaction, setPendingReaction] = useState<{ key: CastReactionType; isActive: boolean } | null>(null);
-
-  const { signer, fid: userFid, requestSignerAuthorization } = useFarcasterSigner("create-cast");
-  const { getIsAccountReady } = useAppStore((state) => ({
+  const { signer, fid: userFid } = useFarcasterSigner("render-cast");
+  const { showToast } = useToastStore();
+  const { setModalOpen, getIsAccountReady } = useAppStore((state) => ({
+    setModalOpen: state.setup.setModalOpen,
     getIsAccountReady: state.getIsAccountReady,
   }));
 
@@ -332,93 +455,6 @@ const CastReactions = ({ cast }: { cast: CastWithInteractions }) => {
   const [replyCastDraft, setReplyCastDraft] = useState<Partial<DraftType>>();
   type ReplyCastType = "reply" | "quote";
   const [replyCastType, setReplyCastType] = useState<ReplyCastType>();
-
-  // Extract the actual reaction publishing logic - same pattern as CreateCast
-  const publishReactionForCast = useCallback(
-    async (key: CastReactionType, isActive: boolean) => {
-      if (key === CastReactionType.replies) {
-        onReply?.();
-        return;
-      }
-
-      if (key === CastReactionType.quote) {
-        onQuote?.();
-        return;
-      }
-
-      // Track analytics
-      if (key === CastReactionType.likes) {
-        trackAnalyticsEvent(AnalyticsEvent.LIKE, {
-          username: cast.author.username,
-          castId: cast.hash,
-        });
-      } else if (key === CastReactionType.recasts) {
-        trackAnalyticsEvent(AnalyticsEvent.RECAST, {
-          username: cast.author.username,
-          castId: cast.hash,
-        });
-      }
-
-      // Verify signer is functional before attempting to publish
-      if (!signer || signer.scheme === 0) {
-        throw new Error("Signer is not available or not functional");
-      }
-
-      // Verify userFid is valid
-      if (!userFid || userFid < 0) {
-        throw new Error("User FID is not available");
-      }
-
-      // Test if signer can actually get the key
-      const keyTest = await signer.getSignerKey();
-      if (!keyTest.isOk()) {
-        const keyError = keyTest.isErr() ? keyTest.error : new Error("Unknown error");
-        throw new Error(`Signer cannot retrieve public key: ${keyError instanceof Error ? keyError.message : String(keyError)}`);
-      }
-
-      const reactionBodyType: ReactionType = key === CastReactionType.likes ? ReactionType.LIKE : ReactionType.RECAST;
-      const reaction = {
-        type: reactionBodyType,
-        targetCastId: castId,
-      };
-
-      // Update optimistic state immediately
-      if (key === CastReactionType.likes) {
-        setDidLike(!isActive);
-      } else if (key === CastReactionType.recasts) {
-        setDidRecast(!isActive);
-      }
-
-      try {
-        if (isActive) {
-          await removeReaction({
-            authorFid: userFid,
-            signer: signer!,
-            reaction,
-          });
-        } else {
-          await publishReaction({
-            authorFid: userFid,
-            signer: signer!,
-            reaction,
-          });
-        }
-
-        // Invalidate queries to refresh the feed data
-        queryClient.invalidateQueries({ queryKey: ["casts"] });
-        queryClient.invalidateQueries({ queryKey: ["cast-by-keyword"] });
-      } catch (error) {
-        // Revert optimistic state on error
-        if (key === CastReactionType.likes) {
-          setDidLike(isActive);
-        } else if (key === CastReactionType.recasts) {
-          setDidRecast(isActive);
-        }
-        throw error;
-      }
-    },
-    [cast, userFid, signer, queryClient]
-  );
 
   const getReactions = () => {
     const repliesCount = cast.replies?.count || 0;
@@ -444,71 +480,69 @@ const CastReactions = ({ cast }: { cast: CastWithInteractions }) => {
     };
   };
 
-  // When signer becomes available, try to execute pending reaction
-  useEffect(() => {
-    // Only execute if we have a valid signer (scheme !== 0) and a pending reaction
-    if (!signer || signer.scheme === 0 || !pendingReaction) {
-      return;
-    }
-
-    const { key, isActive } = pendingReaction;
-    setPendingReaction(null);
-    
-    // Small delay to ensure signer is fully synced
-    const timeoutId = setTimeout(async () => {
-      try {
-        await publishReactionForCast(key, isActive);
-      } catch (error) {
-        // Error already logged in publishReactionForCast
-      }
-    }, 500);
-    
-    return () => {
-      clearTimeout(timeoutId);
-    };
-  }, [signer?.scheme, pendingReaction]);
-
   const onClickReaction = async (key: CastReactionType, isActive: boolean) => {
     if (key === CastReactionType.links) {
       return;
     }
 
     if (!getIsAccountReady()) {
+      setModalOpen(true);
       return;
     }
 
-    // Simple check: if no signer, request authorization and store pending reaction (exactly like CreateCast)
+    // We check if we have the signer before proceeding
     if (isUndefined(signer)) {
-      setPendingReaction({ key, isActive });
-      await requestSignerAuthorization();
+      console.error("NO SIGNER");
       return;
     }
 
-    // Verify signer is functional before using
-    if (signer.scheme === 0) {
-      setPendingReaction({ key, isActive });
-      await requestSignerAuthorization();
-      return;
-    }
-
-    // Publish the reaction
     try {
-      await publishReactionForCast(key, isActive);
-    } catch (error) {
-      console.error("[CastReactions] Error publishing reaction:", error);
-      // Reset the optimistic state on error
+      if (key === CastReactionType.replies) {
+        onReply?.();
+        return;
+      }
+
+      if (key === CastReactionType.quote) {
+        onQuote?.();
+        return;
+      }
+
+      // We only perform analytics and state modification actions
+      // when we are sure that we can proceed
       if (key === CastReactionType.likes) {
+        trackAnalyticsEvent(AnalyticsEvent.LIKE, {
+          username: cast.author.username,
+          castId: cast.hash,
+        });
         setDidLike(!isActive);
       } else if (key === CastReactionType.recasts) {
+        trackAnalyticsEvent(AnalyticsEvent.RECAST, {
+          username: cast.author.username,
+          castId: cast.hash,
+        });
         setDidRecast(!isActive);
       }
-      // Only request authorization if error is specifically about signer not being available
-      const errorMsg = error instanceof Error ? error.message : "Failed to publish reaction";
-      if (errorMsg.includes("Signer is not available") || errorMsg.includes("Signer cannot retrieve")) {
-        setPendingReaction({ key, isActive });
-        await requestSignerAuthorization();
+
+      const reactionBodyType: ReactionType = key === CastReactionType.likes ? ReactionType.LIKE : ReactionType.RECAST;
+      const reaction = {
+        type: reactionBodyType,
+        targetCastId: castId,
+      };
+      if (isActive) {
+        await removeReaction({
+          authorFid: userFid,
+          signer,
+          reaction,
+        });
+      } else {
+        await publishReaction({
+          authorFid: userFid,
+          signer,
+          reaction,
+        });
       }
-      // For other errors (like backend validation), just show the error - don't request authorization
+    } catch (error) {
+      console.error(`Error in onClickReaction: ${error}`);
     }
   };
 
@@ -530,6 +564,7 @@ const CastReactions = ({ cast }: { cast: CastWithInteractions }) => {
 
   const onReply = () => {
     if (!getIsAccountReady()) {
+      setModalOpen(true);
       return;
     }
     trackAnalyticsEvent(AnalyticsEvent.REPLY, {
@@ -558,6 +593,7 @@ const CastReactions = ({ cast }: { cast: CastWithInteractions }) => {
 
   const onQuote = () => {
     if (!getIsAccountReady()) {
+      setModalOpen(true);
       return;
     }
     trackAnalyticsEvent(AnalyticsEvent.RECAST, {
@@ -606,6 +642,7 @@ const CastReactions = ({ cast }: { cast: CastWithInteractions }) => {
             e.stopPropagation();
             const url = `${window.location.origin}/homebase/c/${cast.author.username}/${cast.hash}`;
             navigator.clipboard.writeText(url);
+            showToast("Link copied", 2000);
           }}
         >
           <IoMdShare className="w-4 h-4" aria-hidden="true" />
@@ -695,7 +732,7 @@ const EnhancedLinkify: React.FC<{ children: string; style?: React.CSSProperties 
               className="text-blue-500 hover:underline cursor-pointer break-all"
               onClick={(e) => e.stopPropagation()}
             >
-              {part}
+              {formatUrlForDisplay(part)}
             </a>
           );
         }
@@ -742,19 +779,8 @@ const EnhancedLinkify: React.FC<{ children: string; style?: React.CSSProperties 
       .filter(Boolean);
   };
 
-  // Remove links from Spotify in the rendered text
-  const SPOTIFY_TRACK_URL_REGEX = /https?:\/\/open\.spotify\.com\/track\/[A-Za-z0-9]+/;
-  function hasSpotifyHref(element: unknown): boolean {
-    if (!React.isValidElement(element)) return false;
-    const href = (element.props as { href?: string })?.href;
-    return typeof href === "string" && SPOTIFY_TRACK_URL_REGEX.test(href);
-  }
-  const filtered = linkifyText(children).filter((part) => {
-    if (typeof part === "string" && SPOTIFY_TRACK_URL_REGEX.test(part)) return false;
-    if (hasSpotifyHref(part) === true) return false;
-    return true;
-  });
-  return <span style={style}>{filtered}</span>;
+  const linked = linkifyText(children);
+  return <span style={style}>{linked}</span>;
 };
 
 const CastBodyComponent = ({
@@ -780,26 +806,7 @@ const CastBodyComponent = ({
     [onSelectCast]
   );
 
-  // Removes duplicate links from text if an embed already exists
-  const embedUrls = getEmbedUrls(cast);
-  let filteredText = cast.text || "";
-  try {
-    const textUrls = extractUrlsFromText(filteredText);
-    const textUrlsToRemove = new Set<string>();
-    textUrls.forEach((u) => {
-      if (isUrlAlreadyEmbedded(u, embedUrls)) {
-        textUrlsToRemove.add(u);
-      }
-    });
-
-    textUrlsToRemove.forEach((u) => {
-      filteredText = filteredText.replace(u, "");
-    });
-    // Normalizes whitespace after removing URLs
-    filteredText = filteredText.replace(/\n{3,}/g, "\n\n").trim();
-  } catch (e) {
-    // Error filtering URLs
-  }
+  const filteredText = (cast.text || "").replace(/\n{3,}/g, "\n\n").trim();
 
   return (
     <div className="flex flex-col grow">

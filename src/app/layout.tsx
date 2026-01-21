@@ -1,4 +1,3 @@
-import { WEBSITE_URL } from "@/constants/app";
 import React from "react";
 import "@/styles/globals.css";
 import '@coinbase/onchainkit/styles.css';
@@ -8,106 +7,127 @@ import { loadSystemConfig, SystemConfig } from "@/config";
 import ClientMobileHeaderWrapper from "@/common/components/organisms/ClientMobileHeaderWrapper";
 import ClientSidebarWrapper from "@/common/components/organisms/ClientSidebarWrapper";
 import type { Metadata } from 'next' // Migrating next/head
+import { extractFontFamilyFromUrl } from "@/common/lib/utils/fontUtils";
+import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
+import { resolveAssetUrl } from "@/common/lib/utils/resolveAssetUrl";
+import { buildMiniAppEmbed } from "@/common/lib/utils/miniAppEmbed";
+import { resolveMiniAppDomain } from "@/common/lib/utils/miniAppDomain";
 
-// Fallback metadata for build time (when config can't be loaded)
-const fallbackMetadata: Metadata = {
-  title: "Nounspace",
-  description: "Decentralized social spaces",
-  openGraph: {
-    siteName: "Nounspace",
-    title: "Nounspace",
-    type: "website",
-    description: "Decentralized social spaces",
-    images: {
-      url: `${WEBSITE_URL}/images/nouns/og.svg`,
-      type: "image/png",
-      width: 1200,
-      height: 737,
-    },
-    url: WEBSITE_URL,
-  },
-  icons: {
-    icon: [
-      {
-        url: "/images/favicon.ico",
-      },
-      {
-        url: "/images/favicon-32x32.png",
-        sizes: "32x32",
-      },
-      {
-        url: "/images/favicon-16x16.png",
-        sizes: "16x16",
-      },
-    ],
-    apple: "/images/apple-touch-icon.png",
-  },
-};
+const TRUSTED_STYLESHEET_HOSTS = new Set(["fonts.googleapis.com"]);
 
-// Generate metadata dynamically (async)
-// Note: During build time, this may use fallback metadata if config loading fails
-export async function generateMetadata(): Promise<Metadata> {
+function validateStylesheetUrl(stylesheetUrl?: string | null): string | null {
+  if (!stylesheetUrl) {
+    return null;
+  }
+
   try {
-    const config = await loadSystemConfig();
-    
-    const defaultFrame = {
-      version: "next",
-      imageUrl: `${WEBSITE_URL}${config.assets.logos.og}`,
-      button: {
-        title: config.brand.name,
-        action: {
-          type: "launch_frame",
-          url: WEBSITE_URL,
-          name: config.brand.displayName,
-          splashImageUrl: `${WEBSITE_URL}${config.assets.logos.splash}`,
-          splashBackgroundColor: "#FFFFFF",
-        }
-      }
-    };
+    const parsedUrl = new URL(stylesheetUrl);
+    if (parsedUrl.protocol !== "https:") {
+      console.warn("Rejected non-https UI stylesheet URL", { stylesheetUrl });
+      return null;
+    }
 
-    return {
+    if (!TRUSTED_STYLESHEET_HOSTS.has(parsedUrl.hostname)) {
+      console.warn("Rejected untrusted UI stylesheet URL", {
+        stylesheetUrl,
+        hostname: parsedUrl.hostname,
+      });
+      return null;
+    }
+
+    return parsedUrl.toString();
+  } catch (error) {
+    console.warn("Failed to parse UI stylesheet URL", { stylesheetUrl, error });
+    return null;
+  }
+}
+
+// Force dynamic rendering so metadata is generated at request time (not build time)
+// This ensures metadata matches the actual domain/community config at runtime
+export const dynamic = 'force-dynamic';
+
+// Generate metadata dynamically at request time (not build time)
+// This ensures metadata matches the actual domain/community config
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await loadSystemConfig();
+  const baseUrl = await resolveBaseUrl({ systemConfig: config });
+  const ogImageUrl = resolveAssetUrl(config.assets.logos.og, baseUrl) ?? config.assets.logos.og;
+  const splashImageUrl =
+    resolveAssetUrl(config.assets.logos.splash, baseUrl) ?? config.assets.logos.splash;
+  const communityOgUrl = `${baseUrl}/api/metadata/community`;
+  const miniAppDomain = resolveMiniAppDomain(baseUrl);
+  
+  const defaultFrame = {
+    version: "next",
+    imageUrl: ogImageUrl,
+    button: {
       title: config.brand.displayName,
+      action: {
+        type: "launch_frame",
+        url: baseUrl,
+        name: config.brand.displayName,
+        splashImageUrl,
+        splashBackgroundColor: "#FFFFFF",
+      }
+    }
+  };
+
+  const defaultMiniApp = buildMiniAppEmbed({
+    imageUrl: communityOgUrl,
+    buttonTitle: `Open ${config.brand.displayName}`,
+    actionUrl: baseUrl,
+    actionName: config.brand.displayName,
+    splashImageUrl,
+  });
+
+  return {
+    title: config.brand.displayName,
+    description: config.brand.description,
+    openGraph: {
+      siteName: config.brand.displayName,
+      title: config.brand.displayName,
+      type: "website",
       description: config.brand.description,
-      openGraph: {
-        siteName: config.brand.displayName,
-        title: config.brand.displayName,
-        type: "website",
-        description: config.brand.description,
-        images: {
-          url: `${WEBSITE_URL}${config.assets.logos.og}`,
+      images: [
+        {
+          url: communityOgUrl,
+          width: 1200,
+          height: 630,
+        },
+        {
+          url: ogImageUrl,
           type: "image/png",
           width: 1200,
           height: 737,
         },
-        url: WEBSITE_URL,
-      },
-      icons: {
-        icon: [
-          {
-            url: config.assets.logos.favicon,
-          },
-          {
-            url: "/images/favicon-32x32.png",
-            sizes: "32x32",
-          },
-          {
-            url: "/images/favicon-16x16.png",
-            sizes: "16x16",
-          },
-        ],
-        // Apple touch icon should be a PNG; configs provide a valid PNG path now
-        apple: config.assets.logos.appleTouch,
-      },
-      other: {
-        "fc:frame": JSON.stringify(defaultFrame),
-      },
-    };
-  } catch (error) {
-    // During build time or when config can't be loaded, use fallback
-    // This prevents build failures while still allowing dynamic metadata at runtime
-    console.warn('Failed to load config for metadata generation, using fallback:', error);
-    return fallbackMetadata;
-  }
+      ],
+      url: baseUrl,
+    },
+    icons: {
+      icon: [
+        {
+          url: resolveAssetUrl(config.assets.logos.favicon, baseUrl) ?? config.assets.logos.favicon,
+        },
+        {
+          url: resolveAssetUrl("/images/favicon-32x32.png", baseUrl) ?? "/images/favicon-32x32.png",
+          sizes: "32x32",
+        },
+        {
+          url: resolveAssetUrl("/images/favicon-16x16.png", baseUrl) ?? "/images/favicon-16x16.png",
+          sizes: "16x16",
+        },
+      ],
+      // Apple touch icon should be a PNG; configs provide a valid PNG path now
+      apple:
+        resolveAssetUrl(config.assets.logos.appleTouch, baseUrl) ??
+        config.assets.logos.appleTouch,
+    },
+    other: {
+      "fc:frame": JSON.stringify(defaultFrame),
+      "fc:miniapp": JSON.stringify(defaultMiniApp),
+      "fc:miniapp:domain": miniAppDomain,
+    },
+  };
 }
 
 // TO DO: Add global cookie check for a signature of a timestamp (within the last minute)
@@ -120,10 +140,51 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const systemConfig = await loadSystemConfig();
+  const validatedUiStylesheet = validateStylesheetUrl(systemConfig.ui?.url);
+  const navFontFamily = extractFontFamilyFromUrl(validatedUiStylesheet ?? undefined);
+  const navFontStack =
+    navFontFamily
+      ? `${navFontFamily}, var(--font-sans, Inter, system-ui, -apple-system, sans-serif)`
+      : "var(--font-sans, Inter, system-ui, -apple-system, sans-serif)";
+  const navFontColor = systemConfig.ui?.fontColor || "#0f172a";
+  const castButtonFontColor =
+    systemConfig.ui?.castButton?.fontColor ||
+    systemConfig.ui?.castButtonFontColor ||
+    "#ffffff";
+  const navBackgroundColor = systemConfig.ui?.backgroundColor || "#ffffff";
+  const castButtonBackgroundColor =
+    systemConfig.ui?.castButton?.backgroundColor ||
+    systemConfig.ui?.primaryColor ||
+    "rgb(37, 99, 235)";
+  const castButtonHoverColor =
+    systemConfig.ui?.castButton?.hoverColor ||
+    systemConfig.ui?.primaryHoverColor ||
+    "rgb(29, 78, 216)";
+  const castButtonActiveColor =
+    systemConfig.ui?.castButton?.activeColor ||
+    systemConfig.ui?.primaryActiveColor ||
+    "rgb(30, 64, 175)";
   
   return (
     <html lang="en" suppressHydrationWarning>
-      <body>
+      <head>
+        {validatedUiStylesheet && (
+          <link rel="stylesheet" href={validatedUiStylesheet} />
+        )}
+      </head>
+      <body
+        style={
+          {
+            ["--ns-nav-font" as string]: navFontStack,
+            ["--ns-nav-font-color" as string]: navFontColor,
+            ["--ns-cast-button-font-color" as string]: castButtonFontColor,
+            ["--ns-background-color" as string]: navBackgroundColor,
+            ["--ns-cast-button-background-color" as string]: castButtonBackgroundColor,
+            ["--ns-cast-button-hover-color" as string]: castButtonHoverColor,
+            ["--ns-cast-button-active-color" as string]: castButtonActiveColor,
+          } as React.CSSProperties
+        }
+      >
         <SpeedInsights />
         <Providers>{sidebarLayout(children, systemConfig)}</Providers>
       </body>

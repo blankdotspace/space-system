@@ -160,8 +160,7 @@ const Directory: React.FC<
     [primaryFontFamily],
   );
 
-  const { fid: viewerFid, signer, requestSignerAuthorization } =
-    useFarcasterSigner("Directory");
+  const { fid: viewerFid, signer } = useFarcasterSigner("Directory");
 
   const [directoryData, setDirectoryData] = useState<DirectoryFidgetData>(() => ({
     members: data?.members ?? [],
@@ -1063,7 +1062,6 @@ const Directory: React.FC<
             includeFilter={includeFilter}
             viewerFid={viewerFid}
             signer={signer}
-            requestSignerAuthorization={requestSignerAuthorization}
           />
         ) : (
           <DirectoryCardView
@@ -1076,7 +1074,6 @@ const Directory: React.FC<
             includeFilter={includeFilter}
             viewerFid={viewerFid}
             signer={signer}
-            requestSignerAuthorization={requestSignerAuthorization}
           />
         )}
         {/* Bottom pagination */}

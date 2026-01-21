@@ -1,42 +1,15 @@
 import { ConfigLoader, ConfigLoadContext } from './types';
 import { SystemConfig } from '../systemConfig';
-import { themes } from '../shared/themes';
-import { createClient } from '@supabase/supabase-js';
-import {
-  nounsBrand,
-  nounsAssets,
-  nounsCommunity,
-  nounsFidgets,
-  nounsNavigation,
-  nounsUI,
-} from '../nouns';
+import { loadSystemConfigById } from './registry';
 
 /**
  * Runtime config loader
- * Fetches configuration from database at runtime based on domain/community
+ * 
+ * Simplified loader that uses the unified cache and loadSystemConfigById function.
+ * This eliminates the redundant RPC query since we now transform rows in application code.
  */
 export class RuntimeConfigLoader implements ConfigLoader {
-  private supabase: ReturnType<typeof createClient> | null = null;
-
-  constructor() {
-    // Initialize Supabase client if credentials are available
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
-                       process.env.SUPABASE_SERVICE_ROLE_KEY;
-    
-    if (supabaseUrl && supabaseKey) {
-      this.supabase = createClient(supabaseUrl, supabaseKey);
-    }
-  }
-
   async load(context: ConfigLoadContext): Promise<SystemConfig> {
-    if (!this.supabase) {
-      throw new Error(
-        `❌ Supabase credentials not configured. ` +
-        `NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are required for runtime config loading.`
-      );
-    }
-
     if (!context.communityId) {
       throw new Error(
         `❌ Community ID is required for runtime config loading. ` +
@@ -44,59 +17,8 @@ export class RuntimeConfigLoader implements ConfigLoader {
       );
     }
 
-    try {
-      // Fetch config from database
-      const { data, error } = await this.supabase
-        .rpc('get_active_community_config', { 
-          p_community_id: context.communityId 
-        })
-        .single();
-
-      if (error || !data) {
-        console.warn(
-          `⚠️ No config found for community ${context.communityId}. Falling back to default 'nouns' config.`
-        );
-        return this.createFallbackConfig();
-      }
-
-      // Type assertion for database response
-      const dbConfig = data as any;
-
-      // Validate config structure
-      if (!dbConfig.brand || !dbConfig.assets) {
-        throw new Error(
-          `❌ Invalid config structure from database. ` +
-          `Missing required fields: brand, assets. ` +
-          `Ensure database is seeded correctly.`
-        );
-      }
-
-      // Add themes from shared file (themes are not in database)
-      const mappedConfig: SystemConfig = {
-        ...dbConfig,
-        theme: themes, // Themes come from shared file
-      };
-
-      return mappedConfig as SystemConfig;
-    } catch (error: any) {
-      if (error.message) {
-        throw error;
-      }
-      throw new Error(
-        `❌ Unexpected error loading runtime config: ${error.message || 'Unknown error'}`
-      );
-    }
-  }
-
-  private createFallbackConfig(): SystemConfig {
-    return {
-      brand: nounsBrand,
-      assets: nounsAssets,
-      community: nounsCommunity,
-      theme: themes,
-      fidgets: nounsFidgets,
-      navigation: nounsNavigation,
-      ui: nounsUI,
-    };
+    // Use the unified loadSystemConfigById which handles caching and transformation
+    return await loadSystemConfigById(context.communityId);
   }
 }
+

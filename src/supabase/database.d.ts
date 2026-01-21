@@ -183,6 +183,51 @@ export type Database = {
         }
         Relationships: []
       }
+      community_configs: {
+        Row: {
+          id: number
+          community_id: string
+          brand_config: Json | null
+          assets_config: Json | null
+          community_config: Json | null
+          fidgets_config: Json | null
+          navigation_config: Json | null
+          ui_config: Json | null
+          admin_identity_public_keys: string[] | null
+          is_published: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          community_id: string
+          brand_config?: Json | null
+          assets_config?: Json | null
+          community_config?: Json | null
+          fidgets_config?: Json | null
+          navigation_config?: Json | null
+          ui_config?: Json | null
+          admin_identity_public_keys?: string[] | null
+          is_published?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          community_id?: string
+          brand_config?: Json | null
+          assets_config?: Json | null
+          community_config?: Json | null
+          fidgets_config?: Json | null
+          navigation_config?: Json | null
+          ui_config?: Json | null
+          admin_identity_public_keys?: string[] | null
+          is_published?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       fidRegistrations: {
         Row: {
           created: string

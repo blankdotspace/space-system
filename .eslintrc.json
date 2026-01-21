@@ -7,7 +7,6 @@
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended",
     "plugin:react/recommended",
-    "plugin:@next/next/recommended",
     "prettier"
   ],
   "parser": "@typescript-eslint/parser",
@@ -17,6 +16,7 @@
   },
   "plugins": [
     "@stylistic",
+    "@next/next",
     "@typescript-eslint",
     "react"
   ],

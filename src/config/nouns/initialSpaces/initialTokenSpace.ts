@@ -1,11 +1,11 @@
 import { SpaceConfig } from "@/app/(spaces)/Space";
-import { cloneDeep } from "lodash";
 import { INITIAL_SPACE_CONFIG_EMPTY } from "../../initialSpaceConfig";
 import { getNetworkWithId } from "@/common/lib/utils/networks";
 import { EtherScanChainName } from "../../../constants/etherscanChainIds";
 import { getGeckoUrl } from "@/common/lib/utils/links";
 import { Address } from "viem";
 import { getLayoutConfig } from "@/common/utils/layoutFormatUtils";
+import { deepClone } from "@/common/lib/utils/deepClone";
 
 export const createInitialTokenSpaceConfigForAddress = (
   address: string,
@@ -16,7 +16,7 @@ export const createInitialTokenSpaceConfigForAddress = (
   network: EtherScanChainName = "base",
   ownerAddress?: Address,
 ): Omit<SpaceConfig, "isEditable"> => {
-  const config = cloneDeep(INITIAL_SPACE_CONFIG_EMPTY);
+  const config = deepClone(INITIAL_SPACE_CONFIG_EMPTY);
 
   config.fidgetInstanceDatums = {
     "Swap:f9e0259a-4524-4b37-a261-9f3be26d4af1": {

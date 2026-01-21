@@ -1,22 +1,48 @@
-import { WEBSITE_URL } from "@/constants/app";
 import { Metadata } from "next/types";
 import React from "react";
 import { getTokenMetadataStructure } from "@/common/lib/utils/tokenMetadata";
-import { defaultFrame } from "@/constants/metadata";
+import { getDefaultFrameAssets } from "@/common/lib/utils/defaultMetadata";
 import { fetchMasterTokenServer } from "@/common/data/queries/serverTokenData";
 import { EtherScanChainName } from "@/constants/etherscanChainIds";
+import { loadSystemConfig, type SystemConfig } from "@/config";
+import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
+import { buildMiniAppEmbed } from "@/common/lib/utils/miniAppEmbed";
+import { resolveMiniAppDomain } from "@/common/lib/utils/miniAppDomain";
 
 // Default metadata (used as fallback)
-const defaultMetadata = {
-  other: {
-    "fc:frame": JSON.stringify(defaultFrame),
-  },
-};
+async function buildDefaultMetadata(systemConfig: SystemConfig, baseUrl: string): Promise<Metadata> {
+  const { defaultFrame, defaultImage, splashImageUrl } = await getDefaultFrameAssets(systemConfig, baseUrl);
+  const brandName = systemConfig.brand.displayName;
+  const miniAppDomain = resolveMiniAppDomain(baseUrl);
+  const defaultMiniApp = buildMiniAppEmbed({
+    imageUrl: defaultImage,
+    buttonTitle: `Open ${brandName}`,
+    actionUrl: baseUrl,
+    actionName: brandName,
+    splashImageUrl,
+  });
+  return {
+    other: {
+      "fc:frame": JSON.stringify(defaultFrame),
+      "fc:miniapp": JSON.stringify(defaultMiniApp),
+      "fc:miniapp:domain": miniAppDomain,
+    },
+  };
+}
 
 export async function generateMetadata({
   params,
+}: {
+  params: Promise<{ network: string; contractAddress: string; tabName?: string }>;
 }): Promise<Metadata> {
+  const systemConfig = await loadSystemConfig();
+  const baseUrl = await resolveBaseUrl({ systemConfig });
+  const brandName = systemConfig.brand.displayName;
+  const miniAppDomain = resolveMiniAppDomain(baseUrl);
+  const twitterHandle = systemConfig.community.social?.x;
+  const { splashImageUrl } = await getDefaultFrameAssets(systemConfig, baseUrl);
   const { network, contractAddress, tabName: tabNameParam } = await params;
+  const defaultMetadata = await buildDefaultMetadata(systemConfig, baseUrl);
   
   if (!network || !contractAddress) {
     return defaultMetadata; // Return default metadata if no network/contractAddress
@@ -63,8 +89,8 @@ export async function generateMetadata({
   
   // Create Frame metadata for Farcaster with the correct path
   const frameUrl = tabName 
-    ? `${WEBSITE_URL}/t/${network}/${contractAddress}/${encodeURIComponent(tabName)}`
-    : `${WEBSITE_URL}/t/${network}/${contractAddress}`;
+    ? `${baseUrl}/t/${network}/${contractAddress}/${encodeURIComponent(tabName)}`
+    : `${baseUrl}/t/${network}/${contractAddress}`;
     
   // Create token frame with the symbol if available
   const queryParams = new URLSearchParams({
@@ -77,7 +103,7 @@ export async function generateMetadata({
     priceChange,
   });
 
-  const ogImageUrl = `${WEBSITE_URL}/api/metadata/token?${queryParams.toString()}`;
+  const ogImageUrl = `${baseUrl}/api/metadata/token?${queryParams.toString()}`;
 
   const tokenFrame = {
     version: "next",
@@ -87,33 +113,46 @@ export async function generateMetadata({
       action: {
         type: "launch_frame",
         url: frameUrl,
-        name: symbol ? `${symbol} on Nounspace` : "Token Space on Nounspace",
-        splashImageUrl: `${WEBSITE_URL}/images/nounspace_logo.png`,
+        name: symbol ? `${symbol} on ${brandName}` : `Token Space on ${brandName}`,
+        splashImageUrl,
         splashBackgroundColor: "#FFFFFF",
       }
     }
   };
+
+  const tokenMiniApp = buildMiniAppEmbed({
+    imageUrl: ogImageUrl,
+    buttonTitle: symbol ? `Visit ${symbol}` : "Visit Token Space",
+    actionUrl: frameUrl,
+    actionName: symbol ? `${symbol} on ${brandName}` : `Token Space on ${brandName}`,
+    splashImageUrl,
+  });
   
   // Create metadata object with token data if available
-  const tokenMetadata = getTokenMetadataStructure({
-    name,
-    symbol,
-    imageUrl,
-    contractAddress,
-    marketCap,
-    price,
-    priceChange,
-    network,
-  });
+  const tokenMetadata = getTokenMetadataStructure(
+    {
+      name,
+      symbol,
+      imageUrl,
+      contractAddress,
+      marketCap,
+      price,
+      priceChange,
+      network,
+    },
+    { baseUrl, brandName, twitterHandle },
+  );
 
   const metadataWithFrame = {
     ...tokenMetadata,
-    title: symbol ? `${symbol} ${price ? `- ${price}` : ""} | Nounspace` : "Token Space | Nounspace",
+    title: symbol ? `${symbol} ${price ? `- ${price}` : ""} | ${brandName}` : `Token Space | ${brandName}`,
     description: symbol
-      ? `${symbol} ${price ? `(${price})` : ""} token information and trading on Nounspace, the customizable web3 social app built on Farcaster.`
-      : "Token information and trading on Nounspace, the customizable web3 social app built on Farcaster.",
+      ? `${symbol} ${price ? `(${price})` : ""} token information and trading on ${brandName}, the customizable web3 social app built on Farcaster.`
+      : `Token information and trading on ${brandName}, the customizable web3 social app built on Farcaster.`,
     other: {
       "fc:frame": JSON.stringify(tokenFrame),
+      "fc:miniapp": JSON.stringify(tokenMiniApp),
+      "fc:miniapp:domain": miniAppDomain,
     },
   };
   
@@ -123,4 +162,3 @@ export async function generateMetadata({
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return children;
 }
-

@@ -30,7 +30,7 @@ import React, { CSSProperties, useEffect, useState } from "react";
 export type GalleryFidgetSettings = {
   imageUrl: string;
   uploadedImage: string;
-  RedirectionURL: string;
+  Link: string;
   Scale: number;
   selectMediaSource: MediaSource;
   nftAddress: string;
@@ -339,9 +339,11 @@ const Gallery: React.FC<FidgetArgs<GalleryFidgetSettings>> = ({ settings }) => {
     overflow: "hidden",
   } as CSSProperties;
 
-  return settings.RedirectionURL ? (
+  const redirectUrl = settings.Link?.trim();
+
+  return redirectUrl ? (
     <a
-      href={settings.RedirectionURL}
+      href={redirectUrl}
       target="_blank"
       rel="noopener noreferrer"
       className="absolute inset-0"

@@ -2,7 +2,7 @@ import React from "react";
 
 const ExploreIcon = () => (
   <svg
-    className="w-6 h-6 text-gray-800 dark:text-white"
+    className="w-6 h-6 text-current"
     aria-hidden="true"
     xmlns="http://www.w3.org/2000/svg"
     width="24"

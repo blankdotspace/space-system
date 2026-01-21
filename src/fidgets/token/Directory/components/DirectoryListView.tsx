@@ -36,7 +36,6 @@ export type DirectoryListViewProps = {
   includeFilter: DirectoryIncludeOption;
   viewerFid: number;
   signer: DirectoryFollowButtonProps["signer"];
-  requestSignerAuthorization?: () => Promise<void>;
 };
 
 export const DirectoryListView: React.FC<DirectoryListViewProps> = ({
@@ -48,7 +47,6 @@ export const DirectoryListView: React.FC<DirectoryListViewProps> = ({
   includeFilter,
   viewerFid,
   signer,
-  requestSignerAuthorization,
 }) => {
   return (
     <ul className="divide-y divide-black/5">
@@ -127,7 +125,6 @@ export const DirectoryListView: React.FC<DirectoryListViewProps> = ({
                 member={member}
                 viewerFid={viewerFid}
                 signer={signer}
-                requestSignerAuthorization={requestSignerAuthorization}
                 className="px-3 py-1 text-xs font-semibold"
               />
               <div className="flex flex-col items-end gap-1 text-right text-xs text-muted-foreground">

@@ -6,7 +6,6 @@ import { SetupStep } from "@/common/data/stores/app/setup";
 import useValueHistory from "@/common/lib/hooks/useValueHistory";
 
 import requiredAuthenticators from "@/constants/requiredAuthenticators";
-import { FARCASTER_AUTHENTICATOR_NAME } from "@/fidgets/farcaster";
 import { bytesToHex } from "@noble/ciphers/utils";
 import { usePrivy } from "@privy-io/react-auth";
 import { isEqual, isUndefined } from "lodash";
@@ -16,6 +15,8 @@ import { AnalyticsEvent } from "../constants/analyticsEvents";
 import { analytics } from "./AnalyticsProvider";
 
 type LoggedInLayoutProps = { children: React.ReactNode };
+
+const FARCASTER_AUTHENTICATOR_ID = "farcaster:nounspace";
 
 const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
   const { ready, authenticated, user, createWallet } = usePrivy();
@@ -133,78 +134,6 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
     }
   }
 
-  const inferFidFromWallet = async (): Promise<number | undefined> => {
-    if (!user?.wallet?.address) {
-      return undefined;
-    }
-    try {
-      const response = await fetch(
-        `/api/farcaster/neynar/users?addresses=${user.wallet.address}`,
-      );
-      if (!response.ok) {
-        return undefined;
-      }
-      const data = await response.json();
-      const users = data?.users ?? [];
-      if (users.length === 0) {
-        return undefined;
-      }
-      
-      const walletLower = user.wallet.address.toLowerCase();
-      const matchingUser = users.find((u: any) => {
-        const verified = u.verified_addresses;
-        const addressCandidates = [
-          verified?.primary?.eth_address,
-          ...(verified?.eth_addresses ?? []),
-          ...(verified?.sol_addresses ?? []),
-          u?.custody_address,
-        ];
-
-        if (
-          addressCandidates.some(
-            (addr) => typeof addr === "string" && addr.toLowerCase() === walletLower,
-          )
-        ) {
-          return true;
-        }
-
-        if (
-          u.verifications?.some(
-            (addr: string) => addr.toLowerCase() === walletLower,
-          )
-        ) {
-          return true;
-        }
-
-        return false;
-      });
-
-      if (!matchingUser) {
-        return undefined;
-      }
-      return matchingUser.fid;
-    } catch (e) {
-      console.error("[inferFidFromWallet] Error inferring FID from wallet:", e);
-      console.error("[inferFidFromWallet] Error inferring FID from wallet:", e);
-      return undefined;
-    }
-  };
-
-  const waitForAuthenticator = async (
-    authenticatorName: string,
-    attempts = 10,
-    delay = 1000,
-  ) => {
-    for (let i = 0; i < attempts; i++) {
-      const initialized = await authenticatorManager.getInitializedAuthenticators();
-      if (initialized.includes(authenticatorName)) {
-        return true;
-      }
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
-    return false;
-  };
-
   async function loadAuthenticators() {
     try {
       await loadPreKeys();
@@ -216,15 +145,90 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
     }
   }
 
-  const installRequiredAuthenticators = async () => {
-    if (requiredAuthenticators.length > 0) {
-      await authenticatorManager.installAuthenticators(requiredAuthenticators);
-      authenticatorManager.initializeAuthenticators(requiredAuthenticators);
-      setCurrentStep(SetupStep.REQUIRED_AUTHENTICATORS_INSTALLED);
-    } else {
-      // If no required authenticators, skip directly to initialized
-      setCurrentStep(SetupStep.AUTHENTICATORS_INITIALIZED);
+  const inferFidFromWallet = async (): Promise<number | undefined> => {
+    if (!user?.wallet?.address) {
+      return undefined;
     }
+
+    try {
+      const response = await fetch(
+        `/api/farcaster/neynar/users?addresses=${encodeURIComponent(user.wallet.address)}`,
+      );
+      if (!response.ok) {
+        return undefined;
+      }
+
+      const data = await response.json();
+      const users = data?.users ?? [];
+      if (users.length === 0) {
+        return undefined;
+      }
+
+      const walletLower = user.wallet.address.toLowerCase();
+      const matchingUser = users.find((candidate: any) => {
+        const verified = candidate.verified_addresses;
+        const addressCandidates = [
+          verified?.primary?.eth_address,
+          ...(verified?.eth_addresses ?? []),
+          ...(verified?.sol_addresses ?? []),
+          candidate?.custody_address,
+        ];
+
+        if (
+          addressCandidates.some(
+            (address) =>
+              typeof address === "string" && address.toLowerCase() === walletLower,
+          )
+        ) {
+          return true;
+        }
+
+        if (
+          candidate.verifications?.some(
+            (address: string) => address.toLowerCase() === walletLower,
+          )
+        ) {
+          return true;
+        }
+
+        return false;
+      });
+
+      if (!matchingUser) {
+        return undefined;
+      }
+
+      return matchingUser.fid;
+    } catch (error) {
+      console.error("[inferFidFromWallet] Error inferring FID from wallet:", error);
+      return undefined;
+    }
+  };
+
+  const waitForAuthenticator = async (
+    authenticatorId: string,
+    attempts = 10,
+    delayMs = 1000,
+  ) => {
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      const initialized = await authenticatorManager.getInitializedAuthenticators();
+      if (initialized.includes(authenticatorId)) {
+        return true;
+      }
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+    return false;
+  };
+
+  const installRequiredAuthenticators = async () => {
+    if (requiredAuthenticators.length === 0) {
+      setCurrentStep(SetupStep.AUTHENTICATORS_INITIALIZED);
+      return;
+    }
+
+    await authenticatorManager.installAuthenticators(requiredAuthenticators);
+    authenticatorManager.initializeAuthenticators(requiredAuthenticators);
+    setCurrentStep(SetupStep.REQUIRED_AUTHENTICATORS_INSTALLED);
   };
 
   const registerAccounts = async () => {
@@ -241,54 +245,64 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
             await registerFidForCurrentIdentity(fidFromWallet);
             await loadFidsForCurrentIdentity();
             currentIdentity = getCurrentIdentity()!;
-          } catch (e) {
-            console.error("[registerAccounts] Error registering FID from wallet:", e);
-            // Continue to fallback flow if registration fails
+          } catch (error) {
+            console.error(
+              "[registerAccounts] Error registering inferred FID from wallet:",
+              error,
+            );
           }
         }
+
         if (currentIdentity.associatedFids.length === 0) {
-          await authenticatorManager.installAuthenticators([
-            FARCASTER_AUTHENTICATOR_NAME,
-          ]);
-          authenticatorManager.initializeAuthenticators([
-            FARCASTER_AUTHENTICATOR_NAME,
-          ]);
-          const signerReady = await waitForAuthenticator(FARCASTER_AUTHENTICATOR_NAME);
-          if (signerReady) {
-            try {
-            const fidResult = (await authenticatorManager.callMethod({
-              requestingFidgetId: "root",
-              authenticatorId: FARCASTER_AUTHENTICATOR_NAME,
-              methodName: "getAccountFid",
-              isLookup: true,
-            })) as { value: number };
-            const publicKeyResult = (await authenticatorManager.callMethod({
-              requestingFidgetId: "root",
-              authenticatorId: FARCASTER_AUTHENTICATOR_NAME,
-              methodName: "getSignerPublicKey",
-              isLookup: true,
-            })) as { value: Uint8Array };
-            const signForFid = async (messageHash) => {
-              const signResult = (await authenticatorManager.callMethod(
-                {
-                  requestingFidgetId: "root",
-                  authenticatorId: FARCASTER_AUTHENTICATOR_NAME,
-                  methodName: "signMessage",
-                  isLookup: false,
-                },
-                messageHash,
-              )) as { value: Uint8Array };
-              return signResult.value;
-            };
-            await registerFidForCurrentIdentity(
-              fidResult.value,
-              bytesToHex(publicKeyResult.value),
-              signForFid,
+          try {
+            await authenticatorManager.installAuthenticators([
+              FARCASTER_AUTHENTICATOR_ID,
+            ]);
+            authenticatorManager.initializeAuthenticators([
+              FARCASTER_AUTHENTICATOR_ID,
+            ]);
+
+            const signerReady = await waitForAuthenticator(
+              FARCASTER_AUTHENTICATOR_ID,
+            );
+
+            if (signerReady) {
+              const fidResult = (await authenticatorManager.callMethod({
+                requestingFidgetId: "root",
+                authenticatorId: FARCASTER_AUTHENTICATOR_ID,
+                methodName: "getAccountFid",
+                isLookup: true,
+              })) as { value: number };
+              const publicKeyResult = (await authenticatorManager.callMethod({
+                requestingFidgetId: "root",
+                authenticatorId: FARCASTER_AUTHENTICATOR_ID,
+                methodName: "getSignerPublicKey",
+                isLookup: true,
+              })) as { value: Uint8Array };
+              const signForFid = async (messageHash) => {
+                const signResult = (await authenticatorManager.callMethod(
+                  {
+                    requestingFidgetId: "root",
+                    authenticatorId: FARCASTER_AUTHENTICATOR_ID,
+                    methodName: "signMessage",
+                    isLookup: false,
+                  },
+                  messageHash,
+                )) as { value: Uint8Array };
+                return signResult.value;
+              };
+              await registerFidForCurrentIdentity(
+                fidResult.value,
+                bytesToHex(publicKeyResult.value),
+                signForFid,
               );
               await loadFidsForCurrentIdentity();
-            } catch (e) {
-              console.error("[registerAccounts] Error registering FID with signer:", e);
             }
+          } catch (error) {
+            console.error(
+              "[registerAccounts] Error registering FID using Farcaster signer:",
+              error,
+            );
           }
         }
       }
@@ -297,7 +311,7 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
   };
 
   // Has to be separate otherwise will cause retrigger chain
-  // due to dependency on authenticatorManager
+  // due to depence on authenticatorManager
   useEffect(() => {
     if (
       ready &&

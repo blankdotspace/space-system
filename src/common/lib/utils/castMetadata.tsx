@@ -1,6 +1,8 @@
-import { WEBSITE_URL } from "@/constants/app";
 import { merge } from "lodash";
 import { Metadata } from "next";
+import { WEBSITE_URL } from "@/constants/app";
+import type { MetadataContext } from "@/common/lib/utils/metadataContext";
+import { normalizeTwitterHandle } from "@/common/lib/utils/normalizeTwitterHandle";
 
 export type CastMetadata = {
   hash?: string;
@@ -8,26 +10,31 @@ export type CastMetadata = {
   displayName?: string;
   pfpUrl?: string;
   text?: string;
+  embedImageUrl?: string;
 };
 
 export const getCastMetadataStructure = (
   cast: CastMetadata,
+  context?: MetadataContext,
 ): Metadata => {
   if (!cast) {
     return {};
   }
 
-  const { hash, username, displayName, pfpUrl, text } = cast;
+  const { hash, username, displayName, pfpUrl, text, embedImageUrl } = cast;
+  const baseUrl = context?.baseUrl ?? WEBSITE_URL;
+  const brandName = context?.brandName ?? "Nounspace";
+  const twitterHandle = normalizeTwitterHandle(context?.twitterHandle);
 
   const title = displayName
     ? `${displayName}'s Cast`
     : username
     ? `@${username}'s Cast`
-    : "Farcaster Cast";
+    : `Cast on ${brandName}`;
 
   const castUrl =
     hash && username
-      ? `${WEBSITE_URL}/homebase/c/${username}/${hash}`
+      ? `${baseUrl}/homebase/c/${username}/${hash}`
       : undefined;
 
   const params = new URLSearchParams({
@@ -36,8 +43,11 @@ export const getCastMetadataStructure = (
     pfpUrl: pfpUrl || "",
     text: text || "",
   });
+  if (embedImageUrl) {
+    params.set("imageUrl", embedImageUrl);
+  }
 
-  const ogImageUrl = `${WEBSITE_URL}/api/metadata/cast?${params.toString()}`;
+  const ogImageUrl = `${baseUrl}/api/metadata/cast?${params.toString()}`;
 
   const ogImage = {
     url: ogImageUrl,
@@ -54,9 +64,9 @@ export const getCastMetadataStructure = (
     },
     twitter: {
       title,
-      site: "https://nounspace.com/",
       images: [ogImage],
       card: "summary_large_image",
+      ...(twitterHandle ? { site: twitterHandle } : {}),
     },
   };
 
