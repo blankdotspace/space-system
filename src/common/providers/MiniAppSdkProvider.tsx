@@ -1,7 +1,8 @@
 "use client";
 
 import React, { createContext, useEffect, useState } from "react";
-import { sdk as miniAppSdk, Context } from "@farcaster/miniapp-sdk";
+import { sdk as miniAppSdk } from "@farcaster/miniapp-sdk";
+import type { Context } from "@farcaster/miniapp-core";
 
 type MiniAppContext = Context.MiniAppContext;
 
