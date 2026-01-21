@@ -44,13 +44,21 @@ export const getSettingsWithDefaults = (
 ): FidgetSettings => {
   return reduce(
     config.fields,
-    (acc, f) => ({
-      ...acc,
-      [f.fieldName]:
-        settings && typeof settings === 'object' && f.fieldName in settings
+    (acc, f) => {
+      // Check if the field exists in settings and has a valid value
+      const hasValue = settings && 
+        typeof settings === 'object' && 
+        f.fieldName in settings &&
+        settings[f.fieldName] !== null &&
+        settings[f.fieldName] !== undefined;
+      
+      return {
+        ...acc,
+        [f.fieldName]: hasValue
           ? settings[f.fieldName]
           : f.default || undefined,
-    }),
+      };
+    },
     {},
   );
 };

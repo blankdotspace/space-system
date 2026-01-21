@@ -153,6 +153,15 @@ export const FidgetSettingsGroup: React.FC<{
             id={`${fidgetId}-${i}-${field.fieldName}`}
             value={value}
             onChange={(val) => {
+              // Only save if the value actually changed
+              // This prevents saves triggered by Select components when they receive values they don't recognize
+              const currentValue = state[field.fieldName];
+              const hasChanged = JSON.stringify(currentValue) !== JSON.stringify(val);
+              
+              if (!hasChanged) {
+                return;
+              }
+
               const data = {
                 ...state,
                 [field.fieldName]: val,
