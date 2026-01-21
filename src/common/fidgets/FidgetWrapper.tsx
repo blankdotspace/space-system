@@ -72,11 +72,17 @@ export function FidgetWrapper({
 
   function onClickEdit() {
     setSelectedFidgetID(bundle.id);
+    // Use derivedSettings (which includes backfilled settings) to ensure we have the most up-to-date settings
+    // This ensures we get the latest settings even if bundle.config.settings is stale
+    const currentSettingsWithDefaults = getSettingsWithDefaults(
+      derivedSettings,
+      bundle.properties,
+    );
     setCurrentFidgetSettings(
       <FidgetSettingsEditor
         fidgetId={bundle.id}
         properties={bundle.properties}
-        settings={settingsWithDefaults}
+        settings={currentSettingsWithDefaults}
         onSave={onSave}
         unselect={unselect}
         removeFidget={removeFidget}
