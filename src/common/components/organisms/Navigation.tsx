@@ -90,11 +90,15 @@ const Navigation = React.memo(
   const userTheme: UserTheme = useUserTheme();
   const uiColors = useUIColors({ systemConfig });
   
+  // Check if user is logged in
+  const isLoggedIn = getIsAccountReady();
+  
   // Check if user is admin (can edit navigation)
+  // Requires both: user must be logged in AND have admin identity public key
   const adminIdentityPublicKeys = systemConfig.adminIdentityPublicKeys || [];
-  const isNavigationEditable = currentUserIdentityPublicKey 
-    ? adminIdentityPublicKeys.includes(currentUserIdentityPublicKey)
-    : false;
+  const isNavigationEditable = isLoggedIn && 
+    currentUserIdentityPublicKey && 
+    adminIdentityPublicKeys.includes(currentUserIdentityPublicKey);
   
   // Use navigation hook for store access and handlers
   const {
@@ -281,7 +285,6 @@ const Navigation = React.memo(
     setShowCastDiscardPrompt(false);
   }, []);
   const { fid } = useFarcasterSigner("navigation");
-  const isLoggedIn = getIsAccountReady();
   const isInitializing = getIsInitializing();
   const { data } = useLoadFarcasterUser(fid);
   const user = useMemo(() => first(data?.users), [data]);
