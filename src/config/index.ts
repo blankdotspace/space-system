@@ -134,13 +134,11 @@ import { default as exampleCreateInitialProfileSpaceConfigForFid } from './examp
 import { default as exampleCreateInitialChannelSpaceConfig } from './example/initialSpaces/channel';
 import { default as exampleCreateInitialTokenSpaceConfigForAddress } from './example/initialSpaces/token';
 import { default as exampleCreateInitalProposalSpaceConfigForProposalId } from './example/initialSpaces/proposal';
-import { default as exampleINITIAL_HOMEBASE_CONFIG } from './example/initialSpaces/homebase';
 
 import { default as clankerCreateInitialProfileSpaceConfigForFid } from './clanker/initialSpaces/initialProfileSpace';
 import { default as clankerCreateInitialChannelSpaceConfig } from './clanker/initialSpaces/initialChannelSpace';
 import { default as clankerCreateInitialTokenSpaceConfigForAddress } from './clanker/initialSpaces/initialTokenSpace';
 import { default as clankerCreateInitialProposalSpaceConfigForProposalId } from './clanker/initialSpaces/initialProposalSpace';
-import { default as clankerINITIAL_HOMEBASE_CONFIG, createInitialHomebaseConfig as clankerCreateInitialHomebaseConfig } from './clanker/initialSpaces/initialHomebase';
 
 type CommunityType = 'nouns' | 'clanker' | 'example';
 
@@ -207,30 +205,13 @@ export const createInitalProposalSpaceConfigForProposalId = (
   }
 };
 
-// Resolve the initial homebase config at module load based on the active community
-export const INITIAL_HOMEBASE_CONFIG = (() => {
-  switch (resolveCommunity()) {
-    case 'clanker':
-      return clankerINITIAL_HOMEBASE_CONFIG;
-    case 'example':
-      return exampleINITIAL_HOMEBASE_CONFIG;
-    case 'nouns':
-    default:
-      return nounsINITIAL_HOMEBASE_CONFIG;
-  }
-})();
+// Resolve the initial homebase config - use nouns version for all communities
+export const INITIAL_HOMEBASE_CONFIG = nounsINITIAL_HOMEBASE_CONFIG;
 
 // Function to create initial homebase config with user-specific data (e.g., wallet address)
-export const createInitialHomebaseConfig = (userAddress?: string) => {
-  switch (resolveCommunity()) {
-    case 'clanker':
-      return clankerCreateInitialHomebaseConfig(userAddress);
-    case 'example':
-      return exampleINITIAL_HOMEBASE_CONFIG;
-    case 'nouns':
-    default:
-      return nounsINITIAL_HOMEBASE_CONFIG;
-  }
-};
+// Note: Nouns implementation doesn't use userAddress, but kept for API compatibility
+export function createInitialHomebaseConfig(userAddress?: string) {
+  return nounsINITIAL_HOMEBASE_CONFIG;
+}
 // Export initial space config
 export { INITIAL_SPACE_CONFIG_EMPTY } from './initialSpaceConfig';
