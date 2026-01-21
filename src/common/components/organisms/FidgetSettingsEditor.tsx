@@ -136,8 +136,11 @@ export const FidgetSettingsGroup: React.FC<{
   return (
     <>
       {fields.map((field, i) => {
-        const value =
-          (field.fieldName in state && state[field.fieldName]) || "";
+        // Properly handle undefined values - don't default to empty string for object values
+        // This prevents dropdowns like selectPlatform from receiving "" instead of undefined/null
+        const value = field.fieldName in state 
+          ? state[field.fieldName] 
+          : undefined;
         const updateSettings = (partial: FidgetSettings) => {
           const data = { ...state, ...partial };
           setState(data);
