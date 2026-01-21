@@ -10,7 +10,7 @@ import { INITIAL_SPACE_CONFIG_EMPTY } from "@/config";
 import Profile from "@/fidgets/ui/profile";
 import Channel from "@/fidgets/ui/channel";
 import { useWallets } from "@privy-io/react-auth";
-import { indexOf, isNil, mapValues, noop} from "lodash";
+import { indexOf, isNil, mapValues, noop, pickBy, isUndefined} from "lodash";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Address } from "viem";
@@ -46,7 +46,6 @@ export default function PublicSpace({
     loadSpaceTab,
     saveLocalSpaceTab,
     commitSpaceTab,
-    getCurrentSpaceConfig,
     loadSpaceTabOrder,
     updateSpaceTabOrder,
     commitSpaceTabOrder,
@@ -68,7 +67,6 @@ export default function PublicSpace({
     localSpaces: state.space.localSpaces,
     remoteSpaces: state.space.remoteSpaces,
     loadEditableSpaces: state.space.loadEditableSpaces,
-    getCurrentSpaceConfig: state.currentSpace.getCurrentSpaceConfig,
     loadSpaceTab: state.space.loadSpaceTab,
     createSpaceTab: state.space.createSpaceTab,
     deleteSpaceTab: state.space.deleteSpaceTab,
@@ -95,12 +93,41 @@ export default function PublicSpace({
     setCurrentTabName(newTabName);
   }, [spacePageData.spaceId, providedTabName, spacePageData.defaultTab, setCurrentSpaceId, setCurrentTabName]);
 
-  // Get the current config using the store's getter
-  const getConfig = useCallback(() => {
-    return getCurrentSpaceConfig();
-  }, [getCurrentSpaceConfig, currentSpaceId, currentTabName]);
-
-  const currentConfig = getConfig();
+  // Get the current config reactively from the store
+  // Select raw data reactively, then compute config in useMemo (similar to PrivateSpace pattern)
+  const currentConfig = useMemo(() => {
+    if (currentSpaceId === "homebase") return undefined;
+    if (isNil(currentSpaceId)) return undefined;
+    const currentSpaceUpdatableConfig = localSpaces[currentSpaceId];
+    if (currentSpaceUpdatableConfig) {
+      const tabsWithDatumsImproved = pickBy(
+        mapValues(currentSpaceUpdatableConfig.tabs, (tabInfo) =>
+          tabInfo
+            ? {
+                ...tabInfo,
+                fidgetInstanceDatums: mapValues(
+                  tabInfo.fidgetInstanceDatums,
+                  (datum) => ({
+                    ...datum,
+                    config: {
+                      settings: datum.config.settings,
+                      editable: datum.config.editable,
+                      data: datum.config.data ?? {},
+                    },
+                  }),
+                ),
+              }
+            : undefined,
+        ),
+        (i) => !isUndefined(i),
+      );
+      return {
+        ...currentSpaceUpdatableConfig,
+        tabs: tabsWithDatumsImproved,
+      };
+    }
+    return undefined;
+  }, [currentSpaceId, localSpaces]);
   
   // Identity states
   const [currentUserFid, setCurrentUserFid] = useState<number | null>(null);
