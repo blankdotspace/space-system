@@ -60,6 +60,19 @@ function resolveCommunityIdFromDomain(domain: string): string {
 } 
 
 /**
+ * Backwards-compatible domain → community resolver used by middleware and loader utils.
+ *
+ * Returns `null` when the domain cannot be normalized/resolved.
+ */
+export function resolveCommunityFromDomain(domain: string): string | null {
+  try {
+    return resolveCommunityIdFromDomain(domain);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Normalize an incoming domain/host value for consistent resolution.
  *
  * - Lowercases the domain
