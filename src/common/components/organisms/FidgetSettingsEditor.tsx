@@ -12,6 +12,8 @@ import {
   FidgetProperties,
   FidgetSettings,
 } from "@/common/fidgets";
+import { useAppStore } from "@/common/data/stores/app";
+import { useFidgetSettings } from "@/common/lib/hooks/useFidgetSettings";
 import { useUIColors } from "@/common/lib/hooks/useUIColors";
 import {
   tabContentClasses,
@@ -228,21 +230,6 @@ const hasFilterTarget = (settings: FidgetSettings) => {
 const isInvalidFeedFilter = (settings: FidgetSettings) =>
   settings.feedType === FeedType.Filter && !hasFilterTarget(settings);
 
-const FILTER_SETTING_FIELDS: Array<keyof FidgetSettings> = [
-  "filterType",
-  "username",
-  "users",
-  "channel",
-  "keyword",
-];
-
-const FILTER_TARGET_FIELDS: Array<keyof FidgetSettings> = [
-  "username",
-  "users",
-  "channel",
-  "keyword",
-];
-
 const hasValue = (value: unknown) =>
   typeof value === "string" && value.trim().length > 0;
 
@@ -323,30 +310,26 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
     return { ...input, filterType: FarcasterFilterType.Users };
   };
 
+  // Get current space/tab from zustand
+  const currentSpaceId = useAppStore((state) => state.currentSpace.currentSpaceId);
+  const currentTabName = useAppStore((state) => state.currentSpace.currentTabName);
+
+  // Subscribe directly to zustand for settings - eliminates prop lag
+  const zustandSettings = useFidgetSettings(currentSpaceId, currentTabName, fidgetId);
+
+  // Use zustand settings if available, fall back to props
+  const effectiveSettings = zustandSettings ?? settings;
+
   const normalizedSettings = useMemo(
     () =>
       normalizeFilterType(
-        fillWithDefaults(settings, { skipDefaults: ["filterType"] }),
+        fillWithDefaults(effectiveSettings, { skipDefaults: ["filterType"] }),
         false,
         true,
       ),
-    [settings, properties.fields],
+    [effectiveSettings, properties.fields],
   );
 
-  // When incoming settings lack filterType (e.g., defaults or partial loads),
-  // reuse the last known filterType to avoid reverting to "Users".
-  const withFilterTypeFallback = useCallback(
-    (incoming: FidgetSettings): FidgetSettings => {
-      if (incoming.feedType !== FeedType.Filter) return incoming;
-      if (incoming.filterType) return incoming;
-      const previous = lastStateRef.current?.filterType;
-      if (previous) {
-        return { ...incoming, filterType: previous };
-      }
-      return incoming;
-    },
-    [],
-  );
   const [state, setState] = useState<FidgetSettings>(normalizedSettings);
   const activeIdRef = useRef(fidgetId);
   const uiColors = useUIColors();
@@ -358,56 +341,17 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
     notifyStateChange(nextState);
   };
 
-  const appliedSettingsSignatureRef = useRef<string>(
-    JSON.stringify(normalizedSettings),
-  );
-  const pendingSaveSignatureRef = useRef<string | null>(null);
-  const lastStateRef = useRef<FidgetSettings>(state);
-  const lastFidgetIdRef = useRef(fidgetId);
-
+  // Update local state when zustand settings change
   useEffect(() => {
-    lastStateRef.current = state;
-  }, [state]);
-
-  useEffect(() => {
-    if (lastFidgetIdRef.current === fidgetId) return;
-    lastFidgetIdRef.current = fidgetId;
-    appliedSettingsSignatureRef.current = "";
-    pendingSaveSignatureRef.current = null;
-    lastStateRef.current = normalizedSettings;
-  }, [fidgetId, normalizedSettings]);
-
-  useEffect(() => {
-    const normalizedWithFallback = withFilterTypeFallback(normalizedSettings);
-    const signature = JSON.stringify(normalizedWithFallback);
-
-    if (pendingSaveSignatureRef.current === signature) {
-      pendingSaveSignatureRef.current = null;
-      appliedSettingsSignatureRef.current = signature;
-      setState(normalizedWithFallback);
-      onStateChange?.(normalizedWithFallback);
-      return;
+    if (zustandSettings) {
+      const normalized = normalizeFilterType(
+        fillWithDefaults(zustandSettings, { skipDefaults: ["filterType"] }),
+        false,
+        true,
+      );
+      setState(normalized);
     }
-
-    const hasIncomingFilters = FILTER_TARGET_FIELDS.some((field) =>
-      hasValue(normalizedWithFallback[field]),
-    );
-    const hasLocalFilters = FILTER_TARGET_FIELDS.some((field) =>
-      hasValue(lastStateRef.current[field]),
-    );
-
-    if (!hasIncomingFilters && hasLocalFilters) {
-      return;
-    }
-
-    if (appliedSettingsSignatureRef.current === signature) {
-      return;
-    }
-
-    appliedSettingsSignatureRef.current = signature;
-    setState(normalizedWithFallback);
-    onStateChange?.(normalizedWithFallback);
-  }, [normalizedSettings, withFilterTypeFallback, onStateChange]);
+  }, [zustandSettings, properties.fields]);
 
   useEffect(() => {
     activeIdRef.current = fidgetId;
@@ -434,9 +378,6 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
       return false;
     }
 
-    const signature = JSON.stringify(filledState);
-    pendingSaveSignatureRef.current = signature;
-    appliedSettingsSignatureRef.current = signature;
     setState(filledState);
     onStateChange?.(filledState);
     onSave(filledState, shouldUnselect);

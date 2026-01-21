@@ -2,6 +2,7 @@ import { Card, CardContent } from "@/common/components/atoms/card";
 import CSSInput from "@/common/components/molecules/CSSInput";
 import ScopedStyles from "@/common/components/molecules/ScopedStyles";
 import { useAppStore } from "@/common/data/stores/app";
+import { useFidgetSettings } from "@/common/lib/hooks/useFidgetSettings";
 import { reduce, isEqual } from "lodash";
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { FaX } from "react-icons/fa6";
@@ -62,8 +63,6 @@ export const getSettingsWithDefaults = (
   );
 };
 
-const lastSavedSettingsByFidget = new Map<string, FidgetSettings>();
-
 export function FidgetWrapper({
   fidget,
   bundle,
@@ -75,11 +74,16 @@ export function FidgetWrapper({
   minimizeFidget,
   borderRadius,
 }: FidgetWrapperProps) {
-  const [localSettingsOverride, setLocalSettingsOverride] =
-    React.useState<FidgetSettings | null>(null);
   const { homebaseConfig } = useAppStore((state) => ({
     homebaseConfig: state.homebase.homebaseConfig,
   }));
+
+  // Get current space/tab from zustand
+  const currentSpaceId = useAppStore((state) => state.currentSpace.currentSpaceId);
+  const currentTabName = useAppStore((state) => state.currentSpace.currentTabName);
+
+  // Subscribe directly to zustand for settings - eliminates prop lag
+  const zustandSettings = useFidgetSettings(currentSpaceId, currentTabName, bundle.id);
 
   const Fidget = fidget;
 
@@ -91,11 +95,8 @@ export function FidgetWrapper({
   } | undefined)?.lastFetchSettings;
 
   const derivedSettings = useMemo<FidgetSettings>(() => {
-    const cachedSettings = lastSavedSettingsByFidget.get(bundle.id);
-    const baseSettings = (localSettingsOverride ??
-      cachedSettings ??
-      bundle.config.settings ??
-      {}) as FidgetSettings;
+    // Use zustand settings directly (they're already the latest), fall back to props
+    const baseSettings = (zustandSettings ?? bundle.config.settings ?? {}) as FidgetSettings;
     if (!lastFetchSettings || typeof lastFetchSettings !== "object") {
       return baseSettings;
     }
@@ -131,7 +132,7 @@ export function FidgetWrapper({
     });
 
     return changed ? nextSettings : baseSettings;
-  }, [bundle.config.settings, lastFetchSettings, localSettingsOverride]);
+  }, [zustandSettings, bundle.config.settings, lastFetchSettings]);
 
   const settingsWithDefaults = useMemo(
     () => getSettingsWithDefaults(derivedSettings, bundle.properties),
@@ -169,12 +170,6 @@ export function FidgetWrapper({
     })();
   }, [shouldAttemptBackfill, derivedSettings, bundle.config, saveConfig]);
 
-  useEffect(() => {
-    if (bundle.config.settings) {
-      lastSavedSettingsByFidget.set(bundle.id, bundle.config.settings);
-    }
-  }, [bundle.id, bundle.config.settings]);
-
   const saveData = useCallback(
     (data: FidgetData) =>
       saveConfig({
@@ -192,12 +187,12 @@ export function FidgetWrapper({
   const onSave = useCallback(
     async (newSettings: FidgetSettings, shouldUnselect?: boolean) => {
       try {
+        // This updates zustand immediately (synchronously)
+        // Component will re-render automatically via zustand subscription
         await saveConfig({
           ...bundle.config,
           settings: newSettings,
         });
-        setLocalSettingsOverride(newSettings);
-        lastSavedSettingsByFidget.set(bundle.id, newSettings);
         if (shouldUnselect) {
           unselect();
         }
@@ -205,57 +200,26 @@ export function FidgetWrapper({
         toast.error("Failed to save fidget settings", { duration: 1000 });
       }
     },
-    [bundle.config, bundle.id, saveConfig, unselect],
-  );
-
-  const updateSettingsPanel = useCallback(
-    (settingsToUse: FidgetSettings) => {
-      setCurrentFidgetSettings(
-        <FidgetSettingsEditor
-          fidgetId={bundle.id}
-          properties={bundle.properties}
-          settings={settingsToUse}
-          onSave={onSave}
-          unselect={unselect}
-          removeFidget={removeFidget}
-        />,
-      );
-    },
-    [
-      bundle.id,
-      bundle.properties,
-      onSave,
-      removeFidget,
-      setCurrentFidgetSettings,
-      unselect,
-    ],
+    [bundle.config, saveConfig, unselect],
   );
 
   function onClickEdit() {
     setSelectedFidgetID(bundle.id);
-    updateSettingsPanel(settingsWithDefaults);
+    setCurrentFidgetSettings(
+      <FidgetSettingsEditor
+        fidgetId={bundle.id}
+        properties={bundle.properties}
+        settings={settingsWithDefaults}
+        onSave={onSave}
+        unselect={unselect}
+        removeFidget={removeFidget}
+      />,
+    );
   }
 
   const userStyles = bundle.properties.fields
     .filter((f) => f.inputSelector === CSSInput)
     .map((f) => settingsWithDefaults[f.fieldName]);
-
-  // Keep the settings panel in sync with the latest settings while selected
-  const lastSettingsSignatureRef = useRef<string>("");
-  useEffect(() => {
-    // Reset local overrides when switching to a different fidget bundle
-    setLocalSettingsOverride(null);
-  }, [bundle.id]);
-
-  useEffect(() => {
-    if (selectedFidgetID !== bundle.id) return;
-
-    const signature = JSON.stringify(settingsWithDefaults);
-    if (lastSettingsSignatureRef.current === signature) return;
-
-    lastSettingsSignatureRef.current = signature;
-    updateSettingsPanel(settingsWithDefaults);
-  }, [selectedFidgetID, bundle.id, settingsWithDefaults, updateSettingsPanel]);
 
   return (
     <>
