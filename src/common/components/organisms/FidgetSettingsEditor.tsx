@@ -202,7 +202,6 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
         : field.default ?? "";
       return acc;
     }, {} as FidgetSettings);
-  };
 
   // Get current space/tab from zustand
   const currentSpaceId = useAppStore((state) => state.currentSpace.currentSpaceId);
