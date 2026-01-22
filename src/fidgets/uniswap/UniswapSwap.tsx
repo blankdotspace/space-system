@@ -96,7 +96,7 @@ const UniswapSwap: React.FC<FidgetArgs<UniswapFidgetSettings>> = ({
     inputCurrency = "NATIVE",
     outputCurrency,
     chain = { id: "8453", name: "base" },
-    size = 0.8,
+    size = 1,
   },
 }) => {
   const uniswapBaseUrl = "https://app.uniswap.org/swap";

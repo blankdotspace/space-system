@@ -27,7 +27,6 @@ export const createInitialTokenSpaceConfigForAddress = (
           inputCurrency: "NATIVE",
           outputCurrency: address,
           chain: getNetworkWithId(network),
-          size: 0.8,
         },
       },
       fidgetType: "Uniswap",
