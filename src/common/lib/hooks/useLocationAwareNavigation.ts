@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback } from "react";
-import type { Context } from "@farcaster/miniapp-core";
 import { useMiniAppContext } from "@/common/providers/MiniAppContextProvider";
 
 /**
