@@ -19,20 +19,19 @@ export const createInitialTokenSpaceConfigForAddress = (
   const config = deepClone(INITIAL_SPACE_CONFIG_EMPTY);
 
   config.fidgetInstanceDatums = {
-    "iframe:f9e0259a-4524-4b37-a261-9f3be26d4af1": {
+    "Uniswap:f9e0259a-4524-4b37-a261-9f3be26d4af1": {
       config: {
         data: {},
         editable: true,
         settings: {
-          url: `https://app.uniswap.org/swap?chain=${network}&inputCurrency=NATIVE&outputCurrency=${address}`,
+          inputCurrency: "NATIVE",
+          outputCurrency: address,
+          chain: getNetworkWithId(network),
           size: 0.8,
-          cropOffsetX: 0,
-          cropOffsetY: 0,
-          isScrollable: true,
         },
       },
-      fidgetType: "iframe",
-      id: "iframe:f9e0259a-4524-4b37-a261-9f3be26d4af1",
+      fidgetType: "Uniswap",
+      id: "Uniswap:f9e0259a-4524-4b37-a261-9f3be26d4af1",
     },
     ...(isClankerToken &&
       castHash &&
@@ -196,7 +195,7 @@ export const createInitialTokenSpaceConfigForAddress = (
           },
           {
             h: 5,
-            i: "iframe:f9e0259a-4524-4b37-a261-9f3be26d4af1",
+            i: "Uniswap:f9e0259a-4524-4b37-a261-9f3be26d4af1",
             maxH: 36,
             maxW: 36,
             minH: 3,
@@ -310,7 +309,7 @@ export const createInitialTokenSpaceConfigForAddress = (
           },
           {
             h: 5,
-            i: "iframe:f9e0259a-4524-4b37-a261-9f3be26d4af1",
+            i: "Uniswap:f9e0259a-4524-4b37-a261-9f3be26d4af1",
             maxH: 36,
             maxW: 36,
             minH: 3,
