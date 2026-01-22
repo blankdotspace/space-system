@@ -1,3 +1,4 @@
+import React from "react";
 import { loadSystemConfig } from "@/config";
 import { loadCommunityAdminProfiles } from "@/common/lib/utils/loadCommunityAdminProfiles";
 import TermsContent from "./terms-content";
