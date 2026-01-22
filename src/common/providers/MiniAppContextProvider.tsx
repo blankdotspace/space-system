@@ -4,14 +4,17 @@ import React, { createContext, useCallback, useContext, useMemo } from "react";
 import type { Context } from "@farcaster/miniapp-core";
 import { useMiniAppSdk } from "@/common/lib/hooks/useMiniAppSdk";
 import { ContextTransformer, type NounspaceContext, type ParsedContext, type TransformedMiniAppContext, type URLContextParams } from "@/common/lib/services/contextTransformer";
+import { useCurrentFid } from "@/common/lib/hooks/useCurrentFid";
+import { useIsMobile } from "@/common/lib/hooks/useIsMobile";
 
 /**
  * Combined context: host context + Nounspace context
+ * Fields from host context are optional to support running outside mini-app environments
  */
 export type CombinedContext = {
-  user: Context.MiniAppContext["user"];
+  user: Context.MiniAppContext["user"] | undefined;
   location: Context.MiniAppContext["location"] | undefined;
-  client: Context.MiniAppContext["client"];
+  client: Context.MiniAppContext["client"] | undefined;
   features: Context.MiniAppContext["features"] | undefined;
   nounspace: NounspaceContext;
 };
@@ -76,6 +79,8 @@ export const MiniAppContextProvider: React.FC<MiniAppContextProviderProps> = ({
   ownerFid,
 }) => {
   const { context: hostContext } = useMiniAppSdk();
+  const currentFid = useCurrentFid();
+  const isMobile = useIsMobile();
   
   // Build Nounspace context from props using useMemo (derived state, no need for useState + useEffect)
   const nounspaceContext = useMemo<NounspaceContext>(
@@ -90,26 +95,58 @@ export const MiniAppContextProvider: React.FC<MiniAppContextProviderProps> = ({
     [spaceId, spaceHandle, tabName, spaceType, isEditable, ownerFid]
   );
 
+  // Build fallback user context from our own sources when host doesn't provide it
+  const fallbackUserContext = useMemo<Context.UserContext | undefined>(() => {
+    if (hostContext?.user) return undefined; // Host provides user, no fallback needed
+    if (!currentFid) return undefined; // No FID available
+    
+    return {
+      fid: currentFid,
+      // username, displayName, pfpUrl can be fetched later if needed
+      // For now, just provide the FID
+    };
+  }, [hostContext?.user, currentFid]);
+
+  // Build fallback client context from our own sources when host doesn't provide it
+  const fallbackClientContext = useMemo<Context.ClientContext | undefined>(() => {
+    if (hostContext?.client) return undefined; // Host provides client, no fallback needed
+    if (!currentFid) return undefined; // Need FID for clientFid
+    
+    return {
+      platformType: isMobile ? 'mobile' : 'web',
+      clientFid: currentFid, // Use current user's FID as client FID
+      added: false, // We don't know if the mini-app is added
+    };
+  }, [hostContext?.client, currentFid, isMobile]);
+
   // Combine contexts
+  // Use host context when available, otherwise use fallback from our own sources
   const combinedContext = useMemo<CombinedContext | null>(() => {
-    if (!hostContext || !nounspaceContext) return null;
+    if (!nounspaceContext) return null;
 
     return {
-      user: hostContext.user,
-      location: hostContext.location || undefined,
-      client: hostContext.client,
-      features: hostContext.features,
+      user: hostContext?.user || fallbackUserContext,
+      location: hostContext?.location || undefined,
+      client: hostContext?.client || fallbackClientContext,
+      features: hostContext?.features,
       nounspace: nounspaceContext,
     };
-  }, [hostContext, nounspaceContext]);
+  }, [hostContext, nounspaceContext, fallbackUserContext, fallbackClientContext]);
 
   // Transform context for embedded apps
   const transformForEmbedded = useCallback(
     (fidgetId?: string) => {
-      if (!hostContext || !nounspaceContext) return null;
-      return ContextTransformer.transformForEmbedded(hostContext, nounspaceContext, fidgetId);
+      if (!nounspaceContext) return null;
+      // Use fallback context when hostContext is null (standalone mode)
+      return ContextTransformer.transformForEmbedded(
+        hostContext,
+        nounspaceContext,
+        fidgetId,
+        fallbackUserContext,
+        fallbackClientContext
+      );
     },
-    [hostContext, nounspaceContext]
+    [hostContext, nounspaceContext, fallbackUserContext, fallbackClientContext]
   );
 
   // Get URL context

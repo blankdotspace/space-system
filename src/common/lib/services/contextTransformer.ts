@@ -15,29 +15,12 @@ export type NounspaceContext = {
 
 /**
  * Transformed context for embedded mini-apps
- * Combines official SDK context with Nounspace-specific extensions
+ * Matches the official SDK MiniAppContext type exactly - no custom extensions
  */
-export type TransformedMiniAppContext = {
-  // Official SDK fields
-  user: Context.MiniAppContext["user"];
-  location: Context.MiniAppContext["location"] | null;
-  client: Context.MiniAppContext["client"];
-  features: Context.MiniAppContext["features"];
-
-  // Custom Nounspace extensions (NOT in official SDK)
-  nounspace?: {
-    referrerDomain: string;
-    spaceContext: {
-      spaceId: string;
-      spaceHandle?: string;
-      tabName?: string;
-      fidgetId?: string;
-    };
-  };
-};
+export type TransformedMiniAppContext = Context.MiniAppContext;
 
 /**
- * URL parameters for context propagation
+ * URL parameters type (for backward compatibility - not used for context)
  */
 export type URLContextParams = {
   from?: "cast_embed" | "cast_share" | "channel" | "notification" | "launcher" | "open_miniapp";
@@ -71,141 +54,97 @@ export class ContextTransformer {
   /**
    * Transform host context + Nounspace context into context for embedded mini-apps
    * 
-   * Returns a custom context object that includes:
-   * - Official SDK fields (user, location, client, features)
-   * - Custom Nounspace extensions (space context, referrer info)
+   * Returns a context object matching the official SDK MiniAppContext type.
    * 
-   * NOTE: Embedded mini-apps must access this via URL params, postMessage, or window.nounspaceContext.
-   * They will NOT receive this through the official `sdk.context` API.
+   * We support both approaches for providing context:
+   * 1. When Nounspace is embedded in a Farcaster client: The client provides the SDK, we use sdk.context
+   * 2. When we embed mini-apps in iframes: We inject the SDK via window.__farcasterMiniappSdk
+   *    so embedded mini-apps can access sdk.context (official SDK API)
    */
   static transformForEmbedded(
-    hostContext: Context.MiniAppContext,
+    hostContext: Context.MiniAppContext | null,
     nounspaceContext: NounspaceContext,
-    fidgetId?: string
-  ): TransformedMiniAppContext {
-    return {
-      // Official SDK fields - pass through as-is
-      user: hostContext.user,
-      location: hostContext.location || null,
-      client: hostContext.client,
-      features: hostContext.features,
+    fidgetId?: string,
+    fallbackUser?: Context.UserContext,
+    fallbackClient?: Context.ClientContext
+  ): TransformedMiniAppContext | null {
+    // Need at least user context (from host or fallback) to create transformed context
+    const user = hostContext?.user || fallbackUser;
+    if (!user) {
+      return null;
+    }
 
-      // Custom Nounspace extensions (NOT in official SDK)
-      nounspace: {
-        referrerDomain: this.NOUNSPACE_DOMAIN,
-        spaceContext: {
-          spaceId: nounspaceContext.spaceId,
-          spaceHandle: nounspaceContext.spaceHandle,
-          tabName: nounspaceContext.tabName,
-          fidgetId: fidgetId || nounspaceContext.fidgetId,
-        },
-      },
+    // Client context is required by SDK - must have either host or fallback
+    const client = hostContext?.client || fallbackClient;
+    if (!client) {
+      // Cannot create context without client (required by SDK)
+      return null;
+    }
+
+    return {
+      // Official SDK fields - use host context if available, otherwise fallback
+      // All fields match the official SDK types from @farcaster/miniapp-core
+      user: user, // Required: UserContext with fid
+      location: hostContext?.location || null, // Optional in SDK
+      client: client, // Required: ClientContext with clientFid and added
+      features: hostContext?.features, // Optional in SDK
+
+      // NOTE: Custom Nounspace extensions are not part of the official SDK.
+      // The official SDK only supports: user, location, client, features.
+      // We do not add custom fields to the context object.
     };
   }
 
   /**
    * Extract relevant context for URL parameters
+   * 
+   * NOTE: This method is kept for backward compatibility but returns empty object.
+   * The official SDK does not use URL parameters for context.
    */
   static extractUrlContext(
     context: Context.MiniAppContext | null
   ): URLContextParams {
-    if (!context?.location) {
-      return {};
-    }
-    const params: URLContextParams = {};
-    switch (context.location.type) {
-      case "cast_embed":
-        params.from = "cast_embed";
-        params.castHash = context.location.cast.hash;
-        break;
-      case "cast_share":
-        params.from = "cast_share";
-        params.castHash = context.location.cast.hash;
-        break;
-      case "channel":
-        params.from = "channel";
-        params.channelKey = context.location.channel.key;
-        break;
-      case "notification":
-        params.from = "notification";
-        params.notificationId = context.location.notification.notificationId;
-        break;
-      case "launcher":
-        params.from = "launcher";
-        break;
-      case "open_miniapp":
-        params.from = "open_miniapp";
-        params.referrerDomain = context.location.referrerDomain;
-        break;
-    }
-    if (context.user?.fid) {
-      params.userFid = context.user.fid.toString();
-    }
-    return params;
+    // Official SDK does not use URL parameters for context
+    // Return empty object for backward compatibility
+    return {};
   }
 
   /**
    * Build URL with context parameters
+   * 
+   * NOTE: The official Farcaster mini-app SDK does NOT use URL parameters for context.
+   * Context is provided exclusively via the SDK API (sdk.context).
+   * The SDK uses Comlink to communicate with the parent via postMessage.
+   * This method returns the base URL unchanged, as per official SDK specification.
    */
   static buildUrlWithContext(
     baseUrl: string,
     context: Context.MiniAppContext | null,
     nounspaceContext?: NounspaceContext
   ): string {
-    const url = new URL(baseUrl);
-    const urlContext = this.extractUrlContext(context);
-
-    // Add location context params
-    if (urlContext.from) {
-      url.searchParams.set("nounspace:from", urlContext.from);
-    }
-    if (urlContext.castHash) {
-      url.searchParams.set("nounspace:castHash", urlContext.castHash);
-    }
-    if (urlContext.channelKey) {
-      url.searchParams.set("nounspace:channelKey", urlContext.channelKey);
-    }
-    if (urlContext.notificationId) {
-      url.searchParams.set("nounspace:notificationId", urlContext.notificationId);
-    }
-    if (urlContext.referrerDomain) {
-      url.searchParams.set("nounspace:referrerDomain", urlContext.referrerDomain);
-    }
-
-    // Add user context
-    if (urlContext.userFid) {
-      url.searchParams.set("nounspace:userFid", urlContext.userFid);
-    }
-
-    // Add Nounspace context
-    if (nounspaceContext) {
-      if (nounspaceContext.spaceId) {
-        url.searchParams.set("nounspace:spaceId", nounspaceContext.spaceId);
-      }
-      if (nounspaceContext.spaceHandle) {
-        url.searchParams.set("nounspace:spaceHandle", nounspaceContext.spaceHandle);
-      }
-      if (nounspaceContext.tabName) {
-        url.searchParams.set("nounspace:tabName", nounspaceContext.tabName);
-      }
-    }
-
-    return url.toString();
+    // Official SDK does not specify URL parameters for context
+    // Context is provided exclusively via the SDK API (sdk.context via Comlink)
+    return baseUrl;
   }
 
   /**
    * Parse context from URL parameters
+   * 
+   * NOTE: The official Farcaster mini-app SDK does NOT use URL parameters for context.
+   * Context is provided exclusively via the SDK API (sdk.context).
+   * The SDK uses Comlink to communicate with the parent via postMessage.
+   * This method returns empty/null values as URL parameters are not used for context.
    */
   static parseUrlContext(searchParams: URLSearchParams): ParsedContext {
+    // Official SDK does not specify URL parameters for context
+    // All context should be accessed via the SDK API (sdk.context via Comlink)
     return {
-      from: (searchParams.get("nounspace:from") || undefined) as ParsedContext["from"],
-      castHash: searchParams.get("nounspace:castHash") || null,
-      channelKey: searchParams.get("nounspace:channelKey") || null,
-      notificationId: searchParams.get("nounspace:notificationId") || null,
-      userFid: searchParams.get("nounspace:userFid")
-        ? parseInt(searchParams.get("nounspace:userFid")!, 10)
-        : null,
-      referrerDomain: searchParams.get("nounspace:referrerDomain") || null,
+      from: undefined,
+      castHash: null,
+      channelKey: null,
+      notificationId: null,
+      userFid: null,
+      referrerDomain: null,
     };
   }
 }

@@ -561,16 +561,10 @@ function LocationAwareSpaceWrapper({
  */
 function LocationAwareNavigationHandler() {
   const searchParams = useSearchParams();
-  const { parseUrlContext } = useMiniAppContext();
   const { navigateFromContext } = useLocationAwareNavigation();
 
-  // Parse URL context on initial load
-  useEffect(() => {
-    const urlContext = parseUrlContext(new URLSearchParams(searchParams.toString()));
-    if (urlContext.from && process.env.NODE_ENV === "development") {
-      console.log("Parsed URL context:", urlContext);
-    }
-  }, [searchParams, parseUrlContext]);
+  // NOTE: URL context parsing removed - official SDK does not use URL parameters for context
+  // Context is provided exclusively via sdk.context (SDK API)
 
   // Navigate based on location context
   useEffect(() => {

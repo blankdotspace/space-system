@@ -27,10 +27,8 @@ This system provides rich context information throughout the application hierarc
                      ▼
 ┌─────────────────────────────────────────────────────────┐
 │  Embedded Mini-App (Fidget)                             │
-│  - Receives transformed context via:                    │
-│    • URL parameters                                     │
-│    • window.nounspaceContext                           │
-│    • postMessage API                                    │
+│  - Receives context via official SDK API (sdk.context) │
+│  - SDK communicates with parent via Comlink/postMessage │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -105,22 +103,13 @@ const transformed = ContextTransformer.transformForEmbedded(
 );
 ```
 
-Returns `TransformedMiniAppContext` with:
-- Official SDK fields (user, location, client, features)
-- Custom Nounspace extensions (space context, referrer domain)
-
-#### `extractUrlContext(context)`
-
-Extracts relevant context for URL parameters.
-
-```typescript
-const urlParams = ContextTransformer.extractUrlContext(hostContext);
-// Returns: { from: "cast_embed", castHash: "...", userFid: "1234" }
-```
+Returns `TransformedMiniAppContext` matching the official SDK `MiniAppContext` type:
+- Official SDK fields only (user, location, client, features)
+- No custom extensions (matches SDK exactly)
 
 #### `buildUrlWithContext(baseUrl, context, nounspaceContext?)`
 
-Builds a URL with context parameters.
+Builds a URL (returns base URL unchanged - official SDK does not use URL parameters for context).
 
 ```typescript
 const url = ContextTransformer.buildUrlWithContext(
@@ -128,16 +117,16 @@ const url = ContextTransformer.buildUrlWithContext(
   hostContext,
   nounspaceContext
 );
-// Returns: "https://example.com?nounspace:from=cast_embed&nounspace:castHash=..."
+// Returns: "https://example.com" (no parameters added)
 ```
 
 #### `parseUrlContext(searchParams)`
 
-Parses context from URL search parameters.
+Parses context from URL search parameters (returns empty values - official SDK does not use URL parameters).
 
 ```typescript
 const parsed = ContextTransformer.parseUrlContext(new URLSearchParams(window.location.search));
-// Returns: { from: "cast_embed", castHash: "...", userFid: 1234 }
+// Returns: { from: undefined, castHash: null, ... } (all null/undefined)
 ```
 
 ## Hooks
@@ -317,57 +306,31 @@ Opened from the launcher/home screen.
 
 ## Context Propagation to Embedded Apps
 
-When embedding mini-apps as Fidgets, context is propagated via three methods:
+When embedding mini-apps as Fidgets, context is provided via the **official SDK API** only.
 
-### 1. URL Parameters
+**IMPORTANT**: The official Farcaster mini-app SDK provides context exclusively via `sdk.context`. The SDK uses Comlink to communicate with the parent window via postMessage.
 
-Context is added as URL parameters with the `nounspace:` prefix:
+### How It Works
 
-```
-https://example.com/miniapp?
-  nounspace:from=cast_embed&
-  nounspace:castHash=0x123...&
-  nounspace:userFid=1234&
-  nounspace:spaceId=space-123&
-  nounspace:tabName=home
-```
+1. **Mini-app imports SDK**: When a mini-app imports `@farcaster/miniapp-sdk`, the SDK uses `windowEndpoint(window.parent)` to communicate with the parent.
 
-**Available Parameters**:
-- `nounspace:from`: Location type
-- `nounspace:castHash`: Cast hash (if from cast)
-- `nounspace:channelKey`: Channel key (if from channel)
-- `nounspace:notificationId`: Notification ID (if from notification)
-- `nounspace:referrerDomain`: Referrer domain (if from mini-app)
-- `nounspace:userFid`: User FID
-- `nounspace:spaceId`: Space ID
-- `nounspace:spaceHandle`: Space handle
-- `nounspace:tabName`: Tab name
+2. **SDK requests context**: The SDK sends postMessage requests to `window.parent` using Comlink RPC.
 
-### 2. window.nounspaceContext
+3. **Parent responds**: The parent window (Nounspace) listens for Comlink postMessage requests and responds with the transformed context.
 
-Context is injected into the `window` object in the embedded iframe:
+4. **Mini-app accesses context**: The mini-app can then access context via `sdk.context`:
 
 ```javascript
 // In embedded mini-app
-if (window.nounspaceContext) {
-  const { user, location, client, features, nounspace } = window.nounspaceContext;
-  // Use context...
-}
+import { sdk } from '@farcaster/miniapp-sdk';
+
+const context = await sdk.context;
+console.log('User:', context.user);
+console.log('Location:', context.location);
+console.log('Client:', context.client);
 ```
 
-### 3. postMessage API
-
-Context updates are sent via `postMessage` when context changes:
-
-```javascript
-// In embedded mini-app
-window.addEventListener("message", (event) => {
-  if (event.data.type === "nounspace:context") {
-    const context = event.data.context;
-    // Use context...
-  }
-});
-```
+**Note**: The parent window must handle Comlink postMessage requests to provide context to embedded mini-apps. This is handled automatically by the IFrame component.
 
 ## Usage Examples
 
@@ -440,27 +403,21 @@ function ShareButton() {
 
 ```javascript
 // In embedded mini-app (iframe)
+import { sdk } from '@farcaster/miniapp-sdk';
 
-// Method 1: window.nounspaceContext
-if (window.nounspaceContext) {
-  const context = window.nounspaceContext;
-  console.log("User:", context.user);
-  console.log("Space:", context.nounspace?.spaceContext);
+// Access context via official SDK API
+const context = await sdk.context;
+
+console.log("User:", context.user);
+console.log("Location:", context.location);
+console.log("Client:", context.client);
+console.log("Features:", context.features);
+
+// Check if in mini-app
+const isInMiniApp = await sdk.isInMiniApp();
+if (isInMiniApp) {
+  // Use context...
 }
-
-// Method 2: URL parameters
-const params = new URLSearchParams(window.location.search);
-const from = params.get("nounspace:from");
-const castHash = params.get("nounspace:castHash");
-const spaceId = params.get("nounspace:spaceId");
-
-// Method 3: postMessage
-window.addEventListener("message", (event) => {
-  if (event.data.type === "nounspace:context") {
-    const context = event.data.context;
-    // Handle context update
-  }
-});
 ```
 
 ## Debug Tools
@@ -522,42 +479,36 @@ The debugger shows:
 
 ### IFrame Fidget
 
-The `IFrame` fidget automatically propagates context to embedded mini-apps:
+The `IFrame` fidget automatically provides context to embedded mini-apps via the official SDK API:
 
 ```tsx
 // src/fidgets/ui/IFrame.tsx
-// Context is automatically:
-// 1. Added to URL parameters
-// 2. Injected into window.nounspaceContext
-// 3. Sent via postMessage on updates
+// Context is provided via:
+// - SDK API (sdk.context) - mini-apps import @farcaster/miniapp-sdk
+// - SDK communicates with parent via Comlink/postMessage
+// - Parent responds with transformed context
 ```
 
 ## Type Definitions
 
 ### TransformedMiniAppContext
 
-Context format for embedded mini-apps:
+Context format for embedded mini-apps (matches official SDK exactly):
 
 ```typescript
-type TransformedMiniAppContext = {
-  // Official SDK fields
-  user: MiniAppContext["user"];
-  location: MiniAppContext["location"] | null;
-  client: MiniAppContext["client"];
-  features: MiniAppContext["features"];
+// TransformedMiniAppContext is an alias for the official SDK MiniAppContext
+type TransformedMiniAppContext = Context.MiniAppContext;
 
-  // Custom Nounspace extensions
-  nounspace?: {
-    referrerDomain: string;
-    spaceContext: {
-      spaceId: string;
-      spaceHandle?: string;
-      tabName?: string;
-      fidgetId?: string;
-    };
-  };
+// Which is:
+type MiniAppContext = {
+  user: UserContext;        // Required
+  client: ClientContext;    // Required
+  location?: LocationContext;  // Optional
+  features?: ClientFeatures;   // Optional
 };
 ```
+
+**Note**: No custom extensions. Only official SDK fields are included.
 
 ### CombinedContext
 
@@ -602,9 +553,7 @@ if (!combinedContext) {
 
 2. **Use location-aware navigation**: Don't assume how the user arrived. Use `useLocationAwareNavigation` to handle different entry points.
 
-3. **Preserve context in URLs**: When building URLs for sharing or navigation, use `buildUrlWithContext` to preserve context.
-
-4. **Handle context updates**: If your component needs to respond to context changes, listen to `postMessage` events in embedded apps.
+3. **Use official SDK API**: Embedded mini-apps should use `sdk.context` from `@farcaster/miniapp-sdk` to access context.
 
 5. **Type safety**: Always use the provided TypeScript types for context structures.
 
@@ -618,10 +567,11 @@ if (!combinedContext) {
 
 ### Embedded app not receiving context
 
-- Check that the iframe URL includes context parameters
-- Verify `window.nounspaceContext` is available in the iframe
-- Check browser console for postMessage errors
+- Verify the mini-app is importing `@farcaster/miniapp-sdk` correctly
+- Check that the parent window is handling Comlink postMessage requests
+- Check browser console for postMessage/Comlink errors
 - Ensure iframe has `allow-same-origin` in sandbox (if using sandbox)
+- Verify `sdk.context` resolves in the embedded mini-app
 
 ### Location context not working
 

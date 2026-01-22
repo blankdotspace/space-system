@@ -1,0 +1,555 @@
+/**
+ * Comlink handler for providing Farcaster Mini App SDK to embedded mini-apps
+ * 
+ * This service acts as the SDK host, exposing the full SDK API via Comlink
+ * so that embedded mini-apps can access context, actions, and other SDK features.
+ * 
+ * The SDK uses Comlink's windowEndpoint to communicate with the parent window.
+ * We use Comlink's expose to create an endpoint that handles postMessage communication.
+ */
+
+import type { Context } from "@farcaster/miniapp-core";
+import { expose, Endpoint } from "comlink";
+import type { EventTarget } from "comlink";
+
+/**
+ * Quick Auth token cache
+ * Stores token and expiration time to avoid unnecessary requests
+ */
+interface QuickAuthTokenCache {
+  token: string;
+  expiresAt: number; // Timestamp in milliseconds
+}
+
+/**
+ * Quick Auth state per iframe
+ * Each iframe gets its own token cache
+ */
+const quickAuthCache = new WeakMap<HTMLIFrameElement, QuickAuthTokenCache>();
+
+export type MiniAppSdkHostAPI = {
+  // Context access - the SDK expects this as a property, not a method
+  context: Promise<Context.MiniAppContext>;
+  
+  // Detection
+  isInMiniApp: () => Promise<boolean>;
+  
+  // Actions
+  actions: {
+    ready: (options?: { disableNativeGestures?: boolean }) => Promise<void>;
+    close: () => Promise<void>;
+    signIn: (options: { nonce: string; acceptAuthAddress?: boolean }) => Promise<{ result: { signature: string; message: string; authMethod: 'custody' | 'authAddress' } } | { error: { type: 'rejected_by_user' } }>;
+    addFrame: () => Promise<boolean>;
+    openUrl: (url: string) => Promise<boolean>;
+    viewProfile: (fid: number) => Promise<boolean>;
+    openMiniApp: (url: string) => Promise<boolean>;
+  };
+  
+  // Quick Auth - lightweight authentication service
+  quickAuth: {
+    getToken: () => Promise<{ token: string }>;
+    fetch: (url: string, init?: RequestInit) => Promise<Response>;
+    token: string | null;
+  };
+  
+  // Wallet
+  wallet: {
+    ethProvider: unknown | null;
+  };
+  
+  // Events (stubs - full event system would require more complex setup)
+  on: (event: string, callback: (...args: any[]) => void) => void;
+  off: (event: string, callback?: (...args: any[]) => void) => void;
+  
+  // Capabilities
+  getCapabilities: () => Promise<string[]>;
+};
+
+/**
+ * Options for creating a mini-app SDK host
+ */
+export interface MiniAppSdkHostOptions {
+  /** Real SDK instance if Nounspace is embedded in a Farcaster client */
+  realSdk?: {
+    quickAuth?: {
+      getToken: () => Promise<{ token: string }>;
+      fetch: (url: string, init?: RequestInit) => Promise<Response>;
+      token: string | null;
+    };
+  } | null;
+  /** Authenticator manager for signing when standalone */
+  authenticatorManager?: {
+    callMethod: (
+      callSignature: {
+        requestingFidgetId: string;
+        authenticatorId: string;
+        methodName: string;
+        isLookup?: boolean;
+      },
+      ...args: any[]
+    ) => Promise<{ result: string; value?: any; reason?: string }>;
+  } | null;
+  /** FID of the user for Quick Auth */
+  userFid?: number;
+}
+
+/**
+ * Create a Comlink-exposed SDK host API
+ * This matches the structure expected by @farcaster/miniapp-sdk
+ */
+export function createMiniAppSdkHost(
+  context: Context.MiniAppContext,
+  ethProvider?: unknown,
+  iframe?: HTMLIFrameElement,
+  domain?: string,
+  options?: MiniAppSdkHostOptions
+): MiniAppSdkHostAPI {
+  // Token cache for Quick Auth (not used directly, but kept for potential future use)
+  // const tokenCache: QuickAuthTokenCache | undefined = iframe ? quickAuthCache.get(iframe) : undefined;
+  
+  // Create actions object first so we can reference signIn from quickAuth
+  const actions = {
+    async ready(options?: { disableNativeGestures?: boolean }): Promise<void> {
+        // Stub - in a real implementation, this would hide splash screen
+        // For embedded apps, we don't have a splash screen to hide
+        return Promise.resolve();
+      },
+      
+      async close(): Promise<void> {
+        // Stub - in a real implementation, this would close the mini-app
+        // For embedded apps, we can't close the parent window
+        return Promise.resolve();
+      },
+      
+      async signIn(signInOptions: { nonce: string; acceptAuthAddress?: boolean; notBefore?: string; expirationTime?: string }): Promise<{ result: { signature: string; message: string; authMethod: 'custody' | 'authAddress' } } | { error: { type: 'rejected_by_user' } }> {
+        // Implement signIn to return SIWE message and signature for Quick Auth
+        // This matches what the SDK expects from miniAppHost.signIn()
+        // The SDK's quickAuth.getToken() calls this to get a SIWE message and signature
+        if (!context.user?.fid) {
+          return { error: { type: 'rejected_by_user' } };
+        }
+        
+        if (!options?.authenticatorManager) {
+          return { error: { type: 'rejected_by_user' } };
+        }
+        
+        const authenticatorManager = options.authenticatorManager;
+        
+        try {
+          const { SiweMessage } = await import('siwe');
+          
+          // Get domain from iframe or current window
+          const signInDomain = domain || (typeof window !== 'undefined' ? window.location.hostname : 'localhost');
+          
+          // Get Ethereum address if available
+          let signerAddress = '0x0000000000000000000000000000000000000000';
+          if (ethProvider && typeof (ethProvider as any).request === 'function') {
+            try {
+              const accounts = await (ethProvider as any).request({ method: 'eth_accounts' });
+              if (accounts && accounts.length > 0) {
+                signerAddress = accounts[0];
+              }
+            } catch {
+              // Use placeholder address
+            }
+          }
+          
+          // Construct SIWE message
+          const siweMessage = new SiweMessage({
+            domain: signInDomain,
+            address: signerAddress,
+            statement: 'Sign in with Farcaster',
+            uri: typeof window !== 'undefined' ? window.location.origin : 'https://nounspace.xyz',
+            version: '1',
+            chainId: 1,
+            nonce: signInOptions.nonce,
+            issuedAt: new Date().toISOString(),
+            notBefore: signInOptions.notBefore,
+            expirationTime: signInOptions.expirationTime,
+          });
+          
+          const message = siweMessage.prepareMessage();
+          const messageBytes = new TextEncoder().encode(message);
+          
+          // Sign with Farcaster authenticator
+          const signResult = await authenticatorManager.callMethod(
+            {
+              requestingFidgetId: 'nounspace-miniapp-host',
+              authenticatorId: 'farcaster:nounspace',
+              methodName: 'signMessage',
+              isLookup: false,
+            },
+            messageBytes
+          );
+          
+          if (signResult.result !== 'success' || !signResult.value) {
+            return { error: { type: 'rejected_by_user' } };
+          }
+          
+          // Convert signature to hex string
+          const signature = Array.from(signResult.value as Uint8Array)
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+          
+          return {
+            result: {
+              signature: `0x${signature}`,
+              message,
+              authMethod: signInOptions.acceptAuthAddress ? 'authAddress' : 'custody',
+            },
+          };
+        } catch (error) {
+          console.error('Sign in error:', error);
+          return { error: { type: 'rejected_by_user' } };
+        }
+      },
+      
+      async addFrame(): Promise<boolean> {
+        // Stub - in a real implementation, this would add the mini-app to the client
+        // For embedded apps, this doesn't make sense
+        return false;
+      },
+      
+      async openUrl(url: string): Promise<boolean> {
+        // Open URL in parent window
+        try {
+          if (typeof window !== 'undefined' && window.parent) {
+            window.parent.open(url, '_blank');
+            return true;
+          }
+          return false;
+        } catch {
+          return false;
+        }
+      },
+      
+      async viewProfile(fid: number): Promise<boolean> {
+        // Stub - in a real implementation, this would navigate to profile
+        // For embedded apps, we could navigate the parent window
+        return false;
+      },
+      
+      async openMiniApp(url: string): Promise<boolean> {
+        // Stub - in a real implementation, this would open another mini-app
+        // For embedded apps, we could navigate the parent window
+        return false;
+      },
+  };
+  
+  return {
+    // Context access - SDK expects this as a Promise property
+    context: Promise.resolve(context),
+    
+    // Detection
+    async isInMiniApp(): Promise<boolean> {
+      return true; // If we're providing the SDK, we're in a mini-app context
+    },
+    
+    // Actions (defined above)
+    actions,
+    
+    // Quick Auth - lightweight authentication service
+    // See: https://miniapps.farcaster.xyz/docs/sdk/quick-auth
+    // Uses the SDK's exact pattern: generateNonce -> signIn -> verifySiwf
+    quickAuth: {
+      async getToken(): Promise<{ token: string }> {
+        const userFid = context.user?.fid || options?.userFid;
+        if (!userFid) {
+          throw new Error('User FID is required for Quick Auth');
+        }
+        
+        if (!iframe || !domain) {
+          throw new Error('Quick Auth requires iframe and domain information');
+        }
+        
+        // Check if we have a valid cached token
+        const cached = quickAuthCache.get(iframe);
+        const now = Date.now();
+        
+        if (cached && cached.expiresAt > now + 60000) {
+          // Token is still valid (with 1 minute buffer)
+          return { token: cached.token };
+        }
+        
+        // Determine if we're getting a token for ourselves (Nounspace) or for an embedded mini-app
+        const currentDomain = typeof window !== 'undefined' ? window.location.hostname : null;
+        const isTokenForEmbeddedApp = currentDomain && domain !== currentDomain;
+        
+        if (isTokenForEmbeddedApp) {
+          console.log(`[Quick Auth] Getting token for embedded app domain: ${domain} (current: ${currentDomain})`);
+        }
+        
+        // Strategy 1: If we have the real SDK AND we're getting a token for ourselves (not an embedded app)
+        // Only use the real SDK when the domain matches, because it will generate a token for the current domain
+        if (options?.realSdk?.quickAuth && !isTokenForEmbeddedApp) {
+          console.log('[Quick Auth] Using real SDK for token (domain matches)');
+          try {
+            const result = await options.realSdk.quickAuth.getToken();
+            // Cache the token
+            if (iframe && result.token) {
+              quickAuthCache.set(iframe, {
+                token: result.token,
+                expiresAt: now + (60 * 60 * 1000), // Assume 1 hour expiration
+              });
+            }
+            return result;
+          } catch (error) {
+            console.warn('Failed to get token from real SDK, falling back to standalone:', error);
+            // Fall through to standalone implementation
+          }
+        }
+        
+        // Strategy 2: Use SDK's pattern with our signIn implementation
+        // This follows the exact same flow as the SDK: generateNonce -> signIn -> verifySiwf
+        console.log(`[Quick Auth] Using SDK pattern with our signIn implementation for domain: ${domain}`);
+        try {
+          const { createLightClient } = await import('@farcaster/quick-auth/light');
+          const { parseMessage } = await import('siwe');
+          
+          const quickAuthClient = createLightClient({
+            origin: 'https://auth.farcaster.xyz',
+          });
+          
+          // Step 1: Generate nonce (same as SDK)
+          const { nonce } = await quickAuthClient.generateNonce();
+          
+          // Step 2: Call our signIn implementation (same as SDK calls miniAppHost.signIn)
+          const signInResponse = await actions.signIn({
+            nonce,
+            acceptAuthAddress: true,
+          });
+          
+          if (signInResponse.error) {
+            throw new Error('Sign in rejected');
+          }
+          
+          // Step 3: Parse SIWE message to get domain (same as SDK)
+          const parsedSiwe = parseMessage(signInResponse.result.message);
+          
+          if (!parsedSiwe.domain) {
+            throw new Error('Missing domain on SIWE message');
+          }
+          
+          // Step 4: Verify SIWE and get token (same as SDK)
+          const verifyResult = await quickAuthClient.verifySiwf({
+            domain: parsedSiwe.domain,
+            message: signInResponse.result.message,
+            signature: signInResponse.result.signature,
+          });
+          
+          // Cache the token
+          if (iframe) {
+            quickAuthCache.set(iframe, {
+              token: verifyResult.token,
+              expiresAt: now + (60 * 60 * 1000), // Assume 1 hour expiration
+            });
+          }
+          
+          return { token: verifyResult.token };
+        } catch (error) {
+          console.error('Quick Auth token fetch failed:', error);
+          throw new Error(
+            `Failed to get Quick Auth token: ${error instanceof Error ? error.message : 'Unknown error'}`
+          );
+        }
+      },
+      
+      async fetch(url: string, init?: RequestInit): Promise<Response> {
+        // Determine if we're fetching for an embedded mini-app or for ourselves
+        const currentDomain = typeof window !== 'undefined' ? window.location.hostname : null;
+        let isFetchForEmbeddedApp = false;
+        
+        if (currentDomain && domain) {
+          try {
+            const urlDomain = new URL(url).hostname;
+            // If the URL domain matches the embedded app's domain (not our domain), use standalone
+            isFetchForEmbeddedApp = urlDomain === domain && urlDomain !== currentDomain;
+          } catch {
+            // If URL parsing fails, fall back to checking if domain is different
+            isFetchForEmbeddedApp = domain !== currentDomain;
+          }
+        }
+        
+        // Strategy 1: If we have the real SDK AND we're fetching for ourselves (not an embedded app)
+        // Only use the real SDK when fetching for our own domain
+        if (options?.realSdk?.quickAuth && !isFetchForEmbeddedApp) {
+          try {
+            return await options.realSdk.quickAuth.fetch(url, init);
+          } catch (error) {
+            console.warn('Failed to fetch via real SDK, falling back to standalone:', error);
+            // Fall through to standalone implementation
+          }
+        }
+        
+        // Strategy 2: Standalone - get token and make request
+        // This is used when:
+        // - We don't have the real SDK
+        // - We're fetching for an embedded mini-app (different domain)
+        // - The real SDK failed
+        const { token } = await this.getToken();
+        const headers = new Headers(init?.headers);
+        headers.set('Authorization', `Bearer ${token}`);
+        
+        return fetch(url, {
+          ...init,
+          headers,
+        });
+      },
+      
+      get token(): string | null {
+        // Strategy 1: If we have the real SDK, use its token
+        if (options?.realSdk?.quickAuth?.token) {
+          return options.realSdk.quickAuth.token;
+        }
+        
+        // Strategy 2: Return cached token if present and not expired
+        if (!iframe) return null;
+        
+        const cached = quickAuthCache.get(iframe);
+        if (cached && cached.expiresAt > Date.now()) {
+          return cached.token;
+        }
+        
+        return null;
+      },
+    },
+    
+    // Wallet
+    wallet: {
+      ethProvider: ethProvider || null,
+    },
+    
+    // Events (stubs)
+    on(event: string, callback: (...args: any[]) => void): void {
+      // Stub - full event system would require more complex setup
+      // For now, we don't support events
+    },
+    
+    off(event: string, callback?: (...args: any[]) => void): void {
+      // Stub - full event system would require more complex setup
+    },
+    
+    // Capabilities
+    async getCapabilities(): Promise<string[]> {
+      // Return list of supported capabilities
+      // Based on what we can actually support
+      return [
+        'context',
+        'isInMiniApp',
+        'actions.ready',
+        'actions.close',
+        'actions.signIn',
+        'actions.openUrl',
+        'quickAuth.getToken', // Stub implementation
+        'quickAuth.fetch', // Stub implementation
+        // Note: Some actions may not be fully supported in embedded context
+      ];
+    },
+  };
+}
+
+/**
+ * Create a Comlink endpoint for an iframe
+ * This uses Comlink's standard Endpoint interface to handle postMessage communication
+ * The endpoint filters messages to only those from the specific iframe
+ */
+function createIframeEndpoint(iframe: HTMLIFrameElement, targetOrigin: string): Endpoint {
+  // Create an event target that filters messages from this specific iframe
+  const eventTarget: EventTarget = {
+    addEventListener: (type: string, listener: EventListener) => {
+      if (type === 'message') {
+        const wrappedListener = (event: MessageEvent) => {
+          // Only handle messages from this specific iframe
+          if (event.source === iframe.contentWindow) {
+            (listener as (event: MessageEvent) => void)(event);
+          }
+        };
+        window.addEventListener('message', wrappedListener);
+        // Store the wrapped listener for cleanup
+        (listener as any).__wrappedListener = wrappedListener;
+      }
+    },
+    removeEventListener: (type: string, listener: EventListener) => {
+      if (type === 'message') {
+        const wrappedListener = (listener as any).__wrappedListener || listener;
+        window.removeEventListener('message', wrappedListener);
+      }
+    },
+  };
+  
+  return {
+    postMessage: (message: any, _targetOrigin?: string) => {
+      if (iframe.contentWindow) {
+        iframe.contentWindow.postMessage(message, targetOrigin);
+      }
+    },
+    addEventListener: eventTarget.addEventListener.bind(eventTarget),
+    removeEventListener: eventTarget.removeEventListener.bind(eventTarget),
+  };
+}
+
+/**
+ * Set up Comlink handler for an iframe
+ * This exposes the SDK API to the embedded mini-app via postMessage
+ */
+export function setupComlinkHandler(
+  iframe: HTMLIFrameElement,
+  context: Context.MiniAppContext,
+  ethProvider?: unknown,
+  targetOrigin?: string,
+  options?: MiniAppSdkHostOptions
+): () => void {
+  if (typeof window === 'undefined') {
+    return () => {}; // No-op on server
+  }
+
+  // Determine target origin and domain for Quick Auth
+  const origin = targetOrigin || (() => {
+    try {
+      return new URL(iframe.src || '').origin;
+    } catch {
+      return '*';
+    }
+  })();
+  
+  const domain = (() => {
+    try {
+      if (iframe.src) {
+        const hostname = new URL(iframe.src).hostname;
+        console.log(`[Quick Auth] Extracted domain from iframe.src: ${hostname}`);
+        return hostname;
+      }
+      if (targetOrigin && targetOrigin !== '*') {
+        const hostname = new URL(targetOrigin).hostname;
+        console.log(`[Quick Auth] Extracted domain from targetOrigin: ${hostname}`);
+        return hostname;
+      }
+      // Fallback to current window's hostname
+      const fallback = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+      console.log(`[Quick Auth] Using fallback domain: ${fallback}`);
+      return fallback;
+    } catch (error) {
+      const fallback = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+      console.warn(`[Quick Auth] Failed to extract domain, using fallback: ${fallback}`, error);
+      return fallback;
+    }
+  })();
+
+  // Create the SDK host API with Quick Auth support
+  const sdkHost = createMiniAppSdkHost(context, ethProvider, iframe, domain, options);
+  
+  // Create endpoint for this iframe
+  const endpoint = createIframeEndpoint(iframe, origin);
+  
+  // Expose the SDK API via Comlink
+  expose(sdkHost, endpoint);
+  
+  // Return cleanup function
+  return () => {
+    // Clean up token cache
+    quickAuthCache.delete(iframe);
+    // Cleanup is handled by Comlink and the endpoint
+    // The endpoint's message handler will be cleaned up when the iframe is removed
+  };
+}
+
