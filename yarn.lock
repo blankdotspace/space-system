@@ -1478,17 +1478,10 @@
   dependencies:
     browser-headers "^0.4.1"
 
-"@internationalized/date@^3.10.0":
+"@internationalized/date@^3.10.0", "@internationalized/date@^3.10.1":
   version "3.10.0"
   resolved "https://registry.yarnpkg.com/@internationalized/date/-/date-3.10.0.tgz#056db64a4facdf48c6937ad498a882a8151d640a"
   integrity sha512-oxDR/NTEJ1k+UFVQElaNIk65E/Z83HK1z1WI3lQyhTtnNg4R5oVXaPzK3jcpKG8UHKDVuDQHzn+wsxSz8RP3aw==
-  dependencies:
-    "@swc/helpers" "^0.5.0"
-
-"@internationalized/date@^3.10.1":
-  version "3.10.1"
-  resolved "https://registry.yarnpkg.com/@internationalized/date/-/date-3.10.1.tgz#ca63817feadeffe97f710289b00af229cd8af15c"
-  integrity sha512-oJrXtQiAXLvT9clCf1K4kxp3eKsQhIaZqxEyowkBcsvZDdZkbWrVmnGknxs5flTD0VGsxrxKgBCZty1EzoiMzA==
   dependencies:
     "@swc/helpers" "^0.5.0"
 

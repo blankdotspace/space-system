@@ -173,6 +173,7 @@
     "viem": "2.38.6",
     "esbuild": "0.25.0",
     "cookie": "0.7.0",
-    "lodash.set": "4.3.2"
+    "lodash.set": "4.3.2",
+    "@internationalized/date": "^3.10.0"
   }
 }
