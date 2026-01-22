@@ -677,6 +677,22 @@ const CowSwap: React.FC<FidgetArgs<CowSwapFidgetSettings>> = ({
     buyAmount,
   ]);
 
+  // Style the iframe after widget creates it
+  const styleIframe = useCallback(() => {
+    if (!containerRef.current) return;
+
+    const iframe = containerRef.current.querySelector("iframe");
+    if (iframe) {
+      // Make iframe fill the entire container
+      iframe.style.width = "100%";
+      iframe.style.height = "100%";
+      iframe.style.minWidth = "100%";
+      iframe.style.minHeight = "100%";
+      iframe.style.border = "none";
+      iframe.style.display = "block";
+    }
+  }, []);
+
   // Initialize widget
   useEffect(() => {
     if (!containerRef.current) return;
@@ -696,6 +712,26 @@ const CowSwap: React.FC<FidgetArgs<CowSwapFidgetSettings>> = ({
         provider,
       });
       updateParamsRef.current = widget.updateParams;
+
+      // Style the iframe after a short delay to ensure it's created
+      setTimeout(styleIframe, 100);
+
+      // Also observe for iframe changes in case widget recreates it
+      const observer = new MutationObserver(() => {
+        styleIframe();
+      });
+      observer.observe(containerRef.current, {
+        childList: true,
+        subtree: true,
+      });
+
+      return () => {
+        observer.disconnect();
+        if (containerRef.current) {
+          containerRef.current.innerHTML = "";
+        }
+        updateParamsRef.current = null;
+      };
     } catch (error) {
       console.error("Failed to initialize CowSwap widget:", error);
     }
@@ -717,11 +753,31 @@ const CowSwap: React.FC<FidgetArgs<CowSwapFidgetSettings>> = ({
     }
   }, [buildParams]);
 
+  // Prevent scroll propagation when scrolling inside the widget container
+  const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    const container = e.currentTarget;
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const isScrollingDown = e.deltaY > 0;
+    const isScrollingUp = e.deltaY < 0;
+    const isAtBottom = scrollTop + clientHeight >= scrollHeight - 1;
+    const isAtTop = scrollTop <= 0;
+
+    // Prevent scroll propagation when at boundaries
+    if ((isScrollingDown && isAtBottom) || (isScrollingUp && isAtTop)) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, []);
+
   return (
     <div
       ref={containerRef}
+      onWheel={handleWheel}
       className="h-[calc(100dvh-220px)] md:h-full w-full"
-      style={{ overflow: "hidden" }}
+      style={{
+        overflow: "auto",
+        overscrollBehavior: "contain",
+      }}
     />
   );
 };
