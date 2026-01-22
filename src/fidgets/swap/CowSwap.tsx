@@ -730,6 +730,22 @@ const CowSwap: React.FC<FidgetArgs<CowSwapFidgetSettings>> = ({
     buyAmount,
   ]);
 
+  // Style the iframe after widget creates it
+  const styleIframe = useCallback(() => {
+    if (!containerRef.current) return;
+
+    const iframe = containerRef.current.querySelector("iframe");
+    if (iframe) {
+      // Make iframe fill the entire container
+      iframe.style.width = "100%";
+      iframe.style.height = "100%";
+      iframe.style.minWidth = "100%";
+      iframe.style.minHeight = "100%";
+      iframe.style.border = "none";
+      iframe.style.display = "block";
+    }
+  }, []);
+
   // Initialize widget
   useEffect(() => {
     if (!containerRef.current) return;
@@ -749,6 +765,26 @@ const CowSwap: React.FC<FidgetArgs<CowSwapFidgetSettings>> = ({
         provider,
       });
       updateParamsRef.current = widget.updateParams;
+
+      // Style the iframe after a short delay to ensure it's created
+      setTimeout(styleIframe, 100);
+
+      // Also observe for iframe changes in case widget recreates it
+      const observer = new MutationObserver(() => {
+        styleIframe();
+      });
+      observer.observe(containerRef.current, {
+        childList: true,
+        subtree: true,
+      });
+
+      return () => {
+        observer.disconnect();
+        if (containerRef.current) {
+          containerRef.current.innerHTML = "";
+        }
+        updateParamsRef.current = null;
+      };
     } catch (error) {
       console.error("Failed to initialize CowSwap widget:", error);
     }
