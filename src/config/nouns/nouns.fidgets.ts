@@ -18,7 +18,8 @@ export const nounsFidgets = {
     'portfolio',
     'chat',
     'builderScore',
-    'framesV2'
+    'framesV2',
+    'zoraCoins'
   ],
   disabled: ['example']
 };

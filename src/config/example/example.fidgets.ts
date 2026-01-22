@@ -14,7 +14,8 @@ export const exampleFidgets = {
     'market',
     'portfolio',
     'chat',
-    'framesV2'
+    'framesV2',
+    'zoraCoins'
   ],
   disabled: ['example', 'nounsHome', 'governance', 'snapshot', 'builderScore']
 };

@@ -55,6 +55,7 @@ const cspHeader = `
       https://stream.farcaster.xyz
       https://res.cloudinary.com/
       https://*.cloudflarestream.com
+      https://customer-35w74jq9s1d58g1v.cloudflarestream.com
       https://*.b-cdn.net
       https://zora.co
       https://*.zora.co
