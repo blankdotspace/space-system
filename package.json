@@ -79,7 +79,7 @@
     "@radix-ui/react-tooltip": "^1.1.2",
     "@rainbow-me/rainbowkit": "^2.2.5",
     "@react-stately/datepicker": "^3.9.4",
-    "@sentry/react": "^10.0.0",
+    "@sentry/react": "^10.36.0",
     "@snapshot-labs/snapshot.js": "^0.14.17",
     "@supabase/ssr": "^0.3.0",
     "@supabase/supabase-js": "^2.44.1",
