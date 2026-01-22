@@ -17,6 +17,8 @@ import {
 import { GiCow } from "react-icons/gi";
 import { mobileStyleSettings, WithMargin } from "../helpers";
 import ShadowSelector from "@/common/components/molecules/ShadowSelector";
+import BorderSelector from "@/common/components/molecules/BorderSelector";
+import ThemeColorSelector from "@/common/components/molecules/ThemeColorSelector";
 import {
   Select,
   SelectContent,
@@ -518,13 +520,63 @@ const cowSwapProperties: FidgetProperties = {
       ),
       group: "settings",
     },
-    // Fidget shadow
+    // Fidget style settings
+    {
+      fieldName: "background",
+      displayName: "Background",
+      displayNameHint: "Color used for the background of the Fidget.",
+      default: "transparent",
+      required: false,
+      inputSelector: (props) => (
+        <WithMargin>
+          <ThemeColorSelector
+            {...props}
+            themeVariable="var(--user-theme-fidget-background)"
+            defaultColor="transparent"
+            colorType="background"
+          />
+        </WithMargin>
+      ),
+      group: "style",
+    },
+    {
+      fieldName: "fidgetBorderWidth",
+      displayName: "Fidget Border Width",
+      displayNameHint:
+        "Width of the Fidget's border. Set to Theme Border to inherit from the Theme. Set to None to remove the border.",
+      default: "0",
+      required: false,
+      inputSelector: (props) => (
+        <WithMargin>
+          <BorderSelector {...props} hideGlobalSettings={false} />
+        </WithMargin>
+      ),
+      group: "style",
+    },
+    {
+      fieldName: "fidgetBorderColor",
+      displayName: "Fidget Border Color",
+      displayNameHint: "Color of the Fidget's border.",
+      default: "var(--user-theme-fidget-border-color)",
+      required: false,
+      inputSelector: (props) => (
+        <WithMargin>
+          <ThemeColorSelector
+            {...props}
+            themeVariable="var(--user-theme-fidget-border-color)"
+            defaultColor="#000000"
+            colorType="border color"
+          />
+        </WithMargin>
+      ),
+      group: "style",
+    },
     {
       fieldName: "fidgetShadow",
       displayName: "Fidget Shadow",
       displayNameHint:
-        "Shadow for the Fidget. Set to Theme Shadow to inherit the Fidget Shadow Settings from the Theme. Set to None to remove the shadow.",
-      default: "var(--user-theme-fidget-shadow)",
+        "Shadow for the Fidget. Set to Theme Shadow to inherit from the Theme. Set to None to remove the shadow.",
+      default: "none",
       required: false,
       inputSelector: (props) => (
         <WithMargin>
@@ -677,22 +729,6 @@ const CowSwap: React.FC<FidgetArgs<CowSwapFidgetSettings>> = ({
     buyAmount,
   ]);
 
-  // Style the iframe after widget creates it
-  const styleIframe = useCallback(() => {
-    if (!containerRef.current) return;
-
-    const iframe = containerRef.current.querySelector("iframe");
-    if (iframe) {
-      // Make iframe fill the entire container
-      iframe.style.width = "100%";
-      iframe.style.height = "100%";
-      iframe.style.minWidth = "100%";
-      iframe.style.minHeight = "100%";
-      iframe.style.border = "none";
-      iframe.style.display = "block";
-    }
-  }, []);
-
   // Initialize widget
   useEffect(() => {
     if (!containerRef.current) return;
@@ -712,26 +748,6 @@ const CowSwap: React.FC<FidgetArgs<CowSwapFidgetSettings>> = ({
         provider,
       });
       updateParamsRef.current = widget.updateParams;
-
-      // Style the iframe after a short delay to ensure it's created
-      setTimeout(styleIframe, 100);
-
-      // Also observe for iframe changes in case widget recreates it
-      const observer = new MutationObserver(() => {
-        styleIframe();
-      });
-      observer.observe(containerRef.current, {
-        childList: true,
-        subtree: true,
-      });
-
-      return () => {
-        observer.disconnect();
-        if (containerRef.current) {
-          containerRef.current.innerHTML = "";
-        }
-        updateParamsRef.current = null;
-      };
     } catch (error) {
       console.error("Failed to initialize CowSwap widget:", error);
     }
