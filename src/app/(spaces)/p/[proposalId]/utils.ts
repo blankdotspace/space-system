@@ -4,6 +4,7 @@ import { unstable_noStore as noStore } from 'next/cache';
 import { WEBSITE_URL } from "@/constants/app";
 import { ProposalSpacePageData, SPACE_TYPES } from "@/common/types/spaceData";
 import { createInitalProposalSpaceConfigForProposalId } from "@/config";
+import { loadSpaceDefaultTab } from "@/common/utils/tabUtils";
 
 export interface ProposalData {
   id: string;
@@ -245,7 +246,7 @@ export async function loadProposalSpaceRegistration(proposalId: string): Promise
 }
 
 // Proposal space specific creator
-export const createProposalSpaceData = (
+export const createProposalSpaceData = async (
   spaceId: string | undefined,
   spaceName: string,
   proposalId: string,
@@ -253,7 +254,7 @@ export const createProposalSpaceData = (
   tabName: string,
   proposalData?: ProposalData,
   identityPublicKey?: string
-): Omit<ProposalSpacePageData, 'isEditable' | 'spacePageUrl'> => {
+): Promise<Omit<ProposalSpacePageData, 'isEditable' | 'spacePageUrl'>> => {
   
   const config = {
     ...createInitalProposalSpaceConfigForProposalId(
@@ -263,13 +264,16 @@ export const createProposalSpaceData = (
     timestamp: new Date().toISOString(),
   };
 
+  // Load dynamic default tab from storage, fallback to "Overview"
+  const defaultTab = await loadSpaceDefaultTab(spaceId, "Overview");
+
   return {
     // Base SpaceData properties
     spaceId: spaceId,
     spaceName,
     spaceType: SPACE_TYPES.PROPOSAL,
     updatedAt: new Date().toISOString(),
-    defaultTab: "Overview",
+    defaultTab,
     currentTab: tabName,
     spaceOwnerFid: undefined, // FID not available for proposal spaces
     config,
@@ -301,7 +305,7 @@ export const loadProposalSpaceData = async (
   const spaceId = registrationData?.spaceId;
   const identityPublicKey = registrationData?.identityPublicKey;
 
-  return createProposalSpaceData(
+  return await createProposalSpaceData(
     spaceId, // Use existing spaceId if found, otherwise undefined for claiming
     spaceName,
     proposalId,

@@ -3,6 +3,7 @@ import { loadProposalSpaceData } from "./utils";
 import SpaceNotFound from "@/app/(spaces)/SpaceNotFound";
 import ProposalSpace from "./ProposalSpace";
 import { ProposalProvider } from "@/common/providers/ProposalProvider";
+import { redirect } from "next/navigation";
 
 const ProposalSpacePage = async ({
   params,
@@ -24,6 +25,12 @@ const ProposalSpacePage = async ({
 
   if (!proposalSpaceData) {
     return <SpaceNotFound />;
+  }
+
+  if (!decodedTabNameParam) {
+    redirect(
+      `/p/${proposalId}/${encodeURIComponent(proposalSpaceData.defaultTab)}`
+    );
   }
 
   return (

@@ -34,8 +34,6 @@ interface TabBarProps {
   isEditable?: boolean;
 }
 
-const isEditableTab = (tabName: string, defaultTab: string) =>
-  tabName !== defaultTab;
 
 function TabBar({
   inHomebase,
@@ -151,11 +149,6 @@ function TabBar({
   const debouncedDeleteTab = React.useCallback(
     debounce(async (tabName: string) => {
       try {
-        if (!isEditableTab(tabName, defaultTab)) {
-          toast.error("Cannot delete this tab.");
-          return;
-        }
-        
         if (tabList.length <= 1) {
           toast.error("You must have at least one tab.");
           return;
@@ -178,7 +171,7 @@ function TabBar({
         toast.error("Error deleting tab. Please try again.");
       }
     }, 300),
-    [tabList, deleteTab, currentTab, nextClosestTab, defaultTab, switchTabTo]
+    [tabList, deleteTab, currentTab, nextClosestTab, switchTabTo]
   );
 
   const debouncedRenameTab = React.useCallback(
@@ -306,9 +299,9 @@ function TabBar({
                       inEditMode={inEditMode}
                       isSelected={currentTab === tabName}
                       onClick={() => handleTabClick(tabName)}
-                      removeable={isEditableTab(tabName, defaultTab)}
+                      removeable={tabList.length > 1}
                       draggable={inEditMode}
-                      renameable={isEditableTab(tabName, defaultTab)}
+                      renameable={true}
                       onRemove={() => debouncedDeleteTab(tabName)}
                       renameTab={(tab, newName) => debouncedRenameTab(tab, newName)}
                       preloadTabData={preloadTabData}

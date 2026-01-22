@@ -39,7 +39,7 @@ export interface SpacePageData {
 // Type-specific space interfaces
 export interface ProfileSpacePageData extends SpacePageData {
   spaceType: typeof SPACE_TYPES.PROFILE;
-  defaultTab: 'Profile';
+  defaultTab: string;
   identityPublicKey?: string;
 }
 
@@ -55,7 +55,7 @@ export interface TokenSpacePageData extends SpacePageData {
 
 export interface ProposalSpacePageData extends SpacePageData {
   spaceType: typeof SPACE_TYPES.PROPOSAL;
-  defaultTab: 'Overview';
+  defaultTab: string;
   proposalId: string;
   spaceOwnerAddress: Address;
   proposalData?: ProposalData;
@@ -64,7 +64,7 @@ export interface ProposalSpacePageData extends SpacePageData {
 
 export interface ChannelSpacePageData extends SpacePageData {
   spaceType: typeof SPACE_TYPES.CHANNEL;
-  defaultTab: 'Channel';
+  defaultTab: string;
   channelId: string;
   channelDisplayName?: string;
   channelDescription?: string;
