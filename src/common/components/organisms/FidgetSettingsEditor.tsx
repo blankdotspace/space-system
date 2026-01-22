@@ -208,12 +208,9 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
   // Subscribe directly to zustand for settings - eliminates prop lag
   const zustandSettings = useFidgetSettings(currentSpaceId, currentTabName, fidgetId);
 
-  // Use zustand settings if available, fall back to props
-  const effectiveSettings = zustandSettings ?? settings;
-
   const normalizedSettings = useMemo(
-    () => fillWithDefaults(effectiveSettings, properties.fields),
-    [effectiveSettings, properties.fields],
+    () => fillWithDefaults(zustandSettings ?? settings, properties.fields),
+    [zustandSettings, settings, properties.fields],
   );
 
   const [state, setState] = useState<FidgetSettings>(normalizedSettings);
@@ -232,12 +229,12 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
       const filledState = fillWithDefaults(nextState, properties.fields);
       setState(filledState);
       onSave(filledState, shouldUnselect);
-      return true;
     },
     [properties.fields, onSave],
   );
 
-  const safeOnSave = useCallback(
+  // Save handler for inline field changes (doesn't unselect editor)
+  const onInlineSave = useCallback(
     (nextState: FidgetSettings) => {
       saveWithValidation(nextState, false);
     },
@@ -247,12 +244,10 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
   const _onSave = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
-      const didSave = saveWithValidation(state, true);
-      if (didSave) {
-        analytics.track(AnalyticsEvent.EDIT_FIDGET, {
-          fidgetType: properties.fidgetName,
-        });
-      }
+      saveWithValidation(state, true);
+      analytics.track(AnalyticsEvent.EDIT_FIDGET, {
+        fidgetType: properties.fidgetName,
+      });
     },
     [state, saveWithValidation, properties.fidgetName],
   );
@@ -300,7 +295,7 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
                 fields={groupedFields.settings}
                 state={state}
                 setState={setState}
-                onSave={safeOnSave}
+                onSave={onInlineSave}
               />
             </TabsContent>
             {groupedFields.style.length > 0 && (
@@ -310,7 +305,7 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
                   fields={groupedFields.style}
                   state={state}
                   setState={setState}
-                  onSave={safeOnSave}
+                  onSave={onInlineSave}
                 />
               </TabsContent>
             )}
@@ -321,7 +316,7 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
                   fields={groupedFields.code}
                   state={state}
                   setState={setState}
-                  onSave={safeOnSave}
+                  onSave={onInlineSave}
                 />
               </TabsContent>
             )}
