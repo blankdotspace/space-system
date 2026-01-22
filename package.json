@@ -9,7 +9,7 @@
     "start": "next start",
     "serve": "serve -s build",
     "lint": "eslint .",
-    "lint:fix": "eslint --fix --ext .js,.jsx,.ts,.tsx src",
+    "lint:fix": "eslint --fix .",
     "check-types": "tsc",
     "prettier": "prettier src --write",
     "prepare": "husky",
