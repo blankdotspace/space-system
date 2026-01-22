@@ -138,6 +138,5 @@ export const INITIAL_HOMEBASE_CONFIG = nounsINITIAL_HOMEBASE_CONFIG;
 export function createInitialHomebaseConfig(userAddress?: string) {
   return nounsINITIAL_HOMEBASE_CONFIG;
 }
-
 // Export initial space config
 export { INITIAL_SPACE_CONFIG_EMPTY } from './initialSpaceConfig';

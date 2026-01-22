@@ -2,6 +2,7 @@ import { Card, CardContent } from "@/common/components/atoms/card";
 import CSSInput from "@/common/components/molecules/CSSInput";
 import ScopedStyles from "@/common/components/molecules/ScopedStyles";
 import { useAppStore } from "@/common/data/stores/app";
+import { useFidgetSettings } from "@/common/lib/hooks/useFidgetSettings";
 import { reduce, isEqual } from "lodash";
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { FaX } from "react-icons/fa6";
@@ -44,13 +45,20 @@ export const getSettingsWithDefaults = (
 ): FidgetSettings => {
   return reduce(
     config.fields,
-    (acc, f) => ({
-      ...acc,
-      [f.fieldName]:
-        settings && typeof settings === 'object' && f.fieldName in settings
-          ? settings[f.fieldName]
-          : f.default || undefined,
-    }),
+    (acc, f) => {
+      const value =
+        settings && typeof settings === "object" && f.fieldName in settings
+          ? (settings as any)[f.fieldName]
+          : undefined;
+
+      const hasValue =
+        value !== undefined &&
+        value !== null &&
+        (typeof value !== "string" || value.trim() !== "");
+
+      acc[f.fieldName] = hasValue ? value : f.default ?? "";
+      return acc;
+    },
     {},
   );
 };
@@ -70,19 +78,12 @@ export function FidgetWrapper({
     homebaseConfig: state.homebase.homebaseConfig,
   }));
 
-  function onClickEdit() {
-    setSelectedFidgetID(bundle.id);
-    setCurrentFidgetSettings(
-      <FidgetSettingsEditor
-        fidgetId={bundle.id}
-        properties={bundle.properties}
-        settings={settingsWithDefaults}
-        onSave={onSave}
-        unselect={unselect}
-        removeFidget={removeFidget}
-      />,
-    );
-  }
+  // Get current space/tab from zustand
+  const currentSpaceId = useAppStore((state) => state.currentSpace.currentSpaceId);
+  const currentTabName = useAppStore((state) => state.currentSpace.currentTabName);
+
+  // Subscribe directly to zustand for settings - eliminates prop lag
+  const zustandSettings = useFidgetSettings(currentSpaceId, currentTabName, bundle.id);
 
   const Fidget = fidget;
 
@@ -94,7 +95,8 @@ export function FidgetWrapper({
   } | undefined)?.lastFetchSettings;
 
   const derivedSettings = useMemo<FidgetSettings>(() => {
-    const baseSettings = (bundle.config.settings ?? {}) as FidgetSettings;
+    // Use zustand settings directly (they're already the latest), fall back to props
+    const baseSettings = (zustandSettings ?? bundle.config.settings ?? {}) as FidgetSettings;
     if (!lastFetchSettings || typeof lastFetchSettings !== "object") {
       return baseSettings;
     }
@@ -130,7 +132,7 @@ export function FidgetWrapper({
     });
 
     return changed ? nextSettings : baseSettings;
-  }, [bundle.config.settings, lastFetchSettings]);
+  }, [zustandSettings, bundle.config.settings, lastFetchSettings]);
 
   const settingsWithDefaults = useMemo(
     () => getSettingsWithDefaults(derivedSettings, bundle.properties),
@@ -177,27 +179,42 @@ export function FidgetWrapper({
     [bundle.config, saveConfig],
   );
 
-  const onSave = async (
-    newSettings: FidgetSettings,
-    shouldUnselect?: boolean,
-  ) => {
-    try {
-      await saveConfig({
-        ...bundle.config,
-        settings: newSettings,
-      });
-    } catch (e) {
-      toast.error("Failed to save fidget settings", { duration: 1000 });
-    }
-
-    if (shouldUnselect) {
-      unselect();
-    }
-  };
-
-  function unselect() {
+  const unselect = useCallback(() => {
     setSelectedFidgetID("");
     setCurrentFidgetSettings(<></>);
+  }, [setSelectedFidgetID, setCurrentFidgetSettings]);
+
+  const onSave = useCallback(
+    async (newSettings: FidgetSettings, shouldUnselect?: boolean) => {
+      try {
+        // This updates zustand immediately (synchronously)
+        // Component will re-render automatically via zustand subscription
+        await saveConfig({
+          ...bundle.config,
+          settings: newSettings,
+        });
+        if (shouldUnselect) {
+          unselect();
+        }
+      } catch (e) {
+        toast.error("Failed to save fidget settings", { duration: 1000 });
+      }
+    },
+    [bundle.config, saveConfig, unselect],
+  );
+
+  function onClickEdit() {
+    setSelectedFidgetID(bundle.id);
+    setCurrentFidgetSettings(
+      <FidgetSettingsEditor
+        fidgetId={bundle.id}
+        properties={bundle.properties}
+        settings={settingsWithDefaults}
+        onSave={onSave}
+        unselect={unselect}
+        removeFidget={removeFidget}
+      />,
+    );
   }
 
   const userStyles = bundle.properties.fields

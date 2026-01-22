@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 import React, { useCallback } from "react";
 import ExpandOnClick from "@/common/components/molecules/ExpandOnClick";
 import { LazyImage } from "../LazyLoad";

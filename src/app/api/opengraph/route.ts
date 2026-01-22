@@ -1,55 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function getMetaContent(html: string, property: string): string | null {
-  const escapedProperty = escapeRegExp(property);
-  const patterns = [
-    new RegExp(
-      `<meta\\s+[^>]*(?:property|name)="${escapedProperty}"[^>]*content="([^"]+)"`,
-      "i",
-    ),
-    new RegExp(
-      `<meta\\s+[^>]*content="([^"]+)"[^>]*(?:property|name)="${escapedProperty}"`,
-      "i",
-    ),
-    new RegExp(
-      `<meta\\s+[^>]*(?:property|name)='${escapedProperty}'[^>]*content='([^']+)'`,
-      "i",
-    ),
-    new RegExp(
-      `<meta\\s+[^>]*content='([^']+)'[^>]*(?:property|name)='${escapedProperty}'`,
-      "i",
-    ),
-  ];
-
-  for (const pattern of patterns) {
-    const match = html.match(pattern);
-    if (match?.[1]) {
-      return match[1];
-    }
-  }
-
-  return null;
-}
-
-function resolveMaybeRelativeUrl(value: string | null, baseUrl: string): string | null {
-  if (!value) {
-    return null;
-  }
-
-  if (value.startsWith("http") || value.startsWith("data:")) {
-    return value;
-  }
-
-  try {
-    return new URL(value, baseUrl).toString();
-  } catch {
-    return value;
-  }
-}
+// Force Node.js runtime for better compatibility
+export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -69,6 +21,7 @@ export async function GET(request: NextRequest) {
       title: url,
       description: null,
       image: null,
+      video: null,
       siteName: url,
       url,
       error: "Unsupported or invalid URL scheme"
@@ -81,6 +34,7 @@ export async function GET(request: NextRequest) {
       title: parsedUrl.hostname || url,
       description: null,
       image: null,
+      video: null,
       siteName: parsedUrl.hostname || url,
       url,
       error: `Only https URLs are allowed. Unsupported URL protocol: ${parsedUrl.protocol}`
@@ -100,7 +54,7 @@ export async function GET(request: NextRequest) {
         "Sec-Fetch-Mode": "navigate",
         "Sec-Fetch-Site": "cross-site",
       },
-      signal: AbortSignal.timeout(10000), // 10 second timeout
+      signal: AbortSignal.timeout(8000), // 8 second timeout - reduced to fail faster
     });
 
     if (!response.ok) {
@@ -117,48 +71,142 @@ export async function GET(request: NextRequest) {
     }
 
     const html = await response.text();
+    
+    // Extract OpenGraph metadata using regex (more reliable in serverless environments)
+    const getMetaContent = (property: string): string | null => {
+      // Escape special regex characters in property name
+      const escapedProperty = property.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Match meta tags with property/name and content in any order, handling spaces and quotes
+      const patterns = [
+        // property="..." content="..." or property='...' content='...'
+        new RegExp(`<meta[^>]*(?:property|name)\\s*=\\s*["']${escapedProperty}["'][^>]*content\\s*=\\s*["']([^"']+)["']`, 'i'),
+        // content="..." property="..." or content='...' property='...'
+        new RegExp(`<meta[^>]*content\\s*=\\s*["']([^"']+)["'][^>]*(?:property|name)\\s*=\\s*["']${escapedProperty}["']`, 'i'),
+      ];
+      
+      for (const pattern of patterns) {
+        const match = html.match(pattern);
+        if (match && match[1]) {
+          // Decode HTML entities
+          let content = match[1].trim();
+          content = content.replace(/&amp;/g, '&');
+          content = content.replace(/&lt;/g, '<');
+          content = content.replace(/&gt;/g, '>');
+          content = content.replace(/&quot;/g, '"');
+          content = content.replace(/&#39;/g, "'");
+          content = content.replace(/&apos;/g, "'");
+          return content;
+        }
+      }
+      return null;
+    };
 
-    const title =
-      getMetaContent(html, "og:title") ||
-      getMetaContent(html, "twitter:title") ||
-      html.match(/<title>([^<]+)<\/title>/i)?.[1] ||
-      null;
+    // Extract title tag
+    const getTitleTag = (): string | null => {
+      const titleRegex = /<title[^>]*>([^<]+)<\/title>/i;
+      const titleMatch = html.match(titleRegex);
+      if (titleMatch && titleMatch[1]) {
+        let content = titleMatch[1].trim();
+        // Decode HTML entities
+        content = content.replace(/&amp;/g, '&');
+        content = content.replace(/&lt;/g, '<');
+        content = content.replace(/&gt;/g, '>');
+        content = content.replace(/&quot;/g, '"');
+        content = content.replace(/&#39;/g, "'");
+        content = content.replace(/&apos;/g, "'");
+        return content;
+      }
+      return null;
+    };
+
+    const title = getMetaContent("og:title") || 
+                  getMetaContent("twitter:title") || 
+                  getTitleTag() || 
+                  null;
 
     const description =
-      getMetaContent(html, "og:description") ||
-      getMetaContent(html, "twitter:description") ||
-      getMetaContent(html, "description") ||
+      getMetaContent("og:description") ||
+      getMetaContent("twitter:description") ||
+      getMetaContent("description") ||
       null;
 
-    const rawImage =
-      getMetaContent(html, "og:image") ||
-      getMetaContent(html, "twitter:image") ||
-      null;
+    // Convert relative URLs to absolute URLs
+    const makeAbsoluteUrl = (urlString: string | null): string | null => {
+      if (!urlString || !parsedUrl) return urlString;
+      try {
+        // If it's already absolute, return as is
+        if (urlString.startsWith('http://') || urlString.startsWith('https://')) {
+          return urlString;
+        }
+        // If it starts with //, add https:
+        if (urlString.startsWith('//')) {
+          return `https:${urlString}`;
+        }
+        // If it starts with /, make it relative to the origin
+        if (urlString.startsWith('/')) {
+          return `${parsedUrl.origin}${urlString}`;
+        }
+        // Otherwise, make it relative to the current URL
+        return new URL(urlString, url).toString();
+      } catch {
+        return urlString;
+      }
+    };
 
-    const image = resolveMaybeRelativeUrl(rawImage, url);
+    let rawImage = getMetaContent("og:image") || 
+                   getMetaContent("twitter:image") || 
+                   null;
 
-    const siteName = getMetaContent(html, "og:site_name") || new URL(url).hostname;
+    let image = makeAbsoluteUrl(rawImage);
+
+    let rawVideo = getMetaContent("og:video") || 
+                   getMetaContent("twitter:player") || 
+                   null;
+
+    let video = makeAbsoluteUrl(rawVideo);
+
+    // Filter out video URLs from image field (e.g., .m3u8, .mp4, etc.)
+    if (image) {
+      const imageUrl = image.toLowerCase();
+      const videoExtensions = ['.m3u8', '.mp4', '.webm', '.mov', '.avi', '.mkv', '.flv'];
+      const isVideoUrl = videoExtensions.some(ext => imageUrl.includes(ext)) || 
+                         imageUrl.includes('/video/') ||
+                         imageUrl.includes('video/upload');
+      
+      if (isVideoUrl) {
+        // Move video URL from image to video field
+        if (!video) {
+          video = image;
+        }
+        image = null;
+      }
+    }
+
+    const siteName = getMetaContent("og:site_name") || 
+                     new URL(url).hostname;
 
     const ogData = {
       title,
       description,
       image,
+      video,
       siteName,
       url,
     };
 
-    // ...existing code...
-
     return NextResponse.json(ogData);
   } catch (error) {
+    console.error("Error fetching OpenGraph data:", error);
     
     // Return minimal fallback data
     return NextResponse.json({
-      title: new URL(url).hostname,
+      title: parsedUrl?.hostname || url,
       description: null,
       image: null,
-      siteName: new URL(url).hostname,
+      video: null,
+      siteName: parsedUrl?.hostname || url,
       url,
+      error: error instanceof Error ? error.message : "Unknown error",
     });
   }
 }

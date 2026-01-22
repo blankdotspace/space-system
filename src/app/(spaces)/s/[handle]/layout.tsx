@@ -4,7 +4,7 @@ import type { Metadata } from "next/types";
 import { getUserMetadataStructure } from "@/common/lib/utils/userMetadata";
 import { loadSystemConfig, type SystemConfig } from "@/config";
 import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
-import { buildDefaultFrameMetadata, getDefaultFrameAssets } from "@/common/lib/utils/defaultMetadata";
+import { getDefaultFrameAssets } from "@/common/lib/utils/defaultMetadata";
 import { buildMiniAppEmbed } from "@/common/lib/utils/miniAppEmbed";
 import { resolveMiniAppDomain } from "@/common/lib/utils/miniAppDomain";
 

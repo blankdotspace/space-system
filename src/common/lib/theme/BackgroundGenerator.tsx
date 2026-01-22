@@ -77,7 +77,21 @@ export const BackgroundGenerator = ({
         body: JSON.stringify({ text: promptText }),
       });
       if (!response.ok) {
-        throw new Error(`Network response was not ok: ${response.statusText}`);
+        // Extract error message from response (try JSON first, then text)
+        let errorMessage = "Failed to generate background";
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType?.includes("application/json")) {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorData.message || `Error: ${response.statusText}`;
+          } else {
+            const errorText = await response.text();
+            errorMessage = errorText || `Error: ${response.statusText}`;
+          }
+        } catch {
+          errorMessage = `Error: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
       const data = await response.json();
       onChange(data.response);
@@ -89,6 +103,16 @@ export const BackgroundGenerator = ({
       );
     } catch (error) {
       console.error("Error generating background:", error);
+      // Show error message to user
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : "An unexpected error occurred while generating the background";
+      showToast(
+        errorMessage,
+        8000,
+        "background-error",
+        false,
+      );
     } finally {
       timersRef.current.forEach((timer) => clearInterval(timer));
       timersRef.current = [];

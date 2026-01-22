@@ -12,7 +12,7 @@ const cspHeader = `
     default-src 'self';
     script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com https://www.youtube.com https://www.youtube.com/iframe_api https://auth.privy.nounspace.com https://cdn.mxpnl.com;
     style-src 'self' 'unsafe-inline' https://i.ytimg.com https://mint.highlight.xyz;
-    media-src 'self' blob: data: https://stream.warpcast.com https://stream.farcaster.xyz https://res.cloudinary.com/ https://*.cloudflarestream.com https://customer-35w74jq9s1d58g1v.cloudflarestream.com https://*.b-cdn.net;
+    media-src 'self' blob: data: https://stream.warpcast.com https://stream.farcaster.xyz https://res.cloudinary.com/ https://*.cloudflarestream.com https://*.b-cdn.net https://zora.co https://*.zora.co https://media.tenor.com https://*.tenor.com https://*.b-cdn.net;
     img-src 'self' blob: data: https: https://ipfs.io https://rs.fullstory.com;
     font-src 'self' https: data: blob: https://fonts.googleapis.com https://fonts.gstatic.com;
     object-src 'none';
@@ -57,6 +57,10 @@ const cspHeader = `
       https://*.cloudflarestream.com
       https://customer-35w74jq9s1d58g1v.cloudflarestream.com
       https://*.b-cdn.net
+      https://zora.co
+      https://*.zora.co
+      https://media.tenor.com
+      https://*.tenor.com
       https://cca-lite.coinbase.com;
 
     upgrade-insecure-requests;

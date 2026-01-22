@@ -1,4 +1,20 @@
+import { z } from "zod";
+
 const VENICE_API_KEY = process.env.VENICE_API_KEY;
+const MAX_INPUT_CHARS = 10000; // Increased from 2000 to allow for complex HTML/CSS inputs
+const requestSchema = z.object({
+  text: z
+    .string()
+    .trim()
+    .min(1, "User input is missing")
+    .max(MAX_INPUT_CHARS, `User input exceeds ${MAX_INPUT_CHARS} characters`),
+});
+class BadRequestError extends Error {
+  status = 400;
+  constructor(message: string) {
+    super(message);
+  }
+}
 
 export const maxDuration = 300;
 
@@ -7,11 +23,21 @@ export async function POST(request: Request) {
     return new Response("API key is missing", { status: 400 });
   }
 
-  const res = await request.json();
-
-  const userInput = res.text;
-  if (!userInput) {
-    return new Response("User input is missing", { status: 400 });
+  let userInput: string;
+  try {
+    userInput = await parseUserInput(request);
+  } catch (error) {
+    if (error instanceof BadRequestError) {
+      return Response.json(
+        { error: error.message },
+        { status: error.status }
+      );
+    }
+    console.error("Unexpected error parsing request body:", error);
+    return Response.json(
+      { error: "Invalid request body" },
+      { status: 400 }
+    );
   }
 
   // Models in the order requested by the user
@@ -66,6 +92,21 @@ export async function POST(request: Request) {
   }
   console.error("All models failed:", lastError);
   return new Response("All models failed", { status: 500 });
+}
+
+async function parseUserInput(request: Request) {
+  let payload: unknown;
+  try {
+    payload = await request.json();
+  } catch {
+    throw new BadRequestError("Invalid JSON payload");
+  }
+  const result = requestSchema.safeParse(payload);
+  if (!result.success) {
+    const issue = result.error.issues.at(0);
+    throw new BadRequestError(issue?.message ?? "Invalid request body");
+  }
+  return result.data.text;
 }
 
 const PROMPT = `\

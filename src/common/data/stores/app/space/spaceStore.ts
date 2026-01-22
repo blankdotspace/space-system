@@ -25,7 +25,6 @@ import {
 } from "@/pages/api/space/registry/[spaceId]";
 import {
   RegisterNewSpaceTabResponse,
-  UnsignedSpaceTabRegistration,
 } from "@/pages/api/space/registry/[spaceId]/tabs";
 import { UnsignedDeleteSpaceTabRequest } from "@/pages/api/space/registry/[spaceId]/tabs/[tabId]";
 import axios from "axios";
@@ -386,7 +385,7 @@ export const createSpaceStoreFunc = (
     }
 
     const previousOrder = cloneDeep(baselineOrder);
-    const previousChangedNames = cloneDeep(existingSpace.changedNames);
+    const _previousChangedNames = cloneDeep(existingSpace.changedNames);
 
     const mergedConfig = cloneDeep(previousTabState);
     if (config) {
@@ -653,7 +652,13 @@ export const createSpaceStoreFunc = (
         if (!spaceDraft) return;
 
         // Update remoteSpaces to match localSpaces (exclude local-only fields)
-        const { changedNames, deletedTabs, fid, channelId, ...remoteSpaceData } = cloneDeep(spaceDraft);
+        const {
+          changedNames: _changedNames,
+          deletedTabs: _deletedTabs,
+          fid: _fid,
+          channelId: _channelId,
+          ...remoteSpaceData
+        } = cloneDeep(spaceDraft);
         draft.space.remoteSpaces[spaceId] = {
           id: remoteSpaceData.id,
           updatedAt: remoteSpaceData.updatedAt,

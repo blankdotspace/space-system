@@ -282,10 +282,13 @@ const Grid: LayoutFidget<GridLayoutProps> = ({
           config: newInstanceConfig,
         };
 
-        return await saveFidgetInstanceDatums({
+        const nextDatums = {
           ...currentDatums,
           [id]: updatedDatum,
-        });
+        };
+        // Update ref immediately to avoid overwriting with stale settings on rapid saves.
+        fidgetInstanceDatumsRef.current = nextDatums;
+        return await saveFidgetInstanceDatums(nextDatums);
       },
     [saveFidgetInstanceDatums],
   );

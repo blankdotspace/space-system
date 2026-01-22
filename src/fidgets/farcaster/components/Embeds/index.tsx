@@ -13,6 +13,9 @@ import { isImageUrl, isVideoUrl } from "@/common/lib/utils/urls";
 import CreateCastImage from "./createCastImage";
 import { type EmbedUrlMetadata } from "@neynar/nodejs-sdk/build/api/models";
 
+// Lazy-loaded components
+const BaseAppEmbed = React.lazy(() => import("./BaseAppEmbed"));
+
 export type CastEmbed = {
   url?: string;
   castId?: {
@@ -32,6 +35,15 @@ export const renderEmbedForUrl = (
     return <EmbededCast castId={castId} key={key} />;
   }
   if (!url) return null;
+
+  // Custom embed for base.app
+  if (url.match(/^https?:\/\/([a-z0-9-]+\.)?base\.app\//i)) {
+    return (
+      <React.Suspense fallback={null}>
+        <BaseAppEmbed url={url} key={key} />
+      </React.Suspense>
+    );
+  }
 
   if (isImageUrl(url)) {
     return !isCreateCast ? (

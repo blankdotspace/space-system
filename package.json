@@ -8,8 +8,8 @@
     "build": "next build",
     "start": "next start",
     "serve": "serve -s build",
-    "lint": "next lint",
-    "lint:fix": "eslint --fix --ext .js,.jsx,.ts,.tsx src",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
     "check-types": "tsc",
     "prettier": "prettier src --write",
     "prepare": "husky",
@@ -155,7 +155,8 @@
     "@typescript-eslint/parser": "7",
     "autoprefixer": "^10.4.21",
     "dotenv": "^17.2.3",
-    "eslint": "^8.57.0",
+    "eslint": "^9",
+    "eslint-config-next": "^15.2.6",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-react": "^7.34.1",
     "eslint-plugin-react-hooks": "^4.6.0",
@@ -173,6 +174,7 @@
     "viem": "2.38.6",
     "esbuild": "0.25.0",
     "cookie": "0.7.0",
-    "lodash.set": "4.3.2"
+    "lodash.set": "4.3.2",
+    "@internationalized/date": "^3.10.0"
   }
 }

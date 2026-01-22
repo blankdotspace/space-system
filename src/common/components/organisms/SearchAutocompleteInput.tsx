@@ -13,7 +13,6 @@ import {
   CommandItem,
   CommandInput,
 } from "@/common/components/atoms/command";
-import { MagnifyingGlassIcon } from "@radix-ui/react-icons";
 import { toFarcasterCdnUrl } from "@/common/lib/utils/farcasterCdn";
 
 type SearchAutocompleteInputProps = {
@@ -53,11 +52,6 @@ const SearchAutocompleteInputContent: React.FC<SearchAutocompleteInputProps> = (
     event?.preventDefault();
   }, []);
 
-  const onSelectQuery = useCallback(() => {
-    router.push(`/search?q=${query}`);
-    onSelect && onSelect();
-  }, []);
-
   const onSelectUser = useCallback((user: User) => {
     router.push(`/s/${user.username}`);
     onSelect && onSelect();
@@ -95,18 +89,6 @@ const SearchAutocompleteInputContent: React.FC<SearchAutocompleteInputProps> = (
           onPointerDown={handlePreventBlur}
           className="max-h-[500px]"
         >
-          {false && (
-            <CommandItem
-              onSelect={onSelectQuery}
-              className="rounded-none cursor-pointer border-b"
-              value="Search"
-            >
-              <div className="flex items-center py-1 px-1">
-                <MagnifyingGlassIcon className="mr-2 h-7 w-7 shrink-0 opacity-50" />
-                <div className="leading-[1.3] tracking-tight font-bold opacity-80">{`Search for "${query}"`}</div>
-              </div>
-            </CommandItem>
-          )}
           {users?.length > 0 && (
             <CommandGroup heading="Users">
               {users.map((user: any, i: number) => (

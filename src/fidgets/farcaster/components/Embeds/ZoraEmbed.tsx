@@ -1,59 +1,165 @@
-import React, { useEffect, useState } from "react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/common/components/atoms/tooltip";
+import { openWindow } from "@/common/lib/utils/navigation";
+import { ArrowTopRightOnSquareIcon } from "@heroicons/react/24/outline";
+import dynamic from "next/dynamic";
+import Image from "next/image";
+import React, { CSSProperties, useCallback, useEffect, useMemo, useState } from "react";
 import { parseZoraUrl } from "./zoraUtils";
+
+const ReactHlsPlayer = dynamic(() => import("@gumlet/react-hls-player"), {
+  ssr: false,
+});
 
 interface ZoraEmbedProps {
   url: string;
 }
 
-type OG = {
-  title?: string | null;
-  description?: string | null;
-  image?: string | null;
-  siteName?: string | null;
-  url?: string | null;
-};
+interface OpenGraphData {
+  title?: string;
+  description?: string;
+  image?: string;
+  video?: string;
+  siteName?: string;
+  url?: string;
+  error?: string;
+}
+
+const MAX_EMBED_HEIGHT = 500;
 
 const ZoraEmbed: React.FC<ZoraEmbedProps> = ({ url }) => {
-  const [og, setOg] = useState<OG | null>(null);
-  const [loading, setLoading] = useState(true);
   const parsed = parseZoraUrl(url);
+  const tradeUrl = parsed?.pageUrl ?? url;
+  const [ogData, setOgData] = useState<OpenGraphData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [muted, setMuted] = useState(true);
+  const [didUnmute, setDidUnmute] = useState(false);
+  const playerRef = React.useRef<HTMLVideoElement | null>(null);
+  const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: number } | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    const fetchOG = async () => {
-      if (!parsed) {
-        setLoading(false);
-        return;
-      }
-
-      // Only call opengraph for https pages
-      if (!parsed.pageUrl.startsWith("https://")) {
-        setLoading(false);
-        return;
-      }
-
+    const fetchOGData = async () => {
       try {
-        setLoading(true);
-        const resp = await fetch(`/api/opengraph?url=${encodeURIComponent(parsed.pageUrl)}`);
-        if (!resp.ok) throw new Error("open graph fetch failed");
-        const data = await resp.json();
-        if (!cancelled) setOg(data);
-      } catch (e) {
-        // ignore
+        setIsLoading(true);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+        
+        try {
+          const response = await fetch(
+            `/api/opengraph?url=${encodeURIComponent(tradeUrl)}`,
+            {
+              signal: controller.signal,
+            }
+          );
+          
+          if (response.ok) {
+            const data = await response.json();
+            // Accept data if we have any meaningful content
+            if (data.title || data.image || data.video || data.description) {
+              setOgData(data);
+            }
+          }
+        } finally {
+          clearTimeout(timeoutId);
+        }
+      } catch (err) {
+        // Silently fail - we'll show fallback UI
       } finally {
-        if (!cancelled) setLoading(false);
+        setIsLoading(false);
       }
     };
-    fetchOG();
-    return () => {
-      cancelled = true;
+    fetchOGData();
+  }, [tradeUrl]);
+
+  const togglePlay = useCallback(() => {
+    if (!playerRef.current) return;
+    if (playerRef?.current.paused) {
+      playerRef?.current?.play();
+    } else {
+      playerRef?.current?.pause();
+    }
+  }, []);
+
+  const onVideoClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (didUnmute) {
+        togglePlay();
+      } else {
+        setMuted(false);
+        setDidUnmute(true);
+      }
+    },
+    [didUnmute, togglePlay],
+  );
+
+  const onLoadedMetadata = useCallback(() => {
+    if (!playerRef.current) return;
+
+    const { videoWidth, videoHeight } = playerRef.current;
+    if (!videoWidth || !videoHeight) return;
+
+    setVideoDimensions((prev) => {
+      if (prev?.width === videoWidth && prev?.height === videoHeight) {
+        return prev;
+      }
+
+      return { width: videoWidth, height: videoHeight };
+    });
+  }, []);
+
+  const aspectRatio = useMemo(() => {
+    if (!videoDimensions?.width || !videoDimensions.height) {
+      return null;
+    }
+
+    return videoDimensions.width / videoDimensions.height;
+  }, [videoDimensions]);
+
+  const containerStyles = useMemo(() => {
+    const styles: CSSProperties = {
+      width: "100%",
     };
-  }, [url, parsed?.pageUrl]);
 
-  // Build trade link - MVP: point to the page URL discovered
-  const tradeUrl = parsed?.pageUrl ?? url;
+    if (aspectRatio && aspectRatio < 1) {
+      styles.maxWidth = `${MAX_EMBED_HEIGHT * aspectRatio}px`;
+    }
 
-  if (loading) {
+    return styles;
+  }, [aspectRatio]);
+
+  const videoStyles = useMemo<CSSProperties>(() => ({
+    width: "100%",
+    height: "auto",
+    maxHeight: MAX_EMBED_HEIGHT,
+  }), []);
+
+  const handleCardClick = useCallback((e: React.MouseEvent) => {
+    // Don't navigate if clicking on video controls
+    if ((e.target as HTMLElement).closest('video, .react-player')) {
+      return;
+    }
+    e.preventDefault();
+    openWindow(tradeUrl);
+  }, [tradeUrl]);
+
+  const tooltipText = useMemo(() => {
+    if (ogData?.title) {
+      return `View "${ogData.title}" on Zora`;
+    }
+    if (parsed?.tokenId) {
+      return `View Token #${parsed.tokenId} on Zora`;
+    }
+    return "View on Zora";
+  }, [ogData?.title, parsed]);
+
+  if (isLoading) {
     return (
       <div className="border border-gray-200 rounded-lg p-4 w-full max-w-2xl">
         <div className="animate-pulse">
@@ -64,92 +170,130 @@ const ZoraEmbed: React.FC<ZoraEmbedProps> = ({ url }) => {
     );
   }
 
-  if (og && (og.image || og.title)) {
-    const siteLabel = og.siteName || (() => {
-      try { return new URL(tradeUrl).hostname; } catch { return "zora.co"; }
-    })();
-
-    // Try to mimic Zora's card: subtle gray gradient header with inset preview that looks like a framed post
+  // If we have no OG data, show a clickable card with preview
+  if (!ogData || (!ogData.title && !ogData.image && !ogData.video)) {
     return (
-      <div className="w-full max-w-2xl">
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-          {/* Header / preview area (gradient) */}
-          <div className="bg-gradient-to-b from-gray-200 via-gray-100 to-gray-100 p-4">
-            <div className="relative mx-auto max-w-3xl">
-              {/* Inner rounded preview card (lighter) */}
-              <a href={tradeUrl} target="_blank" rel="noopener noreferrer" className="block" aria-label={og.title ? `View "${og.title}" on ${siteLabel}` : `View on ${siteLabel}`}>
-                <div className="mx-auto w-full rounded-lg bg-white shadow-inner max-w-[720px]">
-                  <div className="p-4">
-                    <div className="relative rounded-md overflow-hidden bg-white min-h-[120px]">
-                      {og.image ? (
-                        <img src={og.image!} alt={og.title || "Zora preview"} className="object-cover w-full h-48 md:h-40 lg:h-48" />
-                      ) : (
-                        <div className="w-full h-48 bg-gray-100 flex items-center justify-center">
-                          <span className="text-sm text-gray-400">Preview</span>
-                        </div>
-                      )}
-                      {/* top-left badge */}
-                      <div className="absolute left-3 top-3 px-2 py-1 bg-white text-xs font-medium rounded-full text-gray-800">Zora</div>
-                      {/* top-right site text */}
-                      <div className="absolute right-3 top-3 text-xs text-gray-500">{siteLabel}</div>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div 
+              className="block border border-gray-200 rounded-xl overflow-hidden hover:border-gray-300 hover:shadow-lg cursor-pointer transition-all duration-200 w-full max-w-2xl bg-white relative group"
+              onClick={handleCardClick}
+            >
+              {/* Zora Badge - Top Right - Always visible */}
+              <div className="absolute top-3 right-3 z-10 bg-black/90 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg transition-all duration-200 group-hover:bg-black group-hover:scale-105">
+                <span>Zora</span>
+                <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
+              </div>
+              
+              {/* Preview area with gradient background */}
+              <div className="relative w-full bg-gradient-to-br from-gray-50 to-gray-100" style={{ aspectRatio: '16/9', minHeight: '300px' }}>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="mb-3">
+                      <ArrowTopRightOnSquareIcon className="w-12 h-12 text-gray-400 mx-auto" />
                     </div>
+                    <p className="text-sm font-medium text-gray-600">Click to view on Zora</p>
+                    {parsed?.tokenId && (
+                      <p className="text-xs text-gray-500 mt-1">Token #{parsed.tokenId}</p>
+                    )}
                   </div>
                 </div>
-              </a>
-            </div>
-          </div>
-
-          {/* Footer: title + actions */}
-          <div className="px-4 py-3">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                {og.title && <div className="font-semibold text-gray-900 text-base line-clamp-2">{og.title}</div>}
-                {og.description && <div className="text-sm text-gray-600 mt-1 line-clamp-2">{og.description}</div>}
-              </div>
-
-              <div className="flex-shrink-0">
-                <a
-                  href={tradeUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-md"
-                  aria-label={`Trade ${og.title || 'on Zora'}`}
-                >
-                  Trade
-                </a>
               </div>
             </div>
-            {/* siteLabel already shown in preview header */}
-          </div>
-        </div>
-      </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{tooltipText}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
 
-  // Fallback
   return (
-    <div className="w-full max-w-2xl bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-sm font-semibold text-gray-900">Zora</div>
-          {parsed?.contract && (
-            <div className="text-xs text-gray-500">{parsed.contract}{parsed?.tokenId ? ` • #${parsed.tokenId}` : ''}</div>
-          )}
-        </div>
-
-        <div>
-          <a
-            href={tradeUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg"
-            aria-label={`View ${parsed?.contract ? `contract ${parsed.contract}${parsed?.tokenId ? ` token #${parsed.tokenId}` : ''}` : 'on Zora'}`}
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div 
+            className="block border border-gray-200 rounded-xl overflow-hidden hover:border-gray-300 hover:shadow-lg cursor-pointer transition-all duration-200 w-full max-w-2xl bg-white relative group"
+            onClick={handleCardClick}
           >
-            View
-          </a>
-        </div>
-      </div>
-    </div>
+            {/* Zora Badge - Top Right Corner - Always visible */}
+            <div className="absolute top-3 right-3 z-10 bg-black/90 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg transition-all duration-200 group-hover:bg-black group-hover:scale-105">
+              <span>Zora</span>
+              <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
+            </div>
+
+            {/* Video Section - Priority over image */}
+            {ogData?.video ? (
+              <div className="flex w-full justify-center bg-black relative" style={containerStyles}>
+                <ReactHlsPlayer
+                  src={ogData.video}
+                  muted={muted}
+                  autoPlay={false}
+                  controls={true}
+                  width="100%"
+                  height="auto"
+                  playerRef={playerRef}
+                  onClick={onVideoClick}
+                  onLoadedMetadata={onLoadedMetadata}
+                  playsInline
+                  className="h-auto w-full rounded-t-xl object-contain"
+                  style={videoStyles}
+                />
+              </div>
+            ) : ogData?.image ? (
+              /* Preview Image Section - Only show if it's actually an image */
+              (() => {
+                const imageUrl = ogData.image.toLowerCase();
+                const videoExtensions = ['.m3u8', '.mp4', '.webm', '.mov', '.avi', '.mkv', '.flv'];
+                const isVideoUrl = videoExtensions.some(ext => imageUrl.includes(ext)) || 
+                                   imageUrl.includes('/video/') ||
+                                   imageUrl.includes('video/upload');
+                
+                // Don't render Image component for video URLs
+                if (isVideoUrl) {
+                  return null;
+                }
+                
+                return (
+                  <div className="relative w-full h-48">
+                    <Image
+                      src={ogData.image}
+                      alt={ogData.title || "Zora Preview"}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      onError={(e) => {
+                        // Hide image on error
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                );
+              })()
+            ) : null}
+
+            {/* Content Section */}
+            <div className="p-5 bg-white">
+              {ogData?.title && (
+                <h3 className="font-semibold text-gray-900 mb-2 text-base leading-tight line-clamp-2">
+                  {ogData.title}
+                </h3>
+              )}
+              {ogData?.description && (
+                <p className="text-gray-600 text-sm leading-relaxed line-clamp-2">
+                  {ogData.description}
+                </p>
+              )}
+            </div>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{tooltipText}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 

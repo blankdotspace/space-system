@@ -6,23 +6,25 @@ import {
   TabsTrigger,
 } from "@/common/components/atoms/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/common/components/atoms/tooltip";
+import { AnalyticsEvent } from "@/common/constants/analyticsEvents";
 import {
   FidgetFieldConfig,
   FidgetProperties,
   FidgetSettings,
 } from "@/common/fidgets";
+import { useAppStore } from "@/common/data/stores/app";
+import { useFidgetSettings } from "@/common/lib/hooks/useFidgetSettings";
+import { useUIColors } from "@/common/lib/hooks/useUIColors";
 import {
   tabContentClasses,
   tabListClasses,
   tabTriggerClasses,
 } from "@/common/lib/theme/helpers";
 import { mergeClasses } from "@/common/lib/utils/mergeClasses";
-import React, { useEffect, useMemo, useState } from "react";
+import { analytics } from "@/common/providers/AnalyticsProvider";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FaCircleInfo, FaTrashCan } from "react-icons/fa6";
 import BackArrowIcon from "../atoms/icons/BackArrow";
-import { AnalyticsEvent } from "@/common/constants/analyticsEvents";
-import { analytics } from "@/common/providers/AnalyticsProvider";
-import { useUIColors } from "@/common/lib/hooks/useUIColors";
 
 export type FidgetSettingsEditorProps = {
   fidgetId: string;
@@ -167,6 +169,29 @@ export const FidgetSettingsGroup: React.FC<{
   );
 };
 
+const fillWithDefaults = (
+  input: FidgetSettings,
+  fields: FidgetFieldConfig[],
+  options?: { skipDefaults?: string[] },
+) =>
+  fields.reduce((acc, field) => {
+    const value =
+      input && typeof input === "object"
+        ? (input as any)[field.fieldName]
+        : undefined;
+    const hasValue =
+      value !== undefined &&
+      value !== null &&
+      (typeof value !== "string" || value.trim() !== "");
+    const skipDefault = options?.skipDefaults?.includes(field.fieldName);
+    acc[field.fieldName] = hasValue
+      ? value
+      : skipDefault
+      ? undefined
+      : field.default ?? "";
+    return acc;
+  }, {} as FidgetSettings);
+
 export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
   fidgetId,
   properties,
@@ -175,20 +200,57 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
   unselect,
   removeFidget,
 }) => {
-  const [state, setState] = useState<FidgetSettings>(settings);
+
+  // Get current space/tab from zustand
+  const currentSpaceId = useAppStore((state) => state.currentSpace.currentSpaceId);
+  const currentTabName = useAppStore((state) => state.currentSpace.currentTabName);
+
+  // Subscribe directly to zustand for settings - eliminates prop lag
+  const zustandSettings = useFidgetSettings(currentSpaceId, currentTabName, fidgetId);
+
+  const normalizedSettings = useMemo(
+    () => fillWithDefaults(zustandSettings ?? settings, properties.fields),
+    [zustandSettings, settings, properties.fields],
+  );
+
+  const [state, setState] = useState<FidgetSettings>(normalizedSettings);
   const uiColors = useUIColors();
 
+  // Update local state when zustand settings change
   useEffect(() => {
-    setState(settings);
-  }, [settings, fidgetId]);
+    if (zustandSettings) {
+      const normalized = fillWithDefaults(zustandSettings, properties.fields);
+      setState(normalized);
+    }
+  }, [zustandSettings, properties.fields]);
 
-  const _onSave = (e) => {
-    e.preventDefault();
-    onSave(state, true);
-    analytics.track(AnalyticsEvent.EDIT_FIDGET, {
-      fidgetType: properties.fidgetName,
-    });
-  };
+  const saveWithValidation = useCallback(
+    (nextState: FidgetSettings, shouldUnselect?: boolean) => {
+      const filledState = fillWithDefaults(nextState, properties.fields);
+      setState(filledState);
+      onSave(filledState, shouldUnselect);
+    },
+    [properties.fields, onSave],
+  );
+
+  // Save handler for inline field changes (doesn't unselect editor)
+  const onInlineSave = useCallback(
+    (nextState: FidgetSettings) => {
+      saveWithValidation(nextState, false);
+    },
+    [saveWithValidation],
+  );
+
+  const _onSave = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      saveWithValidation(state, true);
+      analytics.track(AnalyticsEvent.EDIT_FIDGET, {
+        fidgetType: properties.fidgetName,
+      });
+    },
+    [state, saveWithValidation, properties.fidgetName],
+  );
 
   const groupedFields = useMemo(
     () => fieldsByGroup(properties.fields),
@@ -233,7 +295,7 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
                 fields={groupedFields.settings}
                 state={state}
                 setState={setState}
-                onSave={onSave}
+                onSave={onInlineSave}
               />
             </TabsContent>
             {groupedFields.style.length > 0 && (
@@ -243,7 +305,7 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
                   fields={groupedFields.style}
                   state={state}
                   setState={setState}
-                  onSave={onSave}
+                  onSave={onInlineSave}
                 />
               </TabsContent>
             )}
@@ -254,7 +316,7 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
                   fields={groupedFields.code}
                   state={state}
                   setState={setState}
-                  onSave={onSave}
+                  onSave={onInlineSave}
                 />
               </TabsContent>
             )}
