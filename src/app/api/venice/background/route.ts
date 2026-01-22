@@ -39,7 +39,6 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
-  const truncatedInput = userInput.slice(0, MAX_INPUT_CHARS); // never log or send more than the limit
 
   // Models in the order requested by the user
   const models = [
@@ -61,7 +60,7 @@ export async function POST(request: Request) {
           messages: [
             {
               role: "system",
-              content: PROMPT.replace("{{user context}}", truncatedInput),
+              content: PROMPT.replace("{{user context}}", userInput),
             },
           ],
           venice_parameters: {
