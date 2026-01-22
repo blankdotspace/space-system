@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { comprehensiveCleanup } from '../src/common/lib/utils/gridCleanup';
-import { PlacedGridItem } from '@/fidgets/layout/Grid';
-import { FidgetInstanceData, FidgetConfig, FidgetSettings, FidgetData } from '@/common/fidgets';
+import { FidgetInstanceData } from '@/common/fidgets';
 
 describe('Grid Cleanup', () => {
   it('should handle real-world overlapping layout', () => {
@@ -82,7 +81,7 @@ describe('Grid Cleanup', () => {
     };
 
     // Use the exported comprehensiveCleanup function
-    const { cleanedLayout, cleanedFidgetInstanceDatums, hasChanges } = comprehensiveCleanup(
+    const { cleanedLayout, cleanedFidgetInstanceDatums, hasChanges: _hasChanges } = comprehensiveCleanup(
       layout,
       fidgetInstanceDatums,
       false, // hasProfile

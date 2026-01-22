@@ -7,7 +7,7 @@ import { getCastMetadataStructure } from "@/common/lib/utils/castMetadata";
 import { loadSystemConfig, type SystemConfig } from "@/config";
 import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
 import type { Embed } from "@neynar/nodejs-sdk/build/api";
-import { buildDefaultFrameMetadata, getDefaultFrameAssets } from "@/common/lib/utils/defaultMetadata";
+import { getDefaultFrameAssets } from "@/common/lib/utils/defaultMetadata";
 import { buildMiniAppEmbed } from "@/common/lib/utils/miniAppEmbed";
 import { resolveMiniAppDomain } from "@/common/lib/utils/miniAppDomain";
 

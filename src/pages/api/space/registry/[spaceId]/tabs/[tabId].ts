@@ -13,7 +13,7 @@ import { findIndex, isNull } from "lodash";
 import { NextApiRequest, NextApiResponse } from "next/types";
 import { createSupabaseServerClient } from "@/common/data/database/supabase/clients/server";
 import stringify from "fast-json-stable-stringify";
-import { StorageError, StorageApiError } from "@supabase/storage-js";
+import { StorageApiError } from "@supabase/storage-js";
 import { identitiesCanModifySpace } from "../../[spaceId]";
 
 export type UnsignedDeleteSpaceTabRequest = {

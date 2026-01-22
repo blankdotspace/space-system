@@ -8,7 +8,6 @@ import {
   ETHERSCAN_BADGE_SRC,
 } from "../constants";
 import { getFarcasterProfileUrl, getEnsProfileUrl } from "../utils";
-import { buildEtherscanUrl } from "@/common/data/api/token/utils";
 
 export type BadgeIconsProps = {
   username?: string | null;
@@ -173,7 +172,6 @@ export const BadgeIcons: React.FC<BadgeIconsProps> = ({
             aria-label={badge.title}
             title={badge.title}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={badge.src}
               alt={badge.alt}
@@ -185,7 +183,6 @@ export const BadgeIcons: React.FC<BadgeIconsProps> = ({
           </a>
         ) : (
           <span key={badge.key} className="inline-flex" aria-label={badge.title} title={badge.title}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={badge.src}
               alt={badge.alt}

@@ -79,11 +79,6 @@ const BrandHeader = ({ systemConfig }: BrandHeaderProps) => {
         </Link>
       )}
 
-      {false && (
-        <span className="self-center text-xl font-semibold whitespace-nowrap dark:text-white">
-          Nounspace
-        </span>
-      )}
     </>
   );
 };

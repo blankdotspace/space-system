@@ -22,9 +22,8 @@ import {
 } from "@/common/lib/theme/helpers";
 import { mergeClasses } from "@/common/lib/utils/mergeClasses";
 import { analytics } from "@/common/providers/AnalyticsProvider";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FaCircleInfo, FaTrashCan } from "react-icons/fa6";
-import { toast } from "sonner";
 import BackArrowIcon from "../atoms/icons/BackArrow";
 
 export type FidgetSettingsEditorProps = {

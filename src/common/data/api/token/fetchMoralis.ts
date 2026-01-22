@@ -4,7 +4,6 @@ import type {
   FetchHoldersResult,
   DirectoryDependencies,
   MoralisErc20HoldersResponse,
-  MoralisErc20Holder,
 } from "./types";
 import { getMoralisChain, getMoralisChainFallbacks } from "./utils";
 
