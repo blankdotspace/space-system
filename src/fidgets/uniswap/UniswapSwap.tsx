@@ -100,6 +100,7 @@ const UniswapSwap: React.FC<FidgetArgs<UniswapFidgetSettings>> = ({
   },
 }) => {
   const uniswapBaseUrl = "https://app.uniswap.org/swap";
+  const uniswapOrigin = new URL(uniswapBaseUrl).origin;
   const [url, setUrl] = React.useState("");
 
   const buildUniswapUrl = () => {
@@ -120,7 +121,7 @@ const UniswapSwap: React.FC<FidgetArgs<UniswapFidgetSettings>> = ({
     setUrl(buildUniswapUrl());
   }, [inputCurrency, outputCurrency, chain]);
 
-  const scaleValue = size;
+  const scaleValue = Number.isFinite(size) && size > 0 ? size : 1;
 
   React.useEffect(() => {
     let currentScrollY = window.scrollY;
@@ -133,8 +134,17 @@ const UniswapSwap: React.FC<FidgetArgs<UniswapFidgetSettings>> = ({
     };
 
     const handleMessage = (event: MessageEvent) => {
-      if (event.data.action === "connectWallet") {
+      if (event.origin !== uniswapOrigin) {
+        return;
+      }
+
+      if (event.data?.action === "connectWallet") {
         preventScroll = true;
+        currentScrollY = window.scrollY;
+      }
+
+      if (event.data?.action === "unlock") {
+        preventScroll = false;
         currentScrollY = window.scrollY;
       }
     };
@@ -143,6 +153,7 @@ const UniswapSwap: React.FC<FidgetArgs<UniswapFidgetSettings>> = ({
     window.addEventListener("message", handleMessage);
 
     return () => {
+      preventScroll = false;
       window.removeEventListener("scroll", handleScroll);
       window.removeEventListener("message", handleMessage);
     };
