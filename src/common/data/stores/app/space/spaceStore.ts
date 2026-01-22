@@ -1008,6 +1008,10 @@ export const createSpaceStoreFunc = (
         "Profile",
         createInitialProfileSpaceConfigForFid(fid),
       );
+      
+      // Commit the staged tab to storage (required after staged commit pattern refactor)
+      await get().space.commitAllSpaceChanges(newSpaceId);
+      
       analytics.track(AnalyticsEvent.SPACE_REGISTERED, {
         type: "user",
         spaceId: newSpaceId,
@@ -1121,6 +1125,9 @@ export const createSpaceStoreFunc = (
         "Channel",
         createInitialChannelSpaceConfig(channelId),
       );
+      
+      // Commit the staged tab to storage (required after staged commit pattern refactor)
+      await get().space.commitAllSpaceChanges(newSpaceId);
 
       analytics.track(AnalyticsEvent.SPACE_REGISTERED, {
         type: "channel",
@@ -1277,6 +1284,9 @@ export const createSpaceStoreFunc = (
           initialConfig,
           network,
         );
+        
+        // Commit the staged tab to storage (required after staged commit pattern refactor)
+        await get().space.commitAllSpaceChanges(newSpaceId, network);
 
         analytics.track(AnalyticsEvent.SPACE_REGISTERED, {
         type: "token",
@@ -1376,8 +1386,12 @@ export const createSpaceStoreFunc = (
           initialConfig
         );
         console.log("[registerProposalSpace] Overview tab created successfully");
+        
+        // Commit the staged tab to storage (required after staged commit pattern refactor)
+        await get().space.commitAllSpaceChanges(newSpaceId);
+        console.log("[registerProposalSpace] Overview tab committed to storage");
       } catch (tabError) {
-        console.error("[registerProposalSpace] Tab creation failed:", tabError);
+        console.error("[registerProposalSpace] Tab creation/commit failed:", tabError);
         throw new Error(`Failed to create Overview tab: ${tabError instanceof Error ? tabError.message : String(tabError)}`);
       }
 
