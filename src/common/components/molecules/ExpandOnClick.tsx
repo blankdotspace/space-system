@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 import React, { useState, useCallback } from "react";
 import { Dialog, DialogContent } from "@/common/components/atoms/dialog";
 

@@ -17,29 +17,32 @@ const compat = new FlatCompat({
     allConfig: js.configs.all
 });
 
-export default defineConfig([globalIgnores(["**/node_modules/", "**/dist/", "**/.next/", "src/assets"]), {
-    extends: [
-        ...compat.extends("eslint:recommended"),
-        ...compat.extends("plugin:@typescript-eslint/recommended"),
-        ...compat.extends("plugin:react/recommended"),
-        ...compat.extends("prettier")
-    ],
+export default defineConfig([
+    globalIgnores(["**/node_modules/", "**/dist/", "**/.next/", "src/assets", "**/*.config.js", "**/*.config.mjs", "**/next-env.d.ts", "**/public/sw.js"]),
+    {
+        extends: [
+            ...compat.extends("eslint:recommended"),
+            ...compat.extends("plugin:@typescript-eslint/recommended"),
+            ...compat.extends("plugin:react/recommended"),
+            ...compat.extends("prettier")
+        ],
 
-    plugins: {
-        "@stylistic": stylistic,
-        "@typescript-eslint": typescriptEslint,
-        react,
-    },
-
-    languageOptions: {
-        globals: {
-            ...globals.browser,
+        plugins: {
+            "@stylistic": stylistic,
+            "@typescript-eslint": typescriptEslint,
+            react,
         },
 
-        parser: tsParser,
-        ecmaVersion: "latest",
-        sourceType: "module",
-    },
+        languageOptions: {
+            globals: {
+                ...globals.browser,
+                ...globals.node,
+            },
+
+            parser: tsParser,
+            ecmaVersion: "latest",
+            sourceType: "module",
+        },
 
     settings: {
         react: {

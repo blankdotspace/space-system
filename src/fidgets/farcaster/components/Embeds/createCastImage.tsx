@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 import React, { useState, useCallback } from "react";
 import { PhotoIcon } from "@heroicons/react/24/solid";
 import ExpandOnClick from "@/common/components/molecules/ExpandOnClick";

@@ -1,8 +1,5 @@
 import type {
-  DirectoryNetwork,
-  DirectoryAssetType,
   DirectorySortOption,
-  DirectoryLayoutStyle,
   DirectoryIncludeOption,
   DirectorySource,
   DirectoryChannelFilterOption,
