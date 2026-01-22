@@ -1,8 +1,17 @@
 import { SpaceConfig } from "@/app/(spaces)/Space";
-import { FilterType, FeedType } from "@neynar/nodejs-sdk/build/api";
 import { getLayoutConfig } from "@/common/utils/layoutFormatUtils";
 import { INITIAL_SPACE_CONFIG_EMPTY } from "../../initialSpaceConfig";
 import { deepClone } from "@/common/lib/utils/deepClone";
+
+// Use string literals instead of importing from Neynar SDK to avoid Edge Runtime issues
+// These match the enum values from @neynar/nodejs-sdk
+const FeedType = {
+  Filter: "filter",
+} as const;
+
+const FilterType = {
+  ChannelId: "channel_id",
+} as const;
 
 const INITIAL_CHANNEL_SPACE_CONFIG = deepClone(INITIAL_SPACE_CONFIG_EMPTY);
 INITIAL_CHANNEL_SPACE_CONFIG.tabNames = ["Channel"];
