@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { BsCoin } from "react-icons/bs";
-import { parseEther, formatEther } from "viem";
+import { parseEther } from "viem";
 import { useAccount, useWalletClient, usePublicClient } from "wagmi";
 import Modal from "@/common/components/molecules/Modal";
 import { useEthUsdPrice } from "@/fidgets/nouns-home/price";

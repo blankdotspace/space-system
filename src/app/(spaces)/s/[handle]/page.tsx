@@ -2,6 +2,7 @@ import React from "react";
 import { loadUserSpaceData } from "./utils";
 import SpaceNotFound from "@/app/(spaces)/SpaceNotFound";
 import ProfileSpace from "./ProfileSpace";
+import { redirect } from "next/navigation";
 // ProfileSpaceData imported but not used
 // import { ProfileSpaceData } from "@/common/types/spaceData";
 
@@ -31,6 +32,11 @@ const ProfileSpacePage = async ({ params }: ProfileSpacePageProps) => {
       return <SpaceNotFound />;
     }
 
+    if (!decodedTabNameParam) {
+      redirect(
+        `/s/${handle}/${encodeURIComponent(profileSpacePageData.defaultTab)}`
+      );
+    }
 
     return (
       <ProfileSpace

@@ -153,13 +153,13 @@ export async function GET(request: NextRequest) {
       }
     };
 
-    let rawImage = getMetaContent("og:image") || 
+    const rawImage = getMetaContent("og:image") || 
                    getMetaContent("twitter:image") || 
                    null;
 
     let image = makeAbsoluteUrl(rawImage);
 
-    let rawVideo = getMetaContent("og:video") || 
+    const rawVideo = getMetaContent("og:video") || 
                    getMetaContent("twitter:player") || 
                    null;
 

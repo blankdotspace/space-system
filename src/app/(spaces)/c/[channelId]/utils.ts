@@ -7,6 +7,7 @@ import {
 } from "@/common/types/spaceData";
 import { createInitialChannelSpaceConfig } from "@/config";
 import { Channel, ChannelType } from "@neynar/nodejs-sdk/build/api";
+import { loadSpaceDefaultTab } from "@/common/utils/tabUtils";
 
 export const getChannelMetadata = async (
   channelId: string,
@@ -23,7 +24,7 @@ export const getChannelMetadata = async (
   }
 };
 
-export const createChannelSpaceData = (
+export const createChannelSpaceData = async (
   spaceId: string | undefined,
   channelId: string,
   channelDisplayName: string | undefined,
@@ -33,18 +34,21 @@ export const createChannelSpaceData = (
   moderatorFids: number[],
   tabName: string,
   identityPublicKey?: string,
-): Omit<ChannelSpacePageData, "isEditable" | "spacePageUrl"> => {
+): Promise<Omit<ChannelSpacePageData, "isEditable" | "spacePageUrl">> => {
   const config = {
     ...createInitialChannelSpaceConfig(channelId),
     timestamp: new Date().toISOString(),
   };
+
+  // Load dynamic default tab from storage, fallback to "Channel"
+  const defaultTab = await loadSpaceDefaultTab(spaceId, "Channel");
 
   return {
     spaceId,
     spaceName: channelId,
     spaceType: SPACE_TYPES.CHANNEL,
     updatedAt: new Date().toISOString(),
-    defaultTab: "Channel",
+    defaultTab,
     currentTab: tabName,
     config,
     spaceOwnerFid: moderatorFids[0],
@@ -104,7 +108,7 @@ export const loadChannelSpaceData = async (
 
   const tabName = tabNameParam || "Channel";
 
-  return createChannelSpaceData(
+  return await createChannelSpaceData(
     spaceId,
     channelId,
     channelMetadata.name,

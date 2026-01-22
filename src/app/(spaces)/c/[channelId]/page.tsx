@@ -2,6 +2,7 @@ import React from "react";
 import SpaceNotFound from "@/app/(spaces)/SpaceNotFound";
 import ChannelSpace from "./ChannelSpace";
 import { loadChannelSpaceData } from "./utils";
+import { redirect } from "next/navigation";
 
 interface ChannelSpacePageProps {
   params: Promise<{
@@ -24,6 +25,12 @@ const ChannelSpacePage = async ({ params }: ChannelSpacePageProps) => {
 
     if (!channelSpaceData) {
       return <SpaceNotFound />;
+    }
+
+    if (!decodedTabName) {
+      redirect(
+        `/c/${channelId}/${encodeURIComponent(channelSpaceData.defaultTab)}`
+      );
     }
 
     return (

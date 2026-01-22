@@ -4,6 +4,7 @@ import neynar from "@/common/data/api/neynar";
 import { unstable_noStore as noStore } from "next/cache";
 import { ProfileSpacePageData, SPACE_TYPES } from "@/common/types/spaceData";
 import { createInitialProfileSpaceConfigForFid } from "@/config";
+import { loadSpaceDefaultTab } from "@/common/utils/tabUtils";
 
 export type Tab = {
   spaceId: string;
@@ -111,18 +112,21 @@ export const getTabList = async (fid: number): Promise<Tab[]> => {
 };
 
 // Profile space specific creator
-export const createProfileSpaceData = (
+export const createProfileSpaceData = async (
   spaceId: string | undefined,
   spaceName: string,
   fid: number,
   tabName: string,
   identityPublicKey?: string,
   walletAddress?: string
-): Omit<ProfileSpacePageData, 'isEditable' | 'spacePageUrl'> => {
+): Promise<Omit<ProfileSpacePageData, 'isEditable' | 'spacePageUrl'>> => {
   const config = {
     ...createInitialProfileSpaceConfigForFid(fid, spaceName),
     timestamp: new Date().toISOString(),
   };
+
+  // Load dynamic default tab from storage, fallback to "Profile"
+  const defaultTab = await loadSpaceDefaultTab(spaceId, "Profile");
 
   return {
     // Base SpaceData properties
@@ -130,7 +134,7 @@ export const createProfileSpaceData = (
     spaceName,
     spaceType: SPACE_TYPES.PROFILE,
     updatedAt: new Date().toISOString(),
-    defaultTab: "Profile",
+    defaultTab,
     currentTab: tabName,
     config,
     spaceOwnerFid: fid,
@@ -183,7 +187,7 @@ export const loadUserSpaceData = async (
 
   const tabName = tabNameParam || spaceOwnerUsername || "Profile";
 
-  return createProfileSpaceData(
+  return await createProfileSpaceData(
     spaceId, // This can be undefined if space doesn't exist yet
     spaceOwnerUsername || "Profile",
     spaceOwnerFid,
