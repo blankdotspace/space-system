@@ -23,6 +23,10 @@ import {
   isProposalSpace,
   isChannelSpace,
 } from "@/common/types/spaceData";
+import { MiniAppContextProvider, useMiniAppContext } from "@/common/providers/MiniAppContextProvider";
+import { useLocationAwareNavigation } from "@/common/lib/hooks/useLocationAwareNavigation";
+import { useSearchParams } from "next/navigation";
+import { ContextDebugger } from "@/components/debug/ContextDebugger";
 const FARCASTER_NOUNSPACE_AUTHENTICATOR_NAME = "farcaster:nounspace";
 
 interface PublicSpaceProps {
@@ -481,14 +485,97 @@ export default function PublicSpace({
     />
   ) : undefined;
 
+  // Determine space type string for context
+  const nounspaceSpaceType = spacePageData.spaceType;
+
   return (
-    <SpacePage
+    <LocationAwareSpaceWrapper
+      spacePageData={spacePageData}
+      currentTabName={currentTabName || providedTabName}
+      providedTabName={providedTabName}
+      isEditable={isEditable}
       config={config}
       saveConfig={saveConfig}
       commitConfig={commitConfig}
       resetConfig={resetConfig}
       tabBar={tabBar}
-      profile={headerFidget ?? undefined}
+      headerFidget={headerFidget}
+      nounspaceSpaceType={nounspaceSpaceType}
     />
   );
+}
+
+/**
+ * Wrapper component that provides mini-app context and handles location-aware navigation
+ */
+function LocationAwareSpaceWrapper({
+  spacePageData,
+  currentTabName,
+  providedTabName,
+  isEditable,
+  config,
+  saveConfig,
+  commitConfig,
+  resetConfig,
+  tabBar,
+  headerFidget,
+  nounspaceSpaceType,
+}: {
+  spacePageData: SpacePageData;
+  currentTabName: string;
+  providedTabName: string;
+  isEditable: boolean;
+  config: any;
+  saveConfig: any;
+  commitConfig: any;
+  resetConfig: any;
+  tabBar: React.ReactNode;
+  headerFidget: React.ReactNode | undefined;
+  nounspaceSpaceType: string;
+}) {
+  return (
+    <MiniAppContextProvider
+      spaceId={spacePageData.spaceId || "unknown"}
+      spaceHandle={spacePageData.spaceName}
+      tabName={currentTabName || providedTabName}
+      spaceType={nounspaceSpaceType}
+      isEditable={isEditable}
+      ownerFid={spacePageData.spaceOwnerFid}
+    >
+      <LocationAwareNavigationHandler />
+      <SpacePage
+        config={config}
+        saveConfig={saveConfig}
+        commitConfig={commitConfig}
+        resetConfig={resetConfig}
+        tabBar={tabBar}
+        profile={headerFidget ?? undefined}
+      />
+      <ContextDebugger />
+    </MiniAppContextProvider>
+  );
+}
+
+/**
+ * Component that handles location-aware navigation (must be inside MiniAppContextProvider)
+ */
+function LocationAwareNavigationHandler() {
+  const searchParams = useSearchParams();
+  const { parseUrlContext } = useMiniAppContext();
+  const { navigateFromContext } = useLocationAwareNavigation();
+
+  // Parse URL context on initial load
+  useEffect(() => {
+    const urlContext = parseUrlContext(new URLSearchParams(searchParams.toString()));
+    if (urlContext.from && process.env.NODE_ENV === "development") {
+      console.log("Parsed URL context:", urlContext);
+    }
+  }, [searchParams, parseUrlContext]);
+
+  // Navigate based on location context
+  useEffect(() => {
+    navigateFromContext();
+  }, [navigateFromContext]);
+
+  return null;
 }

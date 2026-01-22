@@ -13,6 +13,7 @@ import DOMPurify from "isomorphic-dompurify";
 import { BsCloud, BsCloudFill } from "react-icons/bs";
 import { useMiniApp } from "@/common/utils/useMiniApp";
 import { MINI_APP_PROVIDER_METADATA } from "@/common/providers/MiniAppSdkProvider";
+import { useMiniAppContext } from "@/common/providers/MiniAppContextProvider";
 
 const DEFAULT_SANDBOX_RULES =
   "allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox";
@@ -89,7 +90,7 @@ const resolveAllowedEmbedSrc = (src?: string | null): string | null => {
 
 type IframeAttributeMap = Record<string, string>;
 
-const createMiniAppBootstrapSrcDoc = (targetUrl: string) => {
+const createMiniAppBootstrapSrcDoc = (targetUrl: string, contextJson?: string) => {
   const safeTargetUrl = sanitizeMiniAppNavigationTarget(targetUrl);
   const iconPath = MINI_APP_PROVIDER_METADATA.iconPath;
   const providerInfoScript = `
@@ -109,6 +110,17 @@ const createMiniAppBootstrapSrcDoc = (targetUrl: string) => {
           };
         }
       `;
+
+  const contextScript = contextJson
+    ? `
+        // Inject Nounspace context for embedded mini-apps
+        try {
+          window.nounspaceContext = ${contextJson};
+        } catch (err) {
+          console.error("Failed to inject Nounspace context", err);
+        }
+      `
+    : "";
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8" /></head><body><script>(function(){
       try {
@@ -131,6 +143,7 @@ const createMiniAppBootstrapSrcDoc = (targetUrl: string) => {
           announce();
           window.addEventListener("eip6963:requestProvider", announce);
         }
+        ${contextScript}
       } catch (err) {
         console.error("Mini app provider bootstrap failed", err);
       }
@@ -312,6 +325,14 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
   const { isInMiniApp } = useMiniApp();
   const isMiniAppEnvironment = isInMiniApp === true;
 
+  // Get context for embedded mini-apps
+  const { transformForEmbedded, buildUrlWithContext } = useMiniAppContext();
+  
+  // Transform context for embedded mini-apps
+  const transformedContext = useMemo(() => {
+    return transformForEmbedded();
+  }, [transformForEmbedded]);
+
   const [sanitizedEmbedAttributes, setSanitizedEmbedAttributes] =
     useState<IframeAttributeMap | null>(null);
   const [iframelyEmbedAttributes, setIframelyEmbedAttributes] =
@@ -368,6 +389,64 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
     setIframelyEmbedAttributes(parseIframeAttributes(embedInfo.iframelyHtml));
   }, [embedInfo?.iframelyHtml]);
 
+  const contextJson = useMemo(() => {
+    if (!transformedContext) return undefined;
+    try {
+      return JSON.stringify(transformedContext);
+    } catch (err) {
+      console.error("Failed to serialize context", err);
+      return undefined;
+    }
+  }, [transformedContext]);
+
+  // Callback ref to send context to iframe when it mounts
+  // This ensures each iframe receives context, even if multiple iframes exist
+  const setIframeRef = useCallback((iframe: HTMLIFrameElement | null) => {
+    if (iframe && transformedContext && iframe.contentWindow) {
+      try {
+        // Send context immediately when iframe is mounted
+        iframe.contentWindow.postMessage(
+          {
+            type: "nounspace:context",
+            context: transformedContext,
+          },
+          "*" // In production, should use specific origin
+        );
+      } catch (err) {
+        // Silently fail if postMessage is blocked (cross-origin)
+        if (process.env.NODE_ENV === "development") {
+          console.warn("Failed to send context update via postMessage", err);
+        }
+      }
+    }
+  }, [transformedContext]);
+
+  // Send context updates via postMessage when context changes
+  // This handles dynamic updates after initial mount
+  useEffect(() => {
+    if (!transformedContext) return;
+
+    // Find all iframes in the current component and send updates
+    // Note: This is a workaround since we can't track all iframes easily
+    // The callback ref handles initial mount, this handles updates
+    const iframes = document.querySelectorAll('iframe[data-nounspace-context]');
+    iframes.forEach((iframe) => {
+      if (iframe.contentWindow) {
+        try {
+          iframe.contentWindow.postMessage(
+            {
+              type: "nounspace:context",
+              context: transformedContext,
+            },
+            "*"
+          );
+        } catch (err) {
+          // Silently fail
+        }
+      }
+    });
+  }, [transformedContext]);
+
   const iframelyMiniAppConfig = useMemo(() => {
     if (!isMiniAppEnvironment || !iframelyEmbedAttributes?.src) {
       return undefined;
@@ -379,9 +458,11 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
 
     try {
       const safeSrc = new URL(iframelyEmbedAttributes.src).toString();
+      // Build URL with context parameters
+      const urlWithContext = buildUrlWithContext(safeSrc);
       return {
-        safeSrc,
-        bootstrapDoc: createMiniAppBootstrapSrcDoc(safeSrc),
+        safeSrc: urlWithContext,
+        bootstrapDoc: createMiniAppBootstrapSrcDoc(safeSrc, contextJson),
         allowFullScreen: "allowfullscreen" in iframelyEmbedAttributes,
         sandboxRules: ensureSandboxRules(iframelyEmbedAttributes.sandbox),
         widthAttr: iframelyEmbedAttributes.width,
@@ -391,7 +472,7 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
       console.warn("Rejected unsupported IFramely iframe src", error);
       return null;
     }
-  }, [isMiniAppEnvironment, iframelyEmbedAttributes]);
+  }, [isMiniAppEnvironment, iframelyEmbedAttributes, buildUrlWithContext, contextJson]);
 
   const isValid = isValidHttpUrl(debouncedUrl);
   const sanitizedUrl = useSafeUrl(debouncedUrl);
@@ -473,8 +554,8 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
       return null;
     }
 
-    return createMiniAppBootstrapSrcDoc(resolvedSanitizedMiniAppSrc);
-  }, [resolvedSanitizedMiniAppSrc]);
+    return createMiniAppBootstrapSrcDoc(resolvedSanitizedMiniAppSrc, contextJson);
+  }, [resolvedSanitizedMiniAppSrc, contextJson]);
 
   if (sanitizedEmbedScript) {
     if (
@@ -508,6 +589,8 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
       return (
         <div style={{ overflow: "hidden", width: "100%", height: "100%" }}>
           <iframe
+            ref={setIframeRef}
+            data-nounspace-context
             key={`miniapp-sanitized-${resolvedSanitizedMiniAppSrc}`}
             srcDoc={sanitizedMiniAppBootstrapDoc}
             title={sanitizedEmbedAttributes.title || "IFrame Fidget"}
@@ -654,8 +737,12 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
   }
 
   if (embedInfo.directEmbed && transformedUrl) {
+    // Build URL with context parameters
+    const urlWithContext = isMiniAppEnvironment
+      ? buildUrlWithContext(transformedUrl)
+      : transformedUrl;
     const miniAppBootstrapDoc = isMiniAppEnvironment
-      ? createMiniAppBootstrapSrcDoc(transformedUrl)
+      ? createMiniAppBootstrapSrcDoc(transformedUrl, contextJson)
       : null;
 
     return (
@@ -678,8 +765,10 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
             }}
           >
             <iframe
-              key={`iframe-miniapp-${transformedUrl}`}
-              src={miniAppBootstrapDoc ? undefined : transformedUrl}
+              ref={setIframeRef}
+              data-nounspace-context
+              key={`iframe-miniapp-${urlWithContext}`}
+              src={miniAppBootstrapDoc ? undefined : urlWithContext}
               srcDoc={miniAppBootstrapDoc || undefined}
               title="IFrame Fidget"
               sandbox={DEFAULT_SANDBOX_RULES}
@@ -710,8 +799,10 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
               }}
             >
               <iframe
-                key={`iframe-miniapp-${transformedUrl}`}
-                src={miniAppBootstrapDoc ? undefined : transformedUrl}
+                ref={setIframeRef}
+                data-nounspace-context
+                key={`iframe-miniapp-${urlWithContext}`}
+                src={miniAppBootstrapDoc ? undefined : urlWithContext}
                 srcDoc={miniAppBootstrapDoc || undefined}
                 title="IFrame Fidget"
                 sandbox={DEFAULT_SANDBOX_RULES}
@@ -755,6 +846,8 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
         return (
           <div style={{ overflow: "hidden", width: "100%", height: "100%" }}>
             <iframe
+              ref={setIframeRef}
+              data-nounspace-context
               key={`miniapp-iframely-${safeSrc}`}
               srcDoc={bootstrapDoc}
               title={iframelyEmbedAttributes.title || "IFrame Fidget"}
