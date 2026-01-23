@@ -36,6 +36,7 @@ WHERE "community_id" LIKE '%.%'
 ON CONFLICT DO NOTHING;
 
 -- Policy: Anyone can read domain mappings (needed for domain resolution)
+DROP POLICY IF EXISTS "Allow public read of community domains" ON "public"."community_domains";
 CREATE POLICY "Allow public read of community domains"
 ON "public"."community_domains"
 FOR SELECT
@@ -43,6 +44,7 @@ TO public
 USING (true);
 
 -- Policy: Service role can do anything (backend/admin operations)
+DROP POLICY IF EXISTS "Service role has full access to community domains" ON "public"."community_domains";
 CREATE POLICY "Service role has full access to community domains"
 ON "public"."community_domains"
 FOR ALL
