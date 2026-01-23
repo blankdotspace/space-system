@@ -183,7 +183,7 @@ export function createMiniAppSdkHost(
             domain: signInDomain,
             address: signerAddress,
             statement: 'Sign in with Farcaster',
-            uri: typeof window !== 'undefined' ? window.location.origin : 'https://nounspace.xyz',
+            uri: typeof window !== 'undefined' ? window.location.origin : '',
             version: '1',
             chainId: 1,
             nonce: signInOptions.nonce,

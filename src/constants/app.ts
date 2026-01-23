@@ -3,7 +3,7 @@ export const WEBSITE_URL =
     ? typeof window !== "undefined"
       ? window.location.origin
       : `https://${process.env.NEXT_PUBLIC_VERCEL_BRANCH_URL}`
-    : process.env.NEXT_PUBLIC_URL || "https://nounspace.com";
+    : process.env.NEXT_PUBLIC_URL || (typeof window !== "undefined" ? window.location.origin : "");
 
 export const APP_FID = process.env.NEXT_PUBLIC_APP_FID
   ? Number(process.env.NEXT_PUBLIC_APP_FID)

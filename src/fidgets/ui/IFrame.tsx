@@ -17,7 +17,14 @@ import { MINI_APP_PROVIDER_METADATA } from "@/common/providers/MiniAppSdkProvide
 const DEFAULT_SANDBOX_RULES =
   "allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox";
 
-const FALLBACK_BASE_URL = "https://nounspace.app/";
+// Use window.location.origin when available, otherwise empty string
+// Callers should handle empty string appropriately
+const getFallbackBaseUrl = (): string => {
+  if (typeof window !== 'undefined' && window.location.origin) {
+    return window.location.origin + "/";
+  }
+  return "";
+};
 
 const ensureSandboxRules = (sandbox?: string) => {
   const rules = new Set(
@@ -47,7 +54,7 @@ const sanitizeMiniAppNavigationTarget = (targetUrl: string) => {
     const base =
       typeof window !== "undefined" && window.location
         ? window.location.href
-        : FALLBACK_BASE_URL;
+        : getFallbackBaseUrl();
     const parsed = new URL(targetUrl, base);
 
     if (parsed.protocol === "http:" || parsed.protocol === "https:") {
@@ -69,7 +76,7 @@ const resolveAllowedEmbedSrc = (src?: string | null): string | null => {
     const base =
       typeof window !== "undefined" && window.location
         ? window.location.href
-        : FALLBACK_BASE_URL;
+        : getFallbackBaseUrl();
     const parsed = new URL(src, base);
 
     if (parsed.protocol === "https:") {

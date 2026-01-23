@@ -60,6 +60,10 @@ function isVercelDotCom(host: string): boolean {
 }
 
 function normalizeBaseUrl(rawUrl: string): string {
+  if (!rawUrl) {
+    return "";
+  }
+  
   const candidate =
     rawUrl.startsWith("http://") || rawUrl.startsWith("https://")
       ? rawUrl
@@ -68,7 +72,9 @@ function normalizeBaseUrl(rawUrl: string): string {
   try {
     return new URL(candidate).origin;
   } catch {
-    return WEBSITE_URL;
+    // Return empty string instead of hardcoded fallback
+    // Caller should handle empty string appropriately
+    return "";
   }
 }
 
@@ -113,5 +119,14 @@ export function resolveBaseUrlFromHeaders(
     return normalizeBaseUrl(fallbackUrl);
   }
 
-  return normalizeBaseUrl(WEBSITE_URL);
+  // Try to use WEBSITE_URL if available, otherwise return empty string
+  // Callers should handle empty string by using communityId or domain from headers
+  const websiteUrl = WEBSITE_URL || "";
+  if (websiteUrl) {
+    return normalizeBaseUrl(websiteUrl);
+  }
+  
+  // Last resort: try to construct from communityId if available
+  // This should rarely be needed as headers should provide domain
+  return "";
 }
