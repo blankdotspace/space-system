@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { TransformedMiniAppContext } from "@/common/lib/services/contextTransformer";
+import type { Context } from "@farcaster/miniapp-core";
 
 export type EmbeddedMiniAppInfo = {
   id: string;
   url: string | null;
   srcDoc: string | null;
-  contextProvided: TransformedMiniAppContext | null;
+  contextProvided: Context.MiniAppContext | null;
   hasBootstrapDoc: boolean;
 };
 
