@@ -362,14 +362,26 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
     // Get ethProvider from window
     const ethProvider = (window as any).__nounspaceMiniAppEthProvider;
     
-    // Determine target origin
+    // Determine target origin - must be a valid URL origin for security
+    // Never use '*' as it's unsafe and allows any origin to receive messages
     let targetOrigin: string | undefined;
     try {
       if (transformedUrl) {
         targetOrigin = new URL(transformedUrl).origin;
+      } else if (iframe.src) {
+        // Fallback to iframe.src if transformedUrl is not available
+        targetOrigin = new URL(iframe.src).origin;
       }
-    } catch {
-      targetOrigin = undefined;
+    } catch (error) {
+      // Cannot determine origin - this is a security issue
+      console.error('Cannot determine target origin for iframe. transformedUrl:', transformedUrl, 'iframe.src:', iframe.src, error);
+      // Don't set up Comlink handler without a valid origin
+      return;
+    }
+    
+    if (!targetOrigin) {
+      console.error('No valid origin available for iframe. Cannot set up Comlink handler safely.');
+      return;
     }
     
     // Set up Comlink handler for this iframe
@@ -402,6 +414,7 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
         comlinkCleanups.current.set(iframe, cleanup);
       } catch (error) {
         console.error('Failed to set up Comlink handler for iframe:', error);
+        // Error is already logged, don't set up handler if origin validation fails
       }
     };
     

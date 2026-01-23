@@ -453,7 +453,10 @@ export function createMiniAppSdkHost(
  * This uses Comlink's standard Endpoint interface to handle postMessage communication
  * The endpoint filters messages to only those from the specific iframe
  */
-function createIframeEndpoint(iframe: HTMLIFrameElement, targetOrigin: string): Endpoint {
+function createIframeEndpoint(iframe: HTMLIFrameElement, targetOrigin: string | null): Endpoint {
+  if (!targetOrigin || targetOrigin === '*') {
+    throw new Error('Cannot create endpoint with null or "*" origin. This is unsafe.');
+  }
   // Create an event target that filters messages from this specific iframe
   const eventTarget: EventTarget = {
     addEventListener: (type: string, listener: EventListener) => {
@@ -504,13 +507,35 @@ export function setupComlinkHandler(
   }
 
   // Determine target origin and domain for Quick Auth
-  const origin = targetOrigin || (() => {
+  // Never use '*' as origin - it's unsafe and allows any origin to receive messages
+  let origin: string | null = null;
+  
+  if (targetOrigin) {
+    // Validate targetOrigin is a valid URL
     try {
-      return new URL(iframe.src || '').origin;
+      new URL(targetOrigin); // Validate it's a valid URL
+      origin = targetOrigin;
     } catch {
-      return '*';
+      console.error('[MiniApp SDK Host] Invalid targetOrigin provided:', targetOrigin);
+      throw new Error(`Invalid targetOrigin: ${targetOrigin}. Must be a valid URL.`);
     }
-  })();
+  } else if (iframe.src) {
+    // Try to extract origin from iframe.src
+    try {
+      origin = new URL(iframe.src).origin;
+    } catch (error) {
+      console.error('[MiniApp SDK Host] Cannot parse iframe.src to extract origin:', iframe.src, error);
+      throw new Error(`Cannot determine origin from iframe.src: ${iframe.src}. Provide targetOrigin explicitly.`);
+    }
+  } else {
+    // No targetOrigin and no iframe.src - cannot determine origin safely
+    console.error('[MiniApp SDK Host] Cannot determine origin: no targetOrigin and no iframe.src');
+    throw new Error('Cannot determine origin for postMessage. Either provide targetOrigin or ensure iframe has a valid src.');
+  }
+  
+  if (!origin || origin === '*') {
+    throw new Error('Origin cannot be null or "*". This is unsafe for postMessage.');
+  }
   
   const domain = (() => {
     try {
@@ -519,7 +544,7 @@ export function setupComlinkHandler(
         console.log(`[Quick Auth] Extracted domain from iframe.src: ${hostname}`);
         return hostname;
       }
-      if (targetOrigin && targetOrigin !== '*') {
+      if (targetOrigin) {
         const hostname = new URL(targetOrigin).hostname;
         console.log(`[Quick Auth] Extracted domain from targetOrigin: ${hostname}`);
         return hostname;
