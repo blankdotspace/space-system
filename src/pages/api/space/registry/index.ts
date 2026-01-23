@@ -111,9 +111,9 @@ function isSpaceRegistrationChannel(maybe: unknown): maybe is SpaceRegistrationC
   );
 }
 
-export type RegisterNewSpaceResponse = NounspaceResponse<SpaceInfo>;
+export type RegisterNewSpaceResponse = BlankspaceResponse<SpaceInfo>;
 
-export type ModifiableSpacesResponse = NounspaceResponse<{
+export type ModifiableSpacesResponse = BlankspaceResponse<{
   identity: string;
   spaces: SpaceInfo[];
 }>;

@@ -29,7 +29,7 @@ function isFidLinkToIdentityRequest(
   );
 }
 
-export type FidLinkToIdentityResponse = NounspaceResponse<{
+export type FidLinkToIdentityResponse = BlankspaceResponse<{
   fid: number;
   identityPublicKey: string;
   created: string;
