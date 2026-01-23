@@ -1715,7 +1715,6 @@ __metadata:
   dependenciesMeta:
     "@img/sharp-libvips-darwin-arm64":
       optional: true
-  checksum: 10c0/3298dfb02234e120d45476559f638b2843c13c1efe29559926ce91d7e2245fec4625e098b322a960b3c8cc8e682d4030934a12b3e21108be79c0e67b8e9cf688
   conditions: os=darwin & cpu=arm64
   languageName: node
   linkType: hard
@@ -16650,7 +16649,6 @@ __metadata:
     "@googleapis/youtube": "npm:^29.0.0"
     "@gumlet/react-hls-player": "npm:^1.0.1"
     "@heroicons/react": "npm:^2.0.18"
-    "@img/sharp-darwin-arm64": "npm:0.34.5"
     "@internationalized/date": "npm:^3.10.0"
     "@mod-protocol/core": "npm:^0.2.1"
     "@mod-protocol/react": "npm:^0.2.0"

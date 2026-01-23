@@ -52,7 +52,6 @@
     "@googleapis/youtube": "^29.0.0",
     "@gumlet/react-hls-player": "^1.0.1",
     "@heroicons/react": "^2.0.18",
-    "@img/sharp-darwin-arm64": "0.34.5",
     "@internationalized/date": "^3.10.0",
     "@mod-protocol/core": "^0.2.1",
     "@mod-protocol/react": "^0.2.0",
