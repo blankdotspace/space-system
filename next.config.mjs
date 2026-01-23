@@ -93,18 +93,13 @@ const nextConfig = {
     formats: ['image/webp', 'image/avif'],
   },
   async redirects() {
-    // Only add docs redirect if NEXT_PUBLIC_DOCS_URL is set (optional for preview deployments)
-    const redirects = [];
-    
-    if (process.env.NEXT_PUBLIC_DOCS_URL) {
-      redirects.push({
+    return [
+      {
         source: "/signatures",
-        destination: `${process.env.NEXT_PUBLIC_DOCS_URL}/accounts/signatures`,
+        destination: "https://docs.nounspace.com/nounspace-alpha/accounts/signatures",
         permanent: true,
-      });
-    }
-
-    return redirects;
+      },
+    ];
   },
   async rewrites() {
     return [
