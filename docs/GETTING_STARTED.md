@@ -14,8 +14,8 @@ This guide walks you through setting up Blankspace for local development, includ
 
 ```bash
 # Clone the repository
-git clone https://github.com/blankspace/blankspace.ts.git
-   cd blankspace.ts
+git clone https://github.com/blankdotspace/space-system.git
+cd space-system
 
 # Install dependencies
 yarn install
