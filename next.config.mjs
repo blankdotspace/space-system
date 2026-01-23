@@ -93,11 +93,18 @@ const nextConfig = {
     formats: ['image/webp', 'image/avif'],
   },
   async redirects() {
+    // Enforce NEXT_PUBLIC_DOCS_URL at build time to ensure correct docs URL is used
+    if (!process.env.NEXT_PUBLIC_DOCS_URL) {
+      throw new Error(
+        "NEXT_PUBLIC_DOCS_URL environment variable is required. " +
+        "Please set it to the Blankspace documentation URL (e.g., https://docs.blankspace.com/...)"
+      );
+    }
+
     return [
       {
         source: "/signatures",
-        destination:
-          process.env.NEXT_PUBLIC_DOCS_URL || "https://docs.nounspace.com/nounspace-alpha/accounts/signatures",
+        destination: `${process.env.NEXT_PUBLIC_DOCS_URL}/accounts/signatures`,
         permanent: true,
       },
     ];
