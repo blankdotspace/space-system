@@ -1,5 +1,5 @@
 import requestHandler, {
-  NounspaceResponse,
+  BlankspaceResponse,
 } from "@/common/data/api/requestHandler";
 import { validateSignable, Signable } from "@/common/lib/signedFiles";
 import { NextApiRequest, NextApiResponse } from "next/types";
@@ -21,7 +21,7 @@ export type SpaceOrder = {
   spaceId: string;
   name: string;
 }[];
-export type UpdateSpaceOrderResponse = NounspaceResponse<SpaceOrder>;
+export type UpdateSpaceOrderResponse = BlankspaceResponse<SpaceOrder>;
 export type UnsignedUpdateSpaceOrderRequest = {
   identityPublicKey: string;
   timestamp: string;

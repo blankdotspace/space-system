@@ -1,5 +1,5 @@
 import requestHandler, {
-  NounspaceResponse,
+  BlankspaceResponse,
 } from "@/common/data/api/requestHandler";
 import { APP_FID } from "@/constants/app";
 import { AppSigner } from "@/constants/appServerSide";
@@ -36,7 +36,7 @@ type CreateSignerRequest = {
   requestingWallet?: `0x${string}`;
 };
 
-export type SignerResponse<D> = NounspaceResponse<D>;
+export type SignerResponse<D> = BlankspaceResponse<D>;
 
 type SignedKeyRequestSponsorship = {
   sponsorFid: number;

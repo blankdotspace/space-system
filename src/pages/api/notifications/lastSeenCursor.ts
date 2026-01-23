@@ -1,5 +1,5 @@
 import requestHandler from "@/common/data/api/requestHandler";
-import { NounspaceResponse } from "@/common/data/api/requestHandler";
+import { BlankspaceResponse } from "@/common/data/api/requestHandler";
 import { NextApiRequest, NextApiResponse } from "next/types";
 import { validateSignable, isSignable } from "@/common/lib/signedFiles";
 import createSupabaseServerClient from "@/common/data/database/supabase/clients/server";

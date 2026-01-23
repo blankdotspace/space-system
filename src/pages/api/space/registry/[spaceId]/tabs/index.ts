@@ -1,6 +1,6 @@
 // Create new tab
 import requestHandler, {
-  NounspaceResponse,
+  BlankspaceResponse,
 } from "@/common/data/api/requestHandler";
 import createSupabaseServerClient from "@/common/data/database/supabase/clients/server";
 import {
@@ -16,7 +16,7 @@ import { INITIAL_SPACE_CONFIG_EMPTY } from "@/config";
 import moment from "moment";
 import { isNull } from "lodash";
 
-export type RegisterNewSpaceTabResponse = NounspaceResponse<string>;
+export type RegisterNewSpaceTabResponse = BlankspaceResponse<string>;
 
 export type UnsignedSpaceTabRegistration = {
   identityPublicKey: string;

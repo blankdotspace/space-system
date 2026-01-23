@@ -1,5 +1,5 @@
 import requestHandler, {
-  NounspaceResponse,
+  BlankspaceResponse,
 } from "@/common/data/api/requestHandler";
 import { isSignable, validateSignable } from "@/common/lib/signedFiles";
 import { NextApiRequest, NextApiResponse } from "next";

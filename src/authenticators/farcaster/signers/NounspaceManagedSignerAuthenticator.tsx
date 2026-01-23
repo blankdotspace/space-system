@@ -26,7 +26,7 @@ import { SignatureScheme } from "@farcaster/core";
 import { FaRedo } from "react-icons/fa";
 import TextInput from "@/common/components/molecules/TextInput";
 
-export type NounspaceDeveloperManagedSignerData =
+export type BlankspaceDeveloperManagedSignerData =
   FarcasterSignerAuthenticatorData & {
     publicKeyHex?: string;
     privateKeyHex?: string;
@@ -44,7 +44,7 @@ class SignerNotProperlyInitializedError extends Error {
 }
 
 function isDataInitialized(
-  data: NounspaceDeveloperManagedSignerData,
+  data: BlankspaceDeveloperManagedSignerData,
   error = false,
 ) {
   if (
@@ -79,7 +79,7 @@ function stripKeyOhEx(key: string) {
   return key;
 }
 
-const methods: FarcasterSignerAuthenticatorMethods<NounspaceDeveloperManagedSignerData> =
+const methods: FarcasterSignerAuthenticatorMethods<BlankspaceDeveloperManagedSignerData> =
   {
     isReady: (data) => {
       return async () => {
@@ -189,7 +189,7 @@ const methods: FarcasterSignerAuthenticatorMethods<NounspaceDeveloperManagedSign
   };
 
 const initializer: AuthenticatorInitializer<
-  NounspaceDeveloperManagedSignerData
+  BlankspaceDeveloperManagedSignerData
 > = ({ data, saveData, done }) => {
   const self = makeAuthenticatorMethods(methods, { data, saveData }, true);
   const [loading, setLoading] = useState(false);
@@ -332,11 +332,11 @@ const initializer: AuthenticatorInitializer<
     </div>
   );
 };
-initializer.displayName = "NounspaceDeveloperManagedSignerInitializer";
+initializer.displayName = "BlankspaceDeveloperManagedSignerInitializer";
 
 const auth = createAuthenticator<
-  NounspaceDeveloperManagedSignerData,
-  FarcasterSignerAuthenticatorMethods<NounspaceDeveloperManagedSignerData>
->("Nounspace Managed Farcaster Signer", methods, initializer);
+  BlankspaceDeveloperManagedSignerData,
+  FarcasterSignerAuthenticatorMethods<BlankspaceDeveloperManagedSignerData>
+>("Blankspace Managed Farcaster Signer", methods, initializer);
 
 export default auth;

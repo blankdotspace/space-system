@@ -1,5 +1,5 @@
 import requestHandler, {
-  NounspaceResponse,
+  BlankspaceResponse,
 } from "@/common/data/api/requestHandler";
 import {
   isSignable,
@@ -19,7 +19,7 @@ export type HomeBaseTabRequestType = (typeof homeBaseTabRequestTypes)[number];
 type ListHomebaseTabsResult = string[];
 
 export type ManageHomebaseTabsResponse =
-  NounspaceResponse<ListHomebaseTabsResult>;
+  BlankspaceResponse<ListHomebaseTabsResult>;
 
 export type UnsignedManageHomebaseTabsRequest = {
   publicKey: string;

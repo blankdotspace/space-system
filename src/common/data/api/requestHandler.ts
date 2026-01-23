@@ -6,7 +6,7 @@ type ResponseError = {
   [key: string]: any;
 };
 
-export type NounspaceResponse<
+export type BlankspaceResponse<
   D = any,
   E extends ResponseError = ResponseError,
 > = {
@@ -15,7 +15,7 @@ export type NounspaceResponse<
   value?: D;
 };
 
-type HandlerFunction<R extends NounspaceResponse = NounspaceResponse> = (
+type HandlerFunction<R extends BlankspaceResponse = BlankspaceResponse> = (
   req: NextApiRequest,
   res: NextApiResponse<R>,
 ) => Promise<void>;
@@ -33,7 +33,7 @@ export default function requestHandler(args: RequestHandlerArgs) {
 
   return async (
     req: NextApiRequest,
-    res: NextApiResponse<NounspaceResponse>,
+    res: NextApiResponse<BlankspaceResponse>,
   ) => {
     const method = req.method ? args[req.method.toLowerCase()] : undefined;
 

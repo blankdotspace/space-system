@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { z, ZodSchema } from "zod";
-import requestHandler, { NounspaceResponse } from "@/common/data/api/requestHandler";
+import requestHandler, { BlankspaceResponse } from "@/common/data/api/requestHandler";
 
 interface TokenResult {
   id: string;
@@ -169,7 +169,7 @@ async function fetchClankerTokens(query: string, limit: number): Promise<TokenRe
 
 const get = async (
   req: NextApiRequest,
-  res: NextApiResponse<NounspaceResponse<TokenSearchResult>>,
+  res: NextApiResponse<BlankspaceResponse<TokenSearchResult>>,
 ) => {
   const [params, errorMessage] = _validateQueryParams(req, QuerySchema);
 
