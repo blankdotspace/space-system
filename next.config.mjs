@@ -11,7 +11,7 @@ const withBundleAnalyzer = bundlerAnalyzer({
 
 const cspHeader = `
     default-src 'self';
-    script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com https://www.youtube.com https://www.youtube.com/iframe_api https://auth.privy.nounspace.com https://cdn.mxpnl.com;
+    script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com https://www.youtube.com https://www.youtube.com/iframe_api ${process.env.NEXT_PUBLIC_PRIVY_AUTH_URL ? `https://${process.env.NEXT_PUBLIC_PRIVY_AUTH_URL}` : 'https://auth.privy.io'} https://cdn.mxpnl.com;
     style-src 'self' 'unsafe-inline' https://i.ytimg.com https://mint.highlight.xyz;
     media-src 'self' blob: data: https://stream.warpcast.com https://stream.farcaster.xyz https://res.cloudinary.com/ https://*.cloudflarestream.com https://*.b-cdn.net https://zora.co https://*.zora.co https://media.tenor.com https://*.tenor.com https://*.b-cdn.net;
     img-src 'self' blob: data: https: https://ipfs.io https://rs.fullstory.com;
@@ -20,17 +20,17 @@ const cspHeader = `
     base-uri 'self';
     form-action 'self';
     frame-ancestors 'self' https://farcaster.xyz https://*.farcaster.xyz https://wallet.coinbase.com https://*.coinbase.com https://base.org https://*.base.org https://nogglesboard.wtf https://*.nogglesboard.wtf;
-    frame-src 'self' https://auth.privy.nounspace.com https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://www.youtube.com https://*;
-    child-src 'self' https://auth.privy.nounspace.com https://verify.walletconnect.com https://verify.walletconnect.org https://www.youtube.com https://*;
+    frame-src 'self' ${process.env.NEXT_PUBLIC_PRIVY_AUTH_URL ? `https://${process.env.NEXT_PUBLIC_PRIVY_AUTH_URL}` : 'https://auth.privy.io'} https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://www.youtube.com https://*;
+    child-src 'self' ${process.env.NEXT_PUBLIC_PRIVY_AUTH_URL ? `https://${process.env.NEXT_PUBLIC_PRIVY_AUTH_URL}` : 'https://auth.privy.io'} https://verify.walletconnect.com https://verify.walletconnect.org https://www.youtube.com https://*;
 
     connect-src 'self'
       ${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''}
       https://hub.snapshot.org
-      https://auth.privy.nounspace.com
+      ${process.env.NEXT_PUBLIC_PRIVY_AUTH_URL ? `https://${process.env.NEXT_PUBLIC_PRIVY_AUTH_URL}` : 'https://auth.privy.io'}
       https://react-tweet.vercel.app
-      https://privy.nounspace.com/api/v1/analytics_events
-      https://privy.nounspace.com/api/v1/siwe/init
-      https://privy.nounspace.com
+      ${process.env.NEXT_PUBLIC_PRIVY_API_URL ? `https://${process.env.NEXT_PUBLIC_PRIVY_API_URL}/api/v1/analytics_events` : 'https://auth.privy.io/api/v1/analytics_events'}
+      ${process.env.NEXT_PUBLIC_PRIVY_API_URL ? `https://${process.env.NEXT_PUBLIC_PRIVY_API_URL}/api/v1/siwe/init` : 'https://auth.privy.io/api/v1/siwe/init'}
+      ${process.env.NEXT_PUBLIC_PRIVY_API_URL ? `https://${process.env.NEXT_PUBLIC_PRIVY_API_URL}` : 'https://auth.privy.io'}
       wss://relay.walletconnect.com
       wss://relay.walletconnect.org
       https://explorer-api.walletconnect.com
@@ -97,7 +97,7 @@ const nextConfig = {
       {
         source: "/signatures",
         destination:
-          "https://docs.nounspace.com/nounspace-alpha/accounts/signatures",
+          process.env.NEXT_PUBLIC_DOCS_URL || "https://docs.nounspace.com/nounspace-alpha/accounts/signatures",
         permanent: true,
       },
     ];

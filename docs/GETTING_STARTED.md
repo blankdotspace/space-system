@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide walks you through setting up Nounspace for local development, including database setup and seeding.
+This guide walks you through setting up Blankspace for local development, including database setup and seeding.
 
 ## Prerequisites
 
@@ -14,8 +14,8 @@ This guide walks you through setting up Nounspace for local development, includi
 
 ```bash
 # Clone the repository
-git clone https://github.com/nounspace/nounspace.ts.git
-cd nounspace.ts
+git clone https://github.com/blankspace/blankspace.ts.git
+   cd blankspace.ts
 
 # Install dependencies
 yarn install
