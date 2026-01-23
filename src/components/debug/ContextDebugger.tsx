@@ -6,7 +6,7 @@ import { useEmbeddedMiniApps } from "@/common/lib/hooks/useEmbeddedMiniApps";
 import { MiniAppSdkContext } from "@/common/providers/MiniAppSdkProvider";
 import { AuthenticatorContext } from "@/authenticators/AuthenticatorManager";
 import type { AuthenticatorManager } from "@/authenticators/AuthenticatorManager";
-import { useNounspaceMiniAppContext } from "@/common/lib/utils/createMiniAppContext";
+import { useBlankspaceMiniAppContext } from "@/common/lib/utils/createMiniAppContext";
 import { useCurrentFid } from "@/common/lib/hooks/useCurrentFid";
 
 export function ContextDebugger() {
@@ -16,8 +16,8 @@ export function ContextDebugger() {
   // Get the actual context being sent to embedded apps (same logic as IFrame.tsx)
   const sdkContextState = useContext(MiniAppSdkContext);
   const actualSdkContext = sdkContextState?.context;
-  const nounspaceContext = useNounspaceMiniAppContext();
-  const contextForEmbedded = actualSdkContext || nounspaceContext;
+  const blankspaceContext = useBlankspaceMiniAppContext();
+  const contextForEmbedded = actualSdkContext || blankspaceContext;
   
   // Get user FID from our data
   const userFid = useCurrentFid();

@@ -13,7 +13,7 @@ import { expose, windowEndpoint } from "comlink";
 
 /**
  * Create a minimal fallback context when the real SDK context is not available
- * This allows embedded mini-apps to work even when Nounspace is not embedded in a Farcaster client
+ * This allows embedded mini-apps to work even when Blankspace is not embedded in a Farcaster client
  */
 function createFallbackContext(): Context.MiniAppContext {
   return {
@@ -93,7 +93,7 @@ export type MiniAppSdkHostAPI = {
  * Options for creating a mini-app SDK host
  */
 export interface MiniAppSdkHostOptions {
-  /** Real SDK instance if Nounspace is embedded in a Farcaster client */
+  /** Real SDK instance if Blankspace is embedded in a Farcaster client */
   realSdk?: {
     quickAuth?: {
       getToken: () => Promise<{ token: string }>;
@@ -336,7 +336,7 @@ export function createMiniAppSdkHost(
           return { token: cached.token };
         }
         
-        // Determine if we're getting a token for ourselves (Nounspace) or for an embedded mini-app
+        // Determine if we're getting a token for ourselves (Blankspace) or for an embedded mini-app
         const currentDomain = typeof window !== 'undefined' ? window.location.hostname : null;
         const isTokenForEmbeddedApp = currentDomain && domain !== currentDomain;
         
