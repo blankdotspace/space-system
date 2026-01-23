@@ -17,7 +17,6 @@ import MobilePreviewProvider from "./MobilePreviewProvider";
 import { SharedDataProvider } from "./SharedDataProvider";
 import { MiniKitContextProvider } from "./MiniKitProvider";
 import { GlobalErrorHandler } from "./GlobalErrorHandler";
-import { TopLevelMiniAppContextProvider } from "./TopLevelMiniAppContextProvider";
 
 const RarelyUpdatedProviders = React.memo(
   function RarelyUpdatedProviders({
@@ -53,11 +52,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                     <UserThemeProvider>
                       <AuthenticatorProvider>
                         <LoggedInStateProvider>
-                          <TopLevelMiniAppContextProvider>
-                            <SidebarContextProvider>
-                              <RarelyUpdatedProviders>{children}</RarelyUpdatedProviders>
-                            </SidebarContextProvider>
-                          </TopLevelMiniAppContextProvider>
+                          <SidebarContextProvider>
+                            <RarelyUpdatedProviders>{children}</RarelyUpdatedProviders>
+                          </SidebarContextProvider>
                         </LoggedInStateProvider>
                       </AuthenticatorProvider>
                     </UserThemeProvider>

@@ -13,7 +13,6 @@ import DOMPurify from "isomorphic-dompurify";
 import { BsCloud, BsCloudFill } from "react-icons/bs";
 import { useMiniApp } from "@/common/utils/useMiniApp";
 import { MINI_APP_PROVIDER_METADATA, MiniAppSdkContext } from "@/common/providers/MiniAppSdkProvider";
-import { useMiniAppContext } from "@/common/providers/MiniAppContextProvider";
 import { useMiniAppSdk } from "@/common/lib/hooks/useMiniAppSdk";
 import { useAuthenticatorManager } from "@/authenticators/AuthenticatorManager";
 import { setupComlinkHandler } from "@/common/lib/services/miniAppSdkHost";
@@ -93,7 +92,7 @@ const resolveAllowedEmbedSrc = (src?: string | null): string | null => {
 
 type IframeAttributeMap = Record<string, string>;
 
-const createMiniAppBootstrapSrcDoc = (targetUrl: string, contextJson?: string) => {
+const createMiniAppBootstrapSrcDoc = (targetUrl: string) => {
   const safeTargetUrl = sanitizeMiniAppNavigationTarget(targetUrl);
   const iconPath = MINI_APP_PROVIDER_METADATA.iconPath;
   const providerInfoScript = `
@@ -114,46 +113,8 @@ const createMiniAppBootstrapSrcDoc = (targetUrl: string, contextJson?: string) =
         }
       `;
 
-  // Provide the official SDK API to embedded mini-apps
-  // The SDK expects sdk.context to be a Promise that resolves to MiniAppContext
-  // We inject a minimal SDK implementation that provides our transformed context
-  // When mini-apps import @farcaster/miniapp-sdk, they can access sdk.context
-  // The SDK uses Comlink to communicate with the parent via postMessage
-  // We set up a handler in the parent window to respond to Comlink requests
-  const contextScript = contextJson
-    ? `
-        // Inject SDK for embedded mini-apps
-        // This allows mini-apps to access context via sdk.context (official SDK API)
-        try {
-          var transformedContext = ${contextJson};
-          
-          // Set up Comlink endpoint to communicate with parent
-          // The SDK will use windowEndpoint(window.parent) to send requests
-          // We need to handle these requests in the parent window
-          // For now, we'll inject the context directly as a Promise
-          // This is a simplified approach - in production, you'd want to handle Comlink properly
-          if (typeof window !== 'undefined' && !window.__farcasterMiniappSdk) {
-            window.__farcasterMiniappSdk = {
-              context: Promise.resolve(transformedContext),
-              actions: {
-                ready: function() { return Promise.resolve(); },
-                close: function() { return Promise.resolve(); },
-                signIn: function() { return Promise.resolve(null); },
-                addFrame: function() { return Promise.resolve(false); },
-                openUrl: function() { return Promise.resolve(false); },
-                viewProfile: function() { return Promise.resolve(false); }
-              },
-              wallet: {
-                ethProvider: null
-              }
-            };
-          }
-        } catch (err) {
-          console.error("Failed to inject SDK for embedded mini-app", err);
-        }
-      `
-    : "";
-
+  // Context is provided via Comlink in the parent window
+  // The SDK will use windowEndpoint(window.parent) to communicate
   return `<!DOCTYPE html><html><head><meta charset="utf-8" /></head><body><script>(function(){
       try {
         var parentWindow = window.parent;
@@ -175,22 +136,14 @@ const createMiniAppBootstrapSrcDoc = (targetUrl: string, contextJson?: string) =
           announce();
           window.addEventListener("eip6963:requestProvider", announce);
         }
-        ${contextScript}
       } catch (err) {
         console.error("Mini app provider bootstrap failed", err);
       }
-      // Ensure SDK is available before redirecting
-      // Give a small delay to ensure SDK injection completes
+      // Redirect to target URL
       setTimeout(function(){
         var target = ${JSON.stringify(safeTargetUrl)};
         if (target) {
-          // Verify SDK is available before redirecting
-          if (typeof window.__farcasterMiniappSdk !== 'undefined') {
-            window.location.replace(target);
-          } else {
-            console.warn('SDK not available, redirecting anyway');
-            window.location.replace(target);
-          }
+          window.location.replace(target);
         }
       }, 100);
     })();</script></body></html>`;
@@ -365,13 +318,12 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
   const { isInMiniApp } = useMiniApp();
   const isMiniAppEnvironment = isInMiniApp === true;
 
-  // Get context for embedded mini-apps
-  const { transformForEmbedded, buildUrlWithContext, hostContext } = useMiniAppContext();
+  // Get context directly from SDK - pass through exactly as we receive it
+  const { context: sdkContext } = useMiniAppSdk();
   
-  // Get real SDK if we're embedded in a Farcaster client
-  // We need the raw SDK instance to access quickAuth
-  const sdkContext = useContext(MiniAppSdkContext);
-  const rawSdkInstance = sdkContext?.sdk;
+  // Get real SDK instance for Quick Auth
+  const sdkContextState = useContext(MiniAppSdkContext);
+  const rawSdkInstance = sdkContextState?.sdk;
   
   // Get authenticator manager for signing when standalone
   let authenticatorManager: ReturnType<typeof useAuthenticatorManager> | null = null;
@@ -382,12 +334,9 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
     authenticatorManager = null;
   }
   
-  // Transform context for embedded mini-apps
-  // We always provide context to embedded mini-apps via the SDK, regardless of whether
-  // Nounspace itself is running in a mini-app environment
-  const transformedContext = useMemo(() => {
-    return transformForEmbedded();
-  }, [transformForEmbedded]);
+  // Use SDK context directly - no transformation
+  // If we don't have context from SDK, we can't provide it to embedded apps
+  const contextForEmbedded = sdkContext || null;
 
   // Calculate transformedUrl early so it can be used in useCallback dependencies
   const isValid = isValidHttpUrl(debouncedUrl);
@@ -399,7 +348,7 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
   
   // Callback to set up Comlink handler when iframe is mounted
   const setupIframeComlink = useCallback((iframe: HTMLIFrameElement | null) => {
-    if (!iframe || !transformedContext || typeof window === 'undefined') {
+    if (!iframe || !contextForEmbedded || typeof window === 'undefined') {
       return;
     }
 
@@ -440,12 +389,12 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
           // Use authenticator manager for signing when standalone
           authenticatorManager: authenticatorManager || undefined,
           // User FID from context
-          userFid: transformedContext?.user?.fid,
+          userFid: contextForEmbedded?.user?.fid,
         };
         
         const cleanup = setupComlinkHandler(
           iframe,
-          transformedContext,
+          contextForEmbedded,
           ethProvider,
           targetOrigin,
           quickAuthOptions
@@ -463,7 +412,7 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
     } else {
       iframe.addEventListener('load', setupHandler, { once: true });
     }
-  }, [transformedContext, transformedUrl, rawSdkInstance, authenticatorManager]);
+  }, [contextForEmbedded, transformedUrl, rawSdkInstance, authenticatorManager]);
   
   // Cleanup on unmount
   useEffect(() => {
@@ -529,20 +478,7 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
     setIframelyEmbedAttributes(parseIframeAttributes(embedInfo.iframelyHtml));
   }, [embedInfo?.iframelyHtml]);
 
-  const contextJson = useMemo(() => {
-    if (!transformedContext) return undefined;
-    try {
-      return JSON.stringify(transformedContext);
-    } catch (err) {
-      console.error("Failed to serialize context", err);
-      return undefined;
-    }
-  }, [transformedContext]);
-
-  // We support both approaches for providing context to embedded mini-apps:
-  // 1. Official SDK API (sdk.context): Injected via window.__farcasterMiniappSdk in bootstrap
-  // 2. When mini-apps import @farcaster/miniapp-sdk, they can access sdk.context which resolves
-  //    to our transformed context
+  // Context is provided via Comlink - no need to serialize for bootstrap
 
   const iframelyMiniAppConfig = useMemo(() => {
     if (!isMiniAppEnvironment || !iframelyEmbedAttributes?.src) {
@@ -555,11 +491,9 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
 
     try {
       const safeSrc = new URL(iframelyEmbedAttributes.src).toString();
-      // Build URL with context parameters
-      const urlWithContext = buildUrlWithContext(safeSrc);
       return {
-        safeSrc: urlWithContext,
-        bootstrapDoc: createMiniAppBootstrapSrcDoc(safeSrc, contextJson),
+        safeSrc: safeSrc,
+        bootstrapDoc: createMiniAppBootstrapSrcDoc(safeSrc),
         allowFullScreen: "allowfullscreen" in iframelyEmbedAttributes,
         sandboxRules: ensureSandboxRules(iframelyEmbedAttributes.sandbox),
         widthAttr: iframelyEmbedAttributes.width,
@@ -569,7 +503,7 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
       console.warn("Rejected unsupported IFramely iframe src", error);
       return null;
     }
-  }, [isMiniAppEnvironment, iframelyEmbedAttributes, buildUrlWithContext, contextJson]);
+  }, [isMiniAppEnvironment, iframelyEmbedAttributes]);
 
   // Scale value is set from size prop
   const _scaleValue = size;
@@ -648,8 +582,8 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
       return null;
     }
 
-    return createMiniAppBootstrapSrcDoc(resolvedSanitizedMiniAppSrc, contextJson);
-  }, [resolvedSanitizedMiniAppSrc, contextJson]);
+    return createMiniAppBootstrapSrcDoc(resolvedSanitizedMiniAppSrc);
+  }, [resolvedSanitizedMiniAppSrc]);
 
   if (sanitizedEmbedScript) {
     if (
@@ -831,12 +765,9 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
   }
 
   if (embedInfo.directEmbed && transformedUrl) {
-    // Build URL with context parameters (always add context, not just in mini-app environment)
-    const urlWithContext = buildUrlWithContext(transformedUrl);
-    // Always create bootstrap doc when we have context to provide
-    // This ensures embedded mini-apps can access context via the SDK API
-    const miniAppBootstrapDoc = transformedContext
-      ? createMiniAppBootstrapSrcDoc(transformedUrl, contextJson)
+    // Create bootstrap doc - context is provided via Comlink
+    const miniAppBootstrapDoc = contextForEmbedded
+      ? createMiniAppBootstrapSrcDoc(transformedUrl)
       : null;
 
     return (

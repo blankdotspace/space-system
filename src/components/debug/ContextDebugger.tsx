@@ -1,17 +1,15 @@
 "use client";
 
 import React, { useContext, useState, useEffect } from "react";
-import { useMiniAppContext } from "@/common/providers/MiniAppContextProvider";
 import { useMiniAppSdk } from "@/common/lib/hooks/useMiniAppSdk";
 import { useEmbeddedMiniApps } from "@/common/lib/hooks/useEmbeddedMiniApps";
 import { MiniAppSdkContext } from "@/common/providers/MiniAppSdkProvider";
 import { useAuthenticatorManager } from "@/authenticators/AuthenticatorManager";
 
 export function ContextDebugger() {
-  const { combinedContext, hostContext, nounspaceContext, transformForEmbedded } = useMiniAppContext();
   const { context: sdkContext, isReady, error } = useMiniAppSdk();
   const embeddedMiniApps = useEmbeddedMiniApps();
-  const transformedContextForEmbedded = transformForEmbedded();
+  const contextForEmbedded = sdkContext || null;
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['summary']));
   const [copySuccess, setCopySuccess] = useState(false);
   
@@ -90,25 +88,20 @@ export function ContextDebugger() {
   const copyAllDebugInfo = async () => {
     const debugInfo = {
       timestamp: new Date().toISOString(),
-      status: {
+        status: {
         sdkReady: isReady,
         error: error ? error.message : null,
-        runningInMiniApp: hostContext !== null,
+        runningInMiniApp: sdkContext !== null,
         embeddedMiniAppsCount: embeddedMiniApps.length,
       },
       quickAuth: quickAuthInfo,
       context: {
-        userFid: combinedContext?.user?.fid || null,
-        spaceId: combinedContext?.nounspace?.spaceId || null,
-        spaceHandle: combinedContext?.nounspace?.spaceHandle || null,
-        tabName: combinedContext?.nounspace?.tabName || null,
-        platform: combinedContext?.client?.platformType || null,
-        locationType: combinedContext?.location?.type || null,
+        userFid: sdkContext?.user?.fid || null,
+        platform: sdkContext?.client?.platformType || null,
+        locationType: sdkContext?.location?.type || null,
       },
-      hostContext: hostContext || sdkContext,
-      nounspaceContext: nounspaceContext,
-      combinedContext: combinedContext,
-      contextForEmbedded: transformedContextForEmbedded,
+      sdkContext: sdkContext,
+      contextForEmbedded: contextForEmbedded,
       embeddedMiniApps: embeddedMiniApps.map((app, index) => {
         // Try to extract target URL from bootstrap doc if available
         let extractedUrl = app.url;
@@ -149,20 +142,11 @@ Token: ${debugInfo.quickAuth.token ? `✅ ${debugInfo.quickAuth.token.substring(
 
 --- Context Summary ---
 User FID: ${debugInfo.context.userFid || "N/A"}
-Space ID: ${debugInfo.context.spaceId || "N/A"}
-Space Handle: ${debugInfo.context.spaceHandle || "N/A"}
-Tab: ${debugInfo.context.tabName || "N/A"}
 Platform: ${debugInfo.context.platform || "N/A"}
 Location Type: ${debugInfo.context.locationType || "N/A"}
 
---- Host Context ---
-${JSON.stringify(debugInfo.hostContext, null, 2)}
-
---- Nounspace Context ---
-${JSON.stringify(debugInfo.nounspaceContext, null, 2)}
-
---- Combined Context ---
-${JSON.stringify(debugInfo.combinedContext, null, 2)}
+--- SDK Context ---
+${JSON.stringify(debugInfo.sdkContext, null, 2)}
 
 --- Context Being Sent to Embedded Apps ---
 ${debugInfo.contextForEmbedded ? JSON.stringify(debugInfo.contextForEmbedded, null, 2) : "❌ NULL - No context available to send"}
@@ -205,7 +189,7 @@ Mini-App #${app.index} (${app.id || "Unknown"})
     }
   };
 
-  const isInMiniApp = hostContext !== null;
+  const isInMiniApp = sdkContext !== null;
   const hasEmbeddedApps = embeddedMiniApps.length > 0;
 
   return (
@@ -275,26 +259,16 @@ Mini-App #${app.index} (${app.id || "Unknown"})
               </div>
               <div className="flex justify-between">
                 <span>User FID:</span>
-                <span>{combinedContext?.user?.fid || "N/A"}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Space ID:</span>
-                <span className="text-xs font-mono">
-                  {combinedContext?.nounspace?.spaceId?.substring(0, 8) || "N/A"}...
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Tab:</span>
-                <span>{combinedContext?.nounspace?.tabName || "N/A"}</span>
+                <span>{sdkContext?.user?.fid || "N/A"}</span>
               </div>
               <div className="flex justify-between">
                 <span>Platform:</span>
-                <span>{combinedContext?.client?.platformType || "N/A"}</span>
+                <span>{sdkContext?.client?.platformType || "N/A"}</span>
               </div>
-              {combinedContext?.location && (
+              {sdkContext?.location && (
                 <div className="flex justify-between">
                   <span>Location:</span>
-                  <span>{combinedContext.location.type}</span>
+                  <span>{sdkContext.location.type}</span>
                 </div>
               )}
             </div>
@@ -359,18 +333,18 @@ Mini-App #${app.index} (${app.id || "Unknown"})
               onClick={() => toggleSection('context-sent')}
               className="w-full text-left font-semibold text-gray-200 flex items-center justify-between"
             >
-              <span>Context Being Sent ({transformedContextForEmbedded ? "✅" : "❌"})</span>
+              <span>Context Being Sent ({contextForEmbedded ? "✅" : "❌"})</span>
               <span>{expandedSections.has('context-sent') ? '▼' : '▶'}</span>
             </button>
             {expandedSections.has('context-sent') && (
               <div className="mt-2">
-                {transformedContextForEmbedded ? (
+                {contextForEmbedded ? (
                   <pre className="whitespace-pre-wrap break-all text-xs bg-gray-900 p-2 rounded overflow-x-auto max-h-48 overflow-y-auto">
-                    {JSON.stringify(transformedContextForEmbedded, null, 2)}
+                    {JSON.stringify(contextForEmbedded, null, 2)}
                   </pre>
                 ) : (
                   <p className="text-red-400 text-xs">
-                    ⚠️ No context available to send. Check if host context or nounspace context is missing.
+                    ⚠️ No context available to send. SDK context is null.
                   </p>
                 )}
               </div>
@@ -451,21 +425,9 @@ Mini-App #${app.index} (${app.id || "Unknown"})
           {expandedSections.has('full-details') && (
             <div className="mt-2 space-y-2">
               <div>
-                <h5 className="text-gray-300 mb-1">Host Context:</h5>
+                <h5 className="text-gray-300 mb-1">SDK Context:</h5>
                 <pre className="whitespace-pre-wrap break-all text-xs bg-gray-900 p-2 rounded overflow-x-auto max-h-32 overflow-y-auto">
-                  {JSON.stringify(hostContext || sdkContext, null, 2)}
-                </pre>
-              </div>
-              <div>
-                <h5 className="text-gray-300 mb-1">Nounspace Context:</h5>
-                <pre className="whitespace-pre-wrap break-all text-xs bg-gray-900 p-2 rounded overflow-x-auto max-h-32 overflow-y-auto">
-                  {JSON.stringify(nounspaceContext, null, 2)}
-                </pre>
-              </div>
-              <div>
-                <h5 className="text-gray-300 mb-1">Combined Context:</h5>
-                <pre className="whitespace-pre-wrap break-all text-xs bg-gray-900 p-2 rounded overflow-x-auto max-h-32 overflow-y-auto">
-                  {JSON.stringify(combinedContext, null, 2)}
+                  {JSON.stringify(sdkContext, null, 2)}
                 </pre>
               </div>
             </div>
