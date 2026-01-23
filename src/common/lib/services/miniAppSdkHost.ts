@@ -10,15 +10,7 @@
 
 import type { Context } from "@farcaster/miniapp-core";
 import { expose, Endpoint } from "comlink";
-
-/**
- * EventTarget-like interface for Comlink endpoint
- * Matches the interface expected by Comlink's Endpoint.addEventListener
- */
-interface ComlinkEventTarget {
-  addEventListener: (type: string, listener: EventListener) => void;
-  removeEventListener: (type: string, listener: EventListener) => void;
-}
+import type { EventSource } from "comlink/protocol";
 
 /**
  * Quick Auth token cache
@@ -466,7 +458,7 @@ function createIframeEndpoint(iframe: HTMLIFrameElement, targetOrigin: string | 
     throw new Error('Cannot create endpoint with null or "*" origin. This is unsafe.');
   }
   // Create an event target that filters messages from this specific iframe
-  const eventTarget: ComlinkEventTarget = {
+  const eventTarget: EventSource = {
     addEventListener: (type: string, listener: EventListener) => {
       if (type === 'message') {
         const wrappedListener = (event: MessageEvent) => {
