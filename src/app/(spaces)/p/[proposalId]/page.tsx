@@ -21,12 +21,20 @@ const ProposalSpacePage = async ({
     decodedTabNameParam = decodeURIComponent(tabNameParam);
   }
 
-  const proposalSpaceData = await loadProposalSpaceData(proposalId, decodedTabNameParam);
+  let proposalSpaceData;
+  try {
+    proposalSpaceData = await loadProposalSpaceData(proposalId, decodedTabNameParam);
+  } catch (error) {
+    console.error("Error loading proposal space data:", error);
+    return <SpaceNotFound />;
+  }
 
   if (!proposalSpaceData) {
     return <SpaceNotFound />;
   }
 
+  // Handle redirect outside of try/catch to avoid catching redirect errors
+  // This will throw NEXT_REDIRECT error which Next.js handles
   if (!decodedTabNameParam) {
     redirect(
       `/p/${proposalId}/${encodeURIComponent(proposalSpaceData.defaultTab)}`

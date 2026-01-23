@@ -22,11 +22,17 @@ export default async function TokenSpacePage({
   }
 
   // Load token space data
-  const tokenSpacePageData = await loadTokenSpacePageData(
-    resolvedParams.contractAddress, 
-    resolvedParams.network, 
-    decodedTabNameParam
-  );
+  let tokenSpacePageData;
+  try {
+    tokenSpacePageData = await loadTokenSpacePageData(
+      resolvedParams.contractAddress, 
+      resolvedParams.network, 
+      decodedTabNameParam
+    );
+  } catch (error) {
+    console.error("Error loading token space data:", error);
+    return <SpaceNotFound />;
+  }
 
   // Guard against null/undefined tokenSpaceData
   if (!tokenSpacePageData) {
@@ -35,6 +41,8 @@ export default async function TokenSpacePage({
     );
   }
   
+  // Handle redirect outside of try/catch to avoid catching redirect errors
+  // This will throw NEXT_REDIRECT error which Next.js handles
   if (!decodedTabNameParam) {
     redirect(
       `/t/${resolvedParams.network}/${resolvedParams.contractAddress}/${encodeURIComponent(tokenSpacePageData.defaultTab)}`
