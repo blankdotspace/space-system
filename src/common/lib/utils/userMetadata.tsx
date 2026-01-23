@@ -23,7 +23,7 @@ export const getUserMetadataStructure = (
 
   const { username, displayName, pfpUrl, bio } = userMetadata;
   const baseUrl = context?.baseUrl ?? WEBSITE_URL;
-  const brandName = context?.brandName ?? "Nounspace";
+  const brandName = context?.brandName ?? "Blankspace";
   const twitterHandle = normalizeTwitterHandle(context?.twitterHandle);
 
   const title = `${displayName} (@${username}) on ${brandName}`;

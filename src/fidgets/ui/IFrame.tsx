@@ -93,7 +93,7 @@ const createMiniAppBootstrapSrcDoc = (targetUrl: string) => {
   const safeTargetUrl = sanitizeMiniAppNavigationTarget(targetUrl);
   const iconPath = MINI_APP_PROVIDER_METADATA.iconPath;
   const providerInfoScript = `
-        var providerInfo = parentWindow.__nounspaceMiniAppProviderInfo;
+        var providerInfo = parentWindow.__blankspaceMiniAppProviderInfo;
         if (!providerInfo) {
           var icon;
           try {
@@ -116,7 +116,7 @@ const createMiniAppBootstrapSrcDoc = (targetUrl: string) => {
         if (!parentWindow) {
           return;
         }
-        var provider = parentWindow.__nounspaceMiniAppEthProvider;
+        var provider = parentWindow.__blankspaceMiniAppEthProvider;
         if (provider) {
           window.ethereum = provider;
           ${providerInfoScript}

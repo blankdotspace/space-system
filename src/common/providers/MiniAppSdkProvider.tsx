@@ -7,16 +7,16 @@ import type { Context } from "@farcaster/miniapp-core";
 type MiniAppContext = Context.MiniAppContext;
 
 export const MINI_APP_PROVIDER_METADATA = {
-  uuid: "nounspace-miniapp-eth-provider",
-  name: "Nounspace Mini App",
+  uuid: "blankspace-miniapp-eth-provider",
+  name: "Blankspace Mini App",
   iconPath: "/images/mini_app_icon.png",
-  rdns: "wtf.nounspace",
+  rdns: "wtf.blankspace",
 };
 
 declare global {
   interface Window {
-    __nounspaceMiniAppEthProvider?: unknown;
-    __nounspaceMiniAppProviderInfo?: {
+    __blankspaceMiniAppEthProvider?: unknown;
+    __blankspaceMiniAppProviderInfo?: {
       uuid: string;
       name: string;
       icon: string;
@@ -105,7 +105,7 @@ export const MiniAppSdkProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     const win = window as Window;
-    win.__nounspaceMiniAppEthProvider = ethProvider;
+    win.__blankspaceMiniAppEthProvider = ethProvider;
 
     const iconUrl = new URL(
       MINI_APP_PROVIDER_METADATA.iconPath,
@@ -119,7 +119,7 @@ export const MiniAppSdkProvider: React.FC<{ children: React.ReactNode }> = ({
       rdns: MINI_APP_PROVIDER_METADATA.rdns,
     } as const;
 
-    win.__nounspaceMiniAppProviderInfo = providerInfo;
+    win.__blankspaceMiniAppProviderInfo = providerInfo;
 
     const announceProvider = () => {
       const detail = Object.freeze({
@@ -149,15 +149,15 @@ export const MiniAppSdkProvider: React.FC<{ children: React.ReactNode }> = ({
     window.dispatchEvent(new CustomEvent("eip6963:requestProvider"));
 
     return () => {
-      if (win.__nounspaceMiniAppEthProvider === ethProvider) {
-        delete win.__nounspaceMiniAppEthProvider;
+      if (win.__blankspaceMiniAppEthProvider === ethProvider) {
+        delete win.__blankspaceMiniAppEthProvider;
       }
 
       if (
-        win.__nounspaceMiniAppProviderInfo &&
-        win.__nounspaceMiniAppProviderInfo.uuid === providerInfo.uuid
+        win.__blankspaceMiniAppProviderInfo &&
+        win.__blankspaceMiniAppProviderInfo.uuid === providerInfo.uuid
       ) {
-        delete win.__nounspaceMiniAppProviderInfo;
+        delete win.__blankspaceMiniAppProviderInfo;
       }
 
       window.removeEventListener(
