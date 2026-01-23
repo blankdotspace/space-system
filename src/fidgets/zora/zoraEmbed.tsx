@@ -53,7 +53,7 @@ export const Zora: React.FC<FidgetArgs<ZoraFidgetSettings>> = ({
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const transformTextIntoIframeString = (text: string): string => {
-    //todo: replace referral to nounspace wallet
+    //todo: replace referral to blankspace wallet
     return text + "/embed?referrer=0x41CB654D1F47913ACAB158a8199191D160DAbe4A";
   };
 
