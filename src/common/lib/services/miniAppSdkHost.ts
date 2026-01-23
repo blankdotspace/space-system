@@ -325,10 +325,12 @@ export function createMiniAppSdkHost(
             acceptAuthAddress: true,
           });
           
-          if (signInResponse.error) {
+          // Type guard for discriminated union: check if 'error' property exists
+          if ('error' in signInResponse) {
             throw new Error('Sign in rejected');
           }
           
+          // TypeScript now knows signInResponse has result property
           // Step 3: Parse SIWE message to get domain (same as SDK)
           // SiweMessage constructor can parse a message string
           const parsedSiwe = new SiweMessage(signInResponse.result.message);
