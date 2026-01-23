@@ -25,18 +25,14 @@ const ProfileSpacePage = async ({ params }: ProfileSpacePageProps) => {
     decodedTabNameParam = decodeURIComponent(tabNameParam);
   }
 
-  let profileSpacePageData;
-  try {
-    profileSpacePageData = await loadUserSpaceData(handle, decodedTabNameParam);
-  } catch (err) {
-    console.error("Error loading profile space data:", err);
-    return <SpaceNotFound />;
-  }
+  const profileSpacePageData = await loadUserSpaceData(handle, decodedTabNameParam);
 
   if (!profileSpacePageData) {
     return <SpaceNotFound />;
   }
 
+  // Handle redirect outside of try/catch to avoid catching redirect errors
+  // This will throw NEXT_REDIRECT error which Next.js handles
   if (!decodedTabNameParam) {
     redirect(
       `/s/${handle}/${encodeURIComponent(profileSpacePageData.defaultTab)}`

@@ -35,6 +35,8 @@ export default async function TokenSpacePage({
     );
   }
   
+  // Handle redirect outside of try/catch to avoid catching redirect errors
+  // This will throw NEXT_REDIRECT error which Next.js handles
   if (!decodedTabNameParam) {
     redirect(
       `/t/${resolvedParams.network}/${resolvedParams.contractAddress}/${encodeURIComponent(tokenSpacePageData.defaultTab)}`

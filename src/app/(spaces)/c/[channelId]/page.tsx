@@ -18,31 +18,28 @@ const ChannelSpacePage = async ({ params }: ChannelSpacePageProps) => {
     return <SpaceNotFound />;
   }
 
-  try {
-    const decodedTabName = tabNameParam ? decodeURIComponent(tabNameParam) : undefined;
+  const decodedTabName = tabNameParam ? decodeURIComponent(tabNameParam) : undefined;
 
-    const channelSpaceData = await loadChannelSpaceData(channelId, decodedTabName);
+  const channelSpaceData = await loadChannelSpaceData(channelId, decodedTabName);
 
-    if (!channelSpaceData) {
-      return <SpaceNotFound />;
-    }
-
-    if (!decodedTabName) {
-      redirect(
-        `/c/${channelId}/${encodeURIComponent(channelSpaceData.defaultTab)}`
-      );
-    }
-
-    return (
-      <ChannelSpace
-        spacePageData={channelSpaceData}
-        tabName={decodedTabName || channelSpaceData.defaultTab}
-      />
-    );
-  } catch (error) {
-    console.error("Error loading channel space data:", error);
+  if (!channelSpaceData) {
     return <SpaceNotFound />;
   }
+
+  // Handle redirect outside of try/catch to avoid catching redirect errors
+  // This will throw NEXT_REDIRECT error which Next.js handles
+  if (!decodedTabName) {
+    redirect(
+      `/c/${channelId}/${encodeURIComponent(channelSpaceData.defaultTab)}`
+    );
+  }
+
+  return (
+    <ChannelSpace
+      spacePageData={channelSpaceData}
+      tabName={decodedTabName || channelSpaceData.defaultTab}
+    />
+  );
 };
 
 export default ChannelSpacePage;
