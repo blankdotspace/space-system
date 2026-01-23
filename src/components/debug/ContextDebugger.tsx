@@ -112,11 +112,25 @@ export function ContextDebugger() {
           }
         }
         
+        const debugInfo = iframeDebugInfo.get(app.id);
+        let quickAuthDomain: string | null = null;
+        if (debugInfo?.origin) {
+          try {
+            quickAuthDomain = new URL(debugInfo.origin).hostname;
+          } catch {
+            // Ignore
+          }
+        }
+        
         return {
           index: index + 1,
           id: app.id,
           url: extractedUrl,
           hasBootstrapDoc: app.hasBootstrapDoc,
+          hasContentWindow: debugInfo?.hasContentWindow ?? false,
+          origin: debugInfo?.origin ?? null,
+          setupError: debugInfo?.setupError ?? null,
+          quickAuthDomain,
         };
       }),
     };
@@ -154,6 +168,10 @@ ${debugInfo.embeddedMiniApps.length === 0
 Mini-App #${app.index} (${app.id || "Unknown"})
   URL: ${app.url || "N/A"}
   Bootstrap Doc: ${app.hasBootstrapDoc ? "✅ Yes" : "❌ No"}
+  Iframe Ready: ${app.hasContentWindow ? "✅ Yes" : "⚠️ No contentWindow"}
+  PostMessage Origin: ${app.origin || "❌ Not determined"}
+  Quick Auth Domain: ${app.quickAuthDomain || "N/A"}
+  Setup Error: ${app.setupError || "None"}
   Context: Provided via Comlink (sdk.context from @farcaster/miniapp-sdk)
 `).join("\n")}
 
@@ -185,6 +203,71 @@ Mini-App #${app.index} (${app.id || "Unknown"})
 
   const isInMiniApp = sdkContext !== null;
   const hasEmbeddedApps = embeddedMiniApps.length > 0;
+
+  // Get additional debug info for each embedded app
+  const [iframeDebugInfo, setIframeDebugInfo] = useState<Map<string, {
+    hasContentWindow: boolean;
+    origin: string | null;
+    setupError: string | null;
+  }>>(new Map());
+
+  // Scan iframes for debug info
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const scanIframes = () => {
+      const iframes = document.querySelectorAll<HTMLIFrameElement>('iframe[data-nounspace-context]');
+      const info = new Map<string, {
+        hasContentWindow: boolean;
+        origin: string | null;
+        setupError: string | null;
+      }>();
+
+      iframes.forEach((iframe, index) => {
+        const id = iframe.id || `miniapp-${index}`;
+        let origin: string | null = null;
+        let setupError: string | null = null;
+
+        // Check if iframe has contentWindow
+        const hasContentWindow = !!iframe.contentWindow;
+
+        // Try to determine origin
+        try {
+          if (iframe.src) {
+            origin = new URL(iframe.src).origin;
+          } else if (iframe.srcdoc) {
+            // Try to extract from bootstrap doc
+            const match = iframe.srcdoc.match(/window\.location\.replace\(["']([^"']+)["']\)/);
+            if (match && match[1]) {
+              try {
+                origin = new URL(match[1]).origin;
+              } catch {
+                setupError = 'Could not parse origin from bootstrap doc';
+              }
+            } else {
+              setupError = 'Bootstrap doc found but no redirect URL';
+            }
+          } else {
+            setupError = 'No src or srcdoc - cannot determine origin';
+          }
+        } catch (error) {
+          setupError = error instanceof Error ? error.message : 'Failed to determine origin';
+        }
+
+        info.set(id, {
+          hasContentWindow,
+          origin,
+          setupError,
+        });
+      });
+
+      setIframeDebugInfo(info);
+    };
+
+    scanIframes();
+    const interval = setInterval(scanIframes, 1000); // Update every second
+    return () => clearInterval(interval);
+  }, [embeddedMiniApps.length]);
 
   return (
     <div
@@ -360,28 +443,54 @@ Mini-App #${app.index} (${app.id || "Unknown"})
               {embeddedMiniApps.length === 0 ? (
                 <p className="text-gray-400 text-xs">No mini-apps detected in page</p>
               ) : (
-                embeddedMiniApps.map((app, index) => (
-                  <div key={app.id || index} className="bg-gray-900 p-2 rounded text-xs">
-                    <div className="font-semibold text-gray-200 mb-2">
-                      #{index + 1}: {app.url || app.id || "Unknown"}
-                    </div>
-                    <div className="space-y-1 text-gray-300">
-                      {app.url && (
-                        <div>
-                          <strong>URL:</strong> <span className="text-xs font-mono break-all">{app.url}</span>
+                embeddedMiniApps.map((app, index) => {
+                  const debugInfo = iframeDebugInfo.get(app.id);
+                  return (
+                    <div key={app.id || index} className="bg-gray-900 p-2 rounded text-xs">
+                      <div className="font-semibold text-gray-200 mb-2">
+                        #{index + 1}: {app.url || app.id || "Unknown"}
+                      </div>
+                      <div className="space-y-1 text-gray-300">
+                        {app.url && (
+                          <div>
+                            <strong>URL:</strong> <span className="text-xs font-mono break-all">{app.url}</span>
+                          </div>
+                        )}
+                        {app.hasBootstrapDoc && (
+                          <div>
+                            <strong>Bootstrap Doc:</strong> <span className="text-green-400">✅ Yes</span>
+                          </div>
+                        )}
+                        {debugInfo && (
+                          <>
+                            <div className="flex justify-between">
+                              <span>Iframe Ready:</span>
+                              <span className={debugInfo.hasContentWindow ? "text-green-400" : "text-yellow-400"}>
+                                {debugInfo.hasContentWindow ? "✅ Yes" : "⚠️ No contentWindow"}
+                              </span>
+                            </div>
+                            {debugInfo.origin && (
+                              <div>
+                                <strong>PostMessage Origin:</strong>
+                                <div className="text-xs font-mono bg-gray-950 p-1 rounded mt-1 break-all">
+                                  {debugInfo.origin}
+                                </div>
+                              </div>
+                            )}
+                            {debugInfo.setupError && (
+                              <div className="text-red-400 text-xs">
+                                <strong>Setup Error:</strong> {debugInfo.setupError}
+                              </div>
+                            )}
+                          </>
+                        )}
+                        <div className="text-xs text-gray-400 mt-1 pt-1 border-t border-gray-700">
+                          Context provided via Comlink (sdk.context from @farcaster/miniapp-sdk)
                         </div>
-                      )}
-                      {app.hasBootstrapDoc && (
-                        <div>
-                          <strong>Bootstrap Doc:</strong> <span className="text-green-400">✅ Yes</span>
-                        </div>
-                      )}
-                      <div className="text-xs text-gray-400 mt-1">
-                        Context provided via Comlink (sdk.context from @farcaster/miniapp-sdk)
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           )}
@@ -403,6 +512,47 @@ Mini-App #${app.index} (${app.id || "Unknown"})
                 <pre className="whitespace-pre-wrap break-all text-xs bg-gray-900 p-2 rounded overflow-x-auto max-h-32 overflow-y-auto">
                   {JSON.stringify(sdkContext, null, 2)}
                 </pre>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Debugging Notes */}
+        <div className="bg-gray-800 p-3 rounded">
+          <button
+            onClick={() => toggleSection('debug-notes')}
+            className="w-full text-left font-semibold text-gray-200 flex items-center justify-between"
+          >
+            <span>Debugging Notes</span>
+            <span>{expandedSections.has('debug-notes') ? '▼' : '▶'}</span>
+          </button>
+          {expandedSections.has('debug-notes') && (
+            <div className="mt-2 space-y-2 text-xs text-gray-300">
+              <div>
+                <strong className="text-gray-200">What to check:</strong>
+                <ul className="list-disc list-inside mt-1 space-y-1 ml-2">
+                  <li>Iframe has contentWindow (required for Comlink setup)</li>
+                  <li>Valid origin determined (required for secure postMessage)</li>
+                  <li>No setup errors (check console for detailed errors)</li>
+                  <li>Context is available (SDK context must be non-null)</li>
+                </ul>
+              </div>
+              <div>
+                <strong className="text-gray-200">To verify Comlink is working:</strong>
+                <ul className="list-disc list-inside mt-1 space-y-1 ml-2">
+                  <li>Open browser DevTools → Network tab</li>
+                  <li>Filter by &quot;WS&quot; or check Console for Comlink messages</li>
+                  <li>In the embedded mini-app console, try: <code className="bg-gray-900 px-1 rounded">await sdk.context</code></li>
+                  <li>Check if the mini-app can access context successfully</li>
+                </ul>
+              </div>
+              <div>
+                <strong className="text-gray-200">Common issues:</strong>
+                <ul className="list-disc list-inside mt-1 space-y-1 ml-2">
+                  <li>No contentWindow: iframe not loaded yet, wait for load event</li>
+                  <li>Origin errors: URL parsing failed, check iframe src/srcdoc</li>
+                  <li>No context: SDK not initialized or not running in mini-app</li>
+                </ul>
               </div>
             </div>
           )}
