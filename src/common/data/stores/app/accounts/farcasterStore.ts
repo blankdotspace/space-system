@@ -17,11 +17,11 @@ type FarcasterActions = {
   getFidsForCurrentIdentity: () => Promise<void>;
   registerFidForCurrentIdentity: (
     fid: number,
-    signingKey: string,
+    signingKey?: string,
     // Takes in signMessage as it is a method
     // of the Authenticator and client doesn't
     // have direct access to the keys
-    signMessage: (messageHash: Uint8Array) => Promise<Uint8Array>,
+    signMessage?: (messageHash: Uint8Array) => Promise<Uint8Array>,
   ) => Promise<void>;
   setFidsForCurrentIdentity: (fids: number[]) => void;
   addFidToCurrentIdentity: (fid: number) => void;
@@ -40,35 +40,63 @@ export const farcasterStore = (
   },
   setFidsForCurrentIdentity: (fids) => {
     set((draft) => {
-      draft.account.spaceIdentities[
-        draft.account.getCurrentIdentityIndex()
-      ].associatedFids = fids;
+      const currentIndex = draft.account.getCurrentIdentityIndex();
+      if (currentIndex >= 0 && draft.account.spaceIdentities[currentIndex]) {
+        draft.account.spaceIdentities[currentIndex].associatedFids = fids;
+      }
     }, "setFidsForCurrentIdentity");
   },
   getFidsForCurrentIdentity: async () => {
-    const { data } = await axiosBackend.get<FidsLinkedToIdentityResponse>(
-      "/api/fid-link",
-      {
-        params: {
-          identityPublicKey: get().account.currentSpaceIdentityPublicKey,
+    const identityPublicKey = get().account.currentSpaceIdentityPublicKey;
+    if (!identityPublicKey) {
+      console.warn("[farcasterStore] getFidsForCurrentIdentity: No identity, skipping");
+      return;
+    }
+    try {
+      const { data } = await axiosBackend.get<FidsLinkedToIdentityResponse>(
+        "/api/fid-link",
+        {
+          params: {
+            identityPublicKey,
+          },
         },
-      },
-    );
-    if (!isUndefined(data.value)) {
-      get().account.setFidsForCurrentIdentity(data.value!.fids);
+      );
+      if (!isUndefined(data.value)) {
+        get().account.setFidsForCurrentIdentity(data.value!.fids);
+      }
+    } catch (error) {
+      console.error("[farcasterStore] Failed to fetch FIDs:", error);
     }
   },
   registerFidForCurrentIdentity: async (fid, signingKey, signMessage) => {
-    const request: Omit<FidLinkToIdentityRequest, "signature"> = {
+    if (!get().account.currentSpaceIdentityPublicKey) {
+      throw new Error("No current identity loaded, cannot register FID");
+    }
+    if (signingKey && !signMessage) {
+      throw new Error("signMessage is required when signingKey is provided");
+    }
+    const baseRequest: FidLinkToIdentityRequest = {
       fid,
       identityPublicKey: get().account.currentSpaceIdentityPublicKey!,
       timestamp: moment().toISOString(),
-      signingPublicKey: signingKey,
+      signingPublicKey: signingKey ?? null,
+      signature: null,
     };
-    const signedRequest: FidLinkToIdentityRequest = {
-      ...request,
-      signature: bytesToHex(await signMessage(hashObject(request))),
-    };
+    const signedRequest: FidLinkToIdentityRequest = signingKey
+      ? {
+          ...baseRequest,
+          signature: bytesToHex(
+            await signMessage!(
+              hashObject({
+                fid: baseRequest.fid,
+                identityPublicKey: baseRequest.identityPublicKey,
+                timestamp: baseRequest.timestamp,
+                signingPublicKey: baseRequest.signingPublicKey,
+              })
+            )
+          ),
+        }
+      : baseRequest;
     const { data } = await axiosBackend.post<FidLinkToIdentityResponse>(
       "/api/fid-link",
       signedRequest,

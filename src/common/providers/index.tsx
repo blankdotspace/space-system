@@ -41,7 +41,7 @@ const RarelyUpdatedProviders = React.memo(
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <GlobalErrorHandler />
+      {/* <GlobalErrorHandler /> */}
       <VersionCheckProivder>
         <Privy>
           <Query>

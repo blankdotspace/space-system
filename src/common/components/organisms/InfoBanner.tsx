@@ -10,11 +10,12 @@ import { first } from "lodash";
 import { Suspense } from "react";
 
 export default function InfoToast() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <InfoToastContent />
-    </Suspense>
-  );
+  return null;
+  // return (
+  //   <Suspense fallback={<div>Loading...</div>}>
+  //     <InfoToastContent />
+  //   </Suspense>
+  // );
 }
 
 function InfoToastContent() {

@@ -1,7 +1,7 @@
 import requestHandler, {
   NounspaceResponse,
 } from "@/common/data/api/requestHandler";
-import { isSignable, validateSignable } from "@/common/lib/signedFiles";
+import { validateSignable } from "@/common/lib/signedFiles";
 import { NextApiRequest, NextApiResponse } from "next";
 import neynar from "@/common/data/api/neynar";
 import createSupabaseServerClient from "@/common/data/database/supabase/clients/server";
@@ -12,20 +12,23 @@ export type FidLinkToIdentityRequest = {
   fid: number;
   identityPublicKey: string;
   timestamp: string;
-  signature: string;
-  signingPublicKey: string;
+  signature?: string | null;
+  signingPublicKey?: string | null;
 };
 
 function isFidLinkToIdentityRequest(
   maybe: unknown,
 ): maybe is FidLinkToIdentityRequest {
-  if (!isSignable(maybe, "signingPublicKey")) {
+  if (maybe === null || typeof maybe !== "object" || Array.isArray(maybe)) {
     return false;
   }
+
+  const candidate = maybe as Record<string, unknown>;
+
   return (
-    typeof maybe["fid"] === "number" &&
-    typeof maybe["timestamp"] === "string" &&
-    typeof maybe["identityPublicKey"] === "string"
+    typeof candidate.fid === "number" &&
+    typeof candidate.timestamp === "string" &&
+    typeof candidate.identityPublicKey === "string"
   );
 }
 
@@ -33,8 +36,8 @@ export type FidLinkToIdentityResponse = NounspaceResponse<{
   fid: number;
   identityPublicKey: string;
   created: string;
-  signature: string;
-  signingPublicKey: string;
+  signature: string | null;
+  signingPublicKey: string | null;
   isSigningKeyValid: boolean;
 }>;
 
@@ -57,27 +60,64 @@ async function linkFidToIdentity(
       result: "error",
       error: {
         message:
-          "Registration request requires fid, timestamp, identityPublicKey, signingPublicKey, and a signature",
+          "Registration request requires fid, timestamp, and identityPublicKey",
       },
     });
     return;
   }
-  if (!validateSignable(reqBody, "signingPublicKey")) {
-    res.status(400).json({
-      result: "error",
-      error: {
-        message: "Invalid signature",
-      },
-    });
-    return;
-  }
-  if (!checkSigningKeyValidForFid) {
-    res.status(400).json({
-      result: "error",
-      error: {
-        message: `Signing key ${reqBody.signingPublicKey} is not valid for fid ${reqBody.fid}`,
-      },
-    });
+  const hasSigningKeyInfo = !!reqBody.signingPublicKey;
+  let signature: string | null = null;
+  let signingPublicKey: string | null = null;
+  let signingKeyLastValidatedAt: string | null = null;
+  if (hasSigningKeyInfo) {
+    if (typeof reqBody.signature !== "string") {
+      res.status(400).json({
+        result: "error",
+        error: {
+          message: "Invalid signature",
+        },
+      });
+      return;
+    }
+    if (typeof reqBody.signingPublicKey !== "string") {
+      res.status(400).json({
+        result: "error",
+        error: {
+          message: "Invalid signingPublicKey",
+        },
+      });
+      return;
+    }
+    if (
+      !validateSignable(
+        {
+          ...reqBody,
+          signature: reqBody.signature,
+        },
+        "signingPublicKey",
+      )
+    ) {
+      res.status(400).json({
+        result: "error",
+        error: {
+          message: "Invalid signature",
+        },
+      });
+      return;
+    }
+    const isKeyValid = await checkSigningKeyValidForFid(reqBody.fid, reqBody.signingPublicKey);
+    if (!isKeyValid) {
+      res.status(400).json({
+        result: "error",
+        error: {
+          message: "Invalid signing key for this fid",
+        },
+      });
+      return;
+    }
+    signingPublicKey = reqBody.signingPublicKey;
+    signature = reqBody.signature;
+    signingKeyLastValidatedAt = moment().toISOString();
   }
   const { data: checkExistsData } = await createSupabaseServerClient()
     .from("fidRegistrations")
@@ -100,10 +140,10 @@ async function linkFidToIdentity(
       .update({
         created: reqBody.timestamp,
         identityPublicKey: reqBody.identityPublicKey,
-        isSigningKeyValid: true,
-        signature: reqBody.signature,
-        signingKeyLastValidatedAt: moment().toISOString(),
-        signingPublicKey: reqBody.signingPublicKey,
+        isSigningKeyValid: hasSigningKeyInfo,
+        signature,
+        signingKeyLastValidatedAt,
+        signingPublicKey,
       })
       .eq("fid", reqBody.fid)
       .select();
@@ -127,10 +167,10 @@ async function linkFidToIdentity(
         fid: reqBody.fid,
         created: reqBody.timestamp,
         identityPublicKey: reqBody.identityPublicKey,
-        isSigningKeyValid: true,
-        signature: reqBody.signature,
-        signingKeyLastValidatedAt: moment().toISOString(),
-        signingPublicKey: reqBody.signingPublicKey,
+        isSigningKeyValid: hasSigningKeyInfo,
+        signature,
+        signingKeyLastValidatedAt,
+        signingPublicKey,
       })
       .select();
     if (error !== null) {
@@ -159,7 +199,7 @@ async function lookUpFidsForIdentity(
   res: NextApiResponse<FidsLinkedToIdentityResponse>,
 ) {
   const identity = req.query.identityPublicKey;
-  if (isUndefined(identity) || isArray(identity)) {
+  if (isUndefined(identity) || isArray(identity) || identity === "") {
     res.status(400).json({
       result: "error",
       error: {
@@ -172,8 +212,7 @@ async function lookUpFidsForIdentity(
   const { data, error } = await createSupabaseServerClient()
     .from("fidRegistrations")
     .select("fid")
-    .eq("identityPublicKey", identity)
-    .eq("isSigningKeyValid", true);
+    .eq("identityPublicKey", identity);
   if (error) {
     res.status(500).json({
       result: "error",

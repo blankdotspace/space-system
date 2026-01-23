@@ -90,6 +90,7 @@ export type AuthenticatorManager = {
   getInitializedAuthenticators: () => Promise<string[]>;
   installAuthenticators: (authenticatorIds: string[]) => Promise<void>;
   CurrentInitializerComponent?: React.FC;
+  hasCurrentInitializer: boolean;
   lastUpdatedAt: string;
 };
 
@@ -256,6 +257,7 @@ export const AuthenticatorManagerProvider: React.FC<
             done={completeInstallingCurrentInitializer}
           />
         ),
+      hasCurrentInitializer: !!currentInitializer,
       lastUpdatedAt: moment().toISOString(),
     }),
     [
@@ -284,7 +286,7 @@ export const AuthenticatorManagerProvider: React.FC<
         });
       }
     },
-    [installedAuthenticators],
+    [installedAuthenticators, initializationQueue],
   );
 
   useEffect(() => {
@@ -292,7 +294,7 @@ export const AuthenticatorManagerProvider: React.FC<
     if (!isUndefined(authenticatorToInitialize)) {
       initializeAuthentictator(authenticatorToInitialize);
     }
-  }, [initializationQueue]);
+  }, [initializationQueue, initializeAuthentictator]);
 
   function completeInstallingCurrentInitializer() {
     setInitializationQueue(tail(initializationQueue));

@@ -9,7 +9,7 @@ import requiredAuthenticators from "@/constants/requiredAuthenticators";
 import { bytesToHex } from "@noble/ciphers/utils";
 import { usePrivy } from "@privy-io/react-auth";
 import { isEqual, isUndefined } from "lodash";
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import LoginModal from "../components/templates/LoginModal";
 import { AnalyticsEvent } from "../constants/analyticsEvents";
 import { analytics } from "./AnalyticsProvider";
@@ -68,6 +68,7 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
   const authenticatorManager = useAuthenticatorManager();
   const logout = useLogout();
   const previousSteps = useValueHistory<SetupStep>(currentStep, 4);
+  const [isRegisteringAccounts, setIsRegisteringAccounts] = useState(false);
 
   async function loadWallet() {
     if (walletsReady && ready && authenticated && user) {
@@ -149,47 +150,67 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
     setCurrentStep(SetupStep.REQUIRED_AUTHENTICATORS_INSTALLED);
   };
 
-  const registerAccounts = async () => {
-    let currentIdentity = getCurrentIdentity()!;
-    if (currentIdentity.associatedFids.length > 0) {
-      setCurrentStep(SetupStep.ACCOUNTS_REGISTERED);
-    } else {
-      await loadFidsForCurrentIdentity();
-      currentIdentity = getCurrentIdentity()!;
-      if (currentIdentity.associatedFids.length === 0) {
-        const fidResult = (await authenticatorManager.callMethod({
-          requestingFidgetId: "root",
-          authenticatorId: "farcaster:nounspace",
-          methodName: "getAccountFid",
-          isLookup: true,
-        })) as { value: number };
-        const publicKeyResult = (await authenticatorManager.callMethod({
-          requestingFidgetId: "root",
-          authenticatorId: "farcaster:nounspace",
-          methodName: "getSignerPublicKey",
-          isLookup: true,
-        })) as { value: Uint8Array };
-        const signForFid = async (messageHash) => {
-          const signResult = (await authenticatorManager.callMethod(
-            {
-              requestingFidgetId: "root",
-              authenticatorId: "farcaster:nounspace",
-              methodName: "signMessage",
-              isLookup: false,
-            },
-            messageHash,
-          )) as { value: Uint8Array };
-          return signResult.value;
-        };
-        await registerFidForCurrentIdentity(
-          fidResult.value,
-          bytesToHex(publicKeyResult.value),
-          signForFid,
-        );
-      }
+  const registerAccounts = useCallback(async () => {
+    // Prevent multiple simultaneous registrations
+    if (isRegisteringAccounts) {
+      console.warn("[registerAccounts] Already registering, skipping");
+      return;
     }
-    setCurrentStep(SetupStep.ACCOUNTS_REGISTERED);
-  };
+    
+    setIsRegisteringAccounts(true);
+    try {
+      let currentIdentity = getCurrentIdentity()!;
+      
+      if (currentIdentity.associatedFids.length > 0) {
+        setCurrentStep(SetupStep.ACCOUNTS_REGISTERED);
+      } else {
+        try {
+          await loadFidsForCurrentIdentity();
+        } catch (error) {
+          console.warn("[registerAccounts] Failed to load FIDs (non-critical):", error);
+        }
+        currentIdentity = getCurrentIdentity()!;
+        if (currentIdentity.associatedFids.length === 0) {
+          const fidResult = (await authenticatorManager.callMethod({
+            requestingFidgetId: "root",
+            authenticatorId: "farcaster:nounspace",
+            methodName: "getAccountFid",
+            isLookup: true,
+          })) as { value: number };
+          const publicKeyResult = (await authenticatorManager.callMethod({
+            requestingFidgetId: "root",
+            authenticatorId: "farcaster:nounspace",
+            methodName: "getSignerPublicKey",
+            isLookup: true,
+          })) as { value: Uint8Array };
+          const signForFid = async (messageHash) => {
+            const signResult = (await authenticatorManager.callMethod(
+              {
+                requestingFidgetId: "root",
+                authenticatorId: "farcaster:nounspace",
+                methodName: "signMessage",
+                isLookup: false,
+              },
+              messageHash,
+            )) as { value: Uint8Array };
+            return signResult.value;
+          };
+          await registerFidForCurrentIdentity(
+            fidResult.value,
+            bytesToHex(publicKeyResult.value),
+            signForFid,
+          );
+        }
+        setCurrentStep(SetupStep.ACCOUNTS_REGISTERED);
+      }
+    } catch (error) {
+      console.error("[registerAccounts] Unexpected error:", error);
+      // ALWAYS advance to next step to prevent infinite loop
+      setCurrentStep(SetupStep.ACCOUNTS_REGISTERED);
+    } finally {
+      setIsRegisteringAccounts(false);
+    }
+  }, [isRegisteringAccounts]);
 
   // Has to be separate otherwise will cause retrigger chain
   // due to depence on authenticatorManager
@@ -250,7 +271,7 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
     ) {
       setCurrentStep(SetupStep.NOT_SIGNED_IN);
     }
-  }, [currentStep, walletsReady, ready, authenticated, user]);
+  }, [currentStep, walletsReady, ready, authenticated]);
 
   return (
     <>

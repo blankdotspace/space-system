@@ -48,14 +48,21 @@ export const WARPCAST_RECOVERY_PROXY: `0x${string}` =
 
 async function submitMessageToBackend(message: Message) {
   try {
-    await axiosBackend.post(
+    const response = await axiosBackend.post(
       "/api/farcaster/neynar/publishMessage",
       Message.toJSON(message),
+      {
+        timeout: 30000, // 30 seconds for Farcaster message publishing
+      }
     );
     return true;
   } catch (e) {
     if (isAxiosError(e)) {
-      return false;
+      const errorMessage = e.response?.data 
+        ? (typeof e.response.data === 'string' ? e.response.data : JSON.stringify(e.response.data))
+        : e.message || 'Unknown error';
+      const statusCode = e.response?.status || 'No status';
+      throw new Error(`Backend failed to publish: ${statusCode} - ${errorMessage}`);
     } else {
       throw e;
     }
@@ -85,8 +92,11 @@ export const removeReaction = async ({
   );
   if (msg.isOk()) {
     return await submitMessageToBackend(msg.value);
+  } else {
+    const error = msg.isErr() ? msg.error : new Error("Unknown error creating reaction remove message");
+    console.error("[removeReaction] Failed to create reaction remove message:", error);
+    throw error;
   }
-  return false;
 };
 
 export const publishReaction = async ({
@@ -94,15 +104,29 @@ export const publishReaction = async ({
   signer,
   reaction,
 }: ReactionParams) => {
+  // Verify signer can get key before creating message
+  const signerKeyResult = await signer.getSignerKey();
+  if (!signerKeyResult.isOk()) {
+    const keyError = signerKeyResult.isErr() ? signerKeyResult.error : new Error("Unknown error");
+    throw new Error(`Signer key not available: ${keyError instanceof Error ? keyError.message : String(keyError)}`);
+  }
+
   const msg = await makeReactionAdd(
     reaction,
     { fid: authorFid, network: FarcasterNetwork.MAINNET },
     signer,
   );
   if (msg.isOk()) {
-    return await submitMessageToBackend(msg.value);
+    const backendResult = await submitMessageToBackend(msg.value);
+    if (!backendResult) {
+      throw new Error("Backend failed to publish reaction - check server logs for details");
+    }
+    return backendResult;
+  } else {
+    const error = msg.isErr() ? msg.error : new Error("Unknown error creating reaction add message");
+    console.error("[publishReaction] Failed to create reaction add message:", error);
+    throw error;
   }
-  return false;
 };
 
 export const followUser = async (

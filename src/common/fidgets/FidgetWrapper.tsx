@@ -4,7 +4,7 @@ import ScopedStyles from "@/common/components/molecules/ScopedStyles";
 import { useAppStore } from "@/common/data/stores/app";
 import { useFidgetSettings } from "@/common/lib/hooks/useFidgetSettings";
 import { reduce, isEqual } from "lodash";
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, memo } from "react";
 import { FaX } from "react-icons/fa6";
 import { toast } from "sonner";
 import {
@@ -63,7 +63,7 @@ export const getSettingsWithDefaults = (
   );
 };
 
-export function FidgetWrapper({
+export const FidgetWrapper = memo(function FidgetWrapperComponent({
   fidget,
   bundle,
   saveConfig,
@@ -232,16 +232,9 @@ export function FidgetWrapper({
         data-fidget-controls
       >
         <Card className="h-full grabbable rounded-lg w-6 flex items-center justify-center bg-[#F3F4F6] hover:bg-sky-100 text-[#1C64F2]">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center gap-1">
-                  <GrabHandleIcon />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>Drag to Move</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <div className="flex items-center gap-1">
+            <GrabHandleIcon />
+          </div>
         </Card>
         <button
           onClick={() => {
@@ -249,16 +242,9 @@ export function FidgetWrapper({
           }}
         >
           <Card className="h-full rounded-lg ml-1 w-6 flex items-center justify-center bg-[#F3F4F6] hover:bg-sky-100 text-[#1C64F2]">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-1">
-                    <StashIcon />
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>Stash in Fidget Tray</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <div className="flex items-center gap-1">
+              <StashIcon />
+            </div>
           </Card>
         </button>
         <button
@@ -267,14 +253,7 @@ export function FidgetWrapper({
           }}
         >
           <Card className="h-full rounded-lg ml-1 w-6 flex items-center justify-center bg-[#F3F4F6] hover:bg-red-100 text-[#1C64F2]">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <FaX className="w-5/12" />
-                </TooltipTrigger>
-                <TooltipContent>Remove Fidget</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <FaX className="w-5/12" />
           </Card>
         </button>
       </div>
@@ -320,4 +299,4 @@ export function FidgetWrapper({
       </Card>
     </>
   );
-}
+});
