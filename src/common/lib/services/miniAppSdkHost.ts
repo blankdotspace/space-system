@@ -455,14 +455,10 @@ export function createMiniAppSdkHost(
 }
 
 /**
- * Create a Comlink endpoint for an iframe
- * This uses Comlink's standard Endpoint interface to handle postMessage communication
- * The endpoint filters messages to only those from the specific iframe
+ * Create a filtered EventSource that only receives messages from a specific iframe
+ * This is used with Comlink's windowEndpoint to filter messages when multiple iframes are present
  */
-function createIframeEndpoint(iframe: HTMLIFrameElement, targetOrigin: string | null): Endpoint {
-  if (!targetOrigin || targetOrigin === '*') {
-    throw new Error('Cannot create endpoint with null or "*" origin. This is unsafe.');
-  }
+function createFilteredEventSource(iframe: HTMLIFrameElement): EventSource {
   // Create an event target that filters messages from this specific iframe
   const eventTarget: EventSource = {
     addEventListener: (type: string, listener: EventListener) => {
@@ -485,16 +481,7 @@ function createIframeEndpoint(iframe: HTMLIFrameElement, targetOrigin: string | 
       }
     },
   };
-  
-  return {
-    postMessage: (message: any, _targetOrigin?: string) => {
-      if (iframe.contentWindow) {
-        iframe.contentWindow.postMessage(message, targetOrigin);
-      }
-    },
-    addEventListener: eventTarget.addEventListener.bind(eventTarget),
-    removeEventListener: eventTarget.removeEventListener.bind(eventTarget),
-  };
+  return eventTarget;
 }
 
 /**
@@ -569,8 +556,14 @@ export function setupComlinkHandler(
   // Create the SDK host API with Quick Auth support
   const sdkHost = createMiniAppSdkHost(context, ethProvider, iframe, domain, options);
   
-  // Create endpoint for this iframe
-  const endpoint = createIframeEndpoint(iframe, origin);
+  // Create endpoint using Comlink's windowEndpoint with filtered context
+  // We use a filtered EventSource to only receive messages from this specific iframe
+  // This is necessary when multiple iframes are present on the page
+  if (!iframe.contentWindow) {
+    throw new Error('Cannot create endpoint: iframe.contentWindow is not available');
+  }
+  const filteredContext = createFilteredEventSource(iframe);
+  const endpoint = windowEndpoint(iframe.contentWindow, filteredContext, origin);
   
   // Expose the SDK API via Comlink
   expose(sdkHost, endpoint);
