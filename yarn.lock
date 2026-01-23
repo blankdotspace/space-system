@@ -2866,21 +2866,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@next/eslint-plugin-next@npm:15.5.9":
+"@next/eslint-plugin-next@npm:15.5.9, @next/eslint-plugin-next@npm:^15.2.6":
   version: 15.5.9
   resolution: "@next/eslint-plugin-next@npm:15.5.9"
   dependencies:
     fast-glob: "npm:3.3.1"
   checksum: 10c0/28f926063eefc50bda9fad5bd338bcd74356764f56f201fae0cecd536d09b6aa8a94dc9b8dccbfc9b3356b532c672c08226f0d6f6003c5104833a01481d88292
-  languageName: node
-  linkType: hard
-
-"@next/eslint-plugin-next@npm:^16.0.7":
-  version: 16.1.4
-  resolution: "@next/eslint-plugin-next@npm:16.1.4"
-  dependencies:
-    fast-glob: "npm:3.3.1"
-  checksum: 10c0/1c2c0572aaad1881874a976bf17c57a2482db9b809db732650dcf07b352726d0a536537972f533276e5cba647784a46c397f7a9981f48c7c47ccccfff699b4b3
   languageName: node
   linkType: hard
 
@@ -16898,7 +16889,7 @@ __metadata:
     "@mod-protocol/react-ui-shadcn": "npm:^0.3.1"
     "@mui/material": "npm:^7.3.4"
     "@next/bundle-analyzer": "npm:^16.0.6"
-    "@next/eslint-plugin-next": "npm:^16.0.7"
+    "@next/eslint-plugin-next": "npm:^15.2.6"
     "@neynar/nodejs-sdk": "npm:^2.23.0"
     "@privy-io/react-auth": "npm:^1.73.1"
     "@privy-io/wagmi": "npm:^0.2.6"
