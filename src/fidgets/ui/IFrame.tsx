@@ -11,8 +11,6 @@ import { defaultStyleFields, ErrorWrapper, transformUrl, WithMargin } from "@/fi
 import React, { useEffect, useMemo, useState } from "react";
 import DOMPurify from "isomorphic-dompurify";
 import { BsCloud, BsCloudFill } from "react-icons/bs";
-import { useMiniApp } from "@/common/utils/useMiniApp";
-import { MINI_APP_PROVIDER_METADATA } from "@/common/providers/MiniAppSdkProvider";
 
 const DEFAULT_SANDBOX_RULES =
   "allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox";
@@ -98,24 +96,6 @@ type IframeAttributeMap = Record<string, string>;
 
 const createMiniAppBootstrapSrcDoc = (targetUrl: string) => {
   const safeTargetUrl = sanitizeMiniAppNavigationTarget(targetUrl);
-  const iconPath = MINI_APP_PROVIDER_METADATA.iconPath;
-  const providerInfoScript = `
-        var providerInfo = parentWindow.__blankspaceMiniAppProviderInfo;
-        if (!providerInfo) {
-          var icon;
-          try {
-            icon = new URL(${JSON.stringify(iconPath)}, (window.parent && window.parent.location ? window.parent.location.origin : window.location.origin)).toString();
-          } catch (err) {
-            icon = ${JSON.stringify(iconPath)};
-          }
-          providerInfo = {
-            uuid: ${JSON.stringify(MINI_APP_PROVIDER_METADATA.uuid)},
-            name: ${JSON.stringify(MINI_APP_PROVIDER_METADATA.name)},
-            icon: icon,
-            rdns: ${JSON.stringify(MINI_APP_PROVIDER_METADATA.rdns)}
-          };
-        }
-      `;
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8" /></head><body><script>(function(){
       try {
@@ -126,17 +106,7 @@ const createMiniAppBootstrapSrcDoc = (targetUrl: string) => {
         var provider = parentWindow.__blankspaceMiniAppEthProvider;
         if (provider) {
           window.ethereum = provider;
-          ${providerInfoScript}
-          var announce = function() {
-            var detail = {
-              info: providerInfo,
-              provider: provider
-            };
-            window.dispatchEvent(new CustomEvent("eip6963:announceProvider", { detail: detail }));
-          };
           window.dispatchEvent(new Event("ethereum#initialized"));
-          announce();
-          window.addEventListener("eip6963:requestProvider", announce);
         }
       } catch (err) {
         console.error("Mini app provider bootstrap failed", err);
@@ -316,8 +286,7 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
 
   const debouncedSetUrl = useMemo(() => debounce((value: string) => setDebouncedUrl(value), 300), []);
 
-  const { isInMiniApp } = useMiniApp();
-  const isMiniAppEnvironment = isInMiniApp === true;
+  const isMiniAppEnvironment = false;
 
   const [sanitizedEmbedAttributes, setSanitizedEmbedAttributes] =
     useState<IframeAttributeMap | null>(null);
