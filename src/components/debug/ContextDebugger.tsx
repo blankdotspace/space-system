@@ -4,7 +4,8 @@ import React, { useContext, useState, useEffect } from "react";
 import { useMiniAppSdk } from "@/common/lib/hooks/useMiniAppSdk";
 import { useEmbeddedMiniApps } from "@/common/lib/hooks/useEmbeddedMiniApps";
 import { MiniAppSdkContext } from "@/common/providers/MiniAppSdkProvider";
-import { useAuthenticatorManager } from "@/authenticators/AuthenticatorManager";
+import { AuthenticatorContext } from "@/authenticators/AuthenticatorManager";
+import type { AuthenticatorManager } from "@/authenticators/AuthenticatorManager";
 
 export function ContextDebugger() {
   const { context: sdkContext, isReady, error } = useMiniAppSdk();
@@ -17,13 +18,8 @@ export function ContextDebugger() {
   const sdkContextState = useContext(MiniAppSdkContext);
   const rawSdkInstance = sdkContextState?.sdk;
   
-  // Get authenticator manager (may not be available if not logged in)
-  let authenticatorManager: ReturnType<typeof useAuthenticatorManager> | null = null;
-  try {
-    authenticatorManager = useAuthenticatorManager();
-  } catch {
-    authenticatorManager = null;
-  }
+  // Get authenticator manager from context (may be null if not inside AuthenticatorManagerProvider)
+  const authenticatorManager: AuthenticatorManager | null = useContext(AuthenticatorContext);
   
   // Quick Auth state
   const [quickAuthInfo, setQuickAuthInfo] = useState<{
