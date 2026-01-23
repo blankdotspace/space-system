@@ -9,7 +9,7 @@
  */
 
 import type { Context } from "@farcaster/miniapp-core";
-import { expose, Endpoint, windowEndpoint } from "comlink";
+import { expose, windowEndpoint } from "comlink";
 
 /**
  * Extract EventSource type from Comlink's windowEndpoint function signature
