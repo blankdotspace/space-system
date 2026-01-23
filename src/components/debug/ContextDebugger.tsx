@@ -6,16 +6,25 @@ import { useEmbeddedMiniApps } from "@/common/lib/hooks/useEmbeddedMiniApps";
 import { MiniAppSdkContext } from "@/common/providers/MiniAppSdkProvider";
 import { AuthenticatorContext } from "@/authenticators/AuthenticatorManager";
 import type { AuthenticatorManager } from "@/authenticators/AuthenticatorManager";
+import { useNounspaceMiniAppContext } from "@/common/lib/utils/createMiniAppContext";
+import { useCurrentFid } from "@/common/lib/hooks/useCurrentFid";
 
 export function ContextDebugger() {
   const { context: sdkContext, isReady, error } = useMiniAppSdk();
   const embeddedMiniApps = useEmbeddedMiniApps();
-  const contextForEmbedded = sdkContext || null;
+  
+  // Get the actual context being sent to embedded apps (same logic as IFrame.tsx)
+  const sdkContextState = useContext(MiniAppSdkContext);
+  const actualSdkContext = sdkContextState?.context;
+  const nounspaceContext = useNounspaceMiniAppContext();
+  const contextForEmbedded = actualSdkContext || nounspaceContext;
+  
+  // Get user FID from our data
+  const userFid = useCurrentFid();
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['summary']));
   const [copySuccess, setCopySuccess] = useState(false);
   
-  // Get raw SDK instance for quickAuth access
-  const sdkContextState = useContext(MiniAppSdkContext);
+  // Get raw SDK instance for quickAuth access (already have sdkContextState above)
   const rawSdkInstance = sdkContextState?.sdk;
   
   // Get authenticator manager from context (may be null if not inside AuthenticatorManagerProvider)
@@ -44,6 +53,8 @@ export function ContextDebugger() {
       status: 'pending' | 'success' | 'error';
       details?: string;
       error?: string;
+      errorStack?: string;
+      data?: any; // Actual data for this step (nonce, SIWE message, signature, etc.)
     }>;
     token?: string;
     tokenDetails?: {
@@ -112,26 +123,29 @@ export function ContextDebugger() {
         embeddedMiniAppsCount: embeddedMiniApps.length,
       },
       quickAuth: quickAuthInfo,
+      quickAuthTest: quickAuthTest.status !== 'idle' ? {
+        status: quickAuthTest.status,
+        steps: quickAuthTest.steps.map(step => ({
+          step: step.step,
+          status: step.status,
+          details: step.details,
+          error: step.error,
+          errorStack: step.errorStack,
+          data: step.data,
+        })),
+        token: quickAuthTest.token,
+        tokenDetails: quickAuthTest.tokenDetails,
+      } : null,
       context: {
-        userFid: sdkContext?.user?.fid || null,
-        platform: sdkContext?.client?.platformType || null,
-        locationType: sdkContext?.location?.type || null,
+        userFid: userFid || contextForEmbedded?.user?.fid || null,
+        platform: contextForEmbedded?.client?.platformType || contextForEmbedded?.client?.platform || null,
+        locationType: contextForEmbedded?.location?.type || null,
       },
       sdkContext: sdkContext,
       contextForEmbedded: contextForEmbedded,
       embeddedMiniApps: embeddedMiniApps.map((app, index) => {
-        // Try to extract target URL from bootstrap doc if available
-        let extractedUrl = app.url;
-        if (typeof document !== 'undefined' && app.hasBootstrapDoc) {
-          const iframes = document.querySelectorAll<HTMLIFrameElement>(`iframe[data-nounspace-context]`);
-          const iframe = iframes[index];
-          if (iframe?.srcdoc) {
-            const match = iframe.srcdoc.match(/window\.location\.replace\(["']([^"']+)["']\)/);
-            if (match && match[1]) {
-              extractedUrl = match[1];
-            }
-          }
-        }
+        // Use the URL directly from the iframe
+        const extractedUrl = app.url;
         
         const debugInfo = iframeDebugInfo.get(app.id);
         let quickAuthDomain: string | null = null;
@@ -170,6 +184,7 @@ Available: ${debugInfo.quickAuth.available ? "✅ Yes" : "❌ No"}
 Real SDK: ${debugInfo.quickAuth.hasRealSdk ? "✅ Yes" : "❌ No"}
 Authenticator Manager: ${debugInfo.quickAuth.hasAuthenticator ? "✅ Yes" : "❌ No"}
 Token: ${debugInfo.quickAuth.token ? `✅ ${debugInfo.quickAuth.token.substring(0, 20)}...` : "❌ None"}${debugInfo.quickAuth.error ? `\nError: ${debugInfo.quickAuth.error}` : ""}
+${debugInfo.quickAuthTest ? `\n--- Quick Auth Test Results ---\n${JSON.stringify(debugInfo.quickAuthTest, null, 2)}` : ""}
 
 --- Context Summary ---
 User FID: ${debugInfo.context.userFid || "N/A"}
@@ -188,7 +203,6 @@ ${debugInfo.embeddedMiniApps.length === 0
   : debugInfo.embeddedMiniApps.map(app => `
 Mini-App #${app.index} (${app.id || "Unknown"})
   URL: ${app.url || "N/A"}
-  Bootstrap Doc: ${app.hasBootstrapDoc ? "✅ Yes" : "❌ No"}
   Iframe Ready: ${app.hasContentWindow ? "✅ Yes" : "⚠️ No contentWindow"}
   PostMessage Origin: ${app.origin || "❌ Not determined"}
   Quick Auth Domain: ${app.quickAuthDomain || "N/A"}
@@ -257,19 +271,10 @@ Mini-App #${app.index} (${app.id || "Unknown"})
           if (iframe.src) {
             origin = new URL(iframe.src).origin;
           } else if (iframe.srcdoc) {
-            // Try to extract from bootstrap doc
-            const match = iframe.srcdoc.match(/window\.location\.replace\(["']([^"']+)["']\)/);
-            if (match && match[1]) {
-              try {
-                origin = new URL(match[1]).origin;
-              } catch {
-                setupError = 'Could not parse origin from bootstrap doc';
-              }
-            } else {
-              setupError = 'Bootstrap doc found but no redirect URL';
-            }
+            // srcdoc is present but we can't determine origin from it
+            setupError = 'srcdoc present but cannot determine origin (use src instead)';
           } else {
-            setupError = 'No src or srcdoc - cannot determine origin';
+            setupError = 'No src - cannot determine origin';
           }
         } catch (error) {
           setupError = error instanceof Error ? error.message : 'Failed to determine origin';
@@ -339,8 +344,22 @@ Mini-App #${app.index} (${app.id || "Unknown"})
                 </span>
               </div>
               {error && (
-                <div className="text-red-400 text-xs">
+                <div className="text-red-400 text-xs mt-2 p-2 bg-red-900/20 rounded">
                   <strong>Error:</strong> {error.message}
+                  {error.stack && (
+                    <details className="mt-1">
+                      <summary className="cursor-pointer text-red-300">Stack trace</summary>
+                      <pre className="mt-1 text-xs font-mono whitespace-pre-wrap break-all bg-red-950/50 p-2 rounded overflow-x-auto">
+                        {error.stack}
+                      </pre>
+                    </details>
+                  )}
+                  <div className="mt-1">
+                    <strong>Error object:</strong>
+                    <pre className="mt-1 text-xs font-mono whitespace-pre-wrap break-all bg-red-950/50 p-2 rounded overflow-x-auto">
+                      {JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}
+                    </pre>
+                  </div>
                 </div>
               )}
               <div className="flex justify-between">
@@ -357,16 +376,16 @@ Mini-App #${app.index} (${app.id || "Unknown"})
               </div>
               <div className="flex justify-between">
                 <span>User FID:</span>
-                <span>{sdkContext?.user?.fid || "N/A"}</span>
+                <span>{userFid || contextForEmbedded?.user?.fid || "N/A"}</span>
               </div>
               <div className="flex justify-between">
                 <span>Platform:</span>
-                <span>{sdkContext?.client?.platformType || "N/A"}</span>
+                <span>{contextForEmbedded?.client?.platformType || contextForEmbedded?.client?.platform || "N/A"}</span>
               </div>
-              {sdkContext?.location && (
+              {contextForEmbedded?.location && (
                 <div className="flex justify-between">
                   <span>Location:</span>
-                  <span>{sdkContext.location.type}</span>
+                  <span>{contextForEmbedded.location.type}</span>
                 </div>
               )}
             </div>
@@ -411,7 +430,7 @@ Mini-App #${app.index} (${app.id || "Unknown"})
                 </div>
               )}
               {quickAuthInfo.error && (
-                <div className="text-red-400 text-xs mt-2">
+                <div className="text-red-400 text-xs mt-2 p-2 bg-red-900/20 rounded">
                   <strong>Error:</strong> {quickAuthInfo.error}
                 </div>
               )}
@@ -433,13 +452,15 @@ Mini-App #${app.index} (${app.id || "Unknown"})
                         steps.push({ step: 'Check prerequisites', status: 'pending' });
                         setQuickAuthTest({ status: 'testing', steps: [...steps] });
                         
-                        if (!sdkContext?.user?.fid) {
-                          throw new Error('User FID is required');
+                        // Use userFid from our data (we create the context)
+                        const testUserFid = userFid || contextForEmbedded?.user?.fid;
+                        if (!testUserFid) {
+                          throw new Error('User FID is required. Please sign in with Farcaster.');
                         }
                         if (!authenticatorManager && !rawSdkInstance) {
                           throw new Error('Authenticator manager or real SDK required');
                         }
-                        steps[steps.length - 1] = { step: 'Check prerequisites', status: 'success', details: `User FID: ${sdkContext.user.fid}` };
+                        steps[steps.length - 1] = { step: 'Check prerequisites', status: 'success', details: `User FID: ${testUserFid}` };
                         
                         // Step 2: Get first embedded iframe for testing
                         steps.push({ step: 'Get test iframe', status: 'pending' });
@@ -469,89 +490,169 @@ Mini-App #${app.index} (${app.id || "Unknown"})
                         }
                         steps[steps.length - 1] = { step: 'Get test iframe', status: 'success', details: `Domain: ${testDomain}` };
                         
-                        // Step 3: Test Quick Auth flow (if we can access it)
-                        // Note: We can't directly call the SDK host's quickAuth from here
-                        // because it's only exposed via Comlink to the iframe
-                        // But we can verify the setup is correct
-                        steps.push({ step: 'Verify Quick Auth setup', status: 'pending' });
-                        setQuickAuthTest({ status: 'testing', steps: [...steps] });
+                        // Step 3: Test OUR Quick Auth system (generateNonce -> signIn -> verifySiwf)
+                        // This is the actual system we built - test it!
+                        if (!authenticatorManager) {
+                          throw new Error('No authenticator manager available for Quick Auth');
+                        }
                         
-                        // Check if we have the real SDK's quickAuth
-                        if (rawSdkInstance && (rawSdkInstance as any).quickAuth) {
-                          try {
-                            const result = await (rawSdkInstance as any).quickAuth.getToken();
-                            if (result?.token) {
-                              steps[steps.length - 1] = { 
-                                step: 'Verify Quick Auth setup', 
-                                status: 'success', 
-                                details: 'Real SDK Quick Auth available and working',
-                              };
-                              
-                              // Try to decode token (if it's a JWT)
-                              try {
-                                const parts = result.token.split('.');
-                                if (parts.length === 3) {
-                                  const payload = JSON.parse(atob(parts[1]));
+                        // Intercept console.log to capture Quick Auth flow details (declare outside all try blocks)
+                        const originalLog = console.log;
+                        const quickAuthLogs: string[] = [];
+                        console.log = (...args: any[]) => {
+                          const message = args.map(arg => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ');
+                          if (message.includes('[Quick Auth]')) {
+                            quickAuthLogs.push(message);
+                          }
+                          originalLog.apply(console, args);
+                        };
+                        
+                        try {
+                          steps.push({ step: 'Test Our Quick Auth System', status: 'pending' });
+                          setQuickAuthTest({ status: 'testing', steps: [...steps] });
+                          
+                          // Import the SDK host creator
+                          const { createMiniAppSdkHost } = await import('@/common/lib/services/miniAppSdkHost');
+                          
+                          // Create a mock SDK host with the same configuration as the iframe
+                          // Use the actual context being sent to embedded apps
+                          const testContext = contextForEmbedded || {
+                            client: { version: '1.0.0', platform: 'web' },
+                            location: { type: 'launcher' },
+                            features: {},
+                          };
+                          
+                          const mockSdkHost = createMiniAppSdkHost(
+                            testContext,
+                            (window as any).__nounspaceMiniAppEthProvider,
+                            testIframe,
+                            testDomain,
+                            {
+                              // Don't pass realSdk - we want to test OUR implementation
+                              authenticatorManager: authenticatorManager || undefined,
+                              userFid: testUserFid, // Use the FID we checked earlier
+                            }
+                          );
+                          
+                          // Test the full Quick Auth flow with detailed logging
+                          steps[steps.length - 1] = { 
+                            step: 'Test Our Quick Auth System', 
+                            status: 'pending',
+                            details: 'Calling getToken() which will: generateNonce -> signIn -> verifySiwf',
+                            data: {
+                              domain: testDomain,
+                              userFid: testUserFid,
+                              hasEthProvider: !!(window as any).__nounspaceMiniAppEthProvider,
+                            },
+                          };
+                          setQuickAuthTest({ status: 'testing', steps: [...steps] });
+                          
+                          const tokenResult = await mockSdkHost.quickAuth.getToken();
+                            
+                              if (tokenResult?.token) {
+                                steps[steps.length - 1] = { 
+                                  step: 'Test Our Quick Auth System', 
+                                  status: 'success', 
+                                  details: 'Full Quick Auth flow completed successfully!',
+                                  data: {
+                                    tokenLength: tokenResult.token.length,
+                                    tokenPrefix: tokenResult.token.substring(0, 50),
+                                    logs: quickAuthLogs,
+                                    fullResult: tokenResult,
+                                  },
+                                };
+                                
+                                // Try to decode token (if it's a JWT)
+                                try {
+                                  const parts = tokenResult.token.split('.');
+                                  if (parts.length === 3) {
+                                    const header = JSON.parse(atob(parts[0]));
+                                    const payload = JSON.parse(atob(parts[1]));
+                                    steps.push({ 
+                                      step: 'Decode token', 
+                                      status: 'success', 
+                                      details: `Token is valid JWT. Domain: ${payload.domain || 'N/A'}, Expires: ${payload.exp ? new Date(payload.exp * 1000).toISOString() : 'unknown'}`,
+                                      data: {
+                                        header,
+                                        payload,
+                                        signature: parts[2].substring(0, 20) + '...',
+                                      },
+                                    });
+                                    setQuickAuthTest({ 
+                                      status: 'success', 
+                                      steps: [...steps],
+                                      token: tokenResult.token,
+                                      tokenDetails: {
+                                        isValid: true,
+                                        domain: payload.domain,
+                                        expiresAt: payload.exp ? new Date(payload.exp * 1000).toISOString() : undefined,
+                                        payload,
+                                      },
+                                    });
+                                    console.log = originalLog;
+                                    return;
+                                  }
+                                } catch (decodeError) {
+                                  // Not a JWT, that's okay
                                   steps.push({ 
                                     step: 'Decode token', 
                                     status: 'success', 
-                                    details: `Token is valid JWT. Expires: ${payload.exp ? new Date(payload.exp * 1000).toISOString() : 'unknown'}`,
-                                  });
-                                  setQuickAuthTest({ 
-                                    status: 'success', 
-                                    steps: [...steps],
-                                    token: result.token,
-                                    tokenDetails: {
-                                      isValid: true,
-                                      expiresAt: payload.exp ? new Date(payload.exp * 1000).toISOString() : undefined,
-                                      payload,
+                                    details: 'Token received (not a JWT)',
+                                    data: {
+                                      decodeError:
+                                        decodeError instanceof Error
+                                          ? decodeError.message
+                                          : String(decodeError),
                                     },
                                   });
-                                  return;
                                 }
-                              } catch {
-                                // Not a JWT, that's okay
+                                
+                                setQuickAuthTest({ 
+                                  status: 'success', 
+                                  steps: [...steps],
+                                  token: tokenResult.token,
+                                  tokenDetails: {
+                                    isValid: true,
+                                  },
+                                });
+                                console.log = originalLog;
+                                return;
+                              } else {
+                                throw new Error('getToken() returned no token');
                               }
-                              
-                              setQuickAuthTest({ 
-                                status: 'success', 
-                                steps: [...steps],
-                                token: result.token,
-                                tokenDetails: {
-                                  isValid: true,
-                                },
-                              });
-                              return;
-                            }
-                          } catch (error) {
-                            steps[steps.length - 1] = { 
-                              step: 'Verify Quick Auth setup', 
-                              status: 'error', 
-                              error: error instanceof Error ? error.message : 'Unknown error',
-                            };
-                          }
-                        } else {
-                          // Standalone mode - verify we have authenticator
-                          if (authenticatorManager) {
-                            steps[steps.length - 1] = { 
-                              step: 'Verify Quick Auth setup', 
-                              status: 'success', 
-                              details: 'Standalone mode: Authenticator manager available. Quick Auth will work when embedded mini-app calls sdk.quickAuth.getToken()',
-                            };
-                            setQuickAuthTest({ 
-                              status: 'success', 
-                              steps: [...steps],
-                            });
-                            return;
-                          } else {
-                            throw new Error('No authenticator manager available');
-                          }
+                        } catch (error) {
+                          const errorObj = error instanceof Error ? error : new Error(String(error));
+                          steps[steps.length - 1] = { 
+                            step: 'Test Our Quick Auth System', 
+                            status: 'error', 
+                            error: errorObj.message,
+                            errorStack: errorObj.stack,
+                            data: {
+                              errorType: errorObj.constructor.name,
+                              errorName: errorObj.name,
+                              fullError: JSON.stringify(errorObj, Object.getOwnPropertyNames(errorObj), 2),
+                              logs: quickAuthLogs,
+                            },
+                          };
+                          setQuickAuthTest({ 
+                            status: 'error', 
+                            steps: [...steps],
+                          });
+                        } finally {
+                          console.log = originalLog;
                         }
                       } catch (error) {
+                        const errorObj = error instanceof Error ? error : new Error(String(error));
                         const lastStep = steps[steps.length - 1];
                         if (lastStep) {
                           lastStep.status = 'error';
-                          lastStep.error = error instanceof Error ? error.message : 'Unknown error';
+                          lastStep.error = errorObj.message;
+                          lastStep.errorStack = errorObj.stack;
+                          lastStep.data = {
+                            errorType: errorObj.constructor.name,
+                            errorName: errorObj.name,
+                            fullError: JSON.stringify(errorObj, Object.getOwnPropertyNames(errorObj), 2),
+                          };
                         }
                         setQuickAuthTest({ 
                           status: 'error', 
@@ -585,7 +686,25 @@ Mini-App #${app.index} (${app.id || "Unknown"})
                               <div className="ml-6 text-gray-400 text-xs">{step.details}</div>
                             )}
                             {step.error && (
-                              <div className="ml-6 text-red-400 text-xs">{step.error}</div>
+                              <div className="ml-6 text-red-400 text-xs mt-1">
+                                <div className="font-semibold">Error: {step.error}</div>
+                                {step.errorStack && (
+                                  <details className="mt-1">
+                                    <summary className="cursor-pointer text-red-300">Stack trace</summary>
+                                    <pre className="mt-1 text-xs font-mono whitespace-pre-wrap break-all bg-red-950/50 p-2 rounded overflow-x-auto">
+                                      {step.errorStack}
+                                    </pre>
+                                  </details>
+                                )}
+                              </div>
+                            )}
+                            {step.data && (
+                              <details className="ml-6 mt-1">
+                                <summary className="cursor-pointer text-blue-400 text-xs">View data</summary>
+                                <pre className="mt-1 text-xs font-mono whitespace-pre-wrap break-all bg-gray-900 p-2 rounded overflow-x-auto max-h-48 overflow-y-auto">
+                                  {JSON.stringify(step.data, null, 2)}
+                                </pre>
+                              </details>
                             )}
                           </div>
                         ))}
@@ -686,8 +805,13 @@ Mini-App #${app.index} (${app.id || "Unknown"})
                               </div>
                             )}
                             {debugInfo.setupError && (
-                              <div className="text-red-400 text-xs">
+                              <div className="text-red-400 text-xs mt-2 p-2 bg-red-900/20 rounded">
                                 <strong>Setup Error:</strong> {debugInfo.setupError}
+                              </div>
+                            )}
+                            {app.setupError && (
+                              <div className="text-red-400 text-xs mt-2 p-2 bg-red-900/20 rounded">
+                                <strong>Comlink Setup Error:</strong> {app.setupError}
                               </div>
                             )}
                           </>
@@ -695,6 +819,22 @@ Mini-App #${app.index} (${app.id || "Unknown"})
                         <div className="text-xs text-gray-400 mt-1 pt-1 border-t border-gray-700">
                           Context provided via Comlink (sdk.context from @farcaster/miniapp-sdk)
                         </div>
+                        {app.quickAuthDomain && (
+                          <div className="text-xs text-gray-400 mt-1">
+                            <strong>Quick Auth Domain:</strong> {app.quickAuthDomain}
+                          </div>
+                        )}
+                        {app.postMessageOrigin && (
+                          <div className="text-xs text-gray-400 mt-1">
+                            <strong>PostMessage Origin:</strong> {app.postMessageOrigin}
+                          </div>
+                        )}
+                        <details className="mt-2">
+                          <summary className="cursor-pointer text-blue-400 text-xs">View full context data</summary>
+                          <pre className="mt-1 text-xs font-mono whitespace-pre-wrap break-all bg-gray-950 p-2 rounded overflow-x-auto max-h-32 overflow-y-auto">
+                            {JSON.stringify(contextForEmbedded, null, 2)}
+                          </pre>
+                        </details>
                       </div>
                     </div>
                   );
@@ -755,11 +895,34 @@ Mini-App #${app.index} (${app.id || "Unknown"})
                 </ul>
               </div>
               <div>
+                <strong className="text-gray-200">To verify Quick Auth works:</strong>
+                <ul className="list-disc list-inside mt-1 space-y-1 ml-2">
+                  <li>Click &quot;Test Quick Auth Flow&quot; button above to test prerequisites and flow</li>
+                  <li>From within an embedded mini-app, call: <code className="bg-gray-900 px-1 rounded">await sdk.quickAuth.getToken()</code></li>
+                  <li>Check browser console for Quick Auth logs: <code className="bg-gray-900 px-1 rounded">[Quick Auth]</code></li>
+                  <li>Verify token is a valid JWT (3 parts separated by dots)</li>
+                  <li>Check token expiration (should be ~1 hour from issue time)</li>
+                  <li>If CSP errors occur, ensure <code className="bg-gray-900 px-1 rounded">https://auth.farcaster.xyz</code> is allowed in CSP headers</li>
+                </ul>
+              </div>
+              <div>
+                <strong className="text-gray-200">Quick Auth Flow (matches Farcaster SDK):</strong>
+                <ol className="list-decimal list-inside mt-1 space-y-1 ml-2">
+                  <li><code className="bg-gray-900 px-1 rounded">generateNonce()</code> - Get nonce from auth.farcaster.xyz</li>
+                  <li><code className="bg-gray-900 px-1 rounded">signIn({`{nonce}`})</code> - Sign SIWE message with Farcaster authenticator</li>
+                  <li><code className="bg-gray-900 px-1 rounded">verifySiwf()</code> - Verify signature and get JWT token</li>
+                  <li>Token is cached per iframe (reused if valid)</li>
+                </ol>
+              </div>
+              <div>
                 <strong className="text-gray-200">Common issues:</strong>
                 <ul className="list-disc list-inside mt-1 space-y-1 ml-2">
                   <li>No contentWindow: iframe not loaded yet, wait for load event</li>
                   <li>Origin errors: URL parsing failed, check iframe src/srcdoc</li>
                   <li>No context: SDK not initialized or not running in mini-app</li>
+                  <li>CSP blocking auth.farcaster.xyz: Update Content Security Policy headers</li>
+                  <li>No authenticator: AuthenticatorManager must be available for standalone mode</li>
+                  <li>User not logged in: User FID required for Quick Auth</li>
                 </ul>
               </div>
             </div>

@@ -12,6 +12,24 @@ import type { Context } from "@farcaster/miniapp-core";
 import { expose, windowEndpoint } from "comlink";
 
 /**
+ * Create a minimal fallback context when the real SDK context is not available
+ * This allows embedded mini-apps to work even when Nounspace is not embedded in a Farcaster client
+ */
+function createFallbackContext(): Context.MiniAppContext {
+  return {
+    client: {
+      version: "1.0.0",
+      platform: typeof window !== 'undefined' ? 'web' : 'unknown',
+    },
+    user: undefined, // No user when not in Farcaster client
+    location: {
+      type: "launcher",
+    },
+    features: {},
+  };
+}
+
+/**
  * Extract EventSource type from Comlink's windowEndpoint function signature
  * windowEndpoint(context: EventSource, ...) uses EventSource as its second parameter
  * This is the proper way to get the type since it's not directly exported
@@ -114,28 +132,26 @@ export function createMiniAppSdkHost(
   // const tokenCache: QuickAuthTokenCache | undefined = iframe ? quickAuthCache.get(iframe) : undefined;
   
   // Create actions object first so we can reference signIn from quickAuth
-  const actions = {
-    async ready(options?: { disableNativeGestures?: boolean }): Promise<void> {
-        // Stub - in a real implementation, this would hide splash screen
-        // For embedded apps, we don't have a splash screen to hide
-        return Promise.resolve();
-      },
-      
-      async close(): Promise<void> {
-        // Stub - in a real implementation, this would close the mini-app
-        // For embedded apps, we can't close the parent window
-        return Promise.resolve();
-      },
-      
-      async signIn(signInOptions: { nonce: string; acceptAuthAddress?: boolean; notBefore?: string; expirationTime?: string }): Promise<{ result: { signature: string; message: string; authMethod: 'custody' | 'authAddress' } } | { error: { type: 'rejected_by_user' } }> {
+  // Wrap signIn to ensure it always returns a valid response, even if there's an unexpected error
+  const signInImpl = async (signInOptions: { nonce: string; acceptAuthAddress?: boolean; notBefore?: string; expirationTime?: string }): Promise<{ result: { signature: string; message: string; authMethod: 'custody' | 'authAddress' } } | { error: { type: 'rejected_by_user' } }> => {
         // Implement signIn to return SIWE message and signature for Quick Auth
         // This matches what the SDK expects from miniAppHost.signIn()
         // The SDK's quickAuth.getToken() calls this to get a SIWE message and signature
+        
+        console.log('[Quick Auth] signIn called with options:', {
+          nonce: signInOptions.nonce,
+          acceptAuthAddress: signInOptions.acceptAuthAddress,
+          hasUserFid: !!context.user?.fid,
+          hasAuthenticatorManager: !!options?.authenticatorManager,
+        });
+        
         if (!context.user?.fid) {
+          console.warn('[Quick Auth] signIn: No user FID in context');
           return { error: { type: 'rejected_by_user' } };
         }
         
         if (!options?.authenticatorManager) {
+          console.warn('[Quick Auth] signIn: No authenticator manager available');
           return { error: { type: 'rejected_by_user' } };
         }
         
@@ -144,8 +160,9 @@ export function createMiniAppSdkHost(
         try {
           const { SiweMessage } = await import('siwe');
           
-          // Get domain from iframe or current window
-          const signInDomain = domain || (typeof window !== 'undefined' ? window.location.hostname : 'localhost');
+          // For Quick Auth, the domain should be OUR domain (where the user is signing in),
+          // NOT the embedded app's domain. The token will be scoped to our domain.
+          const signInDomain = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
           
           // Get Ethereum address if available
           let signerAddress = '0x0000000000000000000000000000000000000000';
@@ -161,6 +178,7 @@ export function createMiniAppSdkHost(
           }
           
           // Construct SIWE message
+          // Domain should be OUR domain (where user is signing in), not the embedded app's domain
           const siweMessage = new SiweMessage({
             domain: signInDomain,
             address: signerAddress,
@@ -205,7 +223,48 @@ export function createMiniAppSdkHost(
             },
           };
         } catch (error) {
-          console.error('Sign in error:', error);
+          const errorObj = error instanceof Error ? error : new Error(String(error));
+          console.error('[Quick Auth] Sign in error:', {
+            message: errorObj.message,
+            name: errorObj.name,
+            stack: errorObj.stack,
+            fullError: errorObj,
+            signInOptions,
+            domain: signInDomain,
+            signerAddress,
+          });
+          // Always return a valid error response - never throw or return undefined
+          return { error: { type: 'rejected_by_user' } };
+        }
+  };
+  
+  const actions = {
+    async ready(options?: { disableNativeGestures?: boolean }): Promise<void> {
+        // Stub - in a real implementation, this would hide splash screen
+        // For embedded apps, we don't have a splash screen to hide
+        return Promise.resolve();
+      },
+      
+      async close(): Promise<void> {
+        // Stub - in a real implementation, this would close the mini-app
+        // For embedded apps, we can't close the parent window
+        return Promise.resolve();
+      },
+      
+      async signIn(signInOptions: { nonce: string; acceptAuthAddress?: boolean; notBefore?: string; expirationTime?: string }): Promise<{ result: { signature: string; message: string; authMethod: 'custody' | 'authAddress' } } | { error: { type: 'rejected_by_user' } }> {
+        // Wrap the implementation to ensure it always returns a valid response
+        // This prevents undefined from being returned, which would cause the SDK to fail
+        try {
+          const result = await signInImpl(signInOptions);
+          // Ensure we never return undefined
+          if (!result) {
+            console.error('[Quick Auth] signIn wrapper: signInImpl returned undefined');
+            return { error: { type: 'rejected_by_user' } };
+          }
+          return result;
+        } catch (error) {
+          console.error('[Quick Auth] signIn wrapper: Unexpected error', error);
+          // Always return a valid error response - never throw or return undefined
           return { error: { type: 'rejected_by_user' } };
         }
       },
@@ -317,33 +376,82 @@ export function createMiniAppSdkHost(
           });
           
           // Step 1: Generate nonce (same as SDK)
+          console.log('[Quick Auth] Step 1: Generating nonce from auth.farcaster.xyz');
           const { nonce } = await quickAuthClient.generateNonce();
+          console.log('[Quick Auth] Step 1: Nonce generated:', nonce);
           
           // Step 2: Call our signIn implementation (same as SDK calls miniAppHost.signIn)
-          const signInResponse = await actions.signIn({
-            nonce,
-            acceptAuthAddress: true,
-          });
+          console.log('[Quick Auth] Step 2: Calling signIn with nonce:', nonce);
+          let signInResponse: Awaited<ReturnType<typeof actions.signIn>>;
+          try {
+            signInResponse = await actions.signIn({
+              nonce,
+              acceptAuthAddress: true,
+            });
+          } catch (error) {
+            console.error('[Quick Auth] Step 2: signIn threw an error (should not happen)', error);
+            throw new Error(`Sign in failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          }
+          
+          // Defensive check: ensure signInResponse is defined
+          if (!signInResponse) {
+            console.error('[Quick Auth] Step 2: signIn returned undefined');
+            throw new Error('Sign in failed: no response from signIn');
+          }
           
           // Type guard for discriminated union: check if 'error' property exists
           if ('error' in signInResponse) {
+            console.error('[Quick Auth] Step 2: Sign in rejected:', signInResponse.error);
             throw new Error('Sign in rejected');
           }
+          
+          // Defensive check: ensure result property exists
+          if (!signInResponse.result) {
+            console.error('[Quick Auth] Step 2: signIn response missing result property', signInResponse);
+            throw new Error('Sign in failed: response missing result property');
+          }
+          
+          console.log('[Quick Auth] Step 2: Sign in successful', {
+            messageLength: signInResponse.result.message.length,
+            signatureLength: signInResponse.result.signature.length,
+            authMethod: signInResponse.result.authMethod,
+            messagePreview: signInResponse.result.message.substring(0, 100) + '...',
+          });
           
           // TypeScript now knows signInResponse has result property
           // Step 3: Parse SIWE message to get domain (same as SDK)
           // SiweMessage constructor can parse a message string
+          console.log('[Quick Auth] Step 3: Parsing SIWE message');
           const parsedSiwe = new SiweMessage(signInResponse.result.message);
           
           if (!parsedSiwe.domain) {
+            console.error('[Quick Auth] Step 3: Missing domain on SIWE message', parsedSiwe);
             throw new Error('Missing domain on SIWE message');
           }
           
+          console.log('[Quick Auth] Step 3: SIWE message parsed', {
+            domain: parsedSiwe.domain,
+            address: parsedSiwe.address,
+            uri: parsedSiwe.uri,
+            nonce: parsedSiwe.nonce,
+          });
+          
           // Step 4: Verify SIWE and get token (same as SDK)
+          console.log('[Quick Auth] Step 4: Verifying SIWF and getting token', {
+            domain: parsedSiwe.domain,
+            messageLength: signInResponse.result.message.length,
+            signatureLength: signInResponse.result.signature.length,
+            fullMessage: signInResponse.result.message,
+            fullSignature: signInResponse.result.signature,
+          });
           const verifyResult = await quickAuthClient.verifySiwf({
             domain: parsedSiwe.domain,
             message: signInResponse.result.message,
             signature: signInResponse.result.signature,
+          });
+          console.log('[Quick Auth] Step 4: Token received', {
+            tokenLength: verifyResult.token.length,
+            tokenPrefix: verifyResult.token.substring(0, 50) + '...',
           });
           
           // Cache the token
@@ -356,9 +464,47 @@ export function createMiniAppSdkHost(
           
           return { token: verifyResult.token };
         } catch (error) {
-          console.error('Quick Auth token fetch failed:', error);
+          const errorObj = error instanceof Error ? error : new Error(String(error));
+          
+          // Try to extract more details from the error
+          const errorDetails: any = {
+            message: errorObj.message,
+            name: errorObj.name,
+            stack: errorObj.stack,
+          };
+          
+          // Check if error has response property (common in fetch-based errors)
+          if ((error as any).response) {
+            errorDetails.response = {
+              status: (error as any).response.status,
+              statusText: (error as any).response.statusText,
+              url: (error as any).response.url,
+            };
+            // Try to get response body if available
+            try {
+              if ((error as any).response.body) {
+                errorDetails.responseBody = await (error as any).response.text();
+              }
+            } catch {
+              // Ignore errors reading response body
+            }
+          }
+          
+          // Check for other common error properties
+          if ((error as any).status) errorDetails.status = (error as any).status;
+          if ((error as any).statusText) errorDetails.statusText = (error as any).statusText;
+          if ((error as any).url) errorDetails.url = (error as any).url;
+          if ((error as any).body) errorDetails.body = (error as any).body;
+          
+          // Log all error properties
+          console.error('[Quick Auth] Token fetch failed:', {
+            ...errorDetails,
+            allErrorProperties: Object.keys(error),
+            fullError: errorObj,
+          });
+          
           throw new Error(
-            `Failed to get Quick Auth token: ${error instanceof Error ? error.message : 'Unknown error'}`
+            `Failed to get Quick Auth token: ${errorObj.message}${errorObj.stack ? `\nStack: ${errorObj.stack}` : ''}`
           );
         }
       },

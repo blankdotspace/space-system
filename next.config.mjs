@@ -52,6 +52,7 @@ const cspHeader = `
       https://eth-mainnet.g.alchemy.com
       https://cloudflare-eth.com
       https://api.coingecko.com
+      https://auth.farcaster.xyz
       https://stream.warpcast.com
       https://stream.farcaster.xyz
       https://res.cloudinary.com/

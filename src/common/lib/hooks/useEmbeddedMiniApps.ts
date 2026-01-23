@@ -39,29 +39,8 @@ export function useEmbeddedMiniApps() {
 
         // Context is provided via the official SDK API (sdk.context)
         // The SDK uses Comlink to communicate with the parent via postMessage
-        // We cannot directly extract context from the iframe, but we can detect
-        // if a bootstrap doc is present (which may contain SDK initialization)
+        // We cannot directly extract context from the iframe
         const hasBootstrapDoc = !!srcDoc;
-
-        // Try to extract target URL from bootstrap document
-        let targetUrl: string | null = null;
-        if (srcDoc && !url) {
-          // Bootstrap doc contains: window.location.replace("TARGET_URL")
-          // Try to extract it with regex
-          const match = srcDoc.match(/window\.location\.replace\(["']([^"']+)["']\)/);
-          if (match && match[1]) {
-            try {
-              const parsed = new URL(match[1]);
-              targetUrl = parsed.origin + parsed.pathname;
-            } catch {
-              targetUrl = match[1]; // Use as-is if URL parsing fails
-            }
-          }
-        }
-
-        // Note: We cannot directly access the context that the mini-app receives
-        // because it's provided via Comlink postMessage. The mini-app must use
-        // sdk.context from @farcaster/miniapp-sdk to access it.
 
         // Normalize URL with error handling for malformed/relative URLs
         let normalizedUrl: string;
@@ -69,17 +48,16 @@ export function useEmbeddedMiniApps() {
           try {
             normalizedUrl = new URL(url).origin + new URL(url).pathname;
           } catch {
-            // Fall back to targetUrl or sentinel if URL parsing fails
-            normalizedUrl = targetUrl || "N/A (bootstrap doc - check redirect)";
+            normalizedUrl = "N/A (invalid URL)";
           }
         } else {
-          normalizedUrl = targetUrl || "N/A (bootstrap doc - check redirect)";
+          normalizedUrl = "N/A (no src)";
         }
 
         return {
           id,
           url: normalizedUrl,
-          srcDoc: srcDoc ? "Present (bootstrap doc)" : null,
+          srcDoc: srcDoc ? "Present" : null,
           contextProvided: null, // Cannot extract - context is provided via SDK API
           hasBootstrapDoc,
         };
