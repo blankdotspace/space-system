@@ -10,7 +10,12 @@
 
 import type { Context } from "@farcaster/miniapp-core";
 import { expose, Endpoint } from "comlink";
-import type { EventSource } from "comlink/protocol";
+
+/**
+ * EventSource interface - matches what Comlink's Endpoint extends
+ * Endpoint extends EventSource, so we extract the event listener methods
+ */
+type EventSource = Pick<Endpoint, 'addEventListener' | 'removeEventListener'>;
 
 /**
  * Quick Auth token cache
