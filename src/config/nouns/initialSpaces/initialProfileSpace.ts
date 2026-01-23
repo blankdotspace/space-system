@@ -40,25 +40,47 @@ const createInitialProfileSpaceConfigForFid = (
       fidgetType: "Portfolio",
       id: "Portfolio:cd627e89-d661-4255-8c4c-2242a950e93e",
     },
+    "BuilderScore:profile": {
+      config: {
+        editable: false,
+        settings: {
+          fid: String(fid),
+        },
+        data: {},
+      },
+      fidgetType: "BuilderScore",
+      id: "BuilderScore:profile",
+    },
+    "Top8:profile": {
+      config: {
+        editable: false,
+        settings: {
+          username: username ?? "",
+        },
+        data: {},
+      },
+      fidgetType: "Top8",
+      id: "Top8:profile",
+    },
   };
   const layoutItems = [
     {
-      w: 6,
+      w: 4,
       h: 8,
       x: 0,
       y: 0,
       i: "feed:profile",
       minW: 4,
       maxW: 36,
-      minH: 6,
+      minH: 2,
       maxH: 36,
       moved: false,
       static: false,
     },
     {
-      w: 6,
+      w: 4,
       h: 8,
-      x: 7,
+      x: 4,
       y: 0,
       i: "Portfolio:cd627e89-d661-4255-8c4c-2242a950e93e",
       minW: 3,
@@ -67,7 +89,33 @@ const createInitialProfileSpaceConfigForFid = (
       maxH: 36,
       moved: false,
       static: false,
-      }
+    },
+    {
+      w: 4,
+      h: 3,
+      x: 8,
+      y: 0,
+      i: "BuilderScore:profile",
+      minW: 3,
+      maxW: 36,
+      minH: 2,
+      maxH: 36,
+      moved: false,
+      static: false,
+    },
+    {
+      w: 4,
+      h: 5,
+      x: 8,
+      y: 3,
+      i: "Top8:profile",
+      minW: 4,
+      maxW: 36,
+      minH: 5,
+      maxH: 36,
+      moved: false,
+      static: false,
+    },
   ];
 
   // Set the layout configuration

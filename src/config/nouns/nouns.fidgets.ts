@@ -13,6 +13,7 @@ export const nounsFidgets = {
     'profile',
     'snapshot',
     'swap',
+    'uniswap',
     'rss',
     'market',
     'portfolio',

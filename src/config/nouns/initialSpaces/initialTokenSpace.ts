@@ -19,20 +19,18 @@ export const createInitialTokenSpaceConfigForAddress = (
   const config = deepClone(INITIAL_SPACE_CONFIG_EMPTY);
 
   config.fidgetInstanceDatums = {
-    "Swap:f9e0259a-4524-4b37-a261-9f3be26d4af1": {
+    "Uniswap:f9e0259a-4524-4b37-a261-9f3be26d4af1": {
       config: {
         data: {},
         editable: true,
         settings: {
-          defaultBuyToken: address,
-          defaultSellToken: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-          fromChain: getNetworkWithId(network),
-          toChain: getNetworkWithId(network),
-          size: 0.8,
+          inputCurrency: "NATIVE",
+          outputCurrency: address,
+          chain: getNetworkWithId(network),
         },
       },
-      fidgetType: "Swap",
-      id: "Swap:f9e0259a-4524-4b37-a261-9f3be26d4af1",
+      fidgetType: "Uniswap",
+      id: "Uniswap:f9e0259a-4524-4b37-a261-9f3be26d4af1",
     },
     ...(isClankerToken &&
       castHash &&
@@ -107,7 +105,8 @@ export const createInitialTokenSpaceConfigForAddress = (
           fidgetBorderColor: "var(--user-theme-fidget-border-color)",
           fidgetBorderWidth: "var(--user-theme-fidget-border-width)",
           fidgetShadow: "var(--user-theme-fidget-shadow)",
-          headingsFontFamily: "'__Inter_d65c78', '__Inter_Fallback_d65c78'",
+          headingsFontFamily: "Theme Headings Font",
+          fontFamily: "Theme Font",
           itemBackground: "#e0eeff",
           links: [
             ...(isClankerToken
@@ -196,7 +195,7 @@ export const createInitialTokenSpaceConfigForAddress = (
           },
           {
             h: 5,
-            i: "Swap:f9e0259a-4524-4b37-a261-9f3be26d4af1",
+            i: "Uniswap:f9e0259a-4524-4b37-a261-9f3be26d4af1",
             maxH: 36,
             maxW: 36,
             minH: 3,
@@ -310,7 +309,7 @@ export const createInitialTokenSpaceConfigForAddress = (
           },
           {
             h: 5,
-            i: "Swap:f9e0259a-4524-4b37-a261-9f3be26d4af1",
+            i: "Uniswap:f9e0259a-4524-4b37-a261-9f3be26d4af1",
             maxH: 36,
             maxW: 36,
             minH: 3,

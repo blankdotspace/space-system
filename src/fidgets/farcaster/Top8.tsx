@@ -64,7 +64,7 @@ const Top8: React.FC<FidgetArgs<Top8FidgetSettings>> = ({
   } = settings;
 
   const trimmedUsername = username?.trim() || "nounspacetom";
-  const iframeUrl = `https://farcaster-top-8-frie-c060.bolt.host/${encodeURIComponent(trimmedUsername)}`;
+  const iframeUrl = `https://top8-pi.vercel.app/${encodeURIComponent(trimmedUsername)}`;
 
   return (
     <div

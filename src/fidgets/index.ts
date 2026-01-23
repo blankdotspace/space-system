@@ -16,6 +16,7 @@ import Links from "./ui/Links";
 import snapShot from "./snapshot/SnapShot";
 import Swap from "./swap/Swap";
 import CowSwap from "./swap/CowSwap";
+import UniswapSwap from "./uniswap/UniswapSwap";
 import rss from "./ui/rss";
 import VideoFidget from "./ui/Video";
 import marketData from "./token/marketData";
@@ -58,6 +59,7 @@ export const CompleteFidgets = {
   SnapShot: snapShot,
   Swap: Swap,
   CowSwap: CowSwap,
+  Uniswap: UniswapSwap,
   Rss: rss,
   Luma: Luma,
   Video: VideoFidget,
