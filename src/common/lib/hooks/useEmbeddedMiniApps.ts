@@ -63,11 +63,22 @@ export function useEmbeddedMiniApps() {
         // because it's provided via Comlink postMessage. The mini-app must use
         // sdk.context from @farcaster/miniapp-sdk to access it.
 
+        // Normalize URL with error handling for malformed/relative URLs
+        let normalizedUrl: string;
+        if (url) {
+          try {
+            normalizedUrl = new URL(url).origin + new URL(url).pathname;
+          } catch {
+            // Fall back to targetUrl or sentinel if URL parsing fails
+            normalizedUrl = targetUrl || "N/A (bootstrap doc - check redirect)";
+          }
+        } else {
+          normalizedUrl = targetUrl || "N/A (bootstrap doc - check redirect)";
+        }
+
         return {
           id,
-          url: url 
-            ? new URL(url).origin + new URL(url).pathname 
-            : targetUrl || "N/A (bootstrap doc - check redirect)",
+          url: normalizedUrl,
           srcDoc: srcDoc ? "Present (bootstrap doc)" : null,
           contextProvided: null, // Cannot extract - context is provided via SDK API
           hasBootstrapDoc,
