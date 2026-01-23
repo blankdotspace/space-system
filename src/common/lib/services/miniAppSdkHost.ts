@@ -310,7 +310,7 @@ export function createMiniAppSdkHost(
         console.log(`[Quick Auth] Using SDK pattern with our signIn implementation for domain: ${domain}`);
         try {
           const { createLightClient } = await import('@farcaster/quick-auth/light');
-          const { parseMessage } = await import('siwe');
+          const { SiweMessage } = await import('siwe');
           
           const quickAuthClient = createLightClient({
             origin: 'https://auth.farcaster.xyz',
@@ -330,7 +330,8 @@ export function createMiniAppSdkHost(
           }
           
           // Step 3: Parse SIWE message to get domain (same as SDK)
-          const parsedSiwe = parseMessage(signInResponse.result.message);
+          // SiweMessage constructor can parse a message string
+          const parsedSiwe = new SiweMessage(signInResponse.result.message);
           
           if (!parsedSiwe.domain) {
             throw new Error('Missing domain on SIWE message');
