@@ -52,9 +52,30 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
   
   if (!domain) {
     // Read host header directly (no middleware needed)
+    // Note: This uses Next.js headers() API which is NOT available in Edge Runtime
+    // For Edge Runtime routes, domain must be provided in context
     try {
-      const { headers } = await import('next/headers');
-      const headersList = await headers();
+      // Check if we're in Edge Runtime by trying to detect it
+      // Edge Runtime doesn't have Node.js globals like process.versions.node
+      // @ts-expect-error - EdgeRuntime is a global available in Edge Runtime
+      const isEdgeRuntime = typeof EdgeRuntime !== 'undefined' || 
+                           (typeof process !== 'undefined' && !process.versions?.node);
+      
+      if (isEdgeRuntime) {
+        // In Edge Runtime, we can't use headers() API
+        // Domain must be provided via context
+        // This should not happen if resolveMetadataBranding is used correctly
+        console.warn(
+          `[Config] Edge Runtime detected: domain must be provided in context. ` +
+          `Falling back to default: "${DEFAULT_COMMUNITY_ID}"`
+        );
+        return await loadSystemConfigById(DEFAULT_COMMUNITY_ID);
+      }
+      
+      // Only import next/headers if we're NOT in Edge Runtime
+      // This prevents Next.js from trying to bundle it for Edge Runtime routes
+      const headersModule = await import('next/headers');
+      const headersList = await headersModule.headers();
       const host = headersList.get('host') || headersList.get('x-forwarded-host');
       
       if (host) {
@@ -63,7 +84,7 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
         domain = normalizeDomain(host) ?? undefined;
       }
     } catch (error) {
-      // Not in request context (static generation/build time)
+      // Not in request context (static generation/build time) or Edge Runtime
       // This should not happen if layout is set to dynamic
       domain = undefined;
       console.error(`[Config] Failed to read headers (not in request context):`, error);
