@@ -14,7 +14,8 @@ import { BsCloud, BsCloudFill } from "react-icons/bs";
 import { useMiniApp } from "@/common/utils/useMiniApp";
 import { MINI_APP_PROVIDER_METADATA, MiniAppSdkContext } from "@/common/providers/MiniAppSdkProvider";
 import { useMiniAppSdk } from "@/common/lib/hooks/useMiniAppSdk";
-import { useAuthenticatorManager } from "@/authenticators/AuthenticatorManager";
+import { AuthenticatorContext } from "@/authenticators/AuthenticatorManager";
+import type { AuthenticatorManager } from "@/authenticators/AuthenticatorManager";
 import { setupComlinkHandler } from "@/common/lib/services/miniAppSdkHost";
 
 const DEFAULT_SANDBOX_RULES =
@@ -325,14 +326,8 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
   const sdkContextState = useContext(MiniAppSdkContext);
   const rawSdkInstance = sdkContextState?.sdk;
   
-  // Get authenticator manager for signing when standalone
-  let authenticatorManager: ReturnType<typeof useAuthenticatorManager> | null = null;
-  try {
-    authenticatorManager = useAuthenticatorManager();
-  } catch {
-    // Authenticator manager not available (e.g., not logged in)
-    authenticatorManager = null;
-  }
+  // Get authenticator manager from context (may be null if not inside AuthenticatorManagerProvider)
+  const authenticatorManager: AuthenticatorManager | null = useContext(AuthenticatorContext);
   
   // Use SDK context directly - no transformation
   // If we don't have context from SDK, we can't provide it to embedded apps
