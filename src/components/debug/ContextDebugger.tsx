@@ -102,8 +102,6 @@ export function ContextDebugger() {
         // Try to extract target URL from bootstrap doc if available
         let extractedUrl = app.url;
         if (typeof document !== 'undefined' && app.hasBootstrapDoc) {
-          // Use querySelectorAll and access by index to get the specific iframe
-          // The order should match the order in useEmbeddedMiniApps
           const iframes = document.querySelectorAll<HTMLIFrameElement>(`iframe[data-nounspace-context]`);
           const iframe = iframes[index];
           if (iframe?.srcdoc) {
@@ -119,7 +117,6 @@ export function ContextDebugger() {
           id: app.id,
           url: extractedUrl,
           hasBootstrapDoc: app.hasBootstrapDoc,
-          contextProvided: app.contextProvided,
         };
       }),
     };
@@ -157,9 +154,7 @@ ${debugInfo.embeddedMiniApps.length === 0
 Mini-App #${app.index} (${app.id || "Unknown"})
   URL: ${app.url || "N/A"}
   Bootstrap Doc: ${app.hasBootstrapDoc ? "✅ Yes" : "❌ No"}
-  Context Method: SDK API (sdk.context via Comlink)
-  Note: Mini-apps access context via @farcaster/miniapp-sdk
-  Context Detected: ${app.contextProvided ? JSON.stringify(app.contextProvided, null, 2) : "❌ Could not extract"}
+  Context: Provided via Comlink (sdk.context from @farcaster/miniapp-sdk)
 `).join("\n")}
 
 === End Debug Info ===`;
@@ -373,37 +368,17 @@ Mini-App #${app.index} (${app.id || "Unknown"})
                     <div className="space-y-1 text-gray-300">
                       {app.url && (
                         <div>
-                          <strong>URL:</strong> <span className="text-xs font-mono">{app.url}</span>
+                          <strong>URL:</strong> <span className="text-xs font-mono break-all">{app.url}</span>
                         </div>
                       )}
-                      {app.srcDoc && (
+                      {app.hasBootstrapDoc && (
                         <div>
-                          <strong>Bootstrap:</strong> <span className="text-green-400">✅ Yes</span>
+                          <strong>Bootstrap Doc:</strong> <span className="text-green-400">✅ Yes</span>
                         </div>
                       )}
-                      <div>
-                        <strong>Context Method:</strong>
-                        <div className="ml-2 mt-1">
-                          <span className="inline-block bg-blue-900 px-1 rounded text-xs">
-                            SDK API (sdk.context via Comlink)
-                          </span>
-                        </div>
-                        <div className="ml-2 mt-1 text-xs text-gray-400">
-                          Mini-apps access context via @farcaster/miniapp-sdk
-                        </div>
+                      <div className="text-xs text-gray-400 mt-1">
+                        Context provided via Comlink (sdk.context from @farcaster/miniapp-sdk)
                       </div>
-                      {app.contextProvided ? (
-                        <div>
-                          <strong>Context Detected:</strong>
-                          <pre className="text-xs mt-1 bg-gray-950 p-1 rounded overflow-x-auto max-h-24 overflow-y-auto">
-                            {JSON.stringify(app.contextProvided, null, 2)}
-                          </pre>
-                        </div>
-                      ) : (
-                        <div className="text-yellow-400 text-xs">
-                          ⚠️ Could not extract context from this iframe
-                        </div>
-                      )}
                     </div>
                   </div>
                 ))
@@ -436,4 +411,5 @@ Mini-App #${app.index} (${app.id || "Unknown"})
     </div>
   );
 }
+
 
