@@ -1,6 +1,6 @@
 import { SystemConfig } from "@/config";
 import { useMemo } from "react";
-import { extractFontFamilyFromUrl } from "../utils/fontUtils";
+import { resolveUiFontFamily } from "../utils/fontUtils";
 
 type UseUIColorsProps = {
   systemConfig?: SystemConfig;
@@ -39,7 +39,7 @@ export const useUIColors = ({ systemConfig }: UseUIColorsProps = {}) => {
         styles.getPropertyValue("--ns-background-color")?.trim() || undefined;
     }
 
-    const parsedFontFamily = extractFontFamilyFromUrl(ui?.url);
+    const resolvedFontFamily = resolveUiFontFamily(ui?.font);
     const castButton = {
       ...(ui?.castButton || {}),
       backgroundColor:
@@ -66,10 +66,9 @@ export const useUIColors = ({ systemConfig }: UseUIColorsProps = {}) => {
         ui?.castButtonFontColor ||
         cssCastButtonFontColor ||
         "#ffffff",
-      fontFamily: parsedFontFamily
-        ? `${parsedFontFamily}, var(--font-sans, sans-serif)`
+      fontFamily: resolvedFontFamily
+        ? `${resolvedFontFamily}, var(--font-sans, sans-serif)`
         : cssFontFamily || "var(--font-sans, Inter, system-ui, -apple-system, sans-serif)",
-      fontUrl: ui?.url,
       backgroundColor: ui?.backgroundColor || cssBackgroundColor || "#ffffff",
       primaryColor: ui?.primaryColor || "rgb(37, 99, 235)",
       primaryHoverColor: ui?.primaryHoverColor || "rgb(29, 78, 216)",

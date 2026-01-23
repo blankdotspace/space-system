@@ -37,7 +37,7 @@ export interface SystemConfig {
 }
 
 export interface UIConfig {
-  url?: string;
+  font?: string;
   fontColor?: string;
   castButtonFontColor?: string;
   backgroundColor?: string;

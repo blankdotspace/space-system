@@ -107,7 +107,8 @@ export const createInitialTokenSpaceConfigForAddress = (
           fidgetBorderColor: "var(--user-theme-fidget-border-color)",
           fidgetBorderWidth: "var(--user-theme-fidget-border-width)",
           fidgetShadow: "var(--user-theme-fidget-shadow)",
-          headingsFontFamily: "'__Inter_d65c78', '__Inter_Fallback_d65c78'",
+          headingsFontFamily: "Theme Headings Font",
+          fontFamily: "Theme Font",
           itemBackground: "#e0eeff",
           links: [
             ...(isClankerToken

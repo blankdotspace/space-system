@@ -7,40 +7,11 @@ import { loadSystemConfig, SystemConfig } from "@/config";
 import ClientMobileHeaderWrapper from "@/common/components/organisms/ClientMobileHeaderWrapper";
 import ClientSidebarWrapper from "@/common/components/organisms/ClientSidebarWrapper";
 import type { Metadata } from 'next' // Migrating next/head
-import { extractFontFamilyFromUrl } from "@/common/lib/utils/fontUtils";
+import { resolveUiFontFamily } from "@/common/lib/utils/fontUtils";
 import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
 import { resolveAssetUrl } from "@/common/lib/utils/resolveAssetUrl";
 import { buildMiniAppEmbed } from "@/common/lib/utils/miniAppEmbed";
 import { resolveMiniAppDomain } from "@/common/lib/utils/miniAppDomain";
-
-const TRUSTED_STYLESHEET_HOSTS = new Set(["fonts.googleapis.com"]);
-
-function validateStylesheetUrl(stylesheetUrl?: string | null): string | null {
-  if (!stylesheetUrl) {
-    return null;
-  }
-
-  try {
-    const parsedUrl = new URL(stylesheetUrl);
-    if (parsedUrl.protocol !== "https:") {
-      console.warn("Rejected non-https UI stylesheet URL", { stylesheetUrl });
-      return null;
-    }
-
-    if (!TRUSTED_STYLESHEET_HOSTS.has(parsedUrl.hostname)) {
-      console.warn("Rejected untrusted UI stylesheet URL", {
-        stylesheetUrl,
-        hostname: parsedUrl.hostname,
-      });
-      return null;
-    }
-
-    return parsedUrl.toString();
-  } catch (error) {
-    console.warn("Failed to parse UI stylesheet URL", { stylesheetUrl, error });
-    return null;
-  }
-}
 
 // Force dynamic rendering so metadata is generated at request time (not build time)
 // This ensures metadata matches the actual domain/community config at runtime
@@ -140,12 +111,10 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const systemConfig = await loadSystemConfig();
-  const validatedUiStylesheet = validateStylesheetUrl(systemConfig.ui?.url);
-  const navFontFamily = extractFontFamilyFromUrl(validatedUiStylesheet ?? undefined);
-  const navFontStack =
-    navFontFamily
-      ? `${navFontFamily}, var(--font-sans, Inter, system-ui, -apple-system, sans-serif)`
-      : "var(--font-sans, Inter, system-ui, -apple-system, sans-serif)";
+  const resolvedUiFontFamily = resolveUiFontFamily(systemConfig.ui?.font);
+  const navFontStack = resolvedUiFontFamily
+    ? `${resolvedUiFontFamily}, var(--font-sans, Inter, system-ui, -apple-system, sans-serif)`
+    : "var(--font-sans, Inter, system-ui, -apple-system, sans-serif)";
   const navFontColor = systemConfig.ui?.fontColor || "#0f172a";
   const castButtonFontColor =
     systemConfig.ui?.castButton?.fontColor ||
@@ -167,11 +136,7 @@ export default async function RootLayout({
   
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        {validatedUiStylesheet && (
-          <link rel="stylesheet" href={validatedUiStylesheet} />
-        )}
-      </head>
+      <head />
       <body
         style={
           {

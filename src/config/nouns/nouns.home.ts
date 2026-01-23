@@ -247,7 +247,7 @@ export const nounsHomePage = {
                 },
               ],
               viewMode: "list",
-              headingsFontFamily: "'Londrina Solid', 'Londrina Solid Fallback'",
+              headingsFontFamily: "Theme Headings Font",
               fontFamily: "Theme Font",
               HeaderColor: "var(--user-theme-headings-font-color)",
               DescriptionColor: "var(--user-theme-font-color)",

@@ -1,11 +1,10 @@
-export function extractFontFamilyFromUrl(fontUrl?: string): string | undefined {
-  if (!fontUrl) return undefined;
+import type { FontFamily } from "@/common/lib/theme";
+import { FONT_FAMILY_OPTIONS_BY_NAME } from "@/common/lib/theme/fonts";
 
-  const familyParam = fontUrl.split("family=")[1];
-  if (!familyParam) return undefined;
+export function resolveUiFontFamily(fontName?: FontFamily): string | undefined {
+  if (!fontName) return undefined;
 
-  const family = decodeURIComponent(familyParam.split("&")[0]).replace(/\+/g, " ");
-  const familyName = family.split(":")[0];
-
-  return familyName || undefined;
+  return (
+    FONT_FAMILY_OPTIONS_BY_NAME[fontName]?.config?.style?.fontFamily ?? fontName
+  );
 }
