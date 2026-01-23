@@ -52,5 +52,5 @@ export interface FarcasterSignerAuthenticatorMethods<
 }
 
 export default {
-  nounspace: NounspaceFarcasterAuthenticator,
+  blankspace: BlankspaceFarcasterAuthenticator,
 };
