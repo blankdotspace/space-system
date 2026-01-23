@@ -12,6 +12,7 @@ import { resolveBaseUrl } from "@/common/lib/utils/resolveBaseUrl";
 import { resolveAssetUrl } from "@/common/lib/utils/resolveAssetUrl";
 import { buildMiniAppEmbed } from "@/common/lib/utils/miniAppEmbed";
 import { resolveMiniAppDomain } from "@/common/lib/utils/miniAppDomain";
+import { ContextDebugger } from "@/components/debug/ContextDebugger";
 
 // Force dynamic rendering so metadata is generated at request time (not build time)
 // This ensures metadata matches the actual domain/community config at runtime
@@ -151,7 +152,10 @@ export default async function RootLayout({
         }
       >
         <SpeedInsights />
-        <Providers>{sidebarLayout(children, systemConfig)}</Providers>
+        <Providers>
+          {sidebarLayout(children, systemConfig)}
+          <ContextDebugger />
+        </Providers>
       </body>
     </html>
   );
