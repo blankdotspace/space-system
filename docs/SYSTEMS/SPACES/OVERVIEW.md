@@ -1,6 +1,6 @@
 # Space Architecture Overview
 
-Spaces are the core organizational unit in Nounspace, representing customizable hubs that users can personalize with themes, tabs, and fidgets. The system supports both public and private spaces with different data patterns and access controls.
+Spaces are the core organizational unit in Blankspace, representing customizable hubs that users can personalize with themes, tabs, and fidgets. The system supports both public and private spaces with different data patterns and access controls.
 
 **Related Documentation:**
 - [Space Architecture](SPACE_ARCHITECTURE.md) - Detailed architecture and tab management

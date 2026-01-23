@@ -1,6 +1,6 @@
 # Farcaster Integration
 
-Nounspace integrates deeply with the Farcaster protocol to provide social features and identity management.
+Blankspace integrates deeply with the Farcaster protocol to provide social features and identity management.
 
 ## Overview
 

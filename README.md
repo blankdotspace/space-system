@@ -1,4 +1,4 @@
-# nounspace
+# blankspace
 
 **Highly customizable [Farcaster](https://farcaster.xyz/) client, initially funded by a grant from [Nouns DAO](https://nouns.wtf/).** Customize the look, sound, content, and functionality of your public profile space and personal feed/homebase with **Themes**, **Tabs**, and a growing library of mini-apps called **Fidgets**.
 
@@ -15,8 +15,8 @@ a protocol for decentralized social apps: https://www.farcaster.xyz
 
 1. **Clone the repo**  
    ```bash
-   git clone https://github.com/Nounspace/nounspace.ts.git
-   cd nounspace.ts
+   git clone https://github.com/Blankspace/blankspace.ts.git
+   cd blankspace.ts
 2. **Install Supabase CLI**
    On Mac OS, for example:
    ```bash
@@ -74,7 +74,7 @@ a protocol for decentralized social apps: https://www.farcaster.xyz
   b. get an Alchemy API key https://www.alchemy.com -> `NEXT_PUBLIC_ALCHEMY_API_KEY` <br>
   c. get an Etherscan API key https://docs.etherscan.io/getting-started/ -> 'ETHERSCAN_API_KEY' <br>
   d. get a CoinGecko API key https://www.coingecko.com/en/api -> 'COINGECKO_API_KEY' <br>
-  e. get a Clanker API key https://github.com/clanker-devco/DOCS -> 'CLANKER_API_KEY' (dev portal coming soon; request a key from the nounspace or Clanker team for now) <br>
+  e. get a Clanker API key https://github.com/clanker-devco/DOCS -> 'CLANKER_API_KEY' (dev portal coming soon; request a key from the blankspace or Clanker team for now) <br>
   f. get a Youtube API key https://developers.google.com/youtube/v3 -> 'YOUTUBE_API_KEY' <br>
   g. get your Farcaster account FID and mnemonic -> `NEXT_PUBLIC_APP_FID` + `APP_MNEMONIC`<br>
   h. launch local copy of Supabase with `supabase start` (in the root directory of this repo), use the info provided -> <br>
@@ -112,12 +112,12 @@ The script will attempt to start Supabase automatically if Docker is running; ot
 
 ## Contributing and making Fidgets
 
-See the [contributing docs](docs/CONTRIBUTING.MD) for how to add to the code base. Register on [Scout Game](https://scoutgame.xyz/) to earn points for contributions to repos in the [nounspace org](https://github.com/Nounspace/).
+See the [contributing docs](docs/CONTRIBUTING.MD) for how to add to the code base. Register on [Scout Game](https://scoutgame.xyz/) to earn points for contributions to repos in the [blankspace org](https://github.com/Blankspace/).
 
 ## Code Design
 
-The Nounspace App follows the Atomic Design Pattern
-![atomic_design](https://github.com/Nounspace/nounspace.ts/assets/7180740/2c892612-c730-4e74-bd32-3e7a8a6babbb)
+The Blankspace App follows the Atomic Design Pattern
+![atomic_design](https://github.com/Blankspace/blankspace.ts/assets/7180740/2c892612-c730-4e74-bd32-3e7a8a6babbb)
 
 `src/pages` holds the Page elements of the atomic design. These are separated from `src/common` due to how Next.js handles routing.
 
@@ -139,7 +139,7 @@ This file structure is adapted from `herocast`, and not all files have been clea
 reminder: key is an edcsa key not a 'normal' EVM address
 
 ### License
-nounspace is released under the GPL-3.0 License. Feel free to fork and modify the project—just be sure any version you release uses the GPL-3.0 License too.
+blankspace is released under the GPL-3.0 License. Feel free to fork and modify the project—just be sure any version you release uses the GPL-3.0 License too.
 
-**Made with ❤️ by the Nounspace team & community.**
-Questions or feedback? Create a [Github issue](https://github.com/Nounspace/nounspace.ts/issues) or contact us in [Discord](https://discord.gg/eYQeXU2WuH)
+**Made with ❤️ by the Blankspace team & community.**
+Questions or feedback? Create a [Github issue](https://github.com/Blankspace/blankspace.ts/issues) or contact us in [Discord](https://discord.gg/eYQeXU2WuH)

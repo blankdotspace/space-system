@@ -1,6 +1,6 @@
-# Nounspace Documentation
+# Blankspace Documentation
 
-Nounspace is a highly customizable Farcaster client funded by Nouns DAO. This documentation covers the architecture, systems, and development patterns of the application.
+Blankspace is a highly customizable Farcaster client funded by Nouns DAO. This documentation covers the architecture, systems, and development patterns of the application.
 
 ## Quick Start
 

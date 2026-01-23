@@ -1,8 +1,8 @@
-# Nounspace - Instructions
+# Blankspace - Instructions
 
 ## 1. Overview
 
-Nounspace is a highly customizable [Farcaster](https://farcaster.xyz/) client, initially funded by a grant from [Nouns DAO](https://nouns.wtf/). The project aims to provide users with a unique social media experience where they can personalize their profile space and personal feed with Themes, Tabs, and mini-applications called Fidgets.
+Blankspace is a highly customizable [Farcaster](https://farcaster.xyz/) client, initially funded by a grant from [Nouns DAO](https://nouns.wtf/). The project aims to provide users with a unique social media experience where they can personalize their profile space and personal feed with Themes, Tabs, and mini-applications called Fidgets.
 
 ### Problem Statements
 - Traditional social media platforms offer limited customization options

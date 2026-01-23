@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This document provides a comprehensive overview of the Nounspace configuration architecture. The system has been refactored from a static, build-time TypeScript-based configuration system to a **dynamic, database-backed, multi-tenant runtime configuration system** that supports domain-based community detection.
+This document provides a comprehensive overview of the Blankspace configuration architecture. The system has been refactored from a static, build-time TypeScript-based configuration system to a **dynamic, database-backed, multi-tenant runtime configuration system** that supports domain-based community detection.
 
 ## Core Architectural Principles
 

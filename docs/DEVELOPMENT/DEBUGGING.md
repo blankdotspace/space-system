@@ -1,6 +1,6 @@
 # Debugging Guide
 
-This guide covers debugging strategies, tools, and techniques for the Nounspace codebase to help developers identify and resolve issues effectively.
+This guide covers debugging strategies, tools, and techniques for the Blankspace codebase to help developers identify and resolve issues effectively.
 
 ## Debugging Philosophy
 
