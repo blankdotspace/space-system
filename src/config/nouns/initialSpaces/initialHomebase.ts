@@ -2,16 +2,11 @@ import { SpaceConfig } from "@/app/(spaces)/Space";
 import DEFAULT_THEME from "@/common/lib/theme/defaultTheme";
 
 const tutorialText = `
-### 🖌️ Click the paintbrush in the bottom-left corner to open Customization Mode
+### Click the button above to open Customization Mode
 
-### Add Fidgets
-1. Click the blue **+** button.
-2. Drag a Fidget to an open spot on the grid.
-3. Click Save
-
-(after saving, scroll down here for more instructions)
-
-![Add Fidget2](https://space.mypinata.cloud/ipfs/bafkreiczpd2bzyoboj6uxr65kta5cmg3bziveq2nz5egx4fuxr2nmkthru)
+### Add Fidgets or Mini Apps
+1. Click an empty spot on your grid
+2. Select a fidget or mini app
 
 ### Customize Fidgets
 1. From customization mode, click any Fidget on the grid to open its settings.
