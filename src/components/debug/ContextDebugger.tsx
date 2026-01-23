@@ -35,6 +35,27 @@ export function ContextDebugger() {
     token: null,
     error: null,
   });
+
+  // Quick Auth verification state
+  const [quickAuthTest, setQuickAuthTest] = useState<{
+    status: 'idle' | 'testing' | 'success' | 'error';
+    steps: Array<{
+      step: string;
+      status: 'pending' | 'success' | 'error';
+      details?: string;
+      error?: string;
+    }>;
+    token?: string;
+    tokenDetails?: {
+      isValid: boolean;
+      domain?: string;
+      expiresAt?: string;
+      payload?: any;
+    };
+  }>({
+    status: 'idle',
+    steps: [],
+  });
   
   // Check quickAuth availability
   useEffect(() => {
@@ -397,6 +418,193 @@ Mini-App #${app.index} (${app.id || "Unknown"})
               {!quickAuthInfo.available && (
                 <div className="text-yellow-400 text-xs mt-2">
                   ⚠️ Quick Auth requires either a real SDK (when embedded) or an authenticator manager (when standalone)
+                </div>
+              )}
+              {quickAuthInfo.available && (
+                <div className="mt-3 pt-3 border-t border-gray-700">
+                  <button
+                    onClick={async () => {
+                      setQuickAuthTest({ status: 'testing', steps: [] });
+                      
+                      const steps: typeof quickAuthTest.steps = [];
+                      
+                      try {
+                        // Step 1: Check prerequisites
+                        steps.push({ step: 'Check prerequisites', status: 'pending' });
+                        setQuickAuthTest({ status: 'testing', steps: [...steps] });
+                        
+                        if (!sdkContext?.user?.fid) {
+                          throw new Error('User FID is required');
+                        }
+                        if (!authenticatorManager && !rawSdkInstance) {
+                          throw new Error('Authenticator manager or real SDK required');
+                        }
+                        steps[steps.length - 1] = { step: 'Check prerequisites', status: 'success', details: `User FID: ${sdkContext.user.fid}` };
+                        
+                        // Step 2: Get first embedded iframe for testing
+                        steps.push({ step: 'Get test iframe', status: 'pending' });
+                        setQuickAuthTest({ status: 'testing', steps: [...steps] });
+                        
+                        const iframes = document.querySelectorAll<HTMLIFrameElement>('iframe[data-nounspace-context]');
+                        if (iframes.length === 0) {
+                          throw new Error('No embedded mini-apps found. Add an iframe fidget to test Quick Auth.');
+                        }
+                        const testIframe = iframes[0];
+                        let testDomain: string;
+                        try {
+                          if (testIframe.src) {
+                            testDomain = new URL(testIframe.src).hostname;
+                          } else if (testIframe.srcdoc) {
+                            const match = testIframe.srcdoc.match(/window\.location\.replace\(["']([^"']+)["']\)/);
+                            if (match && match[1]) {
+                              testDomain = new URL(match[1]).hostname;
+                            } else {
+                              testDomain = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+                            }
+                          } else {
+                            testDomain = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+                          }
+                        } catch {
+                          testDomain = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+                        }
+                        steps[steps.length - 1] = { step: 'Get test iframe', status: 'success', details: `Domain: ${testDomain}` };
+                        
+                        // Step 3: Test Quick Auth flow (if we can access it)
+                        // Note: We can't directly call the SDK host's quickAuth from here
+                        // because it's only exposed via Comlink to the iframe
+                        // But we can verify the setup is correct
+                        steps.push({ step: 'Verify Quick Auth setup', status: 'pending' });
+                        setQuickAuthTest({ status: 'testing', steps: [...steps] });
+                        
+                        // Check if we have the real SDK's quickAuth
+                        if (rawSdkInstance && (rawSdkInstance as any).quickAuth) {
+                          try {
+                            const result = await (rawSdkInstance as any).quickAuth.getToken();
+                            if (result?.token) {
+                              steps[steps.length - 1] = { 
+                                step: 'Verify Quick Auth setup', 
+                                status: 'success', 
+                                details: 'Real SDK Quick Auth available and working',
+                              };
+                              
+                              // Try to decode token (if it's a JWT)
+                              try {
+                                const parts = result.token.split('.');
+                                if (parts.length === 3) {
+                                  const payload = JSON.parse(atob(parts[1]));
+                                  steps.push({ 
+                                    step: 'Decode token', 
+                                    status: 'success', 
+                                    details: `Token is valid JWT. Expires: ${payload.exp ? new Date(payload.exp * 1000).toISOString() : 'unknown'}`,
+                                  });
+                                  setQuickAuthTest({ 
+                                    status: 'success', 
+                                    steps: [...steps],
+                                    token: result.token,
+                                    tokenDetails: {
+                                      isValid: true,
+                                      expiresAt: payload.exp ? new Date(payload.exp * 1000).toISOString() : undefined,
+                                      payload,
+                                    },
+                                  });
+                                  return;
+                                }
+                              } catch {
+                                // Not a JWT, that's okay
+                              }
+                              
+                              setQuickAuthTest({ 
+                                status: 'success', 
+                                steps: [...steps],
+                                token: result.token,
+                                tokenDetails: {
+                                  isValid: true,
+                                },
+                              });
+                              return;
+                            }
+                          } catch (error) {
+                            steps[steps.length - 1] = { 
+                              step: 'Verify Quick Auth setup', 
+                              status: 'error', 
+                              error: error instanceof Error ? error.message : 'Unknown error',
+                            };
+                          }
+                        } else {
+                          // Standalone mode - verify we have authenticator
+                          if (authenticatorManager) {
+                            steps[steps.length - 1] = { 
+                              step: 'Verify Quick Auth setup', 
+                              status: 'success', 
+                              details: 'Standalone mode: Authenticator manager available. Quick Auth will work when embedded mini-app calls sdk.quickAuth.getToken()',
+                            };
+                            setQuickAuthTest({ 
+                              status: 'success', 
+                              steps: [...steps],
+                            });
+                            return;
+                          } else {
+                            throw new Error('No authenticator manager available');
+                          }
+                        }
+                      } catch (error) {
+                        const lastStep = steps[steps.length - 1];
+                        if (lastStep) {
+                          lastStep.status = 'error';
+                          lastStep.error = error instanceof Error ? error.message : 'Unknown error';
+                        }
+                        setQuickAuthTest({ 
+                          status: 'error', 
+                          steps: [...steps],
+                        });
+                      }
+                    }}
+                    disabled={quickAuthTest.status === 'testing' || !quickAuthInfo.available}
+                    className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-xs rounded transition-colors mt-2"
+                  >
+                    {quickAuthTest.status === 'testing' ? 'Testing...' : 'Test Quick Auth Flow'}
+                  </button>
+                  
+                  {quickAuthTest.status !== 'idle' && (
+                    <div className="mt-3 space-y-2">
+                      <div className="text-xs font-semibold text-gray-200">Test Results:</div>
+                      <div className="space-y-1">
+                        {quickAuthTest.steps.map((step, index) => (
+                          <div key={index} className="text-xs">
+                            <div className="flex items-center gap-2">
+                              <span>
+                                {step.status === 'pending' && '⏳'}
+                                {step.status === 'success' && '✅'}
+                                {step.status === 'error' && '❌'}
+                              </span>
+                              <span className={step.status === 'error' ? 'text-red-400' : step.status === 'success' ? 'text-green-400' : 'text-gray-400'}>
+                                {step.step}
+                              </span>
+                            </div>
+                            {step.details && (
+                              <div className="ml-6 text-gray-400 text-xs">{step.details}</div>
+                            )}
+                            {step.error && (
+                              <div className="ml-6 text-red-400 text-xs">{step.error}</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      {quickAuthTest.token && (
+                        <div className="mt-2 pt-2 border-t border-gray-700">
+                          <div className="text-xs text-gray-400 mb-1">Token (first 50 chars):</div>
+                          <div className="text-xs font-mono bg-gray-900 p-2 rounded break-all">
+                            {quickAuthTest.token.substring(0, 50)}...
+                          </div>
+                          {quickAuthTest.tokenDetails?.expiresAt && (
+                            <div className="text-xs text-gray-400 mt-1">
+                              Expires: {quickAuthTest.tokenDetails.expiresAt}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
