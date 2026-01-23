@@ -2,21 +2,9 @@ import { createSupabaseServerClient } from '@/common/data/database/supabase/clie
 import { Database } from '@/supabase/database';
 import { SystemConfig } from '../systemConfig';
 import { themes } from '../shared/themes';
+import { normalizeDomain } from '@/common/lib/utils/domain';
 
 export const DEFAULT_COMMUNITY_ID = 'nounspace.com';
-
-/**
- * Special domain mappings
- * 
- * Maps specific domains to community IDs, overriding normal domain resolution.
- * Useful for staging environments, special domains, etc.
- * 
- * Examples:
- * - staging.nounspace.com -> nounspace.com
- */
-const DOMAIN_TO_COMMUNITY_MAP: Record<string, string> = {
-  'staging.nounspace.com': DEFAULT_COMMUNITY_ID,
-};
 
 type CommunityConfigRow = Database['public']['Tables']['community_configs']['Row'];
 type CommunityDomainRow = Database['public']['Tables']['community_domains']['Row'];
@@ -27,23 +15,8 @@ type CommunityDomains = {
 };
 
 /**
- * Cache entry for SystemConfig lookups.
- *
- * Keeps a short-lived in-memory cache to reduce Supabase round-trips when the
- * same community is requested repeatedly (e.g., during navigation or asset loads).
- * Caches the final SystemConfig (transformed and ready to use).
- */
-type SystemConfigCacheEntry = {
-  expiresAt: number;
-  value: SystemConfig | null;
-};
-
-const SYSTEM_CONFIG_CACHE = new Map<string, SystemConfigCacheEntry>();
-const SYSTEM_CONFIG_CACHE_TTL_MS = 60_000;
-
-/**
  * Resolve community ID from domain.
- * Simple priority: special mapping → domain as-is
+ * Priority: community_domains table lookup → domain as community_id (legacy fallback)
  * Throws error if domain cannot be resolved (no default fallback).
  */
 function looksLikeDomain(value: string): boolean {
@@ -63,22 +36,32 @@ function inferDomainsFromCommunityId(communityId: string): CommunityDomains {
   return { customDomain: normalized };
 }
 
+/**
+ * Resolve community ID from domain.
+ * 
+ * Error Handling Strategy:
+ * - Returns string: Successfully resolved community ID
+ * - Throws Error: Invalid input or system/transient error (DB failure, network issue, etc.)
+ * 
+ * Resolution priority:
+ * 1) community_domains table lookup
+ * 2) Domain as community_id (legacy fallback)
+ * 
+ * @param domain - Domain string to resolve
+ * @returns Community ID string
+ * @throws Error if domain cannot be normalized or if a transient/system error occurs
+ */
 async function resolveCommunityIdFromDomain(domain: string): Promise<string> {
   const normalizedDomain = normalizeDomain(domain);
   
   if (!normalizedDomain) {
     throw new Error(
-      `❌ Cannot resolve community ID: domain "${domain}" normalized to empty string. ` +
+      `❌ Cannot resolve community ID: domain "${domain}" normalized to null. ` +
       `Domain must be a valid, non-empty value.`
     );
   }
-  
-  // Priority 1: Special domain mappings (from DOMAIN_TO_COMMUNITY_MAP)
-  if (normalizedDomain in DOMAIN_TO_COMMUNITY_MAP) {
-    return DOMAIN_TO_COMMUNITY_MAP[normalizedDomain];
-  }
 
-  // Priority 2: Community domain mappings (from community_domains table)
+  // Priority 1: Community domain mappings (from community_domains table)
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from('community_domains')
@@ -86,48 +69,27 @@ async function resolveCommunityIdFromDomain(domain: string): Promise<string> {
     .eq('domain', normalizedDomain)
     .maybeSingle();
 
-  if (error && error.code !== 'PGRST116') {
-    console.error(
-      `[Config] Failed to resolve community domain mapping for "${normalizedDomain}": ${error.message}`
-    );
+  if (error) {
+    // PGRST116 = no rows returned (legitimate "not found")
+    if (error.code === 'PGRST116') {
+      // Not found - continue to fallback (domain as community ID)
+    } else {
+      // Transient/system error - throw (fail fast, let Next.js handle retries)
+      throw new Error(
+        `❌ Failed to resolve community domain mapping for "${normalizedDomain}": ${error.message} ` +
+        `(Error code: ${error.code}). This may be a network issue or database problem.`
+      );
+    }
   }
 
   if (data?.community_id) {
     return data.community_id;
   }
   
-  // Priority 3: Domain as community ID (legacy fallback)
+  // Priority 2: Domain as community ID (legacy fallback)
   return normalizedDomain;
 } 
 
-/**
- * Normalize an incoming domain/host value for consistent resolution.
- *
- * - Lowercases the domain
- * - Strips any port numbers
- * - Removes a leading `www.` prefix when present
- */
-export function normalizeDomain(domain: string): string {
-  if (!domain) return '';
-
-  const trimmed = domain.trim().toLowerCase();
-  if (!trimmed) return '';
-
-  const candidate =
-    trimmed.startsWith('http://') || trimmed.startsWith('https://')
-      ? trimmed
-      : `https://${trimmed}`;
-
-  try {
-    const url = new URL(candidate);
-    const host = url.hostname.toLowerCase();
-    return host.startsWith('www.') ? host.slice(4) : host;
-  } catch {
-    const host = trimmed.split('/')[0]?.split(':')[0] ?? '';
-    if (!host) return '';
-    return host.startsWith('www.') ? host.slice(4) : host;
-  }
-}
 
 
 /**
@@ -157,95 +119,69 @@ function transformRowToSystemConfig(
 }
 
 /**
- * Clean up expired cache entries to prevent memory leaks.
- * Should be called periodically or before write operations.
- */
-function cleanupExpiredCacheEntries(): void {
-  const now = Date.now();
-  for (const [key, entry] of SYSTEM_CONFIG_CACHE.entries()) {
-    if (entry.expiresAt <= now) {
-      SYSTEM_CONFIG_CACHE.delete(key);
-    }
-  }
-}
-
-/**
- * Attempt to read a cached SystemConfig entry if it has not expired.
- */
-function readSystemConfigCache(communityId: string): SystemConfig | null | undefined {
-  const entry = SYSTEM_CONFIG_CACHE.get(communityId);
-  if (!entry) return undefined;
-
-  if (entry.expiresAt > Date.now()) {
-    return entry.value;
-  }
-
-  SYSTEM_CONFIG_CACHE.delete(communityId);
-  return undefined;
-}
-
-/**
- * Store a SystemConfig value in the cache with a short TTL.
- * Cleans up expired entries before writing to prevent unbounded growth.
- */
-function writeSystemConfigCache(communityId: string, value: SystemConfig | null) {
-  // Clean up expired entries periodically to prevent memory leaks
-  // Do this on write since writes are less frequent than reads
-  if (SYSTEM_CONFIG_CACHE.size > 10) {
-    cleanupExpiredCacheEntries();
-  }
-  
-  SYSTEM_CONFIG_CACHE.set(communityId, {
-    expiresAt: Date.now() + SYSTEM_CONFIG_CACHE_TTL_MS,
-    value,
-  });
-}
-
-
-/**
  * Fetch the SystemConfig for a given domain.
- *
+ * 
+ * Error Handling Strategy:
+ * - Returns object: Successfully loaded config
+ * - Returns null: Config not found for domain (expected case - caller should handle fallback)
+ * - Throws Error: System/transient error (DB failure, invalid domain, etc.)
+ * 
  * Resolution priority:
- * 1) Special domain mappings (DOMAIN_TO_COMMUNITY_MAP)
- * 2) community_domains table lookup
- * 3) Domain as community_id (legacy fallback)
- * 4) Default fallback (nounspace.com)
+ * 1) community_domains table lookup
+ * 2) Domain as community_id (legacy fallback)
  *
- * A short-lived in-memory cache is used to avoid repeated Supabase lookups for the same
- * community during navigation bursts. Returns the final SystemConfig (transformed and ready to use).
+ * Note: React Server Components automatically deduplicate async calls within a single request,
+ * so multiple components calling this function won't cause duplicate database queries.
+ * 
+ * @param domain - Domain string to resolve and load config for
+ * @returns Config object if found, null if not found
+ * @throws Error on system/transient errors (DB failures, invalid domain format)
  */
 export async function getCommunityConfigForDomain(
   domain: string
 ): Promise<{ communityId: string; config: SystemConfig } | null> {
-  // Resolve community ID from domain (throws if cannot resolve)
+  // Resolve community ID from domain (throws on system errors)
   let communityId: string;
   try {
     communityId = await resolveCommunityIdFromDomain(domain);
   } catch (error) {
+    // System/transient error - rethrow (don't silently return null)
+    // Caller should handle this as a system error, not a "not found"
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`[Config] Failed to resolve community ID from domain "${domain}": ${errorMessage}`);
+    throw new Error(
+      `❌ Failed to resolve community ID from domain "${domain}": ${errorMessage}`
+    );
+  }
+
+  // Load config from database (throws on system errors, returns null if not found)
+  try {
+    const primaryConfig = await loadCommunityConfigFromDatabase(communityId);
+    if (primaryConfig) {
+      return { communityId, config: primaryConfig };
+    }
+    // Config not found - return null (caller will handle fallback)
     return null;
+  } catch (error) {
+    // System/transient error - rethrow with context
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `❌ Failed to load config for communityId "${communityId}" (resolved from domain "${domain}"): ${errorMessage}`
+    );
   }
-
-  // Check cache first
-  const cached = readSystemConfigCache(communityId);
-  if (cached) {
-    return { communityId, config: cached };
-  }
-
-  // Load config from database
-  const primaryConfig = await loadCommunityConfigFromDatabase(communityId);
-  if (primaryConfig) {
-    return { communityId, config: primaryConfig };
-  }
-
-  // Config not found - return null (caller will handle fallback)
-  return null;
 }
 
 /**
  * Load the domains associated with a community (blank subdomain + custom domain).
- * Falls back to inferring from community_id if no mappings exist.
+ * 
+ * Error Handling Strategy:
+ * - Returns CommunityDomains: Successfully loaded domains or inferred from communityId
+ * - Never throws: Falls back to inference on any error (domains are optional metadata)
+ * 
+ * Falls back to inferring from community_id if no mappings exist or on errors.
+ * This is safe because domains are optional metadata and inference is always available.
+ * 
+ * @param communityId - Community ID to load domains for
+ * @returns CommunityDomains (always succeeds, falls back to inference)
  */
 async function loadCommunityDomainsFromDatabase(
   communityId: string
@@ -257,9 +193,14 @@ async function loadCommunityDomainsFromDatabase(
     .eq('community_id', communityId);
 
   if (error) {
-    console.error(
-      `[Config] Failed to load community domains for communityId "${communityId}": ${error.message}`
-    );
+    // Log but don't throw - domains are optional metadata
+    // PGRST116 (not found) is expected, other errors are logged but we fall back
+    if (error.code !== 'PGRST116') {
+      console.warn(
+        `[Config] Failed to load community domains for communityId "${communityId}": ${error.message}. ` +
+        `Falling back to inference from communityId.`
+      );
+    }
     return inferDomainsFromCommunityId(communityId);
   }
 
@@ -283,16 +224,19 @@ async function loadCommunityDomainsFromDatabase(
 
 /**
  * Core function to load a community config from the database.
- * Returns null if not found, throws on validation errors.
+ * 
+ * Error Handling Strategy:
+ * - Returns null: Expected "not found" (config doesn't exist for this communityId)
+ * - Throws Error: Unexpected/system error (transient DB failure, invalid data structure, etc.)
+ * 
  * This is the single source of truth for database queries.
+ * Callers should handle null as "not found" and catch throws as system errors.
+ * 
+ * @param communityId - Community ID to load config for
+ * @returns SystemConfig if found, null if not found
+ * @throws Error on transient/system errors (DB failures, invalid data structure)
  */
 async function loadCommunityConfigFromDatabase(communityId: string): Promise<SystemConfig | null> {
-  // Check cache first
-  const cached = readSystemConfigCache(communityId);
-  if (cached !== undefined) {
-    return cached;
-  }
-
   // Query Supabase
   const supabase = createSupabaseServerClient();
   
@@ -306,26 +250,24 @@ async function loadCommunityConfigFromDatabase(communityId: string): Promise<Sys
     .maybeSingle();
 
   if (error) {
-    // PGRST116 = no rows returned (legitimate not found)
+    // PGRST116 = no rows returned (legitimate "not found")
     const isNotFoundError = error.code === 'PGRST116';
     
     if (isNotFoundError) {
       // Legitimate "not found" - return null
       return null;
     } else {
-      // Transient/unknown error - return null to allow retries
-      console.error(
+      // Transient/system error - throw (fail fast, let Next.js handle retries)
+      throw new Error(
         `❌ Failed to fetch community config (transient error) for communityId: "${communityId}". ` +
         `Error code: ${error.code}, Message: ${error.message}. ` +
-        `This may be a network issue or database problem. Will retry on next request.`,
-        { communityId, error: error.message, code: error.code }
+        `This may be a network issue or database problem.`
       );
-      return null;
     }
   }
 
   if (!data) {
-    // No data returned but no error - legitimate not found
+    // No data returned but no error - legitimate "not found"
     return null;
   }
 
@@ -354,33 +296,45 @@ async function loadCommunityConfigFromDatabase(communityId: string): Promise<Sys
   // Transform to SystemConfig
   const systemConfig = transformRowToSystemConfig(data, communityId, domains);
   
-  // Cache the result
-  writeSystemConfigCache(communityId, systemConfig);
-  
   return systemConfig;
 }
 
 /**
  * Load SystemConfig by community ID (when ID is already known).
- * Throws an error if config is not found (use when config must exist).
+ * 
+ * Error Handling Strategy:
+ * - Returns SystemConfig: Successfully loaded config
+ * - Throws Error: Config not found OR system/transient error
+ * 
+ * Use this when the config MUST exist (e.g., explicit communityId provided).
+ * For cases where config may not exist, use loadCommunityConfigFromDatabase directly.
+ * 
+ * @param communityId - Community ID to load config for
+ * @returns SystemConfig (never null)
+ * @throws Error if config not found or on system/transient errors
  */
 export async function loadSystemConfigById(
   communityId: string
 ): Promise<SystemConfig> {
-  // Check cache first
-  const cached = readSystemConfigCache(communityId);
-  if (cached) {
-    return cached;
-  }
-
-  const config = await loadCommunityConfigFromDatabase(communityId);
-  
-  if (!config) {
+  try {
+    const config = await loadCommunityConfigFromDatabase(communityId);
+    
+    if (!config) {
+      throw new Error(
+        `❌ Failed to load config from database for community: "${communityId}". ` +
+        `Check: Does a record exist in community_configs with community_id="${communityId}" and is_published=true?`
+      );
+    }
+    
+    return config;
+  } catch (error) {
+    // If it's already an Error from loadCommunityConfigFromDatabase, rethrow as-is
+    // Otherwise, wrap it
+    if (error instanceof Error) {
+      throw error;
+    }
     throw new Error(
-      `❌ Failed to load config from database for community: "${communityId}". ` +
-      `Check: Does a record exist in community_configs with community_id="${communityId}" and is_published=true?`
+      `❌ Failed to load config for community "${communityId}": ${String(error)}`
     );
   }
-  
-  return config;
 }
