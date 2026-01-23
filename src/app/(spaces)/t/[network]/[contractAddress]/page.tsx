@@ -22,11 +22,17 @@ export default async function TokenSpacePage({
   }
 
   // Load token space data
-  const tokenSpacePageData = await loadTokenSpacePageData(
-    resolvedParams.contractAddress, 
-    resolvedParams.network, 
-    decodedTabNameParam
-  );
+  let tokenSpacePageData;
+  try {
+    tokenSpacePageData = await loadTokenSpacePageData(
+      resolvedParams.contractAddress, 
+      resolvedParams.network, 
+      decodedTabNameParam
+    );
+  } catch (error) {
+    console.error("Error loading token space data:", error);
+    return <SpaceNotFound />;
+  }
 
   // Guard against null/undefined tokenSpaceData
   if (!tokenSpacePageData) {

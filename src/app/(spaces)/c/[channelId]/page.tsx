@@ -20,7 +20,13 @@ const ChannelSpacePage = async ({ params }: ChannelSpacePageProps) => {
 
   const decodedTabName = tabNameParam ? decodeURIComponent(tabNameParam) : undefined;
 
-  const channelSpaceData = await loadChannelSpaceData(channelId, decodedTabName);
+  let channelSpaceData;
+  try {
+    channelSpaceData = await loadChannelSpaceData(channelId, decodedTabName);
+  } catch (error) {
+    console.error("Error loading channel space data:", error);
+    return <SpaceNotFound />;
+  }
 
   if (!channelSpaceData) {
     return <SpaceNotFound />;

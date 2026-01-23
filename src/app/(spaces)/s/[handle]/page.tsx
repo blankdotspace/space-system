@@ -25,7 +25,13 @@ const ProfileSpacePage = async ({ params }: ProfileSpacePageProps) => {
     decodedTabNameParam = decodeURIComponent(tabNameParam);
   }
 
-  const profileSpacePageData = await loadUserSpaceData(handle, decodedTabNameParam);
+  let profileSpacePageData;
+  try {
+    profileSpacePageData = await loadUserSpaceData(handle, decodedTabNameParam);
+  } catch (err) {
+    console.error("Error loading profile space data:", err);
+    return <SpaceNotFound />;
+  }
 
   if (!profileSpacePageData) {
     return <SpaceNotFound />;

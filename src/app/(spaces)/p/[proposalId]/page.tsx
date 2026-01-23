@@ -21,7 +21,13 @@ const ProposalSpacePage = async ({
     decodedTabNameParam = decodeURIComponent(tabNameParam);
   }
 
-  const proposalSpaceData = await loadProposalSpaceData(proposalId, decodedTabNameParam);
+  let proposalSpaceData;
+  try {
+    proposalSpaceData = await loadProposalSpaceData(proposalId, decodedTabNameParam);
+  } catch (error) {
+    console.error("Error loading proposal space data:", error);
+    return <SpaceNotFound />;
+  }
 
   if (!proposalSpaceData) {
     return <SpaceNotFound />;
