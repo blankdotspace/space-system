@@ -20,34 +20,35 @@ const ProfileSpacePage = async ({ params }: ProfileSpacePageProps) => {
     return <SpaceNotFound />;
   }
 
+  let decodedTabNameParam = tabNameParam;
+  if (tabNameParam) {
+    decodedTabNameParam = decodeURIComponent(tabNameParam);
+  }
+
+  let profileSpacePageData;
   try {
-    let decodedTabNameParam = tabNameParam;
-    if (tabNameParam) {
-      decodedTabNameParam = decodeURIComponent(tabNameParam);
-    }
-
-    const profileSpacePageData = await loadUserSpaceData(handle, decodedTabNameParam);
-
-    if (!profileSpacePageData) {
-      return <SpaceNotFound />;
-    }
-
-    if (!decodedTabNameParam) {
-      redirect(
-        `/s/${handle}/${encodeURIComponent(profileSpacePageData.defaultTab)}`
-      );
-    }
-
-    return (
-      <ProfileSpace
-        spacePageData={profileSpacePageData}
-        tabName={decodedTabNameParam || profileSpacePageData.defaultTab}
-      />
-    );
+    profileSpacePageData = await loadUserSpaceData(handle, decodedTabNameParam);
   } catch (err) {
     console.error("Error loading profile space data:", err);
     return <SpaceNotFound />;
   }
+
+  if (!profileSpacePageData) {
+    return <SpaceNotFound />;
+  }
+
+  if (!decodedTabNameParam) {
+    redirect(
+      `/s/${handle}/${encodeURIComponent(profileSpacePageData.defaultTab)}`
+    );
+  }
+
+  return (
+    <ProfileSpace
+      spacePageData={profileSpacePageData}
+      tabName={decodedTabNameParam || profileSpacePageData.defaultTab}
+    />
+  );
 };
 
 export default ProfileSpacePage;

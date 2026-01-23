@@ -1,6 +1,7 @@
 import bundlerAnalyzer from "@next/bundle-analyzer";
 import packageInfo from "./package.json" with { type: "json" };
 import { createRequire } from "node:module";
+import path from "node:path";
 
 const require = createRequire(import.meta.url);
 
@@ -111,6 +112,12 @@ const nextConfig = {
     config.resolve.fallback = {
       ...config.resolve.fallback,
       os: false,
+    };
+    // Ignore React Native dependencies that @metamask/sdk tries to import
+    // These are only needed for React Native, not web
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@react-native-async-storage/async-storage': path.resolve(process.cwd(), 'src/common/lib/react-native-stub.ts'),
     };
     return config;
   },
