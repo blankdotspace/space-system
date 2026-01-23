@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import createSupabaseServerClient from '@/common/data/database/supabase/clients/server';
+import { createSupabaseServerClient } from '@/common/data/database/supabase/clients/server';
 import { Database } from '@/supabase/database';
 import type { CommunityTokensConfig } from '@/config';
+import { normalizeAndValidateDomain } from '@/common/lib/utils/domain';
 
 interface IncomingCommunityConfig {
   community_id?: string;
@@ -86,23 +87,6 @@ function ensureTokensInCommunityConfig(communityConfig: unknown): Record<string,
   return config;
 }
 
-function normalizeDomainValue(value: string | null): string | null {
-  if (!value) return null;
-  const trimmed = value.trim().toLowerCase();
-  if (!trimmed) return null;
-  const candidate =
-    trimmed.startsWith('http://') || trimmed.startsWith('https://')
-      ? trimmed
-      : `https://${trimmed}`;
-  try {
-    const url = new URL(candidate);
-    const host = url.hostname.toLowerCase();
-    const normalized = host.startsWith('www.') ? host.slice(4) : host;
-    return normalized.includes('.') ? normalized : null;
-  } catch {
-    return null;
-  }
-}
 
 export async function POST(request: NextRequest): Promise<Response> {
   try {
@@ -157,8 +141,8 @@ export async function POST(request: NextRequest): Promise<Response> {
         : typeof domain === 'string' && domain.trim()
           ? domain
           : null;
-    const normalizedCustomDomain = normalizeDomainValue(rawCustomDomain);
-    const normalizedCommunityDomain = normalizeDomainValue(communityId);
+    const normalizedCustomDomain = normalizeAndValidateDomain(rawCustomDomain);
+    const normalizedCommunityDomain = normalizeAndValidateDomain(communityId);
 
     if (rawCustomDomain && !normalizedCustomDomain) {
       return NextResponse.json(

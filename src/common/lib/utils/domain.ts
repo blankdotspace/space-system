@@ -23,6 +23,47 @@ export function normalizeDomain(value?: string | null): string | null {
   }
 }
 
+/**
+ * Validates that a normalized domain is a valid hostname.
+ * 
+ * Checks:
+ * - Contains at least one dot (required for valid domain)
+ * - Matches valid hostname format (RFC 1123): alphanumeric, hyphens, dots
+ * - Not empty
+ * 
+ * @param domain - A normalized domain string (from normalizeDomain)
+ * @returns true if the domain is valid, false otherwise
+ */
+export function isValidDomain(domain: string | null): boolean {
+  if (!domain) return false;
+  
+  // Must contain at least one dot to be a valid domain
+  if (!domain.includes('.')) return false;
+  
+  // Basic hostname validation: alphanumeric, hyphens, dots
+  // Must start and end with alphanumeric, can contain hyphens in between
+  // Each label separated by dots must follow the same pattern
+  const hostnameRegex = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/;
+  
+  return hostnameRegex.test(domain);
+}
+
+/**
+ * Normalizes and validates a domain value.
+ * 
+ * First normalizes the domain (handles URLs, www prefixes, etc.),
+ * then validates it's a proper hostname format.
+ * 
+ * @param value - Domain string to normalize and validate
+ * @returns Normalized domain if valid, null otherwise
+ */
+export function normalizeAndValidateDomain(value?: string | null): string | null {
+  const normalized = normalizeDomain(value);
+  if (!normalized) return null;
+  
+  return isValidDomain(normalized) ? normalized : null;
+}
+
 function toOrigin(value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
