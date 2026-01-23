@@ -42,8 +42,9 @@ export async function generateMetadata({
   const { splashImageUrl, defaultFrame, defaultImage } = await getDefaultFrameAssets(systemConfig, baseUrl);
   const { handle, tabName: tabNameParam } = await params;
 
-  if (!handle) {
-    return buildDefaultMetadata(systemConfig, baseUrl); // Return default metadata if no handle
+  // Return default metadata for invalid handles (including literal "undefined")
+  if (!handle || handle === "undefined") {
+    return buildDefaultMetadata(systemConfig, baseUrl);
   }
 
   const normalizedHandle = handle.toLowerCase();

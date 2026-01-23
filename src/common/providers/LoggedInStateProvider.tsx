@@ -158,31 +158,42 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
     }
     
     setIsRegisteringAccounts(true);
+    console.log("[registerAccounts] Starting account registration...");
     try {
       let currentIdentity = getCurrentIdentity()!;
+      console.log("[registerAccounts] Current identity FIDs:", currentIdentity.associatedFids);
       
       if (currentIdentity.associatedFids.length > 0) {
+        console.log("[registerAccounts] FIDs already registered:", currentIdentity.associatedFids);
         setCurrentStep(SetupStep.ACCOUNTS_REGISTERED);
       } else {
+        console.log("[registerAccounts] No FIDs found, attempting to load...");
         try {
           await loadFidsForCurrentIdentity();
         } catch (error) {
           console.warn("[registerAccounts] Failed to load FIDs (non-critical):", error);
         }
         currentIdentity = getCurrentIdentity()!;
+        console.log("[registerAccounts] After load attempt, FIDs:", currentIdentity.associatedFids);
+        
         if (currentIdentity.associatedFids.length === 0) {
+          console.log("[registerAccounts] Calling getAccountFid...");
           const fidResult = (await authenticatorManager.callMethod({
             requestingFidgetId: "root",
             authenticatorId: "farcaster:nounspace",
             methodName: "getAccountFid",
             isLookup: true,
           })) as { value: number };
+          console.log("[registerAccounts] FID result:", fidResult);
+          
           const publicKeyResult = (await authenticatorManager.callMethod({
             requestingFidgetId: "root",
             authenticatorId: "farcaster:nounspace",
             methodName: "getSignerPublicKey",
             isLookup: true,
           })) as { value: Uint8Array };
+          console.log("[registerAccounts] Public key result:", publicKeyResult);
+          
           const signForFid = async (messageHash) => {
             const signResult = (await authenticatorManager.callMethod(
               {
@@ -195,11 +206,13 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
             )) as { value: Uint8Array };
             return signResult.value;
           };
+          console.log("[registerAccounts] Registering FID:", fidResult.value);
           await registerFidForCurrentIdentity(
             fidResult.value,
             bytesToHex(publicKeyResult.value),
             signForFid,
           );
+          console.log("[registerAccounts] FID registered successfully");
         }
         setCurrentStep(SetupStep.ACCOUNTS_REGISTERED);
       }

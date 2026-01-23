@@ -78,6 +78,11 @@ export default function ProfileSpace({
 }: ProfileSpaceProps) {
   const currentUserIdentityPublicKey = useCurrentSpaceIdentityPublicKey();
 
+  // Guard against undefined spaceName - this should show SpaceNotFound
+  if (!spaceData.spaceName) {
+    return <div>Profile space data incomplete. Please try again.</div>;
+  }
+
   // Add isEditable and spacePageUrl logic on the client side
   const spaceDataWithClientSideLogic = useMemo(() => ({
     ...spaceData,

@@ -106,8 +106,6 @@ export default function PublicSpace({
   const [currentUserFid, setCurrentUserFid] = useState<number | null>(null);
   const [isSignedIntoFarcaster, setIsSignedIntoFarcaster] = useState(false);
   const { wallets } = useWallets();
-  const currentIdentity = useAppStore((state) => state.account.getCurrentIdentity());
-  const associatedFids = currentIdentity?.associatedFids || [];
 
   const {
     lastUpdatedAt: authManagerLastUpdatedAt,
@@ -124,20 +122,9 @@ export default function PublicSpace({
     });
   }, [authManagerLastUpdatedAt]);
 
-  // Loads the current user's FID from associatedFids first, then from authenticator if signed in
+  // Loads the current user's FID if they're signed into Farcaster
   useEffect(() => {
-    // First, try to get FID from associatedFids (works even without signer)
-    if (associatedFids.length > 0) {
-      setCurrentUserFid(associatedFids[0]);
-      return;
-    }
-    
-    // If no associated FIDs and user is signed into Farcaster, try to get from authenticator
-    if (!isSignedIntoFarcaster) {
-      setCurrentUserFid(null);
-      return;
-    }
-    
+    if (!isSignedIntoFarcaster) return;
     authManagerCallMethod({
       requestingFidgetId: "root",
       authenticatorId: FARCASTER_NOUNSPACE_AUTHENTICATOR_NAME,
@@ -146,11 +133,9 @@ export default function PublicSpace({
     }).then((authManagerResp) => {
       if (authManagerResp.result === "success") {
         setCurrentUserFid(authManagerResp.value as number);
-      } else {
-        setCurrentUserFid(null);
       }
     });
-  }, [isSignedIntoFarcaster, authManagerLastUpdatedAt, associatedFids]);
+  }, [isSignedIntoFarcaster, authManagerLastUpdatedAt]);
 
   // Load editable spaces when user signs in
   useEffect(() => {
