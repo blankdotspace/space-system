@@ -9,13 +9,14 @@
  */
 
 import type { Context } from "@farcaster/miniapp-core";
-import { expose, Endpoint } from "comlink";
+import { expose, Endpoint, windowEndpoint } from "comlink";
 
 /**
- * EventSource interface - matches what Comlink's Endpoint extends
- * Endpoint extends EventSource, so we extract the event listener methods
+ * Extract EventSource type from Comlink's windowEndpoint function signature
+ * windowEndpoint(context: EventSource, ...) uses EventSource as its second parameter
+ * This is the proper way to get the type since it's not directly exported
  */
-type EventSource = Pick<Endpoint, 'addEventListener' | 'removeEventListener'>;
+type EventSource = Parameters<typeof windowEndpoint>[1];
 
 /**
  * Quick Auth token cache
