@@ -9,7 +9,7 @@ Blankspace follows a modular architecture with clear separation of concerns. The
 ## Root Directory Structure
 
 ```
-nounspace.ts/
+space-system/
 ├── docs/                     # Documentation
 ├── public/                   # Static assets
 ├── src/                      # Source code

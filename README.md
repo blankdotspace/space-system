@@ -6,7 +6,7 @@
 Forked from [herocast](https://github.com/hellno/herocast/) in April 2024.
 
 # Docs
-https://docs.nounspace.com/nounspace-alpha/
+Documentation is available in the [docs/](docs/) directory. For online documentation, set `NEXT_PUBLIC_DOCS_URL` environment variable.
 
 ## What is Farcaster?
 a protocol for decentralized social apps: https://www.farcaster.xyz
@@ -15,8 +15,8 @@ a protocol for decentralized social apps: https://www.farcaster.xyz
 
 1. **Clone the repo**  
    ```bash
-   git clone https://github.com/Blankspace/blankspace.ts.git
-   cd blankspace.ts
+   git clone https://github.com/blankdotspace/space-system.git
+   cd space-system
 2. **Install Supabase CLI**
    On Mac OS, for example:
    ```bash
@@ -112,12 +112,12 @@ The script will attempt to start Supabase automatically if Docker is running; ot
 
 ## Contributing and making Fidgets
 
-See the [contributing docs](docs/CONTRIBUTING.MD) for how to add to the code base. Register on [Scout Game](https://scoutgame.xyz/) to earn points for contributions to repos in the [blankspace org](https://github.com/Blankspace/).
+See the [contributing docs](docs/CONTRIBUTING.MD) for how to add to the code base. Register on [Scout Game](https://scoutgame.xyz/) to earn points for contributions to repos in the [blankdotspace org](https://github.com/blankdotspace/).
 
 ## Code Design
 
 The Blankspace App follows the Atomic Design Pattern
-![atomic_design](https://github.com/Blankspace/blankspace.ts/assets/7180740/2c892612-c730-4e74-bd32-3e7a8a6babbb)
+![atomic_design](https://github.com/blankdotspace/space-system/assets/7180740/2c892612-c730-4e74-bd32-3e7a8a6babbb)
 
 `src/pages` holds the Page elements of the atomic design. These are separated from `src/common` due to how Next.js handles routing.
 
@@ -142,4 +142,4 @@ reminder: key is an edcsa key not a 'normal' EVM address
 blankspace is released under the GPL-3.0 License. Feel free to fork and modify the project—just be sure any version you release uses the GPL-3.0 License too.
 
 **Made with ❤️ by the Blankspace team & community.**
-Questions or feedback? Create a [Github issue](https://github.com/Blankspace/blankspace.ts/issues) or contact us in [Discord](https://discord.gg/eYQeXU2WuH)
+Questions or feedback? Create a [Github issue](https://github.com/blankdotspace/space-system/issues) or contact us in [Discord](https://discord.gg/eYQeXU2WuH)
