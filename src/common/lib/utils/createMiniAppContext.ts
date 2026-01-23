@@ -12,14 +12,19 @@ import { useContext } from "react";
 function createFallbackContext(): Context.MiniAppContext {
   return {
     client: {
-      version: "1.0.0",
-      platform: typeof window !== 'undefined' ? 'web' : 'unknown',
+      platformType: typeof window !== 'undefined' ? 'web' : undefined,
+      clientFid: 0, // No FID when not in Farcaster client
+      added: false, // Not added when not in Farcaster client
     },
-    user: undefined, // No user when not in Farcaster client
+    user: {
+      fid: 0, // No user when not in Farcaster client
+    },
     location: {
       type: "launcher",
     },
-    features: {},
+    features: {
+      haptics: false, // Required field
+    },
   };
 }
 

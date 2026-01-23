@@ -517,9 +517,18 @@ Mini-App #${app.index} (${app.id || "Unknown"})
                           // Create a mock SDK host with the same configuration as the iframe
                           // Use the actual context being sent to embedded apps
                           const testContext = contextForEmbedded || {
-                            client: { version: '1.0.0', platform: 'web' },
+                            client: {
+                              platformType: 'web',
+                              clientFid: 0,
+                              added: false,
+                            },
+                            user: {
+                              fid: 0,
+                            },
                             location: { type: 'launcher' },
-                            features: {},
+                            features: {
+                              haptics: false,
+                            },
                           };
                           
                           const mockSdkHost = createMiniAppSdkHost(
