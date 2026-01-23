@@ -149,7 +149,7 @@ async function linkFidToIdentity(
   }
 }
 
-export type FidsLinkedToIdentityResponse = NounspaceResponse<{
+export type FidsLinkedToIdentityResponse = BlankspaceResponse<{
   identity: string;
   fids: number[];
 }>;

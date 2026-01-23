@@ -18,11 +18,11 @@ export const GetRequestSchema = z.object({
   identityPublicKey: z.string(),
 });
 
-export type PostLastSeenNotificationCursorResponse = NounspaceResponse<{
+export type PostLastSeenNotificationCursorResponse = BlankspaceResponse<{
   lastSeenTimestamp: null | string;
 }>;
 
-export type GetLastSeenNotificationCursorResponse = NounspaceResponse<{
+export type GetLastSeenNotificationCursorResponse = BlankspaceResponse<{
   lastSeenTimestamp: null | string;
 }>;
 
