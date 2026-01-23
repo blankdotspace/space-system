@@ -14,7 +14,7 @@ import { SpaceConfig } from "./Space";
 interface MobilePreviewProps {
   config: SpaceConfig;
   editMode: boolean;
-  portalRef: React.RefObject<HTMLDivElement>;
+  portalRef: React.RefObject<HTMLDivElement | null>;
   profile?: ReactNode;
   tabBar: ReactNode;
   feed?: ReactNode;

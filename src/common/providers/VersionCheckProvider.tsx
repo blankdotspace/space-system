@@ -8,7 +8,7 @@ export default function VersionCheckProivder({
 }: {
   children: React.ReactNode;
 }) {
-  const pollTimeOut = useRef<NodeJS.Timeout | undefined>();
+  const pollTimeOut = useRef<NodeJS.Timeout | undefined>(undefined);
   const [needsRecheck, setNeedsRecheck] = useState(false);
   const [versionsMisaligned, setVersionMisaligned] = useState(false);
 

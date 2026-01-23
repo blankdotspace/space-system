@@ -154,7 +154,7 @@ interface LayoutFidgetProps<C extends LayoutFidgetConfig> {
   inEditMode: boolean;
   saveExitEditMode: () => void;
   cancelExitEditMode: () => void;
-  portalRef: React.RefObject<HTMLDivElement>;
+  portalRef: React.RefObject<HTMLDivElement | null>;
 
   hasProfile: boolean;
   hasFeed: boolean;

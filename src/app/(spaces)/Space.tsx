@@ -66,7 +66,7 @@ type SpaceArgs = {
   setEditMode: (v: boolean) => void;
   editMode: boolean;
   setSidebarEditable: (v: boolean) => void;
-  portalRef: React.RefObject<HTMLDivElement>;
+  portalRef: React.RefObject<HTMLDivElement | null>;
 };
 
 // Helper functions for cleaner component logic

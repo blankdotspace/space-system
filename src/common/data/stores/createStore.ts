@@ -67,7 +67,7 @@ export function createStoreBindings<T = unknown>(
   const storeContext = createContext<StoreApi<T> | null>(null);
 
   const provider: React.FC<StoreProviderProps> = ({ children }) => {
-    const storeRef = useRef<StoreApi<T>>();
+    const storeRef = useRef<StoreApi<T> | undefined>(undefined);
 
     if (!storeRef.current) {
       storeRef.current = createStoreFunc();
