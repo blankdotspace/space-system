@@ -800,8 +800,8 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
             <iframe
               ref={setupIframeComlink}
               data-nounspace-context
-              key={`iframe-miniapp-${urlWithContext}`}
-              src={miniAppBootstrapDoc ? undefined : urlWithContext}
+              key={`iframe-miniapp-${transformedUrl}`}
+              src={miniAppBootstrapDoc ? undefined : transformedUrl}
               srcDoc={miniAppBootstrapDoc || undefined}
               title="IFrame Fidget"
               sandbox={DEFAULT_SANDBOX_RULES}
@@ -834,8 +834,8 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
               <iframe
                 ref={setupIframeComlink}
                 data-nounspace-context
-                key={`iframe-miniapp-${urlWithContext}`}
-                src={miniAppBootstrapDoc ? undefined : urlWithContext}
+                key={`iframe-miniapp-${transformedUrl}`}
+                src={miniAppBootstrapDoc ? undefined : transformedUrl}
                 srcDoc={miniAppBootstrapDoc || undefined}
                 title="IFrame Fidget"
                 sandbox={DEFAULT_SANDBOX_RULES}
