@@ -93,21 +93,18 @@ const nextConfig = {
     formats: ['image/webp', 'image/avif'],
   },
   async redirects() {
-    // Enforce NEXT_PUBLIC_DOCS_URL at build time to ensure correct docs URL is used
-    if (!process.env.NEXT_PUBLIC_DOCS_URL) {
-      throw new Error(
-        "NEXT_PUBLIC_DOCS_URL environment variable is required. " +
-        "Please set it to the Blankspace documentation URL (e.g., https://docs.blankspace.com/...)"
-      );
-    }
-
-    return [
-      {
+    // Only add docs redirect if NEXT_PUBLIC_DOCS_URL is set (optional for preview deployments)
+    const redirects = [];
+    
+    if (process.env.NEXT_PUBLIC_DOCS_URL) {
+      redirects.push({
         source: "/signatures",
         destination: `${process.env.NEXT_PUBLIC_DOCS_URL}/accounts/signatures`,
         permanent: true,
-      },
-    ];
+      });
+    }
+
+    return redirects;
   },
   async rewrites() {
     return [
