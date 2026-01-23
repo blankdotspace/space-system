@@ -102,7 +102,10 @@ export function ContextDebugger() {
         // Try to extract target URL from bootstrap doc if available
         let extractedUrl = app.url;
         if (typeof document !== 'undefined' && app.hasBootstrapDoc) {
-          const iframe = document.querySelector<HTMLIFrameElement>(`iframe[data-nounspace-context]`);
+          // Use querySelectorAll and access by index to get the specific iframe
+          // The order should match the order in useEmbeddedMiniApps
+          const iframes = document.querySelectorAll<HTMLIFrameElement>(`iframe[data-nounspace-context]`);
+          const iframe = iframes[index];
           if (iframe?.srcdoc) {
             const match = iframe.srcdoc.match(/window\.location\.replace\(["']([^"']+)["']\)/);
             if (match && match[1]) {
