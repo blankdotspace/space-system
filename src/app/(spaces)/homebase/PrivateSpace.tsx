@@ -10,10 +10,6 @@ import { INITIAL_SPACE_CONFIG_EMPTY } from "@/config";
 import { HOMEBASE_ID } from "@/common/data/stores/app/currentSpace";
 import { HOMEBASE_DEFAULT_TAB } from "@/common/data/stores/app/homebase/homebaseTabsStore";
 import { FeedType } from "@neynar/nodejs-sdk/build/api";
-import { MiniAppContextProvider, useMiniAppContext } from "@/common/providers/MiniAppContextProvider";
-import { useLocationAwareNavigation } from "@/common/lib/hooks/useLocationAwareNavigation";
-import { useSearchParams } from "next/navigation";
-import { SPACE_TYPES } from "@/common/types/spaceData";
 
 // Lazy load the TabBar component to improve performance
 const TabBar = lazy(() => import('@/common/components/organisms/TabBar'));
@@ -245,56 +241,7 @@ function PrivateSpace({ tabName, castHash }: { tabName: string; castHash?: strin
 
 
   // Render the SpacePage component with the defined arguments
-  return (
-    <LocationAwarePrivateSpaceWrapper
-      currentTabName={currentTabName}
-      args={args}
-    />
-  );
-}
-
-/**
- * Wrapper component that provides mini-app context and handles location-aware navigation
- */
-function LocationAwarePrivateSpaceWrapper({
-  currentTabName,
-  args,
-}: {
-  currentTabName: string | null;
-  args: SpacePageArgs;
-}) {
-  const activeTabName = currentTabName || HOMEBASE_DEFAULT_TAB;
-
-  return (
-    <MiniAppContextProvider
-      spaceId={HOMEBASE_ID}
-      spaceHandle="homebase"
-      tabName={activeTabName}
-      spaceType={SPACE_TYPES.PROFILE}
-      isEditable={true}
-    >
-      <LocationAwareNavigationHandler />
-      <SpacePage key={activeTabName} {...args} />
-    </MiniAppContextProvider>
-  );
-}
-
-/**
- * Component that handles location-aware navigation (must be inside MiniAppContextProvider)
- */
-function LocationAwareNavigationHandler() {
-  const searchParams = useSearchParams();
-  const { navigateFromContext } = useLocationAwareNavigation();
-
-  // NOTE: URL context parsing removed - official SDK does not use URL parameters for context
-  // Context is provided exclusively via sdk.context (SDK API)
-
-  // Navigate based on location context
-  useEffect(() => {
-    navigateFromContext();
-  }, [navigateFromContext]);
-
-  return null;
+  return <SpacePage key={currentTabName || HOMEBASE_DEFAULT_TAB} {...args} />;
 }
 
 export default PrivateSpace;
