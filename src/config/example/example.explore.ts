@@ -1,17 +1,24 @@
 import { createExplorePageConfig } from "../createExplorePageConfig";
 import { exampleCommunity } from "./example.community";
 
+const erc20Tokens = Array.isArray(exampleCommunity.tokens?.erc20Tokens)
+  ? exampleCommunity.tokens.erc20Tokens
+  : [];
+const nftTokens = Array.isArray(exampleCommunity.tokens?.nftTokens)
+  ? exampleCommunity.tokens.nftTokens
+  : [];
+
 const exampleTokens = [
-  ...(exampleCommunity.tokens?.erc20Tokens ?? []).map(({ address, symbol, network }) => ({
-    address,
-    symbol,
-    network,
+  ...erc20Tokens.map((token) => ({
+    address: token.address,
+    symbol: token.symbol,
+    network: token.network,
     assetType: "token" as const,
   })),
-  ...(exampleCommunity.tokens?.nftTokens ?? []).map(({ address, symbol, network }) => ({
-    address,
-    symbol,
-    network,
+  ...nftTokens.map((token) => ({
+    address: token.address,
+    symbol: token.symbol,
+    network: token.network,
     assetType: "nft" as const,
   })),
 ];

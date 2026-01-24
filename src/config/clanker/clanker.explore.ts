@@ -1,17 +1,25 @@
 import { createExplorePageConfig } from "../createExplorePageConfig";
+import type { CommunityErc20Token, CommunityNftToken } from "../systemConfig";
 import { clankerCommunity } from "./clanker.community";
 
+const erc20Tokens = Array.isArray(clankerCommunity.tokens?.erc20Tokens)
+  ? (clankerCommunity.tokens.erc20Tokens as CommunityErc20Token[])
+  : [];
+const nftTokens = Array.isArray(clankerCommunity.tokens?.nftTokens)
+  ? (clankerCommunity.tokens.nftTokens as CommunityNftToken[])
+  : [];
+
 const clankerTokens = [
-  ...(clankerCommunity.tokens?.erc20Tokens ?? []).map(({ address, symbol, network }) => ({
-    address,
-    symbol,
-    network,
+  ...erc20Tokens.map((token) => ({
+    address: token.address,
+    symbol: token.symbol,
+    network: token.network,
     assetType: "token" as const,
   })),
-  ...(clankerCommunity.tokens?.nftTokens ?? []).map(({ address, symbol, network }) => ({
-    address,
-    symbol,
-    network,
+  ...nftTokens.map((token) => ({
+    address: token.address,
+    symbol: token.symbol,
+    network: token.network,
     assetType: "nft" as const,
   })),
 ];
