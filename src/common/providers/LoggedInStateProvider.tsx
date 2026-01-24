@@ -223,7 +223,15 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
     } finally {
       setIsRegisteringAccounts(false);
     }
-  }, [isRegisteringAccounts]);
+  }, [
+    isRegisteringAccounts,
+    getCurrentIdentity,
+    loadFidsForCurrentIdentity,
+    authenticatorManager,
+    registerFidForCurrentIdentity,
+    setCurrentStep,
+    bytesToHex,
+  ]);
 
   // Has to be separate otherwise will cause retrigger chain
   // due to depence on authenticatorManager
@@ -284,7 +292,7 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
     ) {
       setCurrentStep(SetupStep.NOT_SIGNED_IN);
     }
-  }, [currentStep, walletsReady, ready, authenticated]);
+  }, [currentStep, walletsReady, ready, authenticated, registerAccounts]);
 
   return (
     <>

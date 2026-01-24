@@ -67,7 +67,7 @@ function InfoToastContent() {
     } else {
       setIsDisplayed(false);
     }
-  }, [pathname, spaceFarcasterName, username]);
+  }, [pathname, spaceFarcasterName, username, isLoggedIn]);
 
   const closeToast = () => {
     setIsDisplayed(false);

@@ -28,7 +28,8 @@ function isFidLinkToIdentityRequest(
   return (
     typeof candidate.fid === "number" &&
     typeof candidate.timestamp === "string" &&
-    typeof candidate.identityPublicKey === "string"
+    typeof candidate.identityPublicKey === "string" &&
+    (candidate.identityPublicKey as string).trim() !== ""
   );
 }
 
@@ -119,6 +120,16 @@ async function linkFidToIdentity(
     signature = reqBody.signature;
     signingKeyLastValidatedAt = moment().toISOString();
   }
+
+  const signingPayload = hasSigningKeyInfo
+    ? {
+        isSigningKeyValid: true,
+        signature,
+        signingKeyLastValidatedAt,
+        signingPublicKey,
+      }
+    : {};
+
   const { data: checkExistsData } = await createSupabaseServerClient()
     .from("fidRegistrations")
     .select("fid, created")
@@ -140,10 +151,7 @@ async function linkFidToIdentity(
       .update({
         created: reqBody.timestamp,
         identityPublicKey: reqBody.identityPublicKey,
-        isSigningKeyValid: hasSigningKeyInfo,
-        signature,
-        signingKeyLastValidatedAt,
-        signingPublicKey,
+        ...signingPayload,
       })
       .eq("fid", reqBody.fid)
       .select();
@@ -167,10 +175,7 @@ async function linkFidToIdentity(
         fid: reqBody.fid,
         created: reqBody.timestamp,
         identityPublicKey: reqBody.identityPublicKey,
-        isSigningKeyValid: hasSigningKeyInfo,
-        signature,
-        signingKeyLastValidatedAt,
-        signingPublicKey,
+        ...signingPayload,
       })
       .select();
     if (error !== null) {

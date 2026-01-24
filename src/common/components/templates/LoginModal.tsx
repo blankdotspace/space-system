@@ -50,7 +50,7 @@ const LoginModal = ({
     ) {
       login();
     }
-  }, [currentStep, open, ready, authenticated]);
+  }, [currentStep, open, ready, authenticated, login]);
 
   // Open modal automatically when CurrentInitializerComponent exists (for signer authorization)
   // This allows signer authorization to work even when setup is already done
