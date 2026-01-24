@@ -2,6 +2,7 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import stylistic from "@stylistic/eslint-plugin";
 import typescriptEslint from "@typescript-eslint/eslint-plugin";
 import react from "eslint-plugin-react";
+import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import tsParser from "@typescript-eslint/parser";
 import path from "node:path";
@@ -24,6 +25,7 @@ export default defineConfig([
             ...compat.extends("eslint:recommended"),
             ...compat.extends("plugin:@typescript-eslint/recommended"),
             ...compat.extends("plugin:react/recommended"),
+            ...compat.extends("next/core-web-vitals"),
             ...compat.extends("prettier")
         ],
 
@@ -31,6 +33,7 @@ export default defineConfig([
             "@stylistic": stylistic,
             "@typescript-eslint": typescriptEslint,
             react,
+            "react-hooks": reactHooks,
         },
 
         languageOptions: {
@@ -51,6 +54,8 @@ export default defineConfig([
     },
 
     rules: {
+        ...reactHooks.configs.recommended.rules,
+
         "@typescript-eslint/no-unused-vars": ["warn", {
             varsIgnorePattern: "^_",
             args: "none",
