@@ -106,6 +106,9 @@ const nextConfig = {
     return [
     ];
   },
+  // Keep webpack for production builds due to Turbopack compatibility issues with viem
+  // Add empty turbopack config to silence Next.js 16 warning
+  turbopack: {},
   webpack: (config) => {
     // Prevent webpack from attempting to bundle Node "os" module
     // which can cause erroneous imports of @walletconnect/types

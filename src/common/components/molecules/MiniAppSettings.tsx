@@ -157,7 +157,7 @@ export function MiniAppSettings({ miniApp, onUpdateMiniApp, dragControls, orderN
             <label className="block text-xs text-gray-500 mb-1">Icon</label>
             <button
               type="button"
-              ref={iconButtonRef}
+              ref={iconButtonRef as React.RefObject<HTMLButtonElement>}
               onClick={() => setIsIconSelectorOpen(!isIconSelectorOpen)}
               className="h-10 w-10 flex items-center justify-center border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2"
               style={{
@@ -169,7 +169,7 @@ export function MiniAppSettings({ miniApp, onUpdateMiniApp, dragControls, orderN
             {isIconSelectorOpen && (
               <IconSelector
                 onSelectIcon={handleIconSelect}
-                triggerRef={iconButtonRef}
+                triggerRef={iconButtonRef as React.RefObject<HTMLElement>}
                 onClose={() => setIsIconSelectorOpen(false)}
               />
             )}
