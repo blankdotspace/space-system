@@ -23,16 +23,13 @@ This document provides a comprehensive overview of the Blankspace configuration 
 ```
 Browser Request (example.nounspace.com)
   ↓
-Next.js Middleware (middleware.ts)
-  ├─ Detects domain from headers
-  ├─ Resolves community ID (example.nounspace.com → "example")
-  └─ Sets headers: x-community-id, x-detected-domain
-  ↓
 Server Component (layout.tsx, page.tsx, etc.)
-  ├─ Reads headers (async headers() API)
   ├─ Calls await loadSystemConfig() ← SERVER-ONLY
-  ├─ Loads config from database
-  └─ Passes systemConfig as prop to Client Components
+  │   ├─ Reads host header directly (async headers() API)
+  │   ├─ Normalizes domain
+  │   ├─ Resolves community ID via community_domains table or domain fallback
+  │   └─ Loads config from database
+  ├─ Passes systemConfig as prop to Client Components
   ↓
 Client Components
   ├─ Receive systemConfig prop
@@ -43,10 +40,12 @@ Renders with community-specific config
 
 **Key Point:** Config loading is **server-only**. Client components never call `loadSystemConfig()` directly - they receive config via props.
 
+**Note:** There is no Next.js middleware file. Domain detection happens directly in `loadSystemConfig()` using Next.js `headers()` API, which reads request headers.
+
 **Key Files:**
-- `middleware.ts` - Domain detection and header injection
-- `src/config/loaders/registry.ts` - Domain → community ID resolution
-- `src/config/loaders/utils.ts` - Context building and community ID resolution
+- `src/config/index.ts` - Main config loader entry point
+- `src/config/loaders/registry.ts` - Domain → community ID resolution and database queries
+- `src/config/loaders/runtimeLoader.ts` - Runtime config loader implementation
 
 ### 2. Configuration Loading System
 
@@ -59,20 +58,27 @@ Renders with community-specific config
 ```
 loadSystemConfig(context?) - SERVER-ONLY
   ↓
-buildContext() - Builds ConfigLoadContext
-  ├─ Reads x-community-id, x-detected-domain headers (server-only)
-  └─ Falls back to env vars if needed
+Priority 1: Explicit context.communityId (if provided)
+  └─ Directly loads config for that community ID
   ↓
-resolveCommunityId(context) - Priority order:
-  1. Explicit context.communityId
-  2. NEXT_PUBLIC_TEST_COMMUNITY (dev only)
-  3. Domain resolution (from middleware headers)
-  
-  Note: If no community ID can be resolved, the system will error when attempting to load config.
+Priority 2: Domain resolution (if domain provided or detected from headers)
+  ├─ Reads host header using Next.js headers() API
+  ├─ Normalizes domain
+  ├─ Resolves community ID via resolveCommunityIdFromDomain():
+  │   ├─ Checks community_domains table (database mapping)
+  │   └─ Falls back to domain as community_id (legacy)
+  └─ Loads config for resolved community ID
+  ↓
+Priority 3: Development override (NEXT_PUBLIC_TEST_COMMUNITY)
+  └─ Loads config for test community (dev only)
+  ↓
+Priority 4: Default fallback
+  └─ Loads config for DEFAULT_COMMUNITY_ID ('nounspace.com')
   ↓
 RuntimeConfigLoader.load(context)
-  ├─ Fetches from Supabase RPC: get_active_community_config()
-  ├─ Validates config structure
+  ├─ Queries community_configs table
+  ├─ Transforms database row to SystemConfig format
+  ├─ Loads domain mappings from community_domains table
   ├─ Merges with shared themes (from shared/themes.ts)
   └─ Returns SystemConfig
 ```
@@ -112,26 +118,41 @@ export function MyComponent() {
 
 #### Community ID Resolution Priority
 
-1. **Explicit Context** (`context.communityId`) - Highest priority
-2. **Development Override** (`NEXT_PUBLIC_TEST_COMMUNITY`) - For local testing only
-3. **Domain Resolution** - From middleware headers (production or localhost subdomains)
-   - **Special Domain Mappings** (checked first) - Configured in `src/config/loaders/registry.ts`
-   - **Normal Domain Resolution** - Subdomain extraction (e.g., `example.nounspace.com` → `example`)
+1. **Explicit Context** (`context.communityId`) - Highest priority, directly loads config
+2. **Domain Resolution** - Reads host header using Next.js `headers()` API
+   - **Database Domain Mappings** (checked first) - `community_domains` table lookup
+     - Supports `blank_subdomain` (e.g., `example.blank.space`)
+     - Supports `custom` domains (e.g., `example.com`)
+   - **Legacy Fallback** - Domain as community_id (e.g., `example.nounspace.com` → `example.nounspace.com`)
+3. **Development Override** (`NEXT_PUBLIC_TEST_COMMUNITY`) - For local testing only
+4. **Default Fallback** - Falls back to `DEFAULT_COMMUNITY_ID` ('nounspace.com')
 
-**Note:** If no community ID can be resolved, the system will error when attempting to load config. In development, always set `NEXT_PUBLIC_TEST_COMMUNITY` or use localhost subdomains (e.g., `example.localhost:3000`).
+**Note:** The system uses a database table (`community_domains`) for domain mappings, not hardcoded maps. This allows dynamic domain configuration without code changes.
 
-**Special Domain Mappings:**
-
-Certain domains can be mapped to specific communities, overriding normal domain resolution. This is configured in `src/config/loaders/registry.ts`:
+**Domain Resolution Process:**
 
 ```typescript
-const DOMAIN_TO_COMMUNITY_MAP: Record<string, string> = {
-  'staging.nounspace.com': 'nouns',
-  'staging.localhost': 'nouns', // For local testing
-};
+// 1. Normalize domain
+const normalizedDomain = normalizeDomain(host);
+
+// 2. Check community_domains table
+const { data } = await supabase
+  .from('community_domains')
+  .select('community_id')
+  .eq('domain', normalizedDomain)
+  .maybeSingle();
+
+// 3. Use mapped community_id or fall back to domain as community_id
+const communityId = data?.community_id || normalizedDomain;
 ```
 
-These mappings take priority over normal domain resolution and are useful for staging environments, preview deployments, etc.
+**Database Domain Mappings:**
+
+Domain mappings are stored in the `community_domains` table:
+- Each community can have one `blank_subdomain` (e.g., `example.blank.space`)
+- Each community can have one `custom` domain (e.g., `example.com`)
+- Domains are normalized before lookup
+- Falls back to using domain as community_id if no mapping exists
 
 ### 3. Database Schema
 
@@ -148,34 +169,49 @@ CREATE TABLE community_configs (
     fidgets_config JSONB NOT NULL,         -- Enabled/disabled fidgets
     navigation_config JSONB,              -- Navigation items (with spaceId refs)
     ui_config JSONB,                       -- UI colors
-    is_published BOOLEAN DEFAULT true
+    admin_identity_public_keys TEXT[],     -- Admin public keys for navigation editing
+    is_published BOOLEAN DEFAULT true,
+    custom_domain_authorized BOOLEAN DEFAULT false,  -- Custom domain authorization flag
+    admin_email TEXT                       -- Admin contact email
 );
 ```
 
-#### Database Function: `get_active_community_config`
+#### `community_domains` Table
 
 ```sql
--- Returns most recently updated published config for a community
--- Orders by updated_at DESC for deterministic results
-SELECT jsonb_build_object(
-    'brand', brand_config,
-    'assets', assets_config,
-    'community', community_config,
-    'fidgets', fidgets_config,
-    'navigation', navigation_config,
-    'ui', ui_config
-)
-FROM community_configs
-WHERE community_id = p_community_id
-  AND is_published = true
-ORDER BY updated_at DESC
-LIMIT 1;
+CREATE TABLE community_domains (
+    id UUID PRIMARY KEY,
+    community_id VARCHAR(50) NOT NULL REFERENCES community_configs(community_id) ON DELETE CASCADE,
+    domain TEXT NOT NULL UNIQUE,
+    domain_type TEXT NOT NULL CHECK (domain_type IN ('blank_subdomain', 'custom')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    UNIQUE(community_id, domain_type)  -- One blank_subdomain and one custom per community
+);
 ```
+
+**Key Features:**
+- Maps domains to community IDs (replaces hardcoded mappings)
+- Supports both blank subdomains (`*.blank.space`) and custom domains
+- Each community can have one of each domain type
+- Used for domain-based community resolution
+- Public read access for domain resolution
+
+#### Config Loading Process
+
+The system no longer uses an RPC function. Instead, config loading happens in application code:
+
+1. Query `community_configs` table directly
+2. Transform database row to `SystemConfig` format in application code
+3. Load domain mappings from `community_domains` table
+4. Merge with shared themes from `shared/themes.ts`
+5. Return complete `SystemConfig`
 
 **Key Features:**
 - Deterministic ordering by `updated_at DESC`
 - Only returns published configs
 - Returns most recent version if multiple exist
+- Domain mappings loaded separately and merged into config
 
 ### 4. Configuration Structure
 
@@ -368,11 +404,12 @@ export const INITIAL_HOMEBASE_CONFIG = nounsINITIAL_HOMEBASE_CONFIG;
 
 ### Added Components
 
-1. **Middleware-Based Domain Detection** - Centralized domain resolution
+1. **Direct Header-Based Domain Detection** - Domain resolution using Next.js `headers()` API
 2. **Runtime Database Loading** - All configs from Supabase
 3. **Navigation-Space References** - Pages stored as Spaces
 4. **NavPageConfig Type** - Unified type for navigation pages
-5. **Deterministic Database Function** - Orders by `updated_at DESC`
+5. **community_domains Table** - Database-backed domain mappings (replaces hardcoded maps)
+6. **Application-Level Config Transformation** - Config transformation in code, not RPC function
 
 ### Simplified Components
 
@@ -388,18 +425,19 @@ export const INITIAL_HOMEBASE_CONFIG = nounsINITIAL_HOMEBASE_CONFIG;
 ### Example 1: Loading Config for `example.nounspace.com`
 
 ```
-1. Request arrives at middleware.ts
-   └─ Domain: "example.nounspace.com"
-   └─ Resolves to: "example"
-   └─ Sets header: x-community-id = "example"
+1. Server Component calls loadSystemConfig()
+   └─ Reads host header: "example.nounspace.com"
+   └─ Normalizes domain: "example.nounspace.com"
 
-2. Server Component calls loadSystemConfig()
-   └─ Reads x-community-id header: "example"
-   └─ Calls RuntimeConfigLoader.load({ communityId: "example" })
+2. Domain Resolution
+   └─ Checks community_domains table for "example.nounspace.com"
+   └─ If not found, uses domain as community_id: "example.nounspace.com"
+   └─ If found, uses mapped community_id from table
 
-3. RuntimeConfigLoader
-   └─ Calls Supabase RPC: get_active_community_config("example")
-   └─ Receives JSONB config from database
+3. Config Loading
+   └─ Queries community_configs table for resolved community_id
+   └─ Transforms database row to SystemConfig format
+   └─ Loads domain mappings from community_domains table
    └─ Merges with themes from shared/themes.ts
    └─ Returns SystemConfig
 
@@ -410,7 +448,7 @@ export const INITIAL_HOMEBASE_CONFIG = nounsINITIAL_HOMEBASE_CONFIG;
 
 ```
 1. Request: example.nounspace.com/home
-   └─ Middleware detects domain → sets x-community-id: "example"
+   └─ Server Component reads host header: "example.nounspace.com"
 
 2. NavPage Server Component loads
    └─ Calls: await loadSystemConfig()
@@ -520,7 +558,6 @@ RootLayout (Server Component)
 - `src/config/shared/themes.ts` - Shared themes
 
 ### Routing & Navigation
-- `middleware.ts` - Domain detection and header injection
 - `src/app/[navSlug]/[[...tabName]]/page.tsx` - Dynamic navigation (Server Component)
 - `src/app/[navSlug]/[[...tabName]]/NavPageSpace.tsx` - Client component for rendering
 - `src/app/layout.tsx` - Root layout that loads config and passes to client components
@@ -532,7 +569,8 @@ RootLayout (Server Component)
 - `src/pages/api/navigation/config.ts` - Navigation config API endpoint
 
 ### Database
-- `supabase/migrations/20251129172847_create_community_configs.sql` - Schema
+- `supabase/migrations/20251129172847_create_community_configs.sql` - Community configs schema
+- `supabase/migrations/20260215000000_add_community_domains_and_domain_fields.sql` - Domain mappings schema
 - `scripts/seed.ts` - Unified seeding script (replaces all individual seed scripts)
 
 ### Space Creators
