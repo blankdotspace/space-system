@@ -1,1 +1,1 @@
-export default ["farcaster:nounspace"];
+export default ["farcaster:blankspace"];

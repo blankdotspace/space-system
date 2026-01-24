@@ -1,6 +1,6 @@
 # State Management Architecture
 
-Nounspace uses a sophisticated Zustand-based state management system with store composition, persistence, and optimistic updates.
+Blankspace uses a sophisticated Zustand-based state management system with store composition, persistence, and optimistic updates.
 
 ## Architecture Overview
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { debounce } from "lodash";
 import axios, { CancelTokenSource, isAxiosError } from "axios";
 import axiosBackend from "@/common/data/api/backend";
-import { NounspaceResponse } from "@/common/data/api/requestHandler";
+import { BlankspaceResponse } from "@/common/data/api/requestHandler";
 import { User } from "@neynar/nodejs-sdk/build/api";
 
 type UserSearchResult = {
@@ -38,7 +38,7 @@ const useSearchUsers = (
 
       try {
         const response = await axiosBackend.get<
-          NounspaceResponse<UserSearchResult>
+          BlankspaceResponse<UserSearchResult>
         >("/api/search/users", {
           params: {
             q,

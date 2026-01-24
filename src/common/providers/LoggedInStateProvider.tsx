@@ -159,13 +159,13 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
       if (currentIdentity.associatedFids.length === 0) {
         const fidResult = (await authenticatorManager.callMethod({
           requestingFidgetId: "root",
-          authenticatorId: "farcaster:nounspace",
+          authenticatorId: "farcaster:blankspace",
           methodName: "getAccountFid",
           isLookup: true,
         })) as { value: number };
         const publicKeyResult = (await authenticatorManager.callMethod({
           requestingFidgetId: "root",
-          authenticatorId: "farcaster:nounspace",
+          authenticatorId: "farcaster:blankspace",
           methodName: "getSignerPublicKey",
           isLookup: true,
         })) as { value: Uint8Array };
@@ -173,7 +173,7 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
           const signResult = (await authenticatorManager.callMethod(
             {
               requestingFidgetId: "root",
-              authenticatorId: "farcaster:nounspace",
+              authenticatorId: "farcaster:blankspace",
               methodName: "signMessage",
               isLookup: false,
             },

@@ -1,5 +1,5 @@
 import requestHandler, {
-  NounspaceResponse,
+  BlankspaceResponse,
 } from "@/common/data/api/requestHandler";
 import createSupabaseServerClient from "@/common/data/database/supabase/clients/server";
 import { SignedFile, validateSignable } from "@/common/lib/signedFiles";
@@ -16,7 +16,7 @@ export type PreKeyRequest = {
 
 export type PreKeyResponseData = string[];
 
-export type PreKeyResponse = NounspaceResponse<PreKeyResponseData>;
+export type PreKeyResponse = BlankspaceResponse<PreKeyResponseData>;
 
 async function handlePost(
   req: NextApiRequest,

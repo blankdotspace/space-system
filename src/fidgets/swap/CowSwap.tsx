@@ -571,12 +571,13 @@ const cowSwapProperties: FidgetProperties = {
       ),
       group: "style",
     },
+    // Fidget shadow
     {
       fieldName: "fidgetShadow",
       displayName: "Fidget Shadow",
       displayNameHint:
-        "Shadow for the Fidget. Set to Theme Shadow to inherit from the Theme. Set to None to remove the shadow.",
-      default: "none",
+        "Shadow for the Fidget. Set to Theme Shadow to inherit the Fidget Shadow Settings from the Theme. Set to None to remove the shadow.",
+      default: "var(--user-theme-fidget-shadow)",
       required: false,
       inputSelector: (props) => (
         <WithMargin>
@@ -679,7 +680,7 @@ const CowSwap: React.FC<FidgetArgs<CowSwapFidgetSettings>> = ({
   // Build widget params
   const buildParams = useCallback((): CowSwapWidgetParams => {
     const params: CowSwapWidgetParams = {
-      appCode: "Nounspace",
+      appCode: "Blankspace",
       width: "100%",
       height: "100%",
       chainId,

@@ -4,7 +4,7 @@
 branch: 'main'
 blocked_dirs: [".github/"]
 gha_enabled: True
-description: 'Nounspace is a web and desktop app built with NextJS and as a power-user client for the Farcaster protocol (a sufficiently decentralized social media platform)'
+description: 'Blankspace is a web and desktop app built with NextJS and as a power-user client for the Farcaster protocol (a sufficiently decentralized social media platform)'
 # Default Values: https://github.com/sweepai/sweep/blob/main/sweep.yaml
 
 docs:

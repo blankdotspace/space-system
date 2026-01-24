@@ -9,6 +9,9 @@ const withBundleAnalyzer = bundlerAnalyzer({
   enabled: process.env.ANALYZE === "true",
 });
 
+// TODO: Migrate Privy auth URLs to use environment variables with proper fallbacks
+// Currently using hardcoded nounspace.com URLs to avoid breaking existing setup
+// See: https://docs.privy.io for proper custom domain configuration
 const cspHeader = `
     default-src 'self';
     script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com https://www.youtube.com https://www.youtube.com/iframe_api https://auth.privy.nounspace.com https://cdn.mxpnl.com;
@@ -96,8 +99,7 @@ const nextConfig = {
     return [
       {
         source: "/signatures",
-        destination:
-          "https://docs.nounspace.com/nounspace-alpha/accounts/signatures",
+        destination: "https://docs.nounspace.com/nounspace-alpha/accounts/signatures",
         permanent: true,
       },
     ];

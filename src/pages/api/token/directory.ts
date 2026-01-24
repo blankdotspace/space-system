@@ -11,7 +11,7 @@ import {
 import { http } from "@wagmi/core";
 
 import requestHandler, {
-  type NounspaceResponse,
+  type BlankspaceResponse,
 } from "@/common/data/api/requestHandler";
 import neynar from "@/common/data/api/neynar";
 import { fetchTokenData } from "@/common/lib/utils/fetchTokenData";
@@ -1091,7 +1091,7 @@ export async function fetchDirectoryData(
 
 const get = async (
   req: NextApiRequest,
-  res: NextApiResponse<NounspaceResponse<DirectoryApiResponse, DirectoryErrorResponse>>,
+  res: NextApiResponse<BlankspaceResponse<DirectoryApiResponse, DirectoryErrorResponse>>,
 ) => {
   const parseResult = DIRECTORY_QUERY_SCHEMA.safeParse(req.query);
 

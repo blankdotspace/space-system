@@ -1,10 +1,10 @@
-# Nounspace Architecture Documentation
+# Blankspace Architecture Documentation
 
 ## Space and Tab Management System
 
 ### Overview
 
-Nounspace features two distinct architectural patterns for space management: **Public Spaces** and **Private Spaces** (Homebase). While they share a common presentation layer through the `SpacePage` component, they differ significantly in state management, data flow, and tab handling.
+Blankspace features two distinct architectural patterns for space management: **Public Spaces** and **Private Spaces** (Homebase). While they share a common presentation layer through the `SpacePage` component, they differ significantly in state management, data flow, and tab handling.
 
 ### Core Components
 

@@ -1,6 +1,6 @@
 # Theme System Overview
 
-The theme system in Nounspace provides comprehensive visual customization capabilities, allowing users to personalize their spaces with custom colors, fonts, layouts, and interactive elements.
+The theme system in Blankspace provides comprehensive visual customization capabilities, allowing users to personalize their spaces with custom colors, fonts, layouts, and interactive elements.
 
 ## Core Concepts
 

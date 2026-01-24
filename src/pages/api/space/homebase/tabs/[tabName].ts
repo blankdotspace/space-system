@@ -1,5 +1,5 @@
 import requestHandler, {
-  NounspaceResponse,
+  BlankspaceResponse,
 } from "@/common/data/api/requestHandler";
 import {
   SignedFile,
@@ -12,7 +12,7 @@ import stringify from "fast-json-stable-stringify";
 import { homebaseTabsPath } from "@/constants/supabase";
 import { isArray, isUndefined } from "lodash";
 
-export type UpdateHomebaseResponse = NounspaceResponse<boolean>;
+export type UpdateHomebaseResponse = BlankspaceResponse<boolean>;
 export type UpdateHomebaseRequest = SignedFile;
 
 async function updateHomebaseTab(

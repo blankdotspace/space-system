@@ -23,7 +23,7 @@ import {
   isProposalSpace,
   isChannelSpace,
 } from "@/common/types/spaceData";
-const FARCASTER_NOUNSPACE_AUTHENTICATOR_NAME = "farcaster:nounspace";
+const FARCASTER_BLANKSPACE_AUTHENTICATOR_NAME = "farcaster:blankspace";
 
 interface PublicSpaceProps {
   spacePageData: SpacePageData;
@@ -117,7 +117,7 @@ export default function PublicSpace({
   useEffect(() => {
     authManagerGetInitializedAuthenticators().then((authNames) => {
       setIsSignedIntoFarcaster(
-        indexOf(authNames, FARCASTER_NOUNSPACE_AUTHENTICATOR_NAME) > -1,
+        indexOf(authNames, FARCASTER_BLANKSPACE_AUTHENTICATOR_NAME) > -1,
       );
     });
   }, [authManagerLastUpdatedAt]);
@@ -127,7 +127,7 @@ export default function PublicSpace({
     if (!isSignedIntoFarcaster) return;
     authManagerCallMethod({
       requestingFidgetId: "root",
-      authenticatorId: FARCASTER_NOUNSPACE_AUTHENTICATOR_NAME,
+      authenticatorId: FARCASTER_BLANKSPACE_AUTHENTICATOR_NAME,
       methodName: "getAccountFid",
       isLookup: true,
     }).then((authManagerResp) => {

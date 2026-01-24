@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { NotificationsResponse } from "@neynar/nodejs-sdk/build/api";
 import { useInfiniteQuery, keepPreviousData } from "@tanstack/react-query";
-import { NounspaceResponse } from "@/common/data/api/requestHandler";
+import { BlankspaceResponse } from "@/common/data/api/requestHandler";
 import axiosBackend from "@/common/data/api/backend";
 
 export const useNotifications = (fid?: number | null, limit: number = 25) => {
@@ -11,7 +11,7 @@ export const useNotifications = (fid?: number | null, limit: number = 25) => {
         throw new Error("You must be logged in to view notifications.");
       }
       const { data } = await axiosBackend.get<
-        NounspaceResponse<NotificationsResponse>
+        BlankspaceResponse<NotificationsResponse>
       >("/api/notifications", {
         params: {
           fid,

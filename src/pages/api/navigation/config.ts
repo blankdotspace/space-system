@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from "@/common/data/database/supabase/clients/server";
 import requestHandler, {
-  NounspaceResponse,
+  BlankspaceResponse,
 } from "@/common/data/api/requestHandler";
 import {
   isSignable,
@@ -27,7 +27,7 @@ export type UnsignedUpdateNavigationConfigRequest = {
 
 export type UpdateNavigationConfigRequest = UnsignedUpdateNavigationConfigRequest & Signable;
 
-export type UpdateNavigationConfigResponse = NounspaceResponse<boolean>;
+export type UpdateNavigationConfigResponse = BlankspaceResponse<boolean>;
 
 function isUpdateNavigationConfigRequest(
   thing: unknown,

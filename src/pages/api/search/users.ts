@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next/types";
 import { isAxiosError } from "axios";
 import { z, ZodSchema } from "zod";
 import requestHandler, {
-  NounspaceResponse,
+  BlankspaceResponse,
 } from "@/common/data/api/requestHandler";
 import neynar from "@/common/data/api/neynar";
 import { User } from "@neynar/nodejs-sdk/build/api";
@@ -46,7 +46,7 @@ type UserSearchResult = {
 
 const _fetchAndFormat = async (
   _fetch: () => Promise<UserSearchResult>,
-): Promise<[statusCode: number, data: NounspaceResponse<UserSearchResult>]> => {
+): Promise<[statusCode: number, data: BlankspaceResponse<UserSearchResult>]> => {
   try {
     const value = await _fetch();
     return [

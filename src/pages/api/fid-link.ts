@@ -1,5 +1,5 @@
 import requestHandler, {
-  NounspaceResponse,
+  BlankspaceResponse,
 } from "@/common/data/api/requestHandler";
 import { isSignable, validateSignable } from "@/common/lib/signedFiles";
 import { NextApiRequest, NextApiResponse } from "next";
@@ -29,7 +29,7 @@ function isFidLinkToIdentityRequest(
   );
 }
 
-export type FidLinkToIdentityResponse = NounspaceResponse<{
+export type FidLinkToIdentityResponse = BlankspaceResponse<{
   fid: number;
   identityPublicKey: string;
   created: string;
@@ -149,7 +149,7 @@ async function linkFidToIdentity(
   }
 }
 
-export type FidsLinkedToIdentityResponse = NounspaceResponse<{
+export type FidsLinkedToIdentityResponse = BlankspaceResponse<{
   identity: string;
   fids: number[];
 }>;

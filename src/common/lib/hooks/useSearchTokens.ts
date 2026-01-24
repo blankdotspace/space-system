@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { debounce } from "lodash";
 import axios, { CancelTokenSource, isAxiosError } from "axios";
 import axiosBackend from "@/common/data/api/backend";
-import { NounspaceResponse } from "@/common/data/api/requestHandler";
+import { BlankspaceResponse } from "@/common/data/api/requestHandler";
 
 export type TokenResult = {
   id: string;
@@ -38,7 +38,7 @@ const useSearchTokens = (
 
       try {
         const response = await axiosBackend.get<
-          NounspaceResponse<{ tokens: TokenResult[] }>
+          BlankspaceResponse<{ tokens: TokenResult[] }>
         >("/api/search/tokens", {
           params: {
             q,

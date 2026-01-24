@@ -1,6 +1,6 @@
 # Authentication System
 
-The Nounspace authentication system combines Privy for wallet-based authentication with Farcaster for social identity, creating a seamless Web3 social experience.
+The Blankspace authentication system combines Privy for wallet-based authentication with Farcaster for social identity, creating a seamless Web3 social experience.
 
 ## Architecture Overview
 

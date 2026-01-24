@@ -1,6 +1,6 @@
 import neynar from "@/common/data/api/neynar";
 import requestHandler from "@/common/data/api/requestHandler";
-import { NounspaceResponse } from "@/common/data/api/requestHandler";
+import { BlankspaceResponse } from "@/common/data/api/requestHandler";
 import {
   NotificationType,
   NotificationsResponse,
@@ -33,7 +33,7 @@ const _validateQueryParams = <T extends ZodSchema>(
 
 const get = async (
   req: NextApiRequest,
-  res: NextApiResponse<NounspaceResponse<NotificationsResponse>>,
+  res: NextApiResponse<BlankspaceResponse<NotificationsResponse>>,
 ) => {
   const [{ fid, limit, cursor }, errorMessage] = _validateQueryParams(
     req,

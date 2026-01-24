@@ -23,7 +23,7 @@ export const getCastMetadataStructure = (
 
   const { hash, username, displayName, pfpUrl, text, embedImageUrl } = cast;
   const baseUrl = context?.baseUrl ?? WEBSITE_URL;
-  const brandName = context?.brandName ?? "Nounspace";
+  const brandName = context?.brandName ?? "Blankspace";
   const twitterHandle = normalizeTwitterHandle(context?.twitterHandle);
 
   const title = displayName

@@ -1186,16 +1186,16 @@ export const createSpaceStoreFunc = (
           },
         );
         existingSpaces = data;
-        // console.debug("Nounspace existing spaces response:", existingSpaces);
+        // console.debug("Blankspace existing spaces response:", existingSpaces);
       } catch (error) {
         if (axios.isAxiosError(error)) {
           console.error(
-            "Nounspace existing spaces error:",
+            "Blankspace existing spaces error:",
             error.response?.status,
             error.response?.data,
           );
         } else {
-          console.error("Nounspace existing spaces error:", error);
+          console.error("Blankspace existing spaces error:", error);
         }
       }
 
@@ -1251,7 +1251,7 @@ export const createSpaceStoreFunc = (
           "/api/space/registry",
           registration,
         );
-        console.log("Nounspace registration response:", data);
+        console.log("Blankspace registration response:", data);
         const newSpaceId = data.value!.spaceId;
         
         // Initialize both local and remote spaces with proper structure
@@ -1297,7 +1297,7 @@ export const createSpaceStoreFunc = (
       } catch (e) {
         console.error("Failed to register contract space:", e);
         if (axios.isAxiosError(e)) {
-          console.error("Nounspace error response:", e.response?.data);
+          console.error("Blankspace error response:", e.response?.data);
         }
         throw e;
       }
