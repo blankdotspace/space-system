@@ -1,5 +1,5 @@
-import { WEBSITE_URL } from "@/constants/app";
 import type { SystemConfig } from "@/config";
+import { getCanonicalBaseUrl } from "@/common/lib/utils/domain";
 
 type HeaderValue = string | string[] | undefined | null;
 type HeaderInput = Headers | Record<string, HeaderValue>;
@@ -110,23 +110,29 @@ export function resolveBaseUrlFromHeaders(
     return normalizeBaseUrl(`${protocol}://${selectedHost.host}`);
   }
 
-  const configWebsite = systemConfig?.community?.urls?.website;
-  if (configWebsite) {
-    return normalizeBaseUrl(configWebsite);
+  // If we have systemConfig, use its canonical domain (from custom domain mapping or blank subdomain)
+  // This ensures we use the correct domain for the community, not an external website URL
+  if (systemConfig) {
+    const canonicalBaseUrl = getCanonicalBaseUrl({
+      config: systemConfig,
+      host: selectedHost?.host,
+      fallbackUrl,
+    });
+    if (canonicalBaseUrl) {
+      return canonicalBaseUrl;
+    }
   }
 
   if (fallbackUrl) {
     return normalizeBaseUrl(fallbackUrl);
   }
 
-  // Try to use WEBSITE_URL if available, otherwise return empty string
-  // Callers should handle empty string by using communityId or domain from headers
-  const websiteUrl = WEBSITE_URL || "";
-  if (websiteUrl) {
-    return normalizeBaseUrl(websiteUrl);
-  }
-  
-  // Last resort: try to construct from communityId if available
-  // This should rarely be needed as headers should provide domain
+  // NOTE: We intentionally do NOT fall back to WEBSITE_URL env var here because:
+  // 1. The app can be accessed from multiple domains (multi-tenant)
+  // 2. Community config changes based on which URL is accessing it
+  // 3. Using a single hardcoded WEBSITE_URL would give the wrong base URL for other domains
+  // 
+  // In production, headers should always be available. If they're not, return empty string
+  // and let the caller handle it (they should have systemConfig available by then)
   return "";
 }
