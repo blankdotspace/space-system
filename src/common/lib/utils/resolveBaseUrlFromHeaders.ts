@@ -127,12 +127,6 @@ export function resolveBaseUrlFromHeaders(
     return normalizeBaseUrl(fallbackUrl);
   }
 
-  // NOTE: We intentionally do NOT fall back to WEBSITE_URL env var here because:
-  // 1. The app can be accessed from multiple domains (multi-tenant)
-  // 2. Community config changes based on which URL is accessing it
-  // 3. Using a single hardcoded WEBSITE_URL would give the wrong base URL for other domains
-  // 
-  // In production, headers should always be available. If they're not, return empty string
-  // and let the caller handle it (they should have systemConfig available by then)
+
   return "";
 }
