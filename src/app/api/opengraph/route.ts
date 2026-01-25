@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
         "Accept-Language": "en-US,en;q=0.9",
         "Accept-Encoding": "gzip, deflate, br",
         "Cache-Control": "no-cache",
-        "Referer": "https://nounspace.com/",
+        "Referer": request.headers.get("referer") || (request.headers.get("host") ? `https://${request.headers.get("host")}/` : ""),
         "Sec-Fetch-Dest": "document",
         "Sec-Fetch-Mode": "navigate",
         "Sec-Fetch-Site": "cross-site",

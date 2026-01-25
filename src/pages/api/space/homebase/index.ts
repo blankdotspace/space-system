@@ -1,5 +1,5 @@
 import requestHandler, {
-  NounspaceResponse,
+  BlankspaceResponse,
 } from "@/common/data/api/requestHandler";
 import {
   SignedFile,
@@ -11,7 +11,7 @@ import createSupabaseServerClient from "@/common/data/database/supabase/clients/
 import stringify from "fast-json-stable-stringify";
 import { homebasePath } from "@/constants/supabase";
 
-export type UpdateHomebaseResponse = NounspaceResponse<boolean>;
+export type UpdateHomebaseResponse = BlankspaceResponse<boolean>;
 export type UpdateHomebaseRequest = SignedFile;
 
 async function updateHomebase(

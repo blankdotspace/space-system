@@ -194,6 +194,8 @@ export type Database = {
           navigation_config: Json | null
           ui_config: Json | null
           admin_identity_public_keys: string[] | null
+          custom_domain_authorized: boolean
+          admin_email: string | null
           is_published: boolean
           created_at: string
           updated_at: string
@@ -208,6 +210,8 @@ export type Database = {
           navigation_config?: Json | null
           ui_config?: Json | null
           admin_identity_public_keys?: string[] | null
+          custom_domain_authorized?: boolean
+          admin_email?: string | null
           is_published?: boolean
           created_at?: string
           updated_at?: string
@@ -222,7 +226,36 @@ export type Database = {
           navigation_config?: Json | null
           ui_config?: Json | null
           admin_identity_public_keys?: string[] | null
+          custom_domain_authorized?: boolean
+          admin_email?: string | null
           is_published?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      community_domains: {
+        Row: {
+          id: string
+          community_id: string
+          domain: string
+          domain_type: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          community_id: string
+          domain: string
+          domain_type: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          community_id?: string
+          domain?: string
+          domain_type?: string
           created_at?: string
           updated_at?: string
         }

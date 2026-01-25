@@ -100,10 +100,10 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
 
   // Track which item's icon selector is open (by itemId)
   const [openIconSelectorId, setOpenIconSelectorId] = useState<string | null>(null);
-  const iconButtonRefs = useRef<Record<string, React.RefObject<HTMLButtonElement>>>({});
+  const iconButtonRefs = useRef<Record<string, React.RefObject<HTMLButtonElement | null>>>({});
 
   // Helper to get or create ref for an item's icon button
-  const getIconButtonRef = (itemId: string) => {
+  const getIconButtonRef = (itemId: string): React.RefObject<HTMLButtonElement | null> => {
     if (!iconButtonRefs.current[itemId]) {
       iconButtonRefs.current[itemId] = React.createRef<HTMLButtonElement>();
     }
@@ -373,7 +373,7 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
                     {!isShrunk && openIconSelectorId === item.id && (
                       <IconSelector
                         onSelectIcon={(iconName) => handleIconSelect(item.id, iconName)}
-                        triggerRef={getIconButtonRef(item.id)}
+                        triggerRef={getIconButtonRef(item.id) as React.RefObject<HTMLElement>}
                         onClose={() => setOpenIconSelectorId(null)}
                       />
                     )}

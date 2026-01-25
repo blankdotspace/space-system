@@ -1,6 +1,6 @@
 # Component Architecture
 
-Nounspace follows atomic design principles with a modular component architecture that promotes reusability, maintainability, and scalability.
+Blankspace follows atomic design principles with a modular component architecture that promotes reusability, maintainability, and scalability.
 
 ## Atomic Design Structure
 

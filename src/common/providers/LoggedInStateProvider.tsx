@@ -149,73 +149,86 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
     authenticatorManager.initializeAuthenticators(requiredAuthenticators);
     setCurrentStep(SetupStep.REQUIRED_AUTHENTICATORS_INSTALLED);
   };
-
   const registerAccounts = useCallback(async () => {
     // Prevent multiple simultaneous registrations
     if (isRegisteringAccounts) {
       console.warn("[registerAccounts] Already registering, skipping");
       return;
     }
-    
+
     setIsRegisteringAccounts(true);
     console.log("[registerAccounts] Starting account registration...");
     try {
       let currentIdentity = getCurrentIdentity()!;
-      console.log("[registerAccounts] Current identity FIDs:", currentIdentity.associatedFids);
-      
+      console.log(
+        "[registerAccounts] Current identity FIDs:",
+        currentIdentity.associatedFids,
+      );
+
       if (currentIdentity.associatedFids.length > 0) {
-        console.log("[registerAccounts] FIDs already registered:", currentIdentity.associatedFids);
+        console.log(
+          "[registerAccounts] FIDs already registered:",
+          currentIdentity.associatedFids,
+        );
         setCurrentStep(SetupStep.ACCOUNTS_REGISTERED);
-      } else {
-        console.log("[registerAccounts] No FIDs found, attempting to load...");
-        try {
-          await loadFidsForCurrentIdentity();
-        } catch (error) {
-          console.warn("[registerAccounts] Failed to load FIDs (non-critical):", error);
-        }
-        currentIdentity = getCurrentIdentity()!;
-        console.log("[registerAccounts] After load attempt, FIDs:", currentIdentity.associatedFids);
-        
-        if (currentIdentity.associatedFids.length === 0) {
-          console.log("[registerAccounts] Calling getAccountFid...");
-          const fidResult = (await authenticatorManager.callMethod({
-            requestingFidgetId: "root",
-            authenticatorId: "farcaster:nounspace",
-            methodName: "getAccountFid",
-            isLookup: true,
-          })) as { value: number };
-          console.log("[registerAccounts] FID result:", fidResult);
-          
-          const publicKeyResult = (await authenticatorManager.callMethod({
-            requestingFidgetId: "root",
-            authenticatorId: "farcaster:nounspace",
-            methodName: "getSignerPublicKey",
-            isLookup: true,
-          })) as { value: Uint8Array };
-          console.log("[registerAccounts] Public key result:", publicKeyResult);
-          
-          const signForFid = async (messageHash) => {
-            const signResult = (await authenticatorManager.callMethod(
-              {
-                requestingFidgetId: "root",
-                authenticatorId: "farcaster:nounspace",
-                methodName: "signMessage",
-                isLookup: false,
-              },
-              messageHash,
-            )) as { value: Uint8Array };
-            return signResult.value;
-          };
-          console.log("[registerAccounts] Registering FID:", fidResult.value);
-          await registerFidForCurrentIdentity(
-            fidResult.value,
-            bytesToHex(publicKeyResult.value),
-            signForFid,
-          );
-          console.log("[registerAccounts] FID registered successfully");
-        }
-        setCurrentStep(SetupStep.ACCOUNTS_REGISTERED);
+        return;
       }
+
+      console.log("[registerAccounts] No FIDs found, attempting to load...");
+      try {
+        await loadFidsForCurrentIdentity();
+      } catch (error) {
+        console.warn(
+          "[registerAccounts] Failed to load FIDs (non-critical):",
+          error,
+        );
+      }
+      currentIdentity = getCurrentIdentity()!;
+      console.log(
+        "[registerAccounts] After load attempt, FIDs:",
+        currentIdentity.associatedFids,
+      );
+
+      if (currentIdentity.associatedFids.length === 0) {
+        console.log("[registerAccounts] Calling getAccountFid...");
+        const fidResult = (await authenticatorManager.callMethod({
+          requestingFidgetId: "root",
+          authenticatorId: "farcaster:nounspace",
+          methodName: "getAccountFid",
+          isLookup: true,
+        })) as { value: number };
+        console.log("[registerAccounts] FID result:", fidResult);
+
+        const publicKeyResult = (await authenticatorManager.callMethod({
+          requestingFidgetId: "root",
+          authenticatorId: "farcaster:nounspace",
+          methodName: "getSignerPublicKey",
+          isLookup: true,
+        })) as { value: Uint8Array };
+        console.log("[registerAccounts] Public key result:", publicKeyResult);
+
+        const signForFid = async (messageHash) => {
+          const signResult = (await authenticatorManager.callMethod(
+            {
+              requestingFidgetId: "root",
+              authenticatorId: "farcaster:nounspace",
+              methodName: "signMessage",
+              isLookup: false,
+            },
+            messageHash,
+          )) as { value: Uint8Array };
+          return signResult.value;
+        };
+        console.log("[registerAccounts] Registering FID:", fidResult.value);
+        await registerFidForCurrentIdentity(
+          fidResult.value,
+          bytesToHex(publicKeyResult.value),
+          signForFid,
+        );
+        console.log("[registerAccounts] FID registered successfully");
+      }
+
+      setCurrentStep(SetupStep.ACCOUNTS_REGISTERED);
     } catch (error) {
       console.error("[registerAccounts] Unexpected error:", error);
       // ALWAYS advance to next step to prevent infinite loop
@@ -230,7 +243,6 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
     authenticatorManager,
     registerFidForCurrentIdentity,
     setCurrentStep,
-    bytesToHex,
   ]);
 
   // Has to be separate otherwise will cause retrigger chain

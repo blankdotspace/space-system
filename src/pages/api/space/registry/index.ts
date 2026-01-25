@@ -1,7 +1,7 @@
 import { SpaceConfig } from "@/app/(spaces)/Space";
 import { contractOwnerFromContractAddress } from "@/common/data/api/etherscan";
 import requestHandler, {
-  NounspaceResponse,
+  BlankspaceResponse,
 } from "@/common/data/api/requestHandler";
 import createSupabaseServerClient from "@/common/data/database/supabase/clients/server";
 import { loadOwnedItentitiesForWalletAddress } from "@/common/data/database/supabase/serverHelpers";
@@ -111,9 +111,9 @@ function isSpaceRegistrationChannel(maybe: unknown): maybe is SpaceRegistrationC
   );
 }
 
-export type RegisterNewSpaceResponse = NounspaceResponse<SpaceInfo>;
+export type RegisterNewSpaceResponse = BlankspaceResponse<SpaceInfo>;
 
-export type ModifiableSpacesResponse = NounspaceResponse<{
+export type ModifiableSpacesResponse = BlankspaceResponse<{
   identity: string;
   spaces: SpaceInfo[];
 }>;

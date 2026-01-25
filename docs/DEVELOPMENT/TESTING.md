@@ -1,6 +1,6 @@
 # Testing Guide
 
-This guide covers testing strategies, patterns, and best practices for the Nounspace codebase to ensure code quality and reliability.
+This guide covers testing strategies, patterns, and best practices for the Blankspace codebase to ensure code quality and reliability.
 
 ## Testing Philosophy
 

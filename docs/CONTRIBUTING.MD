@@ -1,17 +1,17 @@
 # Contributing
 
-To add any code to the `nounspace/Nounspace.ts` repo, you will need to open a PR.
+To add any code to the `blankdotspace/space-system` repo, you will need to open a PR.
 
 ## TypeScript
-Nounspace is written fully in TypeScript with strict type checking enabled.
+Blankspace is written fully in TypeScript with strict type checking enabled.
 
 ## Steps to open a PR
-Nounspace expects its contributors to follow the "Fork and Pull" method to open PRs. Below is a TL;DR for this process
+Blankspace expects its contributors to follow the "Fork and Pull" method to open PRs. Below is a TL;DR for this process
 
-1. Fork `nounspace/Nounspace.ts`
+1. Fork `blankdotspace/space-system`
   a. Press the `fork` button at the top of the page
   b. Copy the fork locally (`git clone {your url}`)
-  c. Set up the `upstream` to `nounspace/Nounspace.ts` (`git remote add upstream git@github.com:Nounspace/nounspace.ts.git`)
+  c. Set up the `upstream` to `blankdotspace/space-system` (`git remote add upstream git@github.com:blankdotspace/space-system.git`)
 2. Make changes in your fork
 3. Commit your changes to your fork and push them to Github
 4. Open a PR in the Github webapp

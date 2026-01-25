@@ -1,10 +1,10 @@
-import { NounspaceResponse } from "@/common/data/api/requestHandler";
+import { BlankspaceResponse } from "@/common/data/api/requestHandler";
 import { NextApiRequest, NextApiResponse } from "next/types";
 import { getYouTubeMetadata } from "@/common/lib/utils/youtube";
 import { youtube_v3 } from "@googleapis/youtube";
 
 export type YouTubeMetadataResponse =
-  NounspaceResponse<youtube_v3.Schema$Video>;
+  BlankspaceResponse<youtube_v3.Schema$Video>;
 
 export default async function GET(
   req: NextApiRequest,

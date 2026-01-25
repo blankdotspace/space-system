@@ -1,5 +1,5 @@
 import requestHandler, {
-  NounspaceResponse,
+  BlankspaceResponse,
 } from "@/common/data/api/requestHandler";
 import {
   SignedFile,
@@ -11,7 +11,7 @@ import createSupabaseServerClient from "@/common/data/database/supabase/clients/
 import stringify from "fast-json-stable-stringify";
 import { homebaseTabOrderPath } from "@/constants/supabase";
 
-export type UpdateTabOrderResponse = NounspaceResponse<boolean>;
+export type UpdateTabOrderResponse = BlankspaceResponse<boolean>;
 export type UpdateTabOrderRequest = SignedFile;
 
 async function updateTabOrder(

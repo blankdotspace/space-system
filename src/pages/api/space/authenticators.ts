@@ -1,5 +1,5 @@
 import requestHandler, {
-  NounspaceResponse,
+  BlankspaceResponse,
 } from "@/common/data/api/requestHandler";
 import createSupabaseServerClient from "@/common/data/database/supabase/clients/server";
 import { SignedFile, validateSignable } from "@/common/lib/signedFiles";
@@ -8,7 +8,7 @@ import stringify from "fast-json-stable-stringify";
 import { indexOf, isUndefined, map } from "lodash";
 import { NextApiRequest, NextApiResponse } from "next/types";
 
-export type AuthenticatorResponse = NounspaceResponse;
+export type AuthenticatorResponse = BlankspaceResponse;
 
 export type AuthenticatorUpdateRequest = {
   file: SignedFile;

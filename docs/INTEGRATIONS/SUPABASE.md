@@ -1,6 +1,6 @@
 # Supabase Integration
 
-Nounspace uses Supabase for database management, authentication, and file storage, providing a scalable backend infrastructure.
+Blankspace uses Supabase for database management, authentication, and file storage, providing a scalable backend infrastructure.
 
 ## Overview
 

@@ -14,12 +14,12 @@ export type SidebarContextProviderProps = { children: React.ReactNode };
 
 export type SidebarContextValue = {
   editMode: boolean;
-  setEditMode: (value: boolean) => void;
+  setEditMode: React.Dispatch<React.SetStateAction<boolean>>;
   navEditMode: boolean;
-  setNavEditMode: (value: boolean) => void;
+  setNavEditMode: React.Dispatch<React.SetStateAction<boolean>>;
   sidebarEditable: boolean;
-  setSidebarEditable: (value: boolean) => void;
-  portalRef: React.RefObject<HTMLDivElement>;
+  setSidebarEditable: React.Dispatch<React.SetStateAction<boolean>>;
+  portalRef: React.RefObject<HTMLDivElement | null>;
 };
 
 export const SidebarContext = createContext<SidebarContextValue>(
@@ -34,7 +34,7 @@ export const SidebarContextProvider: React.FC<SidebarContextProviderProps> = ({
   const [sidebarEditable, setSidebarEditable] = useState(false);
   const portalRef = useRef<HTMLDivElement>(null);
 
-  const value = useMemo(
+  const value: SidebarContextValue = useMemo(
     () => ({
       editMode,
       setEditMode,

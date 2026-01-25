@@ -139,7 +139,7 @@ const BaseAppEmbed: React.FC<BaseAppEmbedProps> = ({ url }) => {
             controls={true}
             width="100%"
             height="auto"
-            playerRef={playerRef}
+            playerRef={playerRef as React.RefObject<HTMLVideoElement>}
             onClick={onVideoClick}
             onLoadedMetadata={onLoadedMetadata}
             playsInline

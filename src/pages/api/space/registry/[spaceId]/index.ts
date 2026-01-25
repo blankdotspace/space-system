@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from "@/common/data/database/supabase/clients/server";
 import requestHandler, {
-  NounspaceResponse,
+  BlankspaceResponse,
 } from "@/common/data/api/requestHandler";
 import {
   isSignable,
@@ -41,7 +41,7 @@ function isUpdateTabOrderRequest(
   );
 }
 
-export type UpdateSpaceTabsResponse = NounspaceResponse<TabInfo>;
+export type UpdateSpaceTabsResponse = BlankspaceResponse<TabInfo>;
 
 async function updateSpaceTabOrder(
   req: NextApiRequest,

@@ -1,5 +1,5 @@
-import { WEBSITE_URL } from "@/constants/app";
 import type { SystemConfig } from "@/config";
+import { getCanonicalBaseUrl } from "@/common/lib/utils/domain";
 
 type HeaderValue = string | string[] | undefined | null;
 type HeaderInput = Headers | Record<string, HeaderValue>;
@@ -60,6 +60,10 @@ function isVercelDotCom(host: string): boolean {
 }
 
 function normalizeBaseUrl(rawUrl: string): string {
+  if (!rawUrl) {
+    return "";
+  }
+  
   const candidate =
     rawUrl.startsWith("http://") || rawUrl.startsWith("https://")
       ? rawUrl
@@ -68,7 +72,9 @@ function normalizeBaseUrl(rawUrl: string): string {
   try {
     return new URL(candidate).origin;
   } catch {
-    return WEBSITE_URL;
+    // Return empty string instead of hardcoded fallback
+    // Caller should handle empty string appropriately
+    return "";
   }
 }
 
@@ -104,14 +110,23 @@ export function resolveBaseUrlFromHeaders(
     return normalizeBaseUrl(`${protocol}://${selectedHost.host}`);
   }
 
-  const configWebsite = systemConfig?.community?.urls?.website;
-  if (configWebsite) {
-    return normalizeBaseUrl(configWebsite);
+  // If we have systemConfig, use its canonical domain (from custom domain mapping or blank subdomain)
+  // This ensures we use the correct domain for the community, not an external website URL
+  if (systemConfig) {
+    const canonicalBaseUrl = getCanonicalBaseUrl({
+      config: systemConfig,
+      host: selectedHost?.host,
+      fallbackUrl,
+    });
+    if (canonicalBaseUrl) {
+      return canonicalBaseUrl;
+    }
   }
 
   if (fallbackUrl) {
     return normalizeBaseUrl(fallbackUrl);
   }
 
-  return normalizeBaseUrl(WEBSITE_URL);
+
+  return "";
 }

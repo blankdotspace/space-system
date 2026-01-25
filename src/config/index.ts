@@ -52,18 +52,39 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
   
   if (!domain) {
     // Read host header directly (no middleware needed)
+    // Note: This uses Next.js headers() API which is NOT available in Edge Runtime
+    // For Edge Runtime routes, domain must be provided in context
     try {
-      const { headers } = await import('next/headers');
-      const headersList = await headers();
+      // Check if we're in Edge Runtime by trying to detect it
+      // Edge Runtime doesn't have Node.js globals like process.versions.node
+      // @ts-expect-error - EdgeRuntime is a global available in Edge Runtime
+      const isEdgeRuntime = typeof EdgeRuntime !== 'undefined' || 
+                           (typeof process !== 'undefined' && !process.versions?.node);
+      
+      if (isEdgeRuntime) {
+        // In Edge Runtime, we can't use headers() API
+        // Domain must be provided via context
+        // This should not happen if resolveMetadataBranding is used correctly
+        console.warn(
+          `[Config] Edge Runtime detected: domain must be provided in context. ` +
+          `Falling back to default: "${DEFAULT_COMMUNITY_ID}"`
+        );
+        return await loadSystemConfigById(DEFAULT_COMMUNITY_ID);
+      }
+      
+      // Only import next/headers if we're NOT in Edge Runtime
+      // This prevents Next.js from trying to bundle it for Edge Runtime routes
+      const headersModule = await import('next/headers');
+      const headersList = await headersModule.headers();
       const host = headersList.get('host') || headersList.get('x-forwarded-host');
       
       if (host) {
         // Import normalizeDomain to normalize the host
-        const { normalizeDomain } = await import('./loaders/registry');
-        domain = normalizeDomain(host);
+        const { normalizeDomain } = await import('@/common/lib/utils/domain');
+        domain = normalizeDomain(host) ?? undefined;
       }
     } catch (error) {
-      // Not in request context (static generation/build time)
+      // Not in request context (static generation/build time) or Edge Runtime
       // This should not happen if layout is set to dynamic
       domain = undefined;
       console.error(`[Config] Failed to read headers (not in request context):`, error);
@@ -71,19 +92,30 @@ export async function loadSystemConfig(context?: ConfigLoadContext): Promise<Sys
   }
 
   if (domain) {
-    const resolution = await getCommunityConfigForDomain(domain);
-    if (resolution) {
-      return resolution.config;
-    }
-    // Domain provided but config not found - fall back to default
-    // Only warn once per domain to avoid console spam
-    if (!warnedDomains.has(domain)) {
-      warnedDomains.add(domain);
-      console.warn(
-        `[Config] Community config not found for domain: "${domain}", falling back to default: "${DEFAULT_COMMUNITY_ID}"`
+    try {
+      const resolution = await getCommunityConfigForDomain(domain);
+      if (resolution) {
+        return resolution.config;
+      }
+      // Domain provided but config not found - fall back to default
+      // Only warn once per domain to avoid console spam
+      if (!warnedDomains.has(domain)) {
+        warnedDomains.add(domain);
+        console.warn(
+          `[Config] Community config not found for domain: "${domain}", falling back to default: "${DEFAULT_COMMUNITY_ID}"`
+        );
+      }
+      return await loadSystemConfigById(DEFAULT_COMMUNITY_ID);
+    } catch (error) {
+      // System/transient error - log and fall back to default
+      // This allows the app to continue functioning even if one domain's config fails to load
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(
+        `[Config] System error loading config for domain "${domain}": ${errorMessage}. ` +
+        `Falling back to default: "${DEFAULT_COMMUNITY_ID}"`
       );
+      return await loadSystemConfigById(DEFAULT_COMMUNITY_ID);
     }
-    return await loadSystemConfigById(DEFAULT_COMMUNITY_ID);
   }
 
   // Priority 3: Development override
@@ -116,27 +148,32 @@ export type {
   MiniAppConfig,
 };
 
-// Space creators - re-export directly from Nouns implementations
-import { 
-  createInitialProfileSpaceConfigForFid as nounsCreateInitialProfileSpaceConfigForFid,
-  createInitialChannelSpaceConfig as nounsCreateInitialChannelSpaceConfig,
-  createInitialTokenSpaceConfigForAddress as nounsCreateInitialTokenSpaceConfigForAddress,
-  createInitalProposalSpaceConfigForProposalId as nounsCreateInitalProposalSpaceConfigForProposalId,
-  INITIAL_HOMEBASE_CONFIG as nounsINITIAL_HOMEBASE_CONFIG
-} from './nouns/index';
+// Export individual configuration modules from example and clanker
+// Note: These are kept for backward compatibility, but community customizations
+// should be handled via database config (community_configs table), not code.
+export * from './example/index';
+export * from './clanker/index';
 
-export const createInitialProfileSpaceConfigForFid = nounsCreateInitialProfileSpaceConfigForFid;
-export const createInitialChannelSpaceConfig = nounsCreateInitialChannelSpaceConfig;
-export const createInitialTokenSpaceConfigForAddress = nounsCreateInitialTokenSpaceConfigForAddress;
-export const createInitalProposalSpaceConfigForProposalId = nounsCreateInitalProposalSpaceConfigForProposalId;
-export const INITIAL_HOMEBASE_CONFIG = nounsINITIAL_HOMEBASE_CONFIG;
+// Space creators - use Nouns implementation directly
+// Community customizations should be handled via database config, not code-level routing
+import { default as createInitialProfileSpaceConfigForFid } from './nouns/initialSpaces/initialProfileSpace';
+import { default as createInitialChannelSpaceConfig } from './nouns/initialSpaces/initialChannelSpace';
+import { default as createInitialTokenSpaceConfigForAddress } from './nouns/initialSpaces/initialTokenSpace';
+import { default as createInitalProposalSpaceConfigForProposalId } from './nouns/initialSpaces/initialProposalSpace';
+import { default as INITIAL_HOMEBASE_CONFIG } from './nouns/initialSpaces/initialHomebase';
+
+export { createInitialProfileSpaceConfigForFid };
+export { createInitialChannelSpaceConfig };
+export { createInitialTokenSpaceConfigForAddress };
+export { createInitalProposalSpaceConfigForProposalId };
+export { INITIAL_HOMEBASE_CONFIG };
 
 /**
  * Create initial homebase config with user-specific data (e.g., wallet address)
  * Note: Nouns implementation doesn't use userAddress, but kept for API compatibility
  */
 export function createInitialHomebaseConfig(userAddress?: string) {
-  return nounsINITIAL_HOMEBASE_CONFIG;
+  return INITIAL_HOMEBASE_CONFIG;
 }
 // Export initial space config
 export { INITIAL_SPACE_CONFIG_EMPTY } from './initialSpaceConfig';

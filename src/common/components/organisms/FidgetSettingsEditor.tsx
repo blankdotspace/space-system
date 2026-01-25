@@ -263,7 +263,7 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
       onSubmit={_onSave}
       className="flex-col flex h-full"
     >
-      <div className="h-full overflow-auto">
+      <div className="h-full overflow-auto" style={{ overscrollBehavior: "contain" }}>
         <div className="flex pb-4 m-2">
           <button onClick={unselect} className="my-auto">
             <BackArrowIcon />

@@ -1,7 +1,7 @@
-# Nounspace Codex Instructions
+# Blankspace Codex Instructions
 
 ## Project Snapshot
-- **Product**: Nounspace – a highly customizable Farcaster client funded by Nouns DAO.
+- **Product**: Blankspace – a highly customizable Farcaster client funded by Nouns DAO.
 - **Core Concepts**: Spaces (customizable hubs), Tabs (layout blocks), Themes (visual skins), and Fidgets (mini-apps that augment a space).
 - **Tech Stack**: Next.js (App Router), TypeScript, React, Tailwind CSS, Zustand (with mutative middleware), React Query, Axios, Supabase, Privy-based auth, and Wagmi/Viem for blockchain integrations.
 

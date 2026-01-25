@@ -1,6 +1,6 @@
 # Architecture Overview
 
-Nounspace is built on a modern, modular architecture that combines Next.js App Router with Zustand state management, creating a highly customizable Farcaster client experience.
+Blankspace is built on a modern, modular architecture that combines Next.js App Router with Zustand state management, creating a highly customizable Farcaster client experience.
 
 ## High-Level Architecture
 

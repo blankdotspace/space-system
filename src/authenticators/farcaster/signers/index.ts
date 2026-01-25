@@ -4,7 +4,7 @@ import {
   AuthenticatorMethodWrapper,
   AuthenticatorMethods,
 } from "../..";
-import NounspaceFarcasterAuthenticator from "./NounspaceManagedSignerAuthenticator";
+import BlankspaceFarcasterAuthenticator from "./BlankspaceManagedSignerAuthenticator";
 
 export type SignerStatus = "pending" | "approved" | "revoked" | "completed";
 export type FarcasterRegistrationType = "account" | "signer";
@@ -52,5 +52,5 @@ export interface FarcasterSignerAuthenticatorMethods<
 }
 
 export default {
-  nounspace: NounspaceFarcasterAuthenticator,
+  blankspace: BlankspaceFarcasterAuthenticator,
 };

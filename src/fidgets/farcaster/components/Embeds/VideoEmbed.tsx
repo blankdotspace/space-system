@@ -86,7 +86,7 @@ const VideoEmbed = ({ url }: { url: string }) => {
         controls={true}
         width="100%"
         height="auto"
-        playerRef={playerRef}
+        playerRef={playerRef as React.RefObject<HTMLVideoElement>}
         onClick={onClick}
         onLoadedMetadata={onLoadedMetadata}
         playsInline

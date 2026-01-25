@@ -3,4 +3,4 @@ Disallow: /notifications
 
 Allow: /
 
-Sitemap: https://www.nounspace.com/sitemap.xml
+Sitemap: /sitemap.xml

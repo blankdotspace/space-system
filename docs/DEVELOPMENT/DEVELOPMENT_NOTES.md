@@ -1,4 +1,4 @@
-# Nounspace Layout & Mobile Navbar Refactor
+# Blankspace Layout & Mobile Navbar Refactor
 
 ## Phase 1: Research & Exploration Findings
 

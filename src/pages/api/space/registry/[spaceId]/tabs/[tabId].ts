@@ -1,6 +1,6 @@
 // Edit and delete tabs
 import requestHandler, {
-  NounspaceResponse,
+  BlankspaceResponse,
 } from "@/common/data/api/requestHandler";
 import {
   Signable,
@@ -56,7 +56,7 @@ export async function identityCanModifySpace(
 
 async function updateSpace(
   incReq: NextApiRequest,
-  res: NextApiResponse<NounspaceResponse>,
+  res: NextApiResponse<BlankspaceResponse>,
 ): Promise<void> {
   const req = incReq.body;
   const spaceId = incReq.query.spaceId as string;

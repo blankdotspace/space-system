@@ -15,6 +15,7 @@ import Top8 from "./farcaster/Top8";
 import Links from "./ui/Links";
 import snapShot from "./snapshot/SnapShot";
 import Swap from "./swap/Swap";
+import CowSwap from "./swap/CowSwap";
 import UniswapSwap from "./uniswap/UniswapSwap";
 import rss from "./ui/rss";
 import VideoFidget from "./ui/Video";
@@ -57,6 +58,7 @@ export const CompleteFidgets = {
   zoraCoins: ZoraCoins,
   SnapShot: snapShot,
   Swap: Swap,
+  CowSwap: CowSwap,
   Uniswap: UniswapSwap,
   Rss: rss,
   Luma: Luma,

@@ -46,7 +46,7 @@ const ProposalItem: React.FC<ProposalItemProps> = memo(
   ({ proposal, space, headingsFont, headingsColor, bodyFont, bodyColor }) => {
     const [visibleSection, setVisibleSection] = useState<string | undefined>();
 
-    const [state, dispatch] = useReducer<React.Reducer<State, Action>>(
+    const [state, dispatch] = useReducer(
       reducer,
       initialState
     );
@@ -149,18 +149,18 @@ const ProposalItem: React.FC<ProposalItemProps> = memo(
         case "single-choice":
           return renderSingleChoiceVotingUI(proposal, handleVote);
         case "approval":
-          return renderApprovalVotingUI(proposal, state, dispatch, handleVote);
+          return renderApprovalVotingUI(proposal, state, dispatch as React.Dispatch<any>, handleVote);
         case "quadratic":
-          return renderWeightedVotingUI(proposal, state, dispatch, handleVote);
+          return renderWeightedVotingUI(proposal, state, dispatch as React.Dispatch<any>, handleVote);
         case "ranked-choice":
           return renderRankedChoiceVotingUI(
             proposal,
             state,
-            dispatch,
+            dispatch as React.Dispatch<any>,
             handleVote
           );
         case "weighted":
-          return renderWeightedVotingUI(proposal, state, dispatch, handleVote);
+          return renderWeightedVotingUI(proposal, state, dispatch as React.Dispatch<any>, handleVote);
         case "basic":
           return renderSingleChoiceVotingUI(proposal, handleVote);
         default:

@@ -5,7 +5,7 @@ import { isUndefined } from "lodash";
 import { ed25519 } from "@noble/curves/ed25519";
 import stringify from "fast-json-stable-stringify";
 import requestHandler, {
-  NounspaceResponse,
+  BlankspaceResponse,
 } from "@/common/data/api/requestHandler";
 import {
   SignedFile,
@@ -29,7 +29,7 @@ interface IdentityResponseError {
   message: string;
 }
 
-export type IdentityResponse = NounspaceResponse<
+export type IdentityResponse = BlankspaceResponse<
   IdentityRequest | IdentityRequest[],
   IdentityResponseError
 >;

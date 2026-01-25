@@ -1,6 +1,6 @@
 # Documentation Overview
 
-This document provides an overview of the Nounspace documentation structure and organization.
+This document provides an overview of the Blankspace documentation structure and organization.
 
 ## Documentation Structure
 

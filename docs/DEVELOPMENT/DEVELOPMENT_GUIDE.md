@@ -1,8 +1,8 @@
-# Nounspace - Instructions
+# Blankspace - Instructions
 
 ## 1. Overview
 
-Nounspace is a highly customizable [Farcaster](https://farcaster.xyz/) client, initially funded by a grant from [Nouns DAO](https://nouns.wtf/). The project aims to provide users with a unique social media experience where they can personalize their profile space and personal feed with Themes, Tabs, and mini-applications called Fidgets.
+Blankspace is a highly customizable [Farcaster](https://farcaster.xyz/) client, initially funded by a grant from [Nouns DAO](https://nouns.wtf/). The project aims to provide users with a unique social media experience where they can personalize their profile space and personal feed with Themes, Tabs, and mini-applications called Fidgets.
 
 ### Problem Statements
 - Traditional social media platforms offer limited customization options
@@ -206,7 +206,7 @@ export const createStoreFunc = (
 ## 5. User Stories
 
 ### Visitor
-- As a visitor, I want to explore public spaces to understand what Nounspace offers
+- As a visitor, I want to explore public spaces to understand what Blankspace offers
 - As a visitor, I want to easily sign up and create my own space
 - As a visitor, I want to browse through different themes and layouts
 
@@ -219,13 +219,13 @@ export const createStoreFunc = (
 ### Active User
 - As an active user, I want to switch between different layouts for different contexts
 - As an active user, I want to organize my content with custom tabs
-- As an active user, I want to interact with frames and mini-apps within Nounspace
+- As an active user, I want to interact with frames and mini-apps within Blankspace
 - As an active user, I want to view my notifications and messages in one place
 - As an active user, I want to share my customized space with others
 
 ### Developer
-- As a developer, I want to create new fidgets that integrate with the Nounspace ecosystem
-- As a developer, I want to contribute to the Nounspace codebase following established patterns
+- As a developer, I want to create new fidgets that integrate with the Blankspace ecosystem
+- As a developer, I want to contribute to the Blankspace codebase following established patterns
 - As a developer, I want to implement new themes and layouts for the community
 
 ## 6. APIs and Integrations
