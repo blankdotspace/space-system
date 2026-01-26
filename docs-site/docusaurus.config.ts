@@ -34,8 +34,9 @@ const config: Config = {
       'classic',
       {
         docs: {
+          path: '../docs',
           sidebarPath: './sidebars.ts',
-          editUrl: 'https://github.com/blankdotspace/space-system/tree/main/docs-site/',
+          editUrl: 'https://github.com/blankdotspace/space-system/tree/main/',
         },
         blog: false, // Disable blog
         theme: {
@@ -82,9 +83,9 @@ const config: Config = {
         {
           title: 'Docs',
           items: [
-            { label: 'Getting Started', to: '/docs/getting-started' },
-            { label: 'Architecture', to: '/docs/architecture/overview' },
-            { label: 'Contributing', to: '/docs/contributing' },
+            { label: 'Getting Started', to: '/docs/GETTING_STARTED' },
+            { label: 'Architecture', to: '/docs/ARCHITECTURE/OVERVIEW' },
+            { label: 'Contributing', to: '/docs/CONTRIBUTING' },
           ],
         },
         {
