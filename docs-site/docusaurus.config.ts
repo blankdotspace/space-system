@@ -22,7 +22,10 @@ const config: Config = {
 
   markdown: {
     format: 'md', // Use regular markdown, not MDX (avoids JSX parsing issues)
+    mermaid: true, // Enable Mermaid diagrams
   },
+
+  themes: ['@docusaurus/theme-mermaid'],
 
   i18n: {
     defaultLocale: 'en',
