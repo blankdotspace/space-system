@@ -7,27 +7,14 @@ Forked from [herocast](https://github.com/hellno/herocast/) in April 2024.
 
 # Docs
 
-Full documentation is available in the [`docs/`](docs/) directory:
+📚 **[View Documentation](https://blankdotspace.github.io/space-system/)** - Full documentation site
 
-- **[Getting Started](docs/GETTING_STARTED.md)** - Quick start guide
-- **[Project Structure](docs/PROJECT_STRUCTURE.md)** - Codebase organization
-- **[Contributing](docs/CONTRIBUTING.MD)** - How to contribute
+Quick links:
+- [Getting Started](https://blankdotspace.github.io/space-system/docs/getting-started) - Local development setup
+- [Architecture](https://blankdotspace.github.io/space-system/docs/architecture/overview) - System design
+- [Contributing](https://blankdotspace.github.io/space-system/docs/contributing) - How to contribute
 
-### Architecture
-- [Overview](docs/ARCHITECTURE/OVERVIEW.md) - System architecture overview
-- [Authentication](docs/ARCHITECTURE/AUTHENTICATION.md) - Auth system design
-- [State Management](docs/ARCHITECTURE/STATE_MANAGEMENT.md) - Zustand stores
-
-### Systems
-- [Configuration](docs/SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW.md) - Multi-tenant config system
-- [Spaces](docs/SYSTEMS/SPACES/OVERVIEW.md) - Space architecture (profile, token, channel, navPage)
-- [Fidgets](docs/SYSTEMS/FIDGETS/OVERVIEW.md) - Fidget system and registry
-- [Navigation](docs/SYSTEMS/NAVIGATION/OVERVIEW.md) - Navigation system
-- [Themes](docs/SYSTEMS/THEMES/OVERVIEW.md) - Theming system
-
-### Integrations
-- [Supabase](docs/INTEGRATIONS/SUPABASE.md) - Database schema and storage
-- [Farcaster](docs/INTEGRATIONS/FARCASTER.md) - Farcaster integration
+> Source files are in [`docs/`](docs/) and [`docs-site/`](docs-site/)
 
 ## What is Farcaster?
 a protocol for decentralized social apps: https://www.farcaster.xyz
