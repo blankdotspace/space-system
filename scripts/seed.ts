@@ -52,9 +52,9 @@ import moment from 'moment';
 import { SignedFile } from '../src/common/lib/signedFiles';
 import { SpaceConfig } from '../src/app/(spaces)/Space';
 
-// Import page configs for navPage spaces
-import { nounsHomePage } from '../src/config/nouns/nouns.home';
-import { clankerHomePage } from '../src/config/clanker/clanker.home';
+// Import page configs for navPage spaces (from seed-data folder)
+import { nounsHomePage } from './seed-data/nouns-home';
+import { clankerHomePage } from './seed-data/clanker-home';
 
 // Import utilities and types for building explore page config inline
 import DEFAULT_THEME from '../src/common/lib/theme/defaultTheme';
@@ -66,10 +66,10 @@ import type {
   DirectoryAssetType,
   DirectoryFidgetData,
 } from '../src/fidgets/token/Directory/types';
-import { getDirectoryDataFromTabJson } from '../src/config/utils/exploreTabDirectoryData';
-import nounsChannelTab from '../src/config/nouns/initialSpaces/exploreTabs/channel.json';
-import spaceHoldersTab from '../src/config/nouns/initialSpaces/exploreTabs/spaceHolders.json';
-import nounsNftHoldersTab from '../src/config/nouns/initialSpaces/exploreTabs/nounsNFTholders.json';
+import { getDirectoryDataFromTabJson } from './seed-data/exploreTabDirectoryData';
+import nounsChannelTab from './seed-data/exploreTabs/channel.json';
+import spaceHoldersTab from './seed-data/exploreTabs/spaceHolders.json';
+import nounsNftHoldersTab from './seed-data/exploreTabs/nounsNFTholders.json';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -416,7 +416,7 @@ async function uploadToImgBB(filePath: string, filename: string): Promise<string
 async function uploadNounsAssets(): Promise<Record<string, string>> {
   console.log('\n📤 Step 1: Uploading Nouns assets to ImgBB...\n');
 
-  const assetsDir = join(__dirname, '..', 'src', 'config', 'nouns', 'assets');
+  const assetsDir = join(__dirname, 'seed-data', 'nouns-assets');
   const assetsToUpload = [
     { file: 'logo.svg', key: 'main' },
     { file: 'noggles.svg', key: 'icon' },

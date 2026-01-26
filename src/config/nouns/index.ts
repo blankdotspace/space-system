@@ -1,9 +1,6 @@
 // Export theme (used by shared/themes.ts)
 export { nounsTheme } from './nouns.theme';
 
-// Export home page config (used by seed script)
-export { nounsHomePage } from './nouns.home';
-
 // Export the initial space creators (used at runtime)
 export { default as createInitialProfileSpaceConfigForFid } from './initialSpaces/initialProfileSpace';
 export { default as createInitialChannelSpaceConfig } from './initialSpaces/initialChannelSpace';

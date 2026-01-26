@@ -148,10 +148,6 @@ export type {
   MiniAppConfig,
 };
 
-// Export clanker home page (used by seed script)
-// Note: Community configs are now loaded from database, not code.
-export * from './clanker/index';
-
 // Space creators - use Nouns implementation directly
 // Community customizations should be handled via database config, not code-level routing
 import { default as createInitialProfileSpaceConfigForFid } from './nouns/initialSpaces/initialProfileSpace';

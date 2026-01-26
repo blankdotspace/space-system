@@ -1,4 +1,4 @@
-import type { DirectoryFidgetData } from "@/fidgets/token/Directory/types";
+import type { DirectoryFidgetData } from "../../src/fidgets/token/Directory/types";
 
 type RawTabData = {
   fidgetInstanceDatums?: Record<
