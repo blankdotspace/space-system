@@ -1,0 +1,6 @@
+import {Redirect} from '@docusaurus/router';
+
+export default function Home(): JSX.Element {
+  // Redirect to the docs README which serves as the landing page
+  return <Redirect to="/README" />;
+}

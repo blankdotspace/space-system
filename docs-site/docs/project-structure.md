@@ -131,7 +131,7 @@ src/constants/
 
 ### 5. System Configuration (`src/config/`)
 
-Whitelabeling and system configuration with domain-based multi-tenant support. Configurations are stored in Supabase and loaded dynamically based on request domain. See [Configuration System](SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW.md) for details.
+Whitelabeling and system configuration with domain-based multi-tenant support. Configurations are stored in Supabase and loaded dynamically based on request domain. See [Configuration System](./systems/configuration.md) for details.
 
 ```
 src/config/                  # System configuration

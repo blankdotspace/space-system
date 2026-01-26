@@ -367,9 +367,9 @@ Supabase Storage (spaces bucket):
 - `src/config/systemConfig.ts` - `NavPageConfig` type definition
 
 **Related Documentation:**
-- See [Navigation System](../NAVIGATION/OVERVIEW.md) for details on the navigation editor
-- See [Space Architecture](../SPACES/SPACE_ARCHITECTURE.md) for details on how Spaces work
-- See [Public Spaces Pattern](../SPACES/PUBLIC_SPACES_PATTERN.md) for the server/client separation pattern
+- See [Navigation System](./navigation.md) for details on the navigation editor
+- See [Space Architecture](./spaces.md) for details on how Spaces work
+- See [Public Spaces Pattern](./spaces-public.md) for the server/client separation pattern
 
 ### 6. Space Creators
 
@@ -582,6 +582,6 @@ RootLayout (Server Component)
 ## Future Considerations
 
 1. **Versioning**: Database function supports multiple versions (orders by `updated_at`)
-2. **Admin UI**: Navigation editor provides admin interface for navigation config updates (see [Navigation System](../NAVIGATION/OVERVIEW.md))
+2. **Admin UI**: Navigation editor provides admin interface for navigation config updates (see [Navigation System](./navigation.md))
 4. **Validation**: Could add JSON schema validation for configs
 5. **Rollback**: Could add version history and rollback capabilities

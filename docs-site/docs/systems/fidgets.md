@@ -135,7 +135,7 @@ const generateFidgetInstance = (
 
 ## Fidget Discovery and Selection
 
-Users discover and add fidgets through the fidget picker system, which provides search, filtering, and multiple data sources. For detailed information about how the fidget picker works, see [Fidget Picker System](./FIDGET_PICKER.md).
+Users discover and add fidgets through the fidget picker system, which provides search, filtering, and multiple data sources. The fidget picker provides search, filtering, and multiple data sources including static fidgets, curated sites, and mini-apps from the Neynar API.
 
 ## Fidget Lifecycle
 
