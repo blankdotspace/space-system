@@ -74,7 +74,7 @@ const config: Config = {
           position: 'right',
         },
         {
-          href: 'https://blankspace.com',
+          href: 'https://blank.space',
           label: 'App',
           position: 'right',
         },
@@ -102,7 +102,7 @@ const config: Config = {
         {
           title: 'More',
           items: [
-            { label: 'Blankspace App', href: 'https://blankspace.com' },
+            { label: 'Blankspace App', href: 'https://blank.space' },
             { label: 'Scout Game', href: 'https://scoutgame.xyz' },
           ],
         },
