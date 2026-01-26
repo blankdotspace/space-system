@@ -7,7 +7,6 @@ const sidebars: SidebarsConfig = {
       id: 'README',
       label: 'Introduction',
     },
-    'PERMISSIONS',
     'GETTING_STARTED',
     'PROJECT_STRUCTURE',
     'CONTRIBUTING',
