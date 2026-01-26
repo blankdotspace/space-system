@@ -11,6 +11,7 @@ import {
 import { BsArrowRepeat } from "react-icons/bs";
 import { mobileStyleSettings, WithMargin } from "../helpers";
 import ShadowSelector from "@/common/components/molecules/ShadowSelector";
+import { useSystemConfig } from "@/common/providers/SystemConfigProvider";
 
 type MatchaFidgetSettings = {
   defaultSellToken: string;
@@ -131,10 +132,12 @@ const Swap: React.FC<FidgetArgs<MatchaFidgetSettings>> = ({
     size = 0.8,
   },
 }) => {
+  const systemConfig = useSystemConfig();
+  const matchaRef = systemConfig.brand.displayName;
   const matchaBaseUrl = "https://matcha.xyz/trade";
   const [url, setUrl] = React.useState("");
 
-  const buildMatchaUrl = () => {
+  const buildMatchaUrl = React.useCallback(() => {
     const params = new URLSearchParams();
     if (defaultSellToken) params.append("sellAddress", defaultSellToken);
     if (defaultBuyToken) params.append("buyAddress", defaultBuyToken);
@@ -146,18 +149,13 @@ const Swap: React.FC<FidgetArgs<MatchaFidgetSettings>> = ({
     }
     if (optionalFeeRecipient)
       params.append("feeRecipient", optionalFeeRecipient);
+    params.append("ref", matchaRef);
     return `${matchaBaseUrl}?${params.toString()}`;
-  };
+  }, [defaultSellToken, defaultBuyToken, fromChain, toChain, optionalFeeRecipient, matchaRef]);
 
   React.useEffect(() => {
     setUrl(buildMatchaUrl());
-  }, [
-    defaultSellToken,
-    defaultBuyToken,
-    fromChain,
-    toChain,
-    optionalFeeRecipient,
-  ]);
+  }, [buildMatchaUrl]);
 
   const scaleValue = size;
 

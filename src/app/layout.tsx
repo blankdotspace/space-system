@@ -151,7 +151,7 @@ export default async function RootLayout({
         }
       >
         <SpeedInsights />
-        <Providers>{sidebarLayout(children, systemConfig)}</Providers>
+        <Providers systemConfig={systemConfig}>{sidebarLayout(children, systemConfig)}</Providers>
       </body>
     </html>
   );

@@ -13,9 +13,10 @@ export function getGeckoIframe(address: Address, network: EtherScanChainName) {
   return `https://www.geckoterminal.com/${getGeckoNetwork(network)}/pools/${address}?embed=1&info=0&swaps=0&grayscale=0&light_chart=1`;
 }
 
-export function getMatchaUrl(address: Address, network: EtherScanChainName) {
+export function getMatchaUrl(address: Address, network: EtherScanChainName, ref?: string) {
   const ethAddress = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
-  return `https://matcha.xyz/trade?sellAddress=${ethAddress}&buyAddress=${address}&sellChain=${network}&buyChain=${EtherScanChains[network]}`;
+  const matchaRef = ref || "nounspace";
+  return `https://matcha.xyz/trade?sellAddress=${ethAddress}&buyAddress=${address}&sellChain=${network}&buyChain=${EtherScanChains[network]}&ref=${matchaRef}`;
 }
 
 export function getDexScreenerUrl(
