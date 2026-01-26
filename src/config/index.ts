@@ -148,10 +148,8 @@ export type {
   MiniAppConfig,
 };
 
-// Export individual configuration modules from example and clanker
-// Note: These are kept for backward compatibility, but community customizations
-// should be handled via database config (community_configs table), not code.
-export * from './example/index';
+// Export clanker home page (used by seed script)
+// Note: Community configs are now loaded from database, not code.
 export * from './clanker/index';
 
 // Space creators - use Nouns implementation directly
