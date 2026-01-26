@@ -52,10 +52,24 @@ import moment from 'moment';
 import { SignedFile } from '../src/common/lib/signedFiles';
 import { SpaceConfig } from '../src/app/(spaces)/Space';
 
-// Import page configs for navPage spaces (inline imports)
+// Import page configs for navPage spaces
 import { nounsHomePage } from '../src/config/nouns/nouns.home';
-import { nounsExplorePage } from '../src/config/nouns/nouns.explore';
 import { clankerHomePage } from '../src/config/clanker/clanker.home';
+
+// Import utilities and types for building explore page config inline
+import DEFAULT_THEME from '../src/common/lib/theme/defaultTheme';
+import type { NavPageConfig, TabConfig } from '../src/config/systemConfig';
+import type {
+  DirectoryFidgetSettings,
+  DirectoryNetwork,
+  DirectoryChannelFilterOption,
+  DirectoryAssetType,
+  DirectoryFidgetData,
+} from '../src/fidgets/token/Directory/types';
+import { getDirectoryDataFromTabJson } from '../src/config/utils/exploreTabDirectoryData';
+import nounsChannelTab from '../src/config/nouns/initialSpaces/exploreTabs/channel.json';
+import spaceHoldersTab from '../src/config/nouns/initialSpaces/exploreTabs/spaceHolders.json';
+import nounsNftHoldersTab from '../src/config/nouns/initialSpaces/exploreTabs/nounsNFTholders.json';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -63,6 +77,283 @@ const __dirname = dirname(__filename);
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 const imgBBApiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
+
+// ============================================================================
+// Inline explore page config builder (extracted from createExplorePageConfig)
+// ============================================================================
+
+type TokenInput = {
+  address: string;
+  symbol: string;
+  network?: DirectoryNetwork | "eth";
+  assetType?: DirectoryAssetType;
+};
+
+const FULL_WIDTH = 12;
+const FULL_HEIGHT = 24;
+const RESIZE_HANDLES = ["s", "w", "e", "n", "sw", "nw", "se", "ne"] as const;
+
+const sanitizeTabKey = (value: string, fallback: string) => {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : fallback;
+};
+
+const slugify = (value: string, fallback: string) => {
+  const normalized = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return normalized.length > 0 ? normalized : fallback;
+};
+
+const createDirectoryFidgetId = (suffix: string) => `Directory:${suffix}`;
+
+const BASE_DIRECTORY_SETTINGS: Pick<
+  DirectoryFidgetSettings,
+  | "layoutStyle"
+  | "include"
+  | "mobileDisplayName"
+  | "primaryFontFamily"
+  | "primaryFontColor"
+  | "secondaryFontFamily"
+  | "secondaryFontColor"
+> = {
+  layoutStyle: "cards",
+  include: "holdersWithFarcasterAccount",
+  mobileDisplayName: undefined,
+  primaryFontFamily: undefined,
+  primaryFontColor: undefined,
+  secondaryFontFamily: undefined,
+  secondaryFontColor: undefined,
+};
+
+const normalizeTokenNetwork = (
+  network: DirectoryNetwork | "eth" | undefined,
+  defaultNetwork: DirectoryNetwork,
+): DirectoryNetwork => {
+  if (!network) {
+    return defaultNetwork;
+  }
+  if (network === "eth") {
+    return "mainnet";
+  }
+  return network;
+};
+
+const buildTokenDirectorySettings = (
+  token: TokenInput,
+  defaultNetwork: DirectoryNetwork,
+): DirectoryFidgetSettings => ({
+  ...BASE_DIRECTORY_SETTINGS,
+  source: "tokenHolders",
+  network: normalizeTokenNetwork(token.network, defaultNetwork),
+  contractAddress: token.address,
+  assetType: token.assetType ?? "token",
+  sortBy: "tokenHoldings",
+});
+
+const buildChannelDirectorySettings = (
+  channel: string,
+  channelNetwork: DirectoryNetwork,
+): DirectoryFidgetSettings => ({
+  ...BASE_DIRECTORY_SETTINGS,
+  source: "farcasterChannel",
+  network: channelNetwork,
+  contractAddress: "",
+  assetType: "token",
+  sortBy: "followers",
+  channelName: channel,
+  channelFilter: "members" as DirectoryChannelFilterOption,
+});
+
+const createTabTheme = (idSuffix: string) => ({
+  id: `explore-${idSuffix}-theme`,
+  name: `${DEFAULT_THEME.name} Explore`,
+  properties: {
+    ...DEFAULT_THEME.properties,
+    fidgetBorderRadius: "0px",
+    gridSpacing: "0",
+  },
+});
+
+const getPreloadedDirectoryData = (
+  tabKey: string,
+  idSuffix: string,
+  preloadedDirectoryData?: Record<string, DirectoryFidgetData | undefined>,
+): DirectoryFidgetData | undefined =>
+  preloadedDirectoryData?.[tabKey] ?? preloadedDirectoryData?.[idSuffix];
+
+const buildTabConfig = (
+  name: string,
+  idSuffix: string,
+  settings: DirectoryFidgetSettings,
+  preloadedData?: DirectoryFidgetData,
+): TabConfig => {
+  const fidgetId = createDirectoryFidgetId(idSuffix);
+  return {
+    name,
+    displayName: name,
+    layoutID: `explore-${idSuffix}-layout`,
+    layoutDetails: {
+      layoutFidget: "grid",
+      layoutConfig: {
+        layout: [
+          {
+            w: FULL_WIDTH,
+            h: FULL_HEIGHT,
+            x: 0,
+            y: 0,
+            i: fidgetId,
+            minW: FULL_WIDTH,
+            maxW: FULL_WIDTH,
+            minH: 8,
+            maxH: 36,
+            moved: false,
+            static: false,
+            resizeHandles: [...RESIZE_HANDLES],
+            isBounded: false,
+          },
+        ],
+      },
+    },
+    theme: createTabTheme(idSuffix),
+    fidgetInstanceDatums: {
+      [fidgetId]: {
+        config: {
+          data: preloadedData ?? {},
+          editable: false,
+          settings,
+        },
+        fidgetType: "Directory",
+        id: fidgetId,
+      },
+    },
+    fidgetTrayContents: [],
+    isEditable: false,
+    timestamp: new Date().toISOString(),
+  };
+};
+
+function createExplorePageConfig({
+  tokens = [],
+  channel,
+  defaultTokenNetwork = "mainnet",
+  channelNetwork = "base",
+  preloadedDirectoryData,
+}: {
+  tokens?: TokenInput[];
+  channel?: string | null;
+  defaultTokenNetwork?: DirectoryNetwork;
+  channelNetwork?: DirectoryNetwork;
+  preloadedDirectoryData?: Record<string, DirectoryFidgetData | undefined>;
+}): NavPageConfig {
+  const tabEntries: Array<{ key: string; config: TabConfig }> = [];
+  const seenTabNames = new Set<string>();
+
+  tokens.forEach((token, index) => {
+    if (!token?.address || !token.symbol) {
+      return;
+    }
+
+    const tabName = sanitizeTabKey(token.symbol, `Token ${index + 1}`);
+    if (seenTabNames.has(tabName)) {
+      return;
+    }
+
+    seenTabNames.add(tabName);
+    const idSuffix = slugify(tabName, `token-${index + 1}`);
+    const settings = buildTokenDirectorySettings(token, defaultTokenNetwork);
+    const preloadedData = getPreloadedDirectoryData(tabName, idSuffix, preloadedDirectoryData);
+    tabEntries.push({
+      key: tabName,
+      config: buildTabConfig(tabName, idSuffix, settings, preloadedData),
+    });
+  });
+
+  const normalizedChannel = channel?.trim().replace(/^\/+/, "");
+  if (normalizedChannel) {
+    const tabName = "channel";
+    const idSuffix = slugify(`channel-${normalizedChannel}`, `channel-${tabEntries.length + 1}`);
+    const settings = buildChannelDirectorySettings(normalizedChannel, channelNetwork);
+    const preloadedData = getPreloadedDirectoryData(tabName, idSuffix, preloadedDirectoryData);
+    tabEntries.push({
+      key: tabName,
+      config: buildTabConfig(tabName, idSuffix, settings, preloadedData),
+    });
+  }
+
+  if (tabEntries.length === 0) {
+    const fallbackName = "Directory";
+    const settings: DirectoryFidgetSettings = {
+      ...BASE_DIRECTORY_SETTINGS,
+      source: "tokenHolders",
+      network: defaultTokenNetwork,
+      contractAddress: "",
+      assetType: "token",
+      sortBy: "tokenHoldings",
+    };
+    tabEntries.push({
+      key: fallbackName,
+      config: buildTabConfig(fallbackName, slugify(fallbackName, "directory"), settings),
+    });
+  }
+
+  const tabOrder = tabEntries.map((entry) => entry.key);
+  const tabs = tabEntries.reduce<Record<string, TabConfig>>((acc, entry) => {
+    acc[entry.key] = entry.config;
+    return acc;
+  }, {});
+
+  const defaultTab = tabOrder[0];
+
+  return {
+    defaultTab,
+    tabOrder,
+    tabs,
+    layout: {
+      defaultLayoutFidget: "grid",
+      gridSpacing: 0,
+      theme: {
+        background: DEFAULT_THEME.properties.background,
+        fidgetBackground: DEFAULT_THEME.properties.fidgetBackground,
+        font: DEFAULT_THEME.properties.font,
+        fontColor: DEFAULT_THEME.properties.fontColor,
+      },
+    },
+  };
+}
+
+// Create nouns explore page config inline
+const nounsTokens: TokenInput[] = [
+  {
+    address: '0x48C6740BcF807d6C47C864FaEEA15Ed4dA3910Ab',
+    symbol: '$SPACE',
+    network: 'base',
+    assetType: "token" as const,
+  },
+  {
+    address: '0x9C8fF314C9Bc7F6e59A9d9225Fb22946427eDC03',
+    symbol: 'Nouns',
+    network: 'eth',
+    assetType: "nft" as const,
+  },
+];
+
+const nounsPreloadedDirectoryData = {
+  "$SPACE": getDirectoryDataFromTabJson(spaceHoldersTab),
+  space: getDirectoryDataFromTabJson(spaceHoldersTab),
+  Nouns: getDirectoryDataFromTabJson(nounsNftHoldersTab),
+  nouns: getDirectoryDataFromTabJson(nounsNftHoldersTab),
+  "/nouns": getDirectoryDataFromTabJson(nounsChannelTab),
+  "channel-nouns": getDirectoryDataFromTabJson(nounsChannelTab),
+};
+
+const nounsExplorePage = createExplorePageConfig({
+  tokens: nounsTokens,
+  channel: 'nouns',
+  defaultTokenNetwork: "mainnet",
+  preloadedDirectoryData: nounsPreloadedDirectoryData,
+});
 
 if (!supabaseUrl || !supabaseKey) {
   console.error('❌ Missing required environment variables:');
