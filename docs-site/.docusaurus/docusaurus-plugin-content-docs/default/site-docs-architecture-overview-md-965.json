@@ -1,0 +1,24 @@
+{
+  "id": "ARCHITECTURE/OVERVIEW",
+  "title": "Architecture Overview",
+  "description": "Blankspace is built on a modern, modular architecture that combines Next.js App Router with Zustand state management, creating a highly customizable Farcaster client experience.",
+  "source": "@site/../docs/ARCHITECTURE/OVERVIEW.md",
+  "sourceDirName": "ARCHITECTURE",
+  "slug": "/ARCHITECTURE/OVERVIEW",
+  "permalink": "/space-system/docs/ARCHITECTURE/OVERVIEW",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/ARCHITECTURE/OVERVIEW.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Contributing",
+    "permalink": "/space-system/docs/CONTRIBUTING"
+  },
+  "next": {
+    "title": "Authentication System",
+    "permalink": "/space-system/docs/ARCHITECTURE/AUTHENTICATION"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "id": "SYSTEMS/FIDGETS/DATA_FIELD_PATTERNS",
+  "title": "Fidget Data Field Patterns",
+  "description": "This document outlines essential patterns for fidgets that use the data field in FidgetConfig to store runtime state and cached data. These patterns are derived from the Directory fidget implementation and should be considered best practices.",
+  "source": "@site/../docs/SYSTEMS/FIDGETS/DATA_FIELD_PATTERNS.md",
+  "sourceDirName": "SYSTEMS/FIDGETS",
+  "slug": "/SYSTEMS/FIDGETS/DATA_FIELD_PATTERNS",
+  "permalink": "/space-system/docs/SYSTEMS/FIDGETS/DATA_FIELD_PATTERNS",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/SYSTEMS/FIDGETS/DATA_FIELD_PATTERNS.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Fidget Picker System",
+    "permalink": "/space-system/docs/SYSTEMS/FIDGETS/FIDGET_PICKER"
+  },
+  "next": {
+    "title": "Architecture Overview",
+    "permalink": "/space-system/docs/SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW"
+  }
+}

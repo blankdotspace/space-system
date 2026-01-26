@@ -1,0 +1,24 @@
+{
+  "id": "SYSTEMS/SPACES/SPACE_ARCHITECTURE",
+  "title": "Blankspace Architecture Documentation",
+  "description": "Space and Tab Management System",
+  "source": "@site/../docs/SYSTEMS/SPACES/SPACE_ARCHITECTURE.md",
+  "sourceDirName": "SYSTEMS/SPACES",
+  "slug": "/SYSTEMS/SPACES/SPACE_ARCHITECTURE",
+  "permalink": "/space-system/docs/SYSTEMS/SPACES/SPACE_ARCHITECTURE",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/SYSTEMS/SPACES/SPACE_ARCHITECTURE.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Spaces",
+    "permalink": "/space-system/docs/SYSTEMS/SPACES/OVERVIEW"
+  },
+  "next": {
+    "title": "Public Spaces Pattern",
+    "permalink": "/space-system/docs/SYSTEMS/SPACES/PUBLIC_SPACES_PATTERN"
+  }
+}

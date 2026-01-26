@@ -1,0 +1,24 @@
+{
+  "id": "CONTRIBUTING",
+  "title": "Contributing",
+  "description": "To add any code to the blankdotspace/space-system repo, you will need to open a PR.",
+  "source": "@site/../docs/CONTRIBUTING.md",
+  "sourceDirName": ".",
+  "slug": "/CONTRIBUTING",
+  "permalink": "/space-system/docs/CONTRIBUTING",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/CONTRIBUTING.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Project Structure",
+    "permalink": "/space-system/docs/PROJECT_STRUCTURE"
+  },
+  "next": {
+    "title": "Architecture Overview",
+    "permalink": "/space-system/docs/ARCHITECTURE/OVERVIEW"
+  }
+}

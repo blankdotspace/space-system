@@ -1,0 +1,24 @@
+{
+  "id": "SYSTEMS/FIDGETS/FIDGET_PICKER",
+  "title": "Fidget Picker System",
+  "description": "The fidget picker is the user interface that allows users to browse, search, and add fidgets to their spaces. The system provides two picker components: a simple inline picker and an advanced modal picker with enhanced discovery features.",
+  "source": "@site/../docs/SYSTEMS/FIDGETS/FIDGET_PICKER.md",
+  "sourceDirName": "SYSTEMS/FIDGETS",
+  "slug": "/SYSTEMS/FIDGETS/FIDGET_PICKER",
+  "permalink": "/space-system/docs/SYSTEMS/FIDGETS/FIDGET_PICKER",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/SYSTEMS/FIDGETS/FIDGET_PICKER.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Fidgets",
+    "permalink": "/space-system/docs/SYSTEMS/FIDGETS/OVERVIEW"
+  },
+  "next": {
+    "title": "Fidget Data Field Patterns",
+    "permalink": "/space-system/docs/SYSTEMS/FIDGETS/DATA_FIELD_PATTERNS"
+  }
+}

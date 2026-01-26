@@ -1,0 +1,24 @@
+{
+  "id": "DEVELOPMENT/CODING_STANDARDS",
+  "title": "Coding Standards",
+  "description": "This document outlines the coding standards and best practices for the Nounspace codebase to ensure consistency, maintainability, and code quality.",
+  "source": "@site/../docs/DEVELOPMENT/CODING_STANDARDS.md",
+  "sourceDirName": "DEVELOPMENT",
+  "slug": "/DEVELOPMENT/CODING_STANDARDS",
+  "permalink": "/space-system/docs/DEVELOPMENT/CODING_STANDARDS",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/DEVELOPMENT/CODING_STANDARDS.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Blankspace - Instructions",
+    "permalink": "/space-system/docs/DEVELOPMENT/DEVELOPMENT_GUIDE"
+  },
+  "next": {
+    "title": "Component Architecture",
+    "permalink": "/space-system/docs/DEVELOPMENT/COMPONENT_ARCHITECTURE"
+  }
+}

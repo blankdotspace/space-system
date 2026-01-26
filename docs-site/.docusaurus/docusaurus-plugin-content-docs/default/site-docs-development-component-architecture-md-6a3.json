@@ -1,0 +1,24 @@
+{
+  "id": "DEVELOPMENT/COMPONENT_ARCHITECTURE",
+  "title": "Component Architecture",
+  "description": "Blankspace follows atomic design principles with a modular component architecture that promotes reusability, maintainability, and scalability.",
+  "source": "@site/../docs/DEVELOPMENT/COMPONENT_ARCHITECTURE.md",
+  "sourceDirName": "DEVELOPMENT",
+  "slug": "/DEVELOPMENT/COMPONENT_ARCHITECTURE",
+  "permalink": "/space-system/docs/DEVELOPMENT/COMPONENT_ARCHITECTURE",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/DEVELOPMENT/COMPONENT_ARCHITECTURE.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Coding Standards",
+    "permalink": "/space-system/docs/DEVELOPMENT/CODING_STANDARDS"
+  },
+  "next": {
+    "title": "Testing Guide",
+    "permalink": "/space-system/docs/DEVELOPMENT/TESTING"
+  }
+}

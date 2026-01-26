@@ -1,0 +1,24 @@
+{
+  "id": "DEVELOPMENT/DEBUGGING",
+  "title": "Debugging Guide",
+  "description": "This guide covers debugging strategies, tools, and techniques for the Blankspace codebase to help developers identify and resolve issues effectively.",
+  "source": "@site/../docs/DEVELOPMENT/DEBUGGING.md",
+  "sourceDirName": "DEVELOPMENT",
+  "slug": "/DEVELOPMENT/DEBUGGING",
+  "permalink": "/space-system/docs/DEVELOPMENT/DEBUGGING",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/DEVELOPMENT/DEBUGGING.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Testing Guide",
+    "permalink": "/space-system/docs/DEVELOPMENT/TESTING"
+  },
+  "next": {
+    "title": "Blankspace Codex Instructions",
+    "permalink": "/space-system/docs/DEVELOPMENT/AGENTS"
+  }
+}

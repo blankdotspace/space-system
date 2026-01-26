@@ -1,0 +1,24 @@
+{
+  "id": "SYSTEMS/SPACES/LAYOUT_MIGRATION_GUIDE",
+  "title": "Layout Migration Guide",
+  "description": "Overview",
+  "source": "@site/../docs/SYSTEMS/SPACES/LAYOUT_MIGRATION_GUIDE.md",
+  "sourceDirName": "SYSTEMS/SPACES",
+  "slug": "/SYSTEMS/SPACES/LAYOUT_MIGRATION_GUIDE",
+  "permalink": "/space-system/docs/SYSTEMS/SPACES/LAYOUT_MIGRATION_GUIDE",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/SYSTEMS/SPACES/LAYOUT_MIGRATION_GUIDE.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Multiple Layouts System Documentation",
+    "permalink": "/space-system/docs/SYSTEMS/SPACES/MULTIPLE_LAYOUTS_OVERVIEW"
+  },
+  "next": {
+    "title": "Fidgets",
+    "permalink": "/space-system/docs/SYSTEMS/FIDGETS/OVERVIEW"
+  }
+}

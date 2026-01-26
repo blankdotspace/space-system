@@ -1,0 +1,24 @@
+{
+  "id": "PERMISSIONS",
+  "title": "Permissions & Access Control",
+  "description": "This document explains who can view and edit different parts of Blankspace.",
+  "source": "@site/../docs/PERMISSIONS.md",
+  "sourceDirName": ".",
+  "slug": "/PERMISSIONS",
+  "permalink": "/space-system/docs/PERMISSIONS",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/PERMISSIONS.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Introduction",
+    "permalink": "/space-system/docs/"
+  },
+  "next": {
+    "title": "Getting Started",
+    "permalink": "/space-system/docs/GETTING_STARTED"
+  }
+}

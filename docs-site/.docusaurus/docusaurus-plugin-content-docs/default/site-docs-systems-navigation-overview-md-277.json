@@ -1,0 +1,24 @@
+{
+  "id": "SYSTEMS/NAVIGATION/OVERVIEW",
+  "title": "Navigation System Overview",
+  "description": "Executive Summary",
+  "source": "@site/../docs/SYSTEMS/NAVIGATION/OVERVIEW.md",
+  "sourceDirName": "SYSTEMS/NAVIGATION",
+  "slug": "/SYSTEMS/NAVIGATION/OVERVIEW",
+  "permalink": "/space-system/docs/SYSTEMS/NAVIGATION/OVERVIEW",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/SYSTEMS/NAVIGATION/OVERVIEW.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Architecture Overview",
+    "permalink": "/space-system/docs/SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW"
+  },
+  "next": {
+    "title": "Theme System Overview",
+    "permalink": "/space-system/docs/SYSTEMS/THEMES/OVERVIEW"
+  }
+}

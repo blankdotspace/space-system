@@ -1,0 +1,24 @@
+{
+  "id": "PROJECT_STRUCTURE",
+  "title": "Project Structure",
+  "description": "This document describes the directory layout and organization of the Blankspace codebase.",
+  "source": "@site/../docs/PROJECT_STRUCTURE.md",
+  "sourceDirName": ".",
+  "slug": "/PROJECT_STRUCTURE",
+  "permalink": "/space-system/docs/PROJECT_STRUCTURE",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/PROJECT_STRUCTURE.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Getting Started",
+    "permalink": "/space-system/docs/GETTING_STARTED"
+  },
+  "next": {
+    "title": "Contributing",
+    "permalink": "/space-system/docs/CONTRIBUTING"
+  }
+}

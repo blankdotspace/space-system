@@ -1,0 +1,24 @@
+{
+  "id": "SYSTEMS/SPACES/OVERVIEW",
+  "title": "Spaces",
+  "description": "Spaces are the pages that make up a community's presence on Blankspace. Each community can have multiple types of spaces - for their token, their members, their channel, and custom pages.",
+  "source": "@site/../docs/SYSTEMS/SPACES/OVERVIEW.md",
+  "sourceDirName": "SYSTEMS/SPACES",
+  "slug": "/SYSTEMS/SPACES/OVERVIEW",
+  "permalink": "/space-system/docs/SYSTEMS/SPACES/OVERVIEW",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/SYSTEMS/SPACES/OVERVIEW.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "State Management Architecture",
+    "permalink": "/space-system/docs/ARCHITECTURE/STATE_MANAGEMENT"
+  },
+  "next": {
+    "title": "Blankspace Architecture Documentation",
+    "permalink": "/space-system/docs/SYSTEMS/SPACES/SPACE_ARCHITECTURE"
+  }
+}

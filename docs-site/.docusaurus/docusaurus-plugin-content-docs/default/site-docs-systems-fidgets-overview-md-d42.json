@@ -1,0 +1,24 @@
+{
+  "id": "SYSTEMS/FIDGETS/OVERVIEW",
+  "title": "Fidgets",
+  "description": "Fidgets are the tools that power community spaces. They're modular widgets that communities can add to their spaces for governance, token management, social feeds, and more.",
+  "source": "@site/../docs/SYSTEMS/FIDGETS/OVERVIEW.md",
+  "sourceDirName": "SYSTEMS/FIDGETS",
+  "slug": "/SYSTEMS/FIDGETS/OVERVIEW",
+  "permalink": "/space-system/docs/SYSTEMS/FIDGETS/OVERVIEW",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/SYSTEMS/FIDGETS/OVERVIEW.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Layout Migration Guide",
+    "permalink": "/space-system/docs/SYSTEMS/SPACES/LAYOUT_MIGRATION_GUIDE"
+  },
+  "next": {
+    "title": "Fidget Picker System",
+    "permalink": "/space-system/docs/SYSTEMS/FIDGETS/FIDGET_PICKER"
+  }
+}

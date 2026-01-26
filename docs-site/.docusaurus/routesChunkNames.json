@@ -1,0 +1,138 @@
+{
+  "/space-system/docs-227": {
+    "__comp": "5e95c892",
+    "__context": {
+      "plugin": "aba21aa0"
+    }
+  },
+  "/space-system/docs-d94": {
+    "__comp": "a7bd4aaa",
+    "__props": "ceb1d1e0"
+  },
+  "/space-system/docs-e12": {
+    "__comp": "a94703ab"
+  },
+  "/space-system/docs/-f25": {
+    "__comp": "17896441",
+    "content": "608d6ba6"
+  },
+  "/space-system/docs/ARCHITECTURE/AUTHENTICATION-f2e": {
+    "__comp": "17896441",
+    "content": "9c5fb454"
+  },
+  "/space-system/docs/ARCHITECTURE/OVERVIEW-894": {
+    "__comp": "17896441",
+    "content": "965ae37e"
+  },
+  "/space-system/docs/ARCHITECTURE/STATE_MANAGEMENT-48b": {
+    "__comp": "17896441",
+    "content": "69b23b3f"
+  },
+  "/space-system/docs/CONTRIBUTING-74c": {
+    "__comp": "17896441",
+    "content": "746a01db"
+  },
+  "/space-system/docs/DEVELOPMENT/AGENTS-1ee": {
+    "__comp": "17896441",
+    "content": "6eaf596f"
+  },
+  "/space-system/docs/DEVELOPMENT/CODING_STANDARDS-b1f": {
+    "__comp": "17896441",
+    "content": "63c74dea"
+  },
+  "/space-system/docs/DEVELOPMENT/COMPONENT_ARCHITECTURE-dd7": {
+    "__comp": "17896441",
+    "content": "6a3c820b"
+  },
+  "/space-system/docs/DEVELOPMENT/DEBUGGING-365": {
+    "__comp": "17896441",
+    "content": "d9185ac5"
+  },
+  "/space-system/docs/DEVELOPMENT/DEVELOPMENT_GUIDE-348": {
+    "__comp": "17896441",
+    "content": "cfd7bcfd"
+  },
+  "/space-system/docs/DEVELOPMENT/DEVELOPMENT_NOTES-4a6": {
+    "__comp": "17896441",
+    "content": "b5996507"
+  },
+  "/space-system/docs/DEVELOPMENT/TESTING-278": {
+    "__comp": "17896441",
+    "content": "e71ea0f5"
+  },
+  "/space-system/docs/DOCUMENTATION_OVERVIEW-f0f": {
+    "__comp": "17896441",
+    "content": "5e96bf2c"
+  },
+  "/space-system/docs/GETTING_STARTED-ab1": {
+    "__comp": "17896441",
+    "content": "c584063a"
+  },
+  "/space-system/docs/INTEGRATIONS/FARCASTER-e45": {
+    "__comp": "17896441",
+    "content": "fb048b0e"
+  },
+  "/space-system/docs/INTEGRATIONS/SUPABASE-cd2": {
+    "__comp": "17896441",
+    "content": "45dc6d44"
+  },
+  "/space-system/docs/PROJECT_STRUCTURE-039": {
+    "__comp": "17896441",
+    "content": "2dd0db32"
+  },
+  "/space-system/docs/SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW-ea7": {
+    "__comp": "17896441",
+    "content": "5d658c03"
+  },
+  "/space-system/docs/SYSTEMS/DISCOVERY/MINI_APP_DISCOVERY_SYSTEM-98c": {
+    "__comp": "17896441",
+    "content": "5de4e4aa"
+  },
+  "/space-system/docs/SYSTEMS/FIDGETS/DATA_FIELD_PATTERNS-008": {
+    "__comp": "17896441",
+    "content": "f57228ba"
+  },
+  "/space-system/docs/SYSTEMS/FIDGETS/FIDGET_PICKER-e9e": {
+    "__comp": "17896441",
+    "content": "895a5c5c"
+  },
+  "/space-system/docs/SYSTEMS/FIDGETS/OVERVIEW-3b5": {
+    "__comp": "17896441",
+    "content": "d42be798"
+  },
+  "/space-system/docs/SYSTEMS/NAVIGATION/OVERVIEW-989": {
+    "__comp": "17896441",
+    "content": "2779d119"
+  },
+  "/space-system/docs/SYSTEMS/SPACES/LAYOUT_MIGRATION_GUIDE-36a": {
+    "__comp": "17896441",
+    "content": "bf0b212a"
+  },
+  "/space-system/docs/SYSTEMS/SPACES/MULTIPLE_LAYOUTS_OVERVIEW-679": {
+    "__comp": "17896441",
+    "content": "5b59fdf5"
+  },
+  "/space-system/docs/SYSTEMS/SPACES/OVERVIEW-6e2": {
+    "__comp": "17896441",
+    "content": "4cdcd168"
+  },
+  "/space-system/docs/SYSTEMS/SPACES/PUBLIC_SPACES_PATTERN-6af": {
+    "__comp": "17896441",
+    "content": "7c63c25b"
+  },
+  "/space-system/docs/SYSTEMS/SPACES/SPACE_ARCHITECTURE-409": {
+    "__comp": "17896441",
+    "content": "8020934c"
+  },
+  "/space-system/docs/SYSTEMS/THEMES/OVERVIEW-66e": {
+    "__comp": "17896441",
+    "content": "93f8002a"
+  },
+  "/space-system/-52f": {
+    "__comp": "1df93b7f",
+    "__context": {
+      "plugin": "a7456010"
+    },
+    "config": "5e9f5e1a"
+  }
+}

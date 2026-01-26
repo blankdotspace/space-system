@@ -1,0 +1,20 @@
+{
+  "id": "DEVELOPMENT/DEVELOPMENT_NOTES",
+  "title": "Blankspace Layout & Mobile Navbar Refactor",
+  "description": "Phase 1: Research & Exploration Findings",
+  "source": "@site/../docs/DEVELOPMENT/DEVELOPMENT_NOTES.md",
+  "sourceDirName": "DEVELOPMENT",
+  "slug": "/DEVELOPMENT/DEVELOPMENT_NOTES",
+  "permalink": "/space-system/docs/DEVELOPMENT/DEVELOPMENT_NOTES",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/DEVELOPMENT/DEVELOPMENT_NOTES.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Blankspace Codex Instructions",
+    "permalink": "/space-system/docs/DEVELOPMENT/AGENTS"
+  }
+}

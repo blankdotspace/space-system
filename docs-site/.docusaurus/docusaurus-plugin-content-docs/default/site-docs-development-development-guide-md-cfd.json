@@ -1,0 +1,24 @@
+{
+  "id": "DEVELOPMENT/DEVELOPMENT_GUIDE",
+  "title": "Blankspace - Instructions",
+  "description": "1. Overview",
+  "source": "@site/../docs/DEVELOPMENT/DEVELOPMENT_GUIDE.md",
+  "sourceDirName": "DEVELOPMENT",
+  "slug": "/DEVELOPMENT/DEVELOPMENT_GUIDE",
+  "permalink": "/space-system/docs/DEVELOPMENT/DEVELOPMENT_GUIDE",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/DEVELOPMENT/DEVELOPMENT_GUIDE.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Farcaster Integration",
+    "permalink": "/space-system/docs/INTEGRATIONS/FARCASTER"
+  },
+  "next": {
+    "title": "Coding Standards",
+    "permalink": "/space-system/docs/DEVELOPMENT/CODING_STANDARDS"
+  }
+}
