@@ -166,54 +166,174 @@ async function uploadNavPageSpacesStep(): Promise<boolean> {
 // Verification
 // ============================================================================
 
-/**
- * Check if database is already seeded
- */
-async function checkSeeding(): Promise<boolean> {
-  console.log('🔍 Checking if database is seeded...\n');
+const EXPECTED_COMMUNITIES = ['nounspace.com', 'clanker.space', 'example'];
+const EXPECTED_SPACES = ['nouns-home', 'nouns-explore', 'clanker-home'];
 
-  const { data, error, count } = await supabase
+type CheckResult = { pass: boolean; message: string };
+
+/**
+ * Check community configs in database
+ */
+async function checkCommunityConfigs(): Promise<CheckResult> {
+  const { data, error } = await supabase
     .from('community_configs')
-    .select('community_id, is_published, updated_at', { count: 'exact' });
+    .select('community_id, is_published, updated_at');
 
   if (error) {
-    console.error('❌ Error checking community_configs:', error.message);
-    console.error('   The table might not exist. Run migrations first.');
-    return false;
+    return { pass: false, message: `Error: ${error.message}` };
   }
 
   if (!data || data.length === 0) {
-    console.log('⚠️  No community configs found in database.');
-    console.log('\n📋 Run full seeding:');
-    console.log('   tsx scripts/seed.ts');
-    return false;
+    return { pass: false, message: 'No configs found' };
   }
 
-  console.log(`✅ Found ${count} community config(s):\n`);
-  data.forEach((config) => {
-    console.log(`   - ${config.community_id} (published: ${config.is_published}, updated: ${config.updated_at})`);
-  });
+  const foundIds = data.map((c) => c.community_id);
+  const missing = EXPECTED_COMMUNITIES.filter((id) => !foundIds.includes(id));
 
-  // Test the RPC function
-  console.log('\n🧪 Testing get_active_community_config function...');
-  const { data: testConfig, error: testError } = await supabase
+  if (missing.length > 0) {
+    return { pass: false, message: `Missing: ${missing.join(', ')}` };
+  }
+
+  const details = data.map((c) => `${c.community_id} (${c.is_published ? '✓' : '✗'})`).join(', ');
+  return { pass: true, message: details };
+}
+
+/**
+ * Check navPage space registrations
+ */
+async function checkSpaceRegistrations(): Promise<CheckResult> {
+  const { data, error } = await supabase
+    .from('spaceRegistrations')
+    .select('spaceName, spaceId')
+    .eq('spaceType', 'navPage');
+
+  if (error) {
+    return { pass: false, message: `Error: ${error.message}` };
+  }
+
+  if (!data || data.length === 0) {
+    return { pass: false, message: 'No navPage spaces found' };
+  }
+
+  const foundNames = data.map((s) => s.spaceName);
+  const missing = EXPECTED_SPACES.filter((name) => !foundNames.includes(name));
+
+  if (missing.length > 0) {
+    return { pass: false, message: `Missing: ${missing.join(', ')}` };
+  }
+
+  return { pass: true, message: `${data.length} spaces registered` };
+}
+
+/**
+ * Check space configs in storage
+ */
+async function checkStorageConfigs(): Promise<CheckResult> {
+  const results: string[] = [];
+  let allPass = true;
+
+  for (const spaceName of EXPECTED_SPACES) {
+    // Get spaceId
+    const { data: reg } = await supabase
+      .from('spaceRegistrations')
+      .select('spaceId')
+      .eq('spaceName', spaceName)
+      .eq('spaceType', 'navPage')
+      .single();
+
+    if (!reg?.spaceId) {
+      results.push(`${spaceName}: no registration`);
+      allPass = false;
+      continue;
+    }
+
+    // Check tabOrder file exists
+    const { data: tabOrder } = await supabase.storage
+      .from('spaces')
+      .download(`${reg.spaceId}/tabOrder`);
+
+    if (!tabOrder) {
+      results.push(`${spaceName}: no tabOrder`);
+      allPass = false;
+      continue;
+    }
+
+    // Parse tabOrder to check tabs
+    const tabOrderJson = JSON.parse(await tabOrder.text());
+    const tabCount = tabOrderJson.tabOrder?.length || 0;
+
+    // Verify each tab exists
+    let tabsOk = true;
+    for (const tabName of tabOrderJson.tabOrder || []) {
+      const { data: tab } = await supabase.storage
+        .from('spaces')
+        .download(`${reg.spaceId}/tabs/${tabName}`);
+      if (!tab) {
+        tabsOk = false;
+        break;
+      }
+    }
+
+    if (tabsOk) {
+      results.push(`${spaceName}: ${tabCount} tab(s) ✓`);
+    } else {
+      results.push(`${spaceName}: missing tabs`);
+      allPass = false;
+    }
+  }
+
+  return { pass: allPass, message: results.join(', ') };
+}
+
+/**
+ * Check RPC function works
+ */
+async function checkRpcFunction(): Promise<CheckResult> {
+  const { data, error } = await supabase
     .rpc('get_active_community_config', { p_community_id: 'nounspace.com' })
     .single();
 
-  if (testError) {
-    console.error('❌ Function test failed:', testError.message);
-    return false;
+  if (error) {
+    return { pass: false, message: `Error: ${error.message}` };
   }
 
-  if (testConfig && (testConfig as any).brand) {
-    console.log('✅ Function works! Retrieved config successfully.');
+  if (!data || !(data as any).brand) {
+    return { pass: false, message: 'Invalid response structure' };
+  }
+
+  return { pass: true, message: 'Returns valid config' };
+}
+
+/**
+ * Run all seed verification checks
+ */
+async function checkSeeding(): Promise<boolean> {
+  console.log('🔍 Verifying seed data...\n');
+
+  const checks = [
+    { name: 'Community Configs', fn: checkCommunityConfigs },
+    { name: 'Space Registrations', fn: checkSpaceRegistrations },
+    { name: 'Storage Configs', fn: checkStorageConfigs },
+    { name: 'RPC Function', fn: checkRpcFunction },
+  ];
+
+  let allPass = true;
+
+  for (const check of checks) {
+    const result = await check.fn();
+    const icon = result.pass ? '✅' : '❌';
+    console.log(`${icon} ${check.name}: ${result.message}`);
+    if (!result.pass) allPass = false;
+  }
+
+  console.log('');
+  if (allPass) {
+    console.log('✅ All checks passed! Database is properly seeded.');
   } else {
-    console.error('❌ Function returned invalid config');
-    return false;
+    console.log('❌ Some checks failed. Run: tsx scripts/seed.ts');
   }
 
-  console.log('\n✅ Database is properly seeded!');
-  return true;
+  return allPass;
 }
 
 // ============================================================================
