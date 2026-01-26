@@ -10347,7 +10347,7 @@ __metadata:
     clsx: "npm:^2.0.0"
     cmdk: "npm:0.2.1"
     dotenv: "npm:^17.2.3"
-    emoji-picker-react: "npm:^4.12.0"
+    emoji-picker-react: "npm:^4.17.1"
     eslint: "npm:^9"
     eslint-config-next: "npm:^15.2.6"
     eslint-config-prettier: "npm:^9.1.0"
@@ -11921,14 +11921,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"emoji-picker-react@npm:^4.12.0":
-  version: 4.12.3
-  resolution: "emoji-picker-react@npm:4.12.3"
+"emoji-picker-react@npm:^4.17.1":
+  version: 4.17.1
+  resolution: "emoji-picker-react@npm:4.17.1"
   dependencies:
     flairup: "npm:1.0.0"
   peerDependencies:
     react: ">=16"
-  checksum: 10c0/a9967640ec4cc8706cf4d729db58684616592f9ba41ecca119b41ee034de854010607b9b2681a09a595843606a1a60bc42899c060e0387e9f54251e5804e8836
+  checksum: 10c0/a6b45479c9edc9415cb0b6cd4b8a05b7b65dab18d16c11fd037bd81427b270baef3bc1863af19a143518f75240cac79b445acc18cd26b944b7fe9737b6874c6e
   languageName: node
   linkType: hard
 
