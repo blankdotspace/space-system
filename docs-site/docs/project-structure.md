@@ -1,15 +1,15 @@
 # Project Structure
 
-This document describes the directory layout and organization of the Nounspace codebase.
+This document describes the directory layout and organization of the Blankspace codebase.
 
 ## Overview
 
-Nounspace follows a modular architecture with clear separation of concerns. The project uses Next.js App Router with TypeScript and follows atomic design principles.
+Blankspace follows a modular architecture with clear separation of concerns. The project uses Next.js App Router with TypeScript and follows atomic design principles.
 
 ## Root Directory Structure
 
 ```
-nounspace.ts/
+space-system/
 ├── docs/                     # Documentation
 ├── public/                   # Static assets
 ├── src/                      # Source code
@@ -131,7 +131,7 @@ src/constants/
 
 ### 5. System Configuration (`src/config/`)
 
-Whitelabeling and system configuration with domain-based multi-tenant support. Configurations are stored in Supabase and loaded dynamically based on request domain. See [Configuration System](SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW.md) for details.
+Whitelabeling and system configuration with domain-based multi-tenant support. Configurations are stored in Supabase and loaded dynamically based on request domain. See [Configuration System](./systems/configuration.md) for details.
 
 ```
 src/config/                  # System configuration
@@ -359,4 +359,4 @@ docs/
 - Update types in `src/supabase/database.d.ts`
 - Test with seed data
 
-This structure provides a clear, maintainable, and scalable foundation for the Nounspace application.
+This structure provides a clear, maintainable, and scalable foundation for the Blankspace application.
