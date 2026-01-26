@@ -56,11 +56,49 @@ const flags = {
 // Seeding Steps
 // ============================================================================
 
+const STORAGE_BUCKETS = [
+  { id: 'spaces', name: 'spaces', public: true },
+  { id: 'private', name: 'private', public: true },
+  { id: 'explore', name: 'explore', public: false },
+];
+
+const DOMAIN_MAPPINGS = [
+  { community_id: 'nounspace.com', domain: 'nounspace.com', domain_type: 'custom' },
+  { community_id: 'clanker.space', domain: 'clanker.space', domain_type: 'custom' },
+  // Dev-friendly short domains
+  { community_id: 'nounspace.com', domain: 'nouns', domain_type: 'custom' },
+  { community_id: 'clanker.space', domain: 'clanker', domain_type: 'custom' },
+  { community_id: 'example', domain: 'example', domain_type: 'custom' },
+];
+
 /**
- * Step 1: Upload Nouns assets to ImgBB
+ * Step 1: Create storage buckets
+ */
+async function createStorageBucketsStep(): Promise<void> {
+  console.log('\n📦 Step 1: Creating storage buckets...\n');
+
+  for (const bucket of STORAGE_BUCKETS) {
+    const { error } = await supabase.storage.createBucket(bucket.id, {
+      public: bucket.public,
+    });
+
+    if (error) {
+      if (error.message.includes('already exists')) {
+        console.log(`  ✅ Bucket already exists: ${bucket.id}`);
+      } else {
+        console.error(`  ❌ Failed to create bucket ${bucket.id}:`, error.message);
+      }
+    } else {
+      console.log(`  ✅ Created bucket: ${bucket.id}`);
+    }
+  }
+}
+
+/**
+ * Step 2: Upload Nouns assets to ImgBB
  */
 async function uploadNounsAssetsStep(): Promise<Record<string, string>> {
-  console.log('\n📤 Step 1: Uploading Nouns assets to ImgBB...\n');
+  console.log('\n📤 Step 2: Uploading Nouns assets to ImgBB...\n');
 
   const assetsDir = join(__dirname, 'seed-data', 'assets', nounsAssets.directory);
   const uploadedUrls = await uploadAssets(
@@ -77,10 +115,10 @@ async function uploadNounsAssetsStep(): Promise<Record<string, string>> {
 }
 
 /**
- * Step 2: Create navPage space registrations
+ * Step 3: Create navPage space registrations
  */
 async function createNavPageSpacesStep(): Promise<Record<string, string | null>> {
-  console.log('\n🏗️  Step 2: Creating navPage space registrations...\n');
+  console.log('\n🏗️  Step 3: Creating navPage space registrations...\n');
 
   const spaceNames = ['nouns-home', 'nouns-explore', 'clanker-home'];
   const spaceIds: Record<string, string | null> = {};
@@ -93,13 +131,13 @@ async function createNavPageSpacesStep(): Promise<Record<string, string | null>>
 }
 
 /**
- * Step 3: Seed community configs to database
+ * Step 4: Seed community configs to database
  */
 async function seedCommunityConfigsStep(
   assetUrls: Record<string, string>,
   spaceIds: Record<string, string | null>,
 ): Promise<void> {
-  console.log('\n⚙️  Step 3: Seeding community configs...\n');
+  console.log('\n⚙️  Step 4: Seeding community configs...\n');
 
   const configs = [
     {
@@ -132,10 +170,29 @@ async function seedCommunityConfigsStep(
 }
 
 /**
- * Step 4: Upload navPage space configs to Storage
+ * Step 5: Create domain mappings
+ */
+async function seedDomainMappingsStep(): Promise<void> {
+  console.log('\n🌐 Step 5: Creating domain mappings...\n');
+
+  for (const mapping of DOMAIN_MAPPINGS) {
+    const { error } = await supabase
+      .from('community_domains')
+      .upsert(mapping, { onConflict: 'domain' });
+
+    if (error) {
+      console.error(`  ❌ Failed to map ${mapping.domain}:`, error.message);
+    } else {
+      console.log(`  ✅ Mapped ${mapping.domain} → ${mapping.community_id}`);
+    }
+  }
+}
+
+/**
+ * Step 6: Upload navPage space configs to Storage
  */
 async function uploadNavPageSpacesStep(): Promise<boolean> {
-  console.log('\n📤 Step 4: Uploading navPage space configs to Storage...\n');
+  console.log('\n📤 Step 6: Uploading navPage space configs to Storage...\n');
 
   // Generate explore page config on-the-fly
   const nounsExplorePage = createExplorePageConfig(nounsExploreOptions);
@@ -168,8 +225,60 @@ async function uploadNavPageSpacesStep(): Promise<boolean> {
 
 const EXPECTED_COMMUNITIES = ['nounspace.com', 'clanker.space', 'example'];
 const EXPECTED_SPACES = ['nouns-home', 'nouns-explore', 'clanker-home'];
+const EXPECTED_BUCKETS = ['spaces', 'private', 'explore'];
+const EXPECTED_DOMAINS = ['nounspace.com', 'clanker.space', 'nouns', 'clanker', 'example'];
 
 type CheckResult = { pass: boolean; message: string };
+
+/**
+ * Check storage buckets exist
+ */
+async function checkStorageBuckets(): Promise<CheckResult> {
+  const { data, error } = await supabase.storage.listBuckets();
+
+  if (error) {
+    return { pass: false, message: `Error: ${error.message}` };
+  }
+
+  if (!data || data.length === 0) {
+    return { pass: false, message: 'No buckets found' };
+  }
+
+  const foundBuckets = data.map((b) => b.id);
+  const missing = EXPECTED_BUCKETS.filter((id) => !foundBuckets.includes(id));
+
+  if (missing.length > 0) {
+    return { pass: false, message: `Missing: ${missing.join(', ')}` };
+  }
+
+  return { pass: true, message: `${EXPECTED_BUCKETS.length} buckets exist` };
+}
+
+/**
+ * Check domain mappings exist
+ */
+async function checkDomainMappings(): Promise<CheckResult> {
+  const { data, error } = await supabase
+    .from('community_domains')
+    .select('domain, community_id');
+
+  if (error) {
+    return { pass: false, message: `Error: ${error.message}` };
+  }
+
+  if (!data || data.length === 0) {
+    return { pass: false, message: 'No domain mappings found' };
+  }
+
+  const foundDomains = data.map((d) => d.domain);
+  const missing = EXPECTED_DOMAINS.filter((d) => !foundDomains.includes(d));
+
+  if (missing.length > 0) {
+    return { pass: false, message: `Missing: ${missing.join(', ')}` };
+  }
+
+  return { pass: true, message: `${data.length} domains mapped` };
+}
 
 /**
  * Check community configs in database
@@ -311,7 +420,9 @@ async function checkSeeding(): Promise<boolean> {
   console.log('🔍 Verifying seed data...\n');
 
   const checks = [
+    { name: 'Storage Buckets', fn: checkStorageBuckets },
     { name: 'Community Configs', fn: checkCommunityConfigs },
+    { name: 'Domain Mappings', fn: checkDomainMappings },
     { name: 'Space Registrations', fn: checkSpaceRegistrations },
     { name: 'Storage Configs', fn: checkStorageConfigs },
     { name: 'RPC Function', fn: checkRpcFunction },
@@ -350,21 +461,27 @@ async function main() {
   console.log('🚀 Starting database seeding...\n');
 
   try {
-    // Step 1: Upload assets (skip if --skip-assets)
+    // Step 1: Create storage buckets
+    await createStorageBucketsStep();
+
+    // Step 2: Upload assets (skip if --skip-assets)
     let assetUrls: Record<string, string> = {};
     if (!flags.skipAssets) {
       assetUrls = await uploadNounsAssetsStep();
     } else {
-      console.log('⏭️  Skipping asset upload (--skip-assets flag)\n');
+      console.log('\n⏭️  Skipping asset upload (--skip-assets flag)');
     }
 
-    // Step 2: Create navPage spaces
+    // Step 3: Create navPage spaces
     const spaceIds = await createNavPageSpacesStep();
 
-    // Step 3: Seed community configs
+    // Step 4: Seed community configs
     await seedCommunityConfigsStep(assetUrls, spaceIds);
 
-    // Step 4: Upload navPage space configs
+    // Step 5: Seed domain mappings
+    await seedDomainMappingsStep();
+
+    // Step 6: Upload navPage space configs
     const success = await uploadNavPageSpacesStep();
     if (!success) {
       console.error('\n❌ Some steps failed. Check errors above.');
@@ -374,11 +491,13 @@ async function main() {
     // Summary
     console.log('\n✅ Seeding completed successfully!');
     console.log('\n📋 Summary:');
+    console.log('  ✓ Storage buckets created');
     if (!flags.skipAssets) {
       console.log('  ✓ Nouns assets uploaded to ImgBB');
     }
     console.log('  ✓ NavPage spaces created');
     console.log('  ✓ Community configs seeded');
+    console.log('  ✓ Domain mappings created');
     console.log('  ✓ NavPage space configs uploaded');
 
     // Verify
