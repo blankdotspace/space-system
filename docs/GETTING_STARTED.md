@@ -330,7 +330,7 @@ supabase stop
 ## Next Steps
 
 - Read the [Architecture Overview](ARCHITECTURE/OVERVIEW.md) to understand the system
-- Check out [Fidget Development Guide](SYSTEMS/FIDGETS/DEVELOPMENT_GUIDE.md) to create fidgets
+- Check out [Fidgets Overview](SYSTEMS/FIDGETS/OVERVIEW.md) to learn about available fidgets
 - Review [Component Architecture](DEVELOPMENT/COMPONENT_ARCHITECTURE.md) for UI development
 - Check [Configuration System](SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW.md) for how configs work
 - Review [Project Structure](PROJECT_STRUCTURE.md) to understand the codebase
