@@ -126,6 +126,8 @@ export const DirectoryListView: React.FC<DirectoryListViewProps> = ({
                 viewerFid={viewerFid}
                 signer={signer}
                 className="px-3 py-1 text-xs font-semibold"
+                buttonColor={settings.buttonColor}
+                buttonFontColor={settings.buttonFontColor}
               />
               <div className="flex flex-col items-end gap-1 text-right text-xs text-muted-foreground">
                 {(settings.source ?? "tokenHolders") === "tokenHolders" && (

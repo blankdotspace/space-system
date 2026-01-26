@@ -69,5 +69,7 @@ export type DirectoryFidgetSettings = FidgetSettings &
     primaryFontColor?: string;
     secondaryFontFamily?: string;
     secondaryFontColor?: string;
+    buttonColor?: string;
+    buttonFontColor?: string;
   };
 

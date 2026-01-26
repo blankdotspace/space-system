@@ -157,6 +157,8 @@ export const DirectoryCardView: React.FC<DirectoryCardViewProps> = ({
                 viewerFid={viewerFid}
                 signer={signer}
                 className="pointer-events-auto px-3 py-1 text-xs font-semibold"
+                buttonColor={settings.buttonColor}
+                buttonFontColor={settings.buttonFontColor}
               />
             </div>
           </div>
