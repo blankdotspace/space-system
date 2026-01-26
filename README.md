@@ -6,7 +6,28 @@
 Forked from [herocast](https://github.com/hellno/herocast/) in April 2024.
 
 # Docs
-Documentation is available in the [docs/](docs/) directory. For online documentation, set `NEXT_PUBLIC_DOCS_URL` environment variable.
+
+Full documentation is available in the [`docs/`](docs/) directory:
+
+- **[Getting Started](docs/GETTING_STARTED.md)** - Quick start guide
+- **[Project Structure](docs/PROJECT_STRUCTURE.md)** - Codebase organization
+- **[Contributing](docs/CONTRIBUTING.MD)** - How to contribute
+
+### Architecture
+- [Overview](docs/ARCHITECTURE/OVERVIEW.md) - System architecture overview
+- [Authentication](docs/ARCHITECTURE/AUTHENTICATION.md) - Auth system design
+- [State Management](docs/ARCHITECTURE/STATE_MANAGEMENT.md) - Zustand stores
+
+### Systems
+- [Configuration](docs/SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW.md) - Multi-tenant config system
+- [Spaces](docs/SYSTEMS/SPACES/OVERVIEW.md) - Space architecture (profile, token, channel, navPage)
+- [Fidgets](docs/SYSTEMS/FIDGETS/OVERVIEW.md) - Fidget system and registry
+- [Navigation](docs/SYSTEMS/NAVIGATION/OVERVIEW.md) - Navigation system
+- [Themes](docs/SYSTEMS/THEMES/OVERVIEW.md) - Theming system
+
+### Integrations
+- [Supabase](docs/INTEGRATIONS/SUPABASE.md) - Database schema and storage
+- [Farcaster](docs/INTEGRATIONS/FARCASTER.md) - Farcaster integration
 
 ## What is Farcaster?
 a protocol for decentralized social apps: https://www.farcaster.xyz
