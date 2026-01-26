@@ -23,7 +23,7 @@ import {
   isProposalSpace,
   isChannelSpace,
 } from "@/common/types/spaceData";
-const FARCASTER_BLANKSPACE_AUTHENTICATOR_NAME = "farcaster:blankspace";
+const FARCASTER_BLANKSPACE_AUTHENTICATOR_NAME = "farcaster:nounspace";
 
 interface PublicSpaceProps {
   spacePageData: SpacePageData;

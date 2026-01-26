@@ -7,12 +7,12 @@ import { indexOf } from "lodash";
 import { err, ok } from "neverthrow";
 import { useEffect, useState } from "react";
 
-export const FARCASTER_AUTHENTICATOR_NAME = "farcaster:blankspace";
+export const FARCASTER_AUTHENTICATOR_NAME = "farcaster:nounspace";
 
 const createFarcasterSignerFromAuthenticatorManager = async (
   authenticatorManager: AuthenticatorManager,
   fidgetId: string,
-  authenticatorName: string = "farcaster:blankspace",
+  authenticatorName: string = "farcaster:nounspace",
 ): Promise<Signer> => {
   const schemeResult = await authenticatorManager.callMethod({
     requestingFidgetId: fidgetId,
@@ -58,7 +58,7 @@ const createFarcasterSignerFromAuthenticatorManager = async (
 
 export function useFarcasterSigner(
   fidgetId: string,
-  authenticatorName: string = "farcaster:blankspace",
+  authenticatorName: string = "farcaster:nounspace",
 ) {
   const authenticatorManager = useAuthenticatorManager();
   const [isLoadingSigner, setIsLoadingSigner] = useState(true);
