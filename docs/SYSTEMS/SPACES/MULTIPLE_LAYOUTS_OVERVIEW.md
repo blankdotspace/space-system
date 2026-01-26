@@ -4,56 +4,7 @@
 
 This documentation covers the multiple layouts system, which introduced support for different layout configurations for desktop and mobile, applying the Separation of Concerns (SoC) principle and implementing significant improvements to the mobile experience.
 
-## 📚 Available Documents
-
-### 1. [Multiple Layouts System](./multiple-layouts-system-en.md)
-**Main document** explaining the architecture of the new layouts system.
-
-**Content:**
-- Architecture and Separation of Concerns
-- LayoutFidgetDetails data structure
-- Layout decision flow
-- Automatic migration system
-- Code transition points
-
-**When to consult:** To understand the general architecture and how the system works.
-
-### 2. [Layout Migration Guide](./layout-migration-guide-en.md)
-**Detailed guide** on how old layouts are migrated to the new system.
-
-**Content:**
-- Before vs after comparison
-- Automatic migration process
-- Files modified in the PR
-- Backward compatibility
-- Rollback strategies
-
-**When to consult:** To understand how existing data is preserved and migrated.
-
-### 3. [Mobile Drag-and-Drop System](./mobile-drag-drop-system-en.md)
-**Technical documentation** of the mobile fidget reordering system.
-
-**Content:**
-- Complete drag-and-drop flow
-- Interface and involved components
-- Edge case handling
-- Performance and optimizations
-- Debugging and troubleshooting
-
-**When to consult:** To understand or modify the drag-and-drop system.
-
-### 4. [Immutable Homebase Feed System](./immutable-homebase-feed-en.md)
-**Specific documentation** about the contextual homebase feed.
-
-**Content:**
-- Immutable feed concept and implementation
-- Lifecycle and automatic management
-- Integration with the layouts system
-- Special behaviors and edge cases
-
-**When to consult:** To understand how the feed works specifically in homebase.
-
-## 🎯 Main Implemented Changes
+## Key Features
 
 ### Summary of Improvements
 
