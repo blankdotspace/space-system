@@ -13,7 +13,7 @@ import {
 import { Input } from "../atoms/input";
 import Image from "next/image";
 
-import { Search } from "lucide-react";
+import { Search, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 // Tag configuration for consistent styling - Core 8 categories
 const TAG_CONFIG: Record<string, { color: string; icon: string | any; displayName?: string }> = {
@@ -285,6 +285,7 @@ export const FidgetPickerModal: React.FC<FidgetPickerModalProps> = ({
 
   const renderFidgetOption = (option: FidgetOption) => {
     const icon = typeof option.icon === 'string' ? option.icon : '🔗';
+    const isUnverifiedMiniApp = option.type === 'miniapp' && !option.verified;
     
     // Function to render icon properly - handle URLs vs unicode/text
     const renderIcon = () => {
@@ -346,9 +347,13 @@ export const FidgetPickerModal: React.FC<FidgetPickerModalProps> = ({
           className="group w-full h-16 flex items-center gap-3 p-2 bg-transparent transform-gpu transition-transform will-change-transform hover:scale-[1.02]"
           onClick={() => handleFidgetSelect(option)}
         >
-          <Card className="w-full h-full bg-[#F3F4F6] flex items-center p-3 rounded-lg">
+          <Card className={`w-full h-full flex items-center p-3 rounded-lg ${
+            isUnverifiedMiniApp 
+              ? 'bg-amber-50 border border-amber-200' 
+              : 'bg-[#F3F4F6]'
+          }`}>
             <CardContent className="overflow-hidden flex items-center gap-4 p-0 w-full">
-              <div className="flex items-center justify-center w-8 h-8 flex-shrink-0">
+              <div className="flex items-center justify-center w-8 h-8 flex-shrink-0 relative">
                 {renderIcon()}
                 <span
                   className="text-lg leading-none text-black group-hover:text-black hidden"
@@ -363,9 +368,23 @@ export const FidgetPickerModal: React.FC<FidgetPickerModalProps> = ({
                   <span className="text-sm font-medium text-black text-left leading-none group-hover:text-black truncate">
                     {option.name}
                   </span>
+                  {/* Verification badge */}
+                  {option.verified && (
+                    <span title="Verified">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
+                    </span>
+                  )}
+                  {isUnverifiedMiniApp && (
+                    <span title="Not verified - may not work as expected">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-gray-600 text-left leading-tight truncate">
-                  {option.description}
+                  {isUnverifiedMiniApp 
+                    ? 'Third-party mini-app - may not work as expected'
+                    : option.description
+                  }
                 </p>
               </div>
             </CardContent>

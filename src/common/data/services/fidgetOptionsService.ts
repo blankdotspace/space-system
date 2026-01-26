@@ -10,6 +10,7 @@ import {
 } from "@/common/types/fidgetOptions";
 import { CURATED_SITES } from "@/common/data/curated/curatedSites";
 import { NeynarMiniAppService } from "./neynarMiniAppService";
+import { isMiniAppApproved } from "@/common/data/constants/approvedMiniApps";
 
 // Default categories configuration
 const DEFAULT_CATEGORIES: FidgetCategory[] = [
@@ -175,6 +176,9 @@ export class FidgetOptionsService {
         // Combine tags: primary category + specific tags
         const allTags = [primaryCategory, ...specificTags];
         
+        // Native fidgets are always verified and get high popularity to appear first
+        const isCoreFidget = ['feed', 'cast', 'gallery', 'text', 'links', 'iframe'].includes(key);
+        
         staticFidgets.push({
           id: `static-${key}`,
           type: 'static',
@@ -184,7 +188,8 @@ export class FidgetOptionsService {
           icon: String.fromCodePoint(fidgetModule.properties.icon),
           tags: allTags,
           category: primaryCategory,
-          popularity: ['feed', 'cast', 'gallery', 'text'].includes(key) ? 100 : 50
+          popularity: isCoreFidget ? 1000 : 500, // High popularity to boost above mini-apps
+          verified: true, // Native fidgets are always verified
         });
       }
     });
@@ -196,7 +201,9 @@ export class FidgetOptionsService {
   private getCuratedSites(): CuratedFidgetOption[] {
     return CURATED_SITES.map((site, index) => ({
       ...site,
-      id: `curated-${index}`
+      id: `curated-${index}`,
+      verified: true, // Curated sites are pre-vetted
+      popularity: site.popularity ?? 200, // Boost curated sites above unverified mini-apps
     }));
   }
 
@@ -473,21 +480,23 @@ export class FidgetOptionsService {
     return miniApps.map(app => {
       const mappedCategory = this.mapToNounspaceCategory(app);
       const enhancedTags = this.generateEnhancedTags(app, mappedCategory);
+      const isApproved = isMiniAppApproved(app.domain);
       
       return {
         id: `neynar-search-${app.domain}`,
         type: 'miniapp',
         name: app.name,
-        description: app.description || `Mini app by ${app.author.displayName}`,
+        description: app.description || `Mini app by ${app.author?.displayName || 'Unknown'}`,
         icon: app.iconUrl,
         tags: enhancedTags,
         category: mappedCategory,
         frameUrl: app.homeUrl,
         homeUrl: app.homeUrl,
         domain: app.domain,
-        buttonTitle: app.metadata.buttonTitle || 'Open',
-        imageUrl: app.metadata.heroImage || app.iconUrl,
+        buttonTitle: app.metadata?.buttonTitle || 'Open',
+        imageUrl: app.metadata?.heroImage || app.iconUrl,
         popularity: this.calculatePopularity(app),
+        verified: isApproved, // Check against approved list
         metadata: app.metadata,
         lastFetched: app.lastFetched,
       };
