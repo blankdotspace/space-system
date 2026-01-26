@@ -12,7 +12,7 @@ import {
   renderSingleChoiceVotingUI,
   renderWeightedVotingUI,
 } from "../utils/renderVotingUI";
-import { Action, initialState, reducer, State } from "../utils/stateManagement";
+import { initialState, reducer } from "../utils/stateManagement";
 import voteOnProposal, { ProposalType } from "../utils/voteOnProposal";
 
 import { resolveIpfsUrl } from "@/common/lib/utils/url";

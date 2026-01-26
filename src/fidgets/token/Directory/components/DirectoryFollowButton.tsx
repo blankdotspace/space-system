@@ -11,6 +11,7 @@ export type DirectoryFollowButtonProps = {
   className?: string;
   buttonColor?: string;
   buttonFontColor?: string;
+  buttonFontFamily?: string;
 };
 
 export const DirectoryFollowButton: React.FC<DirectoryFollowButtonProps> = ({
@@ -20,6 +21,7 @@ export const DirectoryFollowButton: React.FC<DirectoryFollowButtonProps> = ({
   className,
   buttonColor,
   buttonFontColor,
+  buttonFontFamily,
 }) => {
   const { setModalOpen, getIsAccountReady } = useAppStore((state) => ({
     setModalOpen: state.setup.setModalOpen,
@@ -93,12 +95,15 @@ export const DirectoryFollowButton: React.FC<DirectoryFollowButtonProps> = ({
       : "Follow";
 
   const customStyle: React.CSSProperties | undefined =
-    !isFollowing && (buttonColor || buttonFontColor)
+    !isFollowing && (buttonColor || buttonFontColor || buttonFontFamily)
       ? {
           ...(buttonColor ? { backgroundColor: buttonColor } : {}),
           ...(buttonFontColor ? { color: buttonFontColor } : {}),
+          ...(buttonFontFamily ? { fontFamily: buttonFontFamily } : {}),
         }
-      : undefined;
+      : buttonFontFamily
+        ? { fontFamily: buttonFontFamily }
+        : undefined;
 
   return (
     <Button

@@ -2161,7 +2161,6 @@ Deno.serve(async (req: Request) => {
     const communitySocial = isRecord(communityConfigObj.social)
       ? (communityConfigObj.social as JsonRecord)
       : {};
-    const website = getString(communityUrls.website);
     const discordUrl = getString(communityUrls.discord);
     const farcaster = getString(communitySocial.farcaster);
     const rawXHandle = getString(
@@ -2200,7 +2199,7 @@ Deno.serve(async (req: Request) => {
       const tabs: Array<{ name: string; config: JsonRecord }> = [];
       const tabOrder: string[] = [];
 
-      tabs.push({ name: "Home", config: buildHomeTabConfig(website, nowIso) });
+      tabs.push({ name: "Home", config: buildHomeTabConfig(existingWebsite, nowIso) });
       tabOrder.push("Home");
 
       if (farcaster) {
