@@ -1028,7 +1028,7 @@ function buildExploreTabConfig(
   // Merge UI styling into directory settings
   const enhancedSettings: JsonRecord = {
     ...settings,
-    ...(uiFont ? { primaryFontFamily: uiFont } : {}),
+    ...(uiFont ? { primaryFontFamily: uiFont, secondaryFontFamily: uiFont } : {}),
     ...(buttonColor ? { buttonColor } : {}),
     ...(buttonFontColor ? { buttonFontColor } : {}),
   };
