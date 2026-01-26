@@ -64,12 +64,7 @@ import type {
   DirectoryNetwork,
   DirectoryChannelFilterOption,
   DirectoryAssetType,
-  DirectoryFidgetData,
 } from '../src/fidgets/token/Directory/types';
-import { getDirectoryDataFromTabJson } from './seed-data/exploreTabDirectoryData';
-import nounsChannelTab from './seed-data/exploreTabs/channel.json';
-import spaceHoldersTab from './seed-data/exploreTabs/spaceHolders.json';
-import nounsNftHoldersTab from './seed-data/exploreTabs/nounsNFTholders.json';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -176,18 +171,10 @@ const createTabTheme = (idSuffix: string) => ({
   },
 });
 
-const getPreloadedDirectoryData = (
-  tabKey: string,
-  idSuffix: string,
-  preloadedDirectoryData?: Record<string, DirectoryFidgetData | undefined>,
-): DirectoryFidgetData | undefined =>
-  preloadedDirectoryData?.[tabKey] ?? preloadedDirectoryData?.[idSuffix];
-
 const buildTabConfig = (
   name: string,
   idSuffix: string,
   settings: DirectoryFidgetSettings,
-  preloadedData?: DirectoryFidgetData,
 ): TabConfig => {
   const fidgetId = createDirectoryFidgetId(idSuffix);
   return {
@@ -220,7 +207,7 @@ const buildTabConfig = (
     fidgetInstanceDatums: {
       [fidgetId]: {
         config: {
-          data: preloadedData ?? {},
+          data: {}, // Directory fidget fetches data at runtime
           editable: false,
           settings,
         },
@@ -239,13 +226,11 @@ function createExplorePageConfig({
   channel,
   defaultTokenNetwork = "mainnet",
   channelNetwork = "base",
-  preloadedDirectoryData,
 }: {
   tokens?: TokenInput[];
   channel?: string | null;
   defaultTokenNetwork?: DirectoryNetwork;
   channelNetwork?: DirectoryNetwork;
-  preloadedDirectoryData?: Record<string, DirectoryFidgetData | undefined>;
 }): NavPageConfig {
   const tabEntries: Array<{ key: string; config: TabConfig }> = [];
   const seenTabNames = new Set<string>();
@@ -263,10 +248,9 @@ function createExplorePageConfig({
     seenTabNames.add(tabName);
     const idSuffix = slugify(tabName, `token-${index + 1}`);
     const settings = buildTokenDirectorySettings(token, defaultTokenNetwork);
-    const preloadedData = getPreloadedDirectoryData(tabName, idSuffix, preloadedDirectoryData);
     tabEntries.push({
       key: tabName,
-      config: buildTabConfig(tabName, idSuffix, settings, preloadedData),
+      config: buildTabConfig(tabName, idSuffix, settings),
     });
   });
 
@@ -275,10 +259,9 @@ function createExplorePageConfig({
     const tabName = "channel";
     const idSuffix = slugify(`channel-${normalizedChannel}`, `channel-${tabEntries.length + 1}`);
     const settings = buildChannelDirectorySettings(normalizedChannel, channelNetwork);
-    const preloadedData = getPreloadedDirectoryData(tabName, idSuffix, preloadedDirectoryData);
     tabEntries.push({
       key: tabName,
-      config: buildTabConfig(tabName, idSuffix, settings, preloadedData),
+      config: buildTabConfig(tabName, idSuffix, settings),
     });
   }
 
@@ -323,36 +306,25 @@ function createExplorePageConfig({
   };
 }
 
-// Create nouns explore page config inline
-const nounsTokens: TokenInput[] = [
-  {
-    address: '0x48C6740BcF807d6C47C864FaEEA15Ed4dA3910Ab',
-    symbol: '$SPACE',
-    network: 'base',
-    assetType: "token" as const,
-  },
-  {
-    address: '0x9C8fF314C9Bc7F6e59A9d9225Fb22946427eDC03',
-    symbol: 'Nouns',
-    network: 'eth',
-    assetType: "nft" as const,
-  },
-];
-
-const nounsPreloadedDirectoryData = {
-  "$SPACE": getDirectoryDataFromTabJson(spaceHoldersTab),
-  space: getDirectoryDataFromTabJson(spaceHoldersTab),
-  Nouns: getDirectoryDataFromTabJson(nounsNftHoldersTab),
-  nouns: getDirectoryDataFromTabJson(nounsNftHoldersTab),
-  "/nouns": getDirectoryDataFromTabJson(nounsChannelTab),
-  "channel-nouns": getDirectoryDataFromTabJson(nounsChannelTab),
-};
-
+// Create nouns explore page config
+// Directory fidgets fetch data at runtime, no preloaded data needed
 const nounsExplorePage = createExplorePageConfig({
-  tokens: nounsTokens,
+  tokens: [
+    {
+      address: '0x48C6740BcF807d6C47C864FaEEA15Ed4dA3910Ab',
+      symbol: '$SPACE',
+      network: 'base',
+      assetType: "token" as const,
+    },
+    {
+      address: '0x9C8fF314C9Bc7F6e59A9d9225Fb22946427eDC03',
+      symbol: 'Nouns',
+      network: 'eth',
+      assetType: "nft" as const,
+    },
+  ],
   channel: 'nouns',
   defaultTokenNetwork: "mainnet",
-  preloadedDirectoryData: nounsPreloadedDirectoryData,
 });
 
 if (!supabaseUrl || !supabaseKey) {
