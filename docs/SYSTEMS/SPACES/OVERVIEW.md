@@ -1,383 +1,147 @@
-# Space Architecture Overview
-
-Spaces are the core organizational unit in Nounspace, representing customizable hubs that users can personalize with themes, tabs, and fidgets. The system supports both public and private spaces with different data patterns and access controls.
-
-**Related Documentation:**
-- [Space Architecture](SPACE_ARCHITECTURE.md) - Detailed architecture and tab management
-- [Public Spaces Pattern](PUBLIC_SPACES_PATTERN.md) - Deep dive into public space implementation
-- [Configuration System](../CONFIGURATION/ARCHITECTURE_OVERVIEW.md) - How navigation pages are stored as Spaces
-
-## Core Concepts
-
-### Space Types
-
-1. **Public Spaces** - Discoverable, read-only spaces
-2. **Private Spaces (Homebase)** - User-owned, editable spaces
-3. **System Spaces** - Special spaces like homebase feed
-
-### Space Components
-
-- **Tabs** - Organizational units within spaces
-- **Fidgets** - Mini-applications within tabs
-- **Themes** - Visual customization
-- **Layouts** - Multiple layout support
-
-## Data Patterns
-
-### Public Spaces
-
-Public spaces use a server/client separation pattern:
-
-```typescript
-// Public space data omits editable fields
-export type DatabaseWritableSpaceConfig = Omit<
-  SpaceConfig,
-  "fidgetInstanceDatums" | "isEditable"
-> & {
-  fidgetInstanceDatums: {
-    [key: string]: Omit<FidgetInstanceData, "config"> & {
-      config: Omit<FidgetConfig, "data">;
-    };
-  };
-};
-```
-
-**Key Characteristics:**
-- Read-only access
-- Server-synchronized
-- No local editing
-- Public discovery
-
-### Private Spaces (Homebase)
-
-Private spaces use optimistic updates with local/remote state:
-
-```typescript
-// Homebase store manages private spaces
-export type HomeBaseStore = {
-  homebaseConfig: SpaceConfig | null;
-  remoteHomebaseConfig: SpaceConfig | null;
-  tabs: Record<string, HomebaseTab>;
-  // ... other properties
-};
-```
-
-**Key Characteristics:**
-- Full editing capabilities
-- Optimistic updates
-- Local state management
-- Encrypted storage
-
-## Space Lifecycle
-
-### 1. Creation
-
-```typescript
-// Create new space
-const createSpace = async (spaceData: SpaceData) => {
-  // Validate space data
-  const validatedSpace = validateSpaceData(spaceData);
-  
-  // Create in store
-  set((draft) => {
-    draft.homebase.spaces[validatedSpace.id] = validatedSpace;
-  }, "createSpace");
-  
-  // Sync with server
-  await syncSpaceWithServer(validatedSpace);
-};
-```
-
-### 2. Loading
-
-```typescript
-// Load space from server
-const loadSpace = async (spaceId: string) => {
-  const supabase = createClient();
-  const { data: { publicUrl } } = await supabase.storage
-    .from("spaces")
-    .getPublicUrl(`${spaceId}/tabs/${tabName}`);
-  
-  const { data } = await axios.get<Blob>(publicUrl, {
-    responseType: "blob",
-    headers: { "Cache-Control": "no-cache" }
-  });
-  
-  const fileData = JSON.parse(await data.text()) as SignedFile;
-  const spaceConfig = JSON.parse(
-    await decryptEncryptedSignedFile(fileData)
-  ) as DatabaseWritableSpaceConfig;
-  
-  return spaceConfig;
-};
-```
-
-### 3. Updates
-
-```typescript
-// Update space with optimistic updates
-const updateSpace = async (spaceId: string, updates: Partial<SpaceData>) => {
-  const originalSpace = get().homebase.spaces[spaceId];
-  
-  // Apply optimistic update
-  set((draft) => {
-    draft.homebase.spaces[spaceId] = { ...originalSpace, ...updates };
-  }, "updateSpace");
-  
-  try {
-    await syncSpaceWithServer(spaceId, updates);
-  } catch (error) {
-    // Rollback on error
-    set((draft) => {
-      draft.homebase.spaces[spaceId] = originalSpace;
-    }, "rollbackUpdateSpace");
-  }
-};
-```
-
-## Storage Patterns
-
-### 1. Public Space Storage
-
-```typescript
-// Public spaces stored in Supabase storage
-const publicSpacePath = `spaces/${spaceId}/tabs/${tabName}`;
-
-// Upload public space
-const uploadPublicSpace = async (spaceId: string, tabName: string, config: DatabaseWritableSpaceConfig) => {
-  const supabase = createClient();
-  const fileData = JSON.stringify(config);
-  
-  await supabase.storage
-    .from("spaces")
-    .upload(publicSpacePath, fileData, {
-      contentType: "application/json",
-      upsert: true
-    });
-};
-```
-
-### 2. Private Space Storage
-
-```typescript
-// Private spaces stored encrypted
-const privateSpacePath = `private/${identityKey}/homebase`;
-
-// Upload private space
-const uploadPrivateSpace = async (config: SpaceConfig) => {
-  const supabase = createClient();
-  const encryptedData = await encryptSpaceConfig(config);
-  
-  await supabase.storage
-    .from("private")
-    .upload(privateSpacePath, encryptedData, {
-      contentType: "application/json",
-      upsert: true
-    });
-};
-```
-
-## State Management
-
-### 1. Space Store
-
-```typescript
-// Space store manages public spaces
-export type SpaceStore = {
-  spaces: Record<string, Omit<SpaceData, 'isEditable'>>;
-  addSpace: (space: Omit<SpaceData, 'isEditable'>) => void;
-  updateSpace: (id: string, updates: Partial<Omit<SpaceData, 'isEditable'>>) => void;
-  removeSpace: (id: string) => void;
-  getSpace: (id: string) => Omit<SpaceData, 'isEditable'> | null;
-};
-```
-
-### 2. Homebase Store
-
-```typescript
-// Homebase store manages private spaces
-export type HomeBaseStore = {
-  homebaseConfig: SpaceConfig | null;
-  remoteHomebaseConfig: SpaceConfig | null;
-  tabs: Record<string, HomebaseTab>;
-  loadHomebase: () => Promise<SpaceConfig>;
-  saveHomebase: (config: SpaceConfig) => Promise<void>;
-  // ... other methods
-};
-```
-
-## Access Control
-
-### 1. Public Space Access
-
-```typescript
-// Public spaces are read-only
-const canEditSpace = (space: PublicSpaceData): boolean => {
-  return false; // Public spaces are never editable
-};
-```
-
-### 2. Private Space Access
-
-```typescript
-// Private spaces are editable by owner
-const canEditSpace = (space: PrivateSpaceData): boolean => {
-  return space.ownerId === getCurrentUserId();
-};
-```
-
-## Performance Optimizations
-
-### 1. Lazy Loading
-
-```typescript
-// Load space tabs on demand
-const loadSpaceTab = async (spaceId: string, tabName: string) => {
-  if (get().space.spaces[spaceId]?.tabs[tabName]) {
-    return; // Already loaded
-  }
-  
-  const tabConfig = await fetchSpaceTab(spaceId, tabName);
-  set((draft) => {
-    draft.space.spaces[spaceId].tabs[tabName] = tabConfig;
-  }, "loadSpaceTab");
-};
-```
-
-### 2. Caching
-
-```typescript
-// Cache space data
-const cacheSpace = (spaceId: string, data: SpaceData) => {
-  set((draft) => {
-    draft.space.cache[spaceId] = {
-      data,
-      timestamp: Date.now(),
-      ttl: 5 * 60 * 1000 // 5 minutes
-    };
-  }, "cacheSpace");
-};
-```
-
-## Error Handling
-
-### 1. Network Errors
-
-```typescript
-// Handle network failures
-const loadSpaceWithRetry = async (spaceId: string, retries = 3) => {
-  for (let i = 0; i < retries; i++) {
-    try {
-      return await loadSpace(spaceId);
-    } catch (error) {
-      if (i === retries - 1) throw error;
-      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
-    }
-  }
-};
-```
-
-### 2. Data Corruption
-
-```typescript
-// Handle corrupted data
-const loadSpaceSafely = async (spaceId: string) => {
-  try {
-    const data = await loadSpace(spaceId);
-    return validateSpaceData(data);
-  } catch (error) {
-    console.error('Failed to load space:', error);
-    return getDefaultSpaceConfig();
-  }
-};
-```
-
-## Development Patterns
-
-### 1. Creating Spaces
-
-```typescript
-// Create new space
-const createNewSpace = async (spaceData: Partial<SpaceData>) => {
-  const newSpace: SpaceData = {
-    id: generateId(),
-    name: spaceData.name || 'New Space',
-    tabs: {},
-    theme: getDefaultTheme(),
-    ...spaceData
-  };
-  
-  await addSpace(newSpace);
-  return newSpace;
-};
-```
-
-### 2. Updating Spaces
-
-```typescript
-// Update space with validation
-const updateSpaceSafely = async (spaceId: string, updates: Partial<SpaceData>) => {
-  const currentSpace = get().homebase.spaces[spaceId];
-  if (!currentSpace) throw new Error('Space not found');
-  
-  const updatedSpace = { ...currentSpace, ...updates };
-  const validatedSpace = validateSpaceData(updatedSpace);
-  
-  await updateSpace(spaceId, validatedSpace);
-};
-```
-
-## Testing
-
-### 1. Unit Tests
-
-```typescript
-// Test space operations
-describe('Space Store', () => {
-  it('should create space', () => {
-    const store = createTestStore();
-    const space = createTestSpace();
-    
-    store.getState().addSpace(space);
-    expect(store.getState().spaces[space.id]).toEqual(space);
-  });
-});
-```
-
-### 2. Integration Tests
-
-```typescript
-// Test space synchronization
-describe('Space Synchronization', () => {
-  it('should sync space with server', async () => {
-    const space = createTestSpace();
-    await syncSpaceWithServer(space);
-    
-    const serverSpace = await loadSpaceFromServer(space.id);
-    expect(serverSpace).toEqual(space);
-  });
-});
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Space Not Loading**: Check network connection and space ID
-2. **Update Failures**: Verify space permissions and data validity
-3. **Sync Issues**: Check server connectivity and data format
-4. **Performance Issues**: Implement lazy loading and caching
-
-### Debug Tools
-
-- Use React DevTools to inspect space state
-- Check browser console for space errors
-- Verify space data format and permissions
-- Test space operations in isolation
-
-## Future Considerations
-
-- Enhanced space discovery
-- Advanced permission system
-- Space collaboration features
-- Performance monitoring
+# Spaces
+
+Spaces are the pages that make up a community's presence on Blankspace. Each community can have multiple types of spaces - for their token, their members, their channel, and custom pages.
+
+## Space Types
+
+### Homebase (Private)
+
+Every community member gets their own private homebase - a personal dashboard they can customize.
+
+**URL:** `/homebase`
+
+**Who can edit:** Only the owner (encrypted, private)
+
+**Use cases:**
+- Personal feed dashboard
+- Bookmarked communities and tokens
+- Private notes and links
+
+---
+
+### Profile Spaces
+
+Profile spaces are public pages for Farcaster users and community members.
+
+**URL:** `/s/[handle]` (e.g., `/s/alice`)
+
+**Who can edit:** The Farcaster account owner
+
+**Use cases:**
+- Member profiles
+- Creator portfolios
+- Personal branding
+
+---
+
+### Token Spaces
+
+Token spaces are the home for token communities - where holders gather, trade, and engage.
+
+**URL:** `/t/[network]/[contractAddress]` (e.g., `/t/base/0x1234...`)
+
+**Who can edit:**
+- The wallet that deployed the token contract
+- The Clanker token creator
+- The Empire token owner
+- Registered space owners
+
+**Use cases:**
+- Token landing pages
+- Holder feeds and chat
+- Swap widgets and market data
+- Governance and proposals
+
+---
+
+### Channel Spaces
+
+Channel spaces are pages for Farcaster channels - perfect for topic-based communities.
+
+**URL:** `/c/[channelId]` (e.g., `/c/base`)
+
+**Who can edit:** Channel moderators (from Farcaster)
+
+**Use cases:**
+- Channel feeds
+- Community resources
+- Event listings
+- Member spotlights
+
+---
+
+### Proposal Spaces
+
+Proposal spaces give governance proposals their own dedicated page.
+
+**URL:** `/p/[proposalId]`
+
+**Who can edit:** The proposal creator (by wallet)
+
+**Use cases:**
+- Proposal details and discussion
+- Voting widgets
+- Related resources
+
+---
+
+### Navigation Pages
+
+Custom pages defined by community admins - for about pages, team pages, resources, etc.
+
+**URL:** `/[slug]` (e.g., `/about`, `/team`, `/resources`)
+
+**Who can edit:** Community admins (defined in community config)
+
+**Use cases:**
+- About pages
+- Team directories
+- Resource libraries
+- Custom landing pages
+
+---
+
+## What's In a Space?
+
+Every space contains:
+
+| Component | Description |
+|-----------|-------------|
+| **Tabs** | Multiple pages within the space |
+| **Fidgets** | Community tools arranged in each tab |
+| **Theme** | Visual branding (colors, fonts, backgrounds) |
+| **Layout** | Grid (desktop) or stack (mobile) arrangement |
+
+## Creating a Space
+
+Spaces are created automatically when someone visits a URL:
+- `/s/alice` creates Alice's profile space (if it doesn't exist)
+- `/t/base/0x...` creates a token space
+- `/c/farcaster` creates a channel space
+
+The first person with edit permission can customize the space.
+
+## Editing a Space
+
+1. Visit the space
+2. If you have permission, you'll see an "Edit" button
+3. Enter edit mode to:
+   - Add/remove/configure fidgets
+   - Create/rename/delete tabs
+   - Customize the theme
+4. Save your changes
+
+Changes are saved to the server and visible to all visitors.
+
+## Storage
+
+| Space Type | Where it's stored | Encrypted? |
+|------------|-------------------|------------|
+| Homebase | `private/{identityKey}/` | Yes |
+| All public spaces | `spaces/{spaceId}/` | No |
+
+## Related Documentation
+
+- [Space Architecture](SPACE_ARCHITECTURE.md) - Technical implementation details
+- [Public Spaces Pattern](PUBLIC_SPACES_PATTERN.md) - Server/client data flow
+- [Multiple Layouts](MULTIPLE_LAYOUTS_OVERVIEW.md) - Desktop and mobile layouts

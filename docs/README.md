@@ -1,72 +1,72 @@
-# Nounspace Documentation
+# Blankspace Documentation
 
-Nounspace is a highly customizable Farcaster client funded by Nouns DAO. This documentation covers the architecture, systems, and development patterns of the application.
+**Blankspace is a platform where communities build their home on Farcaster.**
 
-## Quick Start
+## What is Blankspace?
 
-- [Getting Started](GETTING_STARTED.md) - Complete local development setup including database seeding
-- [Project Structure](PROJECT_STRUCTURE.md) - Complete directory layout and organization
-- [Contributing](CONTRIBUTING.md) - How to contribute to the project
-- [Documentation Overview](DOCUMENTATION_OVERVIEW.md) - Complete documentation structure
+Blankspace gives communities a customizable homebase - a central hub where members can engage, govern, trade, and connect. Instead of scattered tools across different apps, communities get everything in one place:
+
+- **A branded home** with custom themes, navigation, and pages
+- **Community tools** (fidgets) for governance, token management, feeds, and more
+- **Member spaces** where individuals can customize their own profiles
+- **Multi-tenant architecture** so each community has its own identity
+
+## Who is Blankspace for?
+
+| Community Type | What they get |
+|----------------|---------------|
+| **Token communities** | Token pages with swap widgets, holder feeds, governance |
+| **DAOs** | Proposal spaces, Snapshot integration, governance fidgets |
+| **Farcaster channels** | Channel feeds, member directories, community pages |
+| **Creators** | Profile customization, galleries, link trees |
+
+## Quick Concepts
+
+| Concept | What it is |
+|---------|-----------|
+| **Space** | A customizable page (profile, token, channel, or custom page) |
+| **Homebase** | A member's private, personal dashboard |
+| **Fidget** | A community tool you add to spaces (feeds, swaps, governance, etc.) |
+| **Tab** | A page within a space |
+| **Theme** | Visual branding (colors, fonts, backgrounds) |
+| **Community Config** | Settings that define a community's branding and navigation |
+
+## Getting Started
+
+- **[Local Development Setup](GETTING_STARTED.md)** - Run Blankspace locally
+- **[Project Structure](PROJECT_STRUCTURE.md)** - How the codebase is organized
+- **[Contributing](CONTRIBUTING.md)** - How to contribute
+
+## Core Systems
+
+### [Spaces](SYSTEMS/SPACES/OVERVIEW.md)
+The pages that make up a community - profiles, tokens, channels, and custom pages.
+
+### [Fidgets](SYSTEMS/FIDGETS/OVERVIEW.md)
+Community tools: governance widgets, token swaps, feeds, galleries, and more.
+
+### [Themes](SYSTEMS/THEMES/OVERVIEW.md)
+Visual branding - colors, fonts, backgrounds, and custom CSS.
+
+### [Configuration](SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW.md)
+Multi-tenant system that gives each community its own identity.
+
+### [Navigation](SYSTEMS/NAVIGATION/OVERVIEW.md)
+Custom navigation and pages for communities.
 
 ## Architecture
 
-- [Architecture Overview](ARCHITECTURE/OVERVIEW.md) - High-level system architecture
-- [Authentication](ARCHITECTURE/AUTHENTICATION.md) - Privy + Farcaster authentication system
-- [State Management](ARCHITECTURE/STATE_MANAGEMENT.md) - Zustand store architecture
-
-## Systems
-
-### Spaces
-- [Space Architecture](SYSTEMS/SPACES/OVERVIEW.md) - Core space concepts
-- [Space Architecture Details](SYSTEMS/SPACES/SPACE_ARCHITECTURE.md) - Detailed space architecture
-- [Public Spaces Pattern](SYSTEMS/SPACES/PUBLIC_SPACES_PATTERN.md) - Public space patterns
-- [Multiple Layouts Overview](SYSTEMS/SPACES/MULTIPLE_LAYOUTS_OVERVIEW.md) - Multiple layouts system
-- [Layout Migration Guide](SYSTEMS/SPACES/LAYOUT_MIGRATION_GUIDE.md) - Layout migration guide
-- [Public Spaces](SYSTEMS/SPACES/PUBLIC_SPACES.md) - Public space patterns (to be created)
-- [Private Spaces](SYSTEMS/SPACES/PRIVATE_SPACES.md) - Homebase patterns (to be created)
-- [Layout System](SYSTEMS/SPACES/LAYOUT_SYSTEM.md) - Multiple layouts system (to be created)
-- [Tab Management](SYSTEMS/SPACES/TAB_MANAGEMENT.md) - Tab management system (to be created)
-
-### Fidgets
-- [Fidget Overview](SYSTEMS/FIDGETS/OVERVIEW.md) - Fidget architecture
-- [Development Guide](SYSTEMS/FIDGETS/DEVELOPMENT_GUIDE.md) - Creating fidgets
-- [Fidget Types](SYSTEMS/FIDGETS/FIDGET_TYPES.md) - Available fidget types
-
-### Themes
-- [Theme System](SYSTEMS/THEMES/OVERVIEW.md) - Theme architecture
-
-### Navigation
-- [Navigation System](SYSTEMS/NAVIGATION/OVERVIEW.md) - Navigation editor and management
-- [Customization](SYSTEMS/THEMES/CUSTOMIZATION.md) - Theme customization
-
-### Configuration
-- [Configuration System](SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW.md) - Database-backed configuration system
-
-### Discovery
-- [Mini App Discovery System](SYSTEMS/DISCOVERY/MINI_APP_DISCOVERY_SYSTEM.md) - Mini-app discovery system
-- [Mini App Discovery](SYSTEMS/DISCOVERY/MINI_APP_DISCOVERY.md) - Mini-app discovery system (to be created)
+- **[Architecture Overview](ARCHITECTURE/OVERVIEW.md)** - System design
+- **[Authentication](ARCHITECTURE/AUTHENTICATION.md)** - Privy + Farcaster login
+- **[State Management](ARCHITECTURE/STATE_MANAGEMENT.md)** - Data flow
 
 ## Integrations
 
-- [Farcaster](INTEGRATIONS/FARCASTER.md) - Farcaster protocol integration
-- [Blockchain](INTEGRATIONS/BLOCKCHAIN.md) - Blockchain integration
-- [Supabase](INTEGRATIONS/SUPABASE.md) - Supabase integration
-- [Neynar](INTEGRATIONS/NEYNAR.md) - Neynar API integration
+- **[Farcaster](INTEGRATIONS/FARCASTER.md)** - Social protocol
+- **[Supabase](INTEGRATIONS/SUPABASE.md)** - Database and storage
 
 ## Development
 
-- [Development Guide](DEVELOPMENT/DEVELOPMENT_GUIDE.md) - Comprehensive development guide
-- [Development Notes](DEVELOPMENT/DEVELOPMENT_NOTES.md) - Development notes and findings
-- [Agents](DEVELOPMENT/AGENTS.md) - AI agent instructions and guidelines
-- [Component Architecture](DEVELOPMENT/COMPONENT_ARCHITECTURE.md) - Atomic design system
-- [Coding Standards](DEVELOPMENT/CODING_STANDARDS.md) - Code style and standards
-- [Testing](DEVELOPMENT/TESTING.md) - Testing strategies
-- [Debugging](DEVELOPMENT/DEBUGGING.md) - Debugging guides
-
-## Reference
-
-- [API Reference](REFERENCE/API_REFERENCE.md) - API endpoints
-- [Store Reference](REFERENCE/STORE_REFERENCE.md) - Zustand stores
-- [Component Reference](REFERENCE/COMPONENT_REFERENCE.md) - Component library
-- [Glossary](REFERENCE/GLOSSARY.md) - Terminology and definitions
+- **[Development Guide](DEVELOPMENT/DEVELOPMENT_GUIDE.md)** - Dev guide
+- **[Coding Standards](DEVELOPMENT/CODING_STANDARDS.md)** - Code style
+- **[Testing](DEVELOPMENT/TESTING.md)** - Test strategies
