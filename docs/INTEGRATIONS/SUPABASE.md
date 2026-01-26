@@ -28,7 +28,21 @@ CREATE TABLE community_configs (
   fidgets_config JSONB NOT NULL,
   navigation_config JSONB,
   ui_config JSONB,
-  is_published BOOLEAN DEFAULT true
+  admin_identity_public_keys TEXT[],    -- Admin public keys for navigation editing
+  is_published BOOLEAN DEFAULT true,
+  custom_domain_authorized BOOLEAN DEFAULT false,
+  admin_email TEXT
+);
+
+-- Community domain mappings (for multi-tenant domain resolution)
+CREATE TABLE community_domains (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  community_id VARCHAR(50) NOT NULL REFERENCES community_configs(community_id) ON DELETE CASCADE,
+  domain TEXT NOT NULL UNIQUE,
+  domain_type TEXT NOT NULL CHECK (domain_type IN ('blank_subdomain', 'custom')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  UNIQUE(community_id, domain_type)
 );
 
 -- Space registrations (includes navPage type)

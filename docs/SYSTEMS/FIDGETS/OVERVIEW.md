@@ -44,38 +44,52 @@ The `CompleteFidgets` registry contains all available fidgets:
 
 ```typescript
 export const CompleteFidgets = {
+  // Development only
+  example: Example,     // Only in development
+  profile: Profile,     // Only in development
+  
   // UI Fidgets
+  channel: Channel,
   gallery: Gallery,
   text: TextFidget,
   iframe: IFrame,
   links: Links,
-  video: VideoFidget,
-  channel: Channel,
-  profile: Profile,
+  Video: VideoFidget,
+  Rss: rss,
+  Luma: Luma,
+  Chat: chat,
   
   // Farcaster Fidgets
   frame: Frame,
   feed: Feed,
   cast: Cast,
-  builderScore: BuilderScore,
+  Top8: Top8,
+  BuilderScore: BuilderScore,
+  FramesV2: FramesFidget,
   
-  // Community Fidgets
+  // Community/Governance Fidgets
   governance: NounishGovernance,
-  snapShot: snapShot,
   nounsHome: NounsHome,
+  SnapShot: snapShot,
   
-  // Token Fidgets
-  market: marketData,
-  portfolio: Portfolio,
-  swap: Swap,
+  // Token/DeFi Fidgets
+  Market: marketData,
+  Portfolio: Portfolio,
+  Swap: Swap,
+  CowSwap: CowSwap,
+  Uniswap: UniswapSwap,
+  ClankerManager: ClankerManager,
+  Levr: Levr,
+  Directory: Directory,
+  EmpireBuilder: EmpireBuilder,
   
-  // Other Fidgets
-  rss: rss,
-  chat: chat,
-  framesV2: FramesFidget,
-  
-  // Development only
-  example: Example, // Only in development
+  // Zora
+  zoraCoins: ZoraCoins,
+};
+
+export const LayoutFidgets = {
+  grid: Grid,
+  tabFullScreen: MobileStack,
 };
 ```
 
