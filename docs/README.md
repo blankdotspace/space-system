@@ -1,25 +1,35 @@
 # Blankspace Documentation
 
-**Blankspace is a customizable Farcaster client where you can create personalized spaces for yourself, your community, or your token.**
+**Blankspace is a platform where communities build their home on Farcaster.**
 
 ## What is Blankspace?
 
-Think of Blankspace like customizable web pages for the Farcaster ecosystem. Instead of a one-size-fits-all social feed, you get:
+Blankspace gives communities a customizable homebase - a central hub where members can engage, govern, trade, and connect. Instead of scattered tools across different apps, communities get everything in one place:
 
-- **Your own space** (homebase) that you can customize however you want
-- **Public spaces** for your Farcaster profile, tokens, channels, and governance proposals
-- **Mini-apps called Fidgets** that you can add to any space
-- **Themes** to change colors, fonts, backgrounds, and more
+- **A branded home** with custom themes, navigation, and pages
+- **Community tools** (fidgets) for governance, token management, feeds, and more
+- **Member spaces** where individuals can customize their own profiles
+- **Multi-tenant architecture** so each community has its own identity
+
+## Who is Blankspace for?
+
+| Community Type | What they get |
+|----------------|---------------|
+| **Token communities** | Token pages with swap widgets, holder feeds, governance |
+| **DAOs** | Proposal spaces, Snapshot integration, governance fidgets |
+| **Farcaster channels** | Channel feeds, member directories, community pages |
+| **Creators** | Profile customization, galleries, link trees |
 
 ## Quick Concepts
 
-| Concept | What it is | Example |
-|---------|-----------|---------|
-| **Space** | A customizable page with tabs and widgets | Your profile page, a token's landing page |
-| **Homebase** | Your private, personal space | Your custom feed dashboard |
-| **Fidget** | A mini-app you can add to spaces | A Farcaster feed, swap widget, gallery |
-| **Tab** | A page within a space | "Profile", "Gallery", "Links" |
-| **Theme** | Visual styling for a space | Colors, fonts, backgrounds |
+| Concept | What it is |
+|---------|-----------|
+| **Space** | A customizable page (profile, token, channel, or custom page) |
+| **Homebase** | A member's private, personal dashboard |
+| **Fidget** | A community tool you add to spaces (feeds, swaps, governance, etc.) |
+| **Tab** | A page within a space |
+| **Theme** | Visual branding (colors, fonts, backgrounds) |
+| **Community Config** | Settings that define a community's branding and navigation |
 
 ## Getting Started
 
@@ -30,33 +40,33 @@ Think of Blankspace like customizable web pages for the Farcaster ecosystem. Ins
 ## Core Systems
 
 ### [Spaces](SYSTEMS/SPACES/OVERVIEW.md)
-Spaces are the main organizational unit. Learn about different space types, how ownership works, and how to customize them.
+The pages that make up a community - profiles, tokens, channels, and custom pages.
 
 ### [Fidgets](SYSTEMS/FIDGETS/OVERVIEW.md)
-Fidgets are the building blocks you add to spaces. There are fidgets for feeds, galleries, swaps, governance, and more.
+Community tools: governance widgets, token swaps, feeds, galleries, and more.
 
 ### [Themes](SYSTEMS/THEMES/OVERVIEW.md)
-Themes control the visual appearance - colors, fonts, backgrounds, and custom CSS/HTML.
-
-### [Navigation](SYSTEMS/NAVIGATION/OVERVIEW.md)
-Communities can define custom navigation and pages.
+Visual branding - colors, fonts, backgrounds, and custom CSS.
 
 ### [Configuration](SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW.md)
-The multi-tenant configuration system for community branding and settings.
+Multi-tenant system that gives each community its own identity.
+
+### [Navigation](SYSTEMS/NAVIGATION/OVERVIEW.md)
+Custom navigation and pages for communities.
 
 ## Architecture
 
-- **[Architecture Overview](ARCHITECTURE/OVERVIEW.md)** - High-level system design
-- **[Authentication](ARCHITECTURE/AUTHENTICATION.md)** - How login works (Privy + Farcaster)
-- **[State Management](ARCHITECTURE/STATE_MANAGEMENT.md)** - How data flows through the app
+- **[Architecture Overview](ARCHITECTURE/OVERVIEW.md)** - System design
+- **[Authentication](ARCHITECTURE/AUTHENTICATION.md)** - Privy + Farcaster login
+- **[State Management](ARCHITECTURE/STATE_MANAGEMENT.md)** - Data flow
 
 ## Integrations
 
-- **[Farcaster](INTEGRATIONS/FARCASTER.md)** - Social protocol integration
+- **[Farcaster](INTEGRATIONS/FARCASTER.md)** - Social protocol
 - **[Supabase](INTEGRATIONS/SUPABASE.md)** - Database and storage
 
 ## Development
 
-- **[Development Guide](DEVELOPMENT/DEVELOPMENT_GUIDE.md)** - Comprehensive dev guide
+- **[Development Guide](DEVELOPMENT/DEVELOPMENT_GUIDE.md)** - Dev guide
 - **[Coding Standards](DEVELOPMENT/CODING_STANDARDS.md)** - Code style
 - **[Testing](DEVELOPMENT/TESTING.md)** - Test strategies

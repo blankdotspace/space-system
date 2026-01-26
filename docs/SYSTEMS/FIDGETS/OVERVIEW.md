@@ -1,329 +1,107 @@
-# Fidget System Overview
+# Fidgets
 
-Fidgets are mini-applications that can be added to spaces to provide specific functionality. The fidget system is built on a modular architecture with support for different types of fidgets, configuration management, and layout integration.
+Fidgets are the tools that power community spaces. They're modular widgets that communities can add to their spaces for governance, token management, social feeds, and more.
 
-## Core Concepts
+## Available Fidgets
 
-### Fidget Types
+### Social & Farcaster
 
-1. **UI Fidgets** - Basic UI components (text, gallery, iframe, etc.)
-2. **Farcaster Fidgets** - Farcaster protocol integration (casts, feeds, frames)
-3. **Community Fidgets** - Community-specific functionality (governance, snapshot)
-4. **Layout Fidgets** - Layout management (grid, mobile stack)
-5. **Token Fidgets** - Token and portfolio management
-6. **Custom Fidgets** - User-created fidgets
+| Fidget | Description |
+|--------|-------------|
+| **Feed** | Farcaster feed (channel, user, or custom) |
+| **Cast** | Display a single cast |
+| **Channel** | Channel-specific feed |
+| **Chat** | Real-time chat |
+| **Top8** | Show top community members |
+| **Builder Score** | Talent Protocol builder scores |
+| **Frame** | Embed Farcaster frames |
+| **Frames V2** | Next-gen frame support |
 
-### Fidget Architecture
+### Token & DeFi
 
-```typescript
-// Fidget instance data structure
-export type FidgetInstanceData = {
-  id: string;
-  fidgetType: string;
-  config: FidgetConfig;
-};
+| Fidget | Description |
+|--------|-------------|
+| **Market** | Token price and market data |
+| **Swap** | Token swap widget |
+| **CowSwap** | CowSwap integration |
+| **Uniswap** | Uniswap swap widget |
+| **Portfolio** | Token portfolio display |
+| **Clanker Manager** | Manage Clanker tokens |
+| **Empire Builder** | Empire token tools |
+| **Levr** | Levr integration |
+| **Directory** | Token directory |
+| **Zora Coins** | Zora coin display |
 
-// Fidget configuration
-export type FidgetConfig = {
-  editable: boolean;
-  data: Record<string, any>;
-  settings: FidgetSettings;
-};
+### Governance
 
-// Fidget bundle (instance + properties)
-export type FidgetBundle = FidgetInstanceData & {
-  properties: FidgetProperties;
-};
-```
+| Fidget | Description |
+|--------|-------------|
+| **Governance** | Nounish governance proposals and voting |
+| **Snapshot** | Snapshot proposal integration |
+| **Nouns Home** | Nouns DAO dashboard |
 
-## Fidget System Components
+### Content & Media
 
-### 1. Fidget Registry
+| Fidget | Description |
+|--------|-------------|
+| **Text** | Rich text content |
+| **Gallery** | Image gallery |
+| **Video** | Video player |
+| **Links** | Link list / link tree |
+| **RSS** | RSS feed display |
+| **Luma** | Luma event integration |
+| **IFrame** | Embed any website |
 
-The `CompleteFidgets` registry contains all available fidgets:
+## Adding Fidgets
 
-```typescript
-export const CompleteFidgets = {
-  // Development only
-  example: Example,     // Only in development
-  profile: Profile,     // Only in development
-  
-  // UI Fidgets
-  channel: Channel,
-  gallery: Gallery,
-  text: TextFidget,
-  iframe: IFrame,
-  links: Links,
-  Video: VideoFidget,
-  Rss: rss,
-  Luma: Luma,
-  Chat: chat,
-  
-  // Farcaster Fidgets
-  frame: Frame,
-  feed: Feed,
-  cast: Cast,
-  Top8: Top8,
-  BuilderScore: BuilderScore,
-  FramesV2: FramesFidget,
-  
-  // Community/Governance Fidgets
-  governance: NounishGovernance,
-  nounsHome: NounsHome,
-  SnapShot: snapShot,
-  
-  // Token/DeFi Fidgets
-  Market: marketData,
-  Portfolio: Portfolio,
-  Swap: Swap,
-  CowSwap: CowSwap,
-  Uniswap: UniswapSwap,
-  ClankerManager: ClankerManager,
-  Levr: Levr,
-  Directory: Directory,
-  EmpireBuilder: EmpireBuilder,
-  
-  // Zora
-  zoraCoins: ZoraCoins,
-};
+Space editors can add fidgets through the fidget picker:
 
-export const LayoutFidgets = {
-  grid: Grid,
-  tabFullScreen: MobileStack,
-};
-```
+1. Enter edit mode
+2. Click "Add Fidget" or the + button
+3. Browse by category or search
+4. Click a fidget to add it
+5. Configure settings
+6. Drag to position (desktop) or reorder (mobile)
 
-### 2. Fidget Properties
+## Fidget Sources
 
-Each fidget defines its properties and configuration:
+The fidget picker pulls from multiple sources:
+
+| Source | Description |
+|--------|-------------|
+| **Built-in Fidgets** | Core fidgets shipped with Blankspace |
+| **Curated Sites** | Pre-configured iframe fidgets for popular services |
+| **Mini-Apps** | Farcaster mini-apps via the Neynar API |
+
+## Fidget Settings
+
+Each fidget has configurable settings. Common settings include:
+
+- **Title** - Display name
+- **Data source** - What content to show (e.g., which channel, which token)
+- **Display options** - How to render the content
+- **Styling** - Colors, sizes, borders
+
+## Who Can Add Fidgets?
+
+Anyone who can edit a space can add, remove, and configure fidgets. See [Spaces](../SPACES/OVERVIEW.md) for edit permissions.
+
+## Building Custom Fidgets
+
+Fidgets are React components that follow a standard interface:
 
 ```typescript
-// Fidget properties structure
-export type FidgetProperties = {
-  fidgetName: string;
-  description: string;
-  fields: FidgetField[];
-  category: string;
-  tags: string[];
-  version: string;
-};
-```
-
-### 3. Fidget Instance Management
-
-```typescript
-// Create fidget instance
-const generateFidgetInstance = (
-  fidgetId: string,
-  fidget: FidgetModule<FidgetArgs>,
-  customSettings?: Partial<FidgetSettings>,
-): FidgetInstanceData => {
-  const baseSettings = allFields(fidget);
-  const finalSettings = customSettings ? { ...baseSettings, ...customSettings } : baseSettings;
-
-  return {
-    config: {
-      editable: true,
-      data: {},
-      settings: finalSettings,
-    },
-    fidgetType: fidgetId,
-    id: fidgetId + ":" + uuidv4(),
-  };
-};
-```
-
-## Fidget Discovery and Selection
-
-Users discover and add fidgets through the fidget picker system, which provides search, filtering, and multiple data sources. For detailed information about how the fidget picker works, see [Fidget Picker System](./FIDGET_PICKER.md).
-
-## Fidget Lifecycle
-
-### 1. Creation
-
-```typescript
-// Create new fidget
-const createFidget = async (
-  fidgetType: string,
-  settings: FidgetSettings,
-  position: { x: number; y: number }
-) => {
-  const fidgetInstance = generateFidgetInstance(fidgetType, fidget, settings);
-  
-  // Add to space
-  set((draft) => {
-    draft.homebase.spaces[spaceId].tabs[tabName].fidgetInstanceDatums[fidgetInstance.id] = fidgetInstance;
-  }, "createFidget");
-  
-  // Save to server
-  await saveFidgetConfig(fidgetInstance.id, fidgetType)(fidgetInstance.config);
-};
-```
-
-### 2. Configuration
-
-```typescript
-// Configure fidget settings
-const configureFidget = async (
-  fidgetId: string,
-  newSettings: FidgetSettings
-) => {
-  const currentConfig = get().homebase.spaces[spaceId].tabs[tabName].fidgetInstanceDatums[fidgetId];
-  
-  // Update configuration
-  set((draft) => {
-    draft.homebase.spaces[spaceId].tabs[tabName].fidgetInstanceDatums[fidgetId].config.settings = newSettings;
-  }, "configureFidget");
-  
-  // Save to server
-  await saveFidgetConfig(fidgetId, currentConfig.fidgetType)({
-    ...currentConfig.config,
-    settings: newSettings,
-  });
-};
-```
-
-### 3. Rendering
-
-```typescript
-// Render fidget in layout
-const renderFidget = (fidgetData: FidgetInstanceData, isEditable: boolean) => {
-  const fidgetModule = CompleteFidgets[fidgetData.fidgetType];
-  if (!fidgetModule) return null;
-  
-  const bundle = createFidgetBundle(fidgetData, isEditable);
-  if (!bundle) return null;
-  
-  return (
-    <fidgetModule.Component
-      {...bundle.config}
-      properties={bundle.properties}
-      theme={theme}
-      onSave={onSave}
-      onRemove={onRemove}
-    />
-  );
-};
-```
-
-## Layout Integration
-
-### 1. Grid Layout
-
-```typescript
-// Grid layout fidget
-const Grid: LayoutFidget<GridLayoutProps> = ({
-  fidgetInstanceDatums,
-  layoutConfig,
-  theme,
-  saveConfig,
-}) => {
-  const fidgetBundles = useMemo(() => {
-    const bundles: Record<string, FidgetBundle> = {};
-    
-    Object.values(fidgetInstanceDatums).forEach(fidgetData => {
-      const bundle = createFidgetBundle(fidgetData, true);
-      if (bundle) {
-        bundles[fidgetData.id] = bundle;
-      }
-    });
-    
-    return bundles;
-  }, [fidgetInstanceDatums]);
-  
-  return (
-    <div className="grid-layout">
-      {Object.values(fidgetBundles).map(bundle => (
-        <FidgetRenderer
-          key={bundle.id}
-          bundle={bundle}
-          onSave={saveConfig}
-          theme={theme}
-        />
-      ))}
-    </div>
-  );
-};
-```
-
-### 2. Mobile Stack Layout
-
-```typescript
-// Mobile stack layout fidget
-const MobileStack: LayoutFidget<TabFullScreenProps> = ({
-  fidgetInstanceDatums,
-  layoutConfig,
-  theme,
-  feed,
-  isHomebasePath = false,
-}) => {
-  const validFidgetIds = useMemo(() => 
-    getValidFidgetIds(layoutConfig.layout, fidgetInstanceDatums, isMobile),
-  [layoutConfig.layout, fidgetInstanceDatums, isMobile]);
-  
-  const fidgetBundles = useMemo(() => {
-    const bundles: Record<string, FidgetBundle> = {};
-    
-    validFidgetIds.forEach(id => {
-      const fidgetData = fidgetInstanceDatums[id];
-      if (!fidgetData) return;
-      
-      const bundle = createFidgetBundle(fidgetData, false);
-      if (bundle) {
-        bundles[id] = bundle;
-      }
-    });
-    
-    return bundles;
-  }, [validFidgetIds, fidgetInstanceDatums]);
-  
-  return (
-    <div className="mobile-stack">
-      {feed && <div className="feed-section">{feed}</div>}
-      {Object.values(fidgetBundles).map(bundle => (
-        <FidgetRenderer
-          key={bundle.id}
-          bundle={bundle}
-          theme={theme}
-        />
-      ))}
-    </div>
-  );
-};
-```
-
-## Fidget Development
-
-### 1. Creating a Fidget
-
-```typescript
-// Example fidget implementation
 const MyFidget: FidgetModule<MyFidgetArgs> = {
-  Component: ({ config, properties, theme, onSave, onRemove }) => {
-    const [settings, setSettings] = useState(config.settings);
-    
-    const handleSave = (newSettings: FidgetSettings) => {
-      setSettings(newSettings);
-      onSave(newSettings);
-    };
-    
+  Component: ({ config, properties, theme, onSave }) => {
     return (
-      <div className="my-fidget">
-        <h3>{properties.fidgetName}</h3>
-        <SettingsEditor
-          settings={settings}
-          properties={properties}
-          onSave={handleSave}
-        />
-        {config.editable && (
-          <button onClick={onRemove}>Remove</button>
-        )}
+      <div>
+        {/* Your fidget UI */}
       </div>
     );
   },
   properties: {
     fidgetName: "My Fidget",
-    description: "A custom fidget",
+    description: "What this fidget does",
     fields: [
       {
         fieldName: "title",
@@ -332,196 +110,25 @@ const MyFidget: FidgetModule<MyFidgetArgs> = {
         label: "Title"
       }
     ],
-    category: "custom",
-    tags: ["custom", "example"],
-    version: "1.0.0"
+    category: "community",
+    tags: ["custom"],
   }
 };
 ```
 
-### 2. Fidget Settings
+For technical details on fidget development, see:
+- [Fidget Picker](./FIDGET_PICKER.md) - How the picker discovers fidgets
+- [Data Field Patterns](./DATA_FIELD_PATTERNS.md) - Fidget configuration patterns
 
-```typescript
-// Fidget settings structure
-export type FidgetSettings = Record<string, any>;
+## Community Tool Ideas
 
-// Settings field definition
-export type FidgetField = {
-  fieldName: string;
-  type: "string" | "number" | "boolean" | "select" | "color";
-  default: any;
-  label: string;
-  options?: string[];
-  validation?: (value: any) => boolean;
-};
-```
+Fidgets are how communities add functionality. Some ideas:
 
-### 3. Fidget Validation
-
-```typescript
-// Validate fidget settings
-const validateFidgetSettings = (
-  settings: FidgetSettings,
-  properties: FidgetProperties
-): boolean => {
-  return properties.fields.every(field => {
-    const value = settings[field.fieldName];
-    if (field.validation) {
-      return field.validation(value);
-    }
-    return value !== undefined;
-  });
-};
-```
-
-## Performance Considerations
-
-### 1. Lazy Loading
-
-```typescript
-// Lazy load fidget components
-const LazyFidget = lazy(() => import(`./fidgets/${fidgetType}`));
-
-// Render with suspense
-const FidgetRenderer = ({ fidgetType, ...props }) => (
-  <Suspense fallback={<div>Loading...</div>}>
-    <LazyFidget {...props} />
-  </Suspense>
-);
-```
-
-### 2. Memoization
-
-```typescript
-// Memoize fidget bundles
-const fidgetBundles = useMemo(() => {
-  const bundles: Record<string, FidgetBundle> = {};
-  
-  Object.values(fidgetInstanceDatums).forEach(fidgetData => {
-    const bundle = createFidgetBundle(fidgetData, isEditable);
-    if (bundle) {
-      bundles[fidgetData.id] = bundle;
-    }
-  });
-  
-  return bundles;
-}, [fidgetInstanceDatums, isEditable]);
-```
-
-### 3. Bundle Optimization
-
-```typescript
-// Optimize fidget bundles
-const createOptimizedBundle = (fidgetData: FidgetInstanceData): FidgetBundle | null => {
-  if (!fidgetData) return null;
-  
-  const fidgetModule = CompleteFidgets[fidgetData.fidgetType];
-  if (!fidgetModule) return null;
-  
-  return {
-    ...fidgetData,
-    properties: fidgetModule.properties,
-    config: { ...fidgetData.config, editable: isEditable },
-  };
-};
-```
-
-## Error Handling
-
-### 1. Fidget Errors
-
-```typescript
-// Handle fidget errors
-const FidgetErrorBoundary = ({ children, fidgetId }) => {
-  return (
-    <ErrorBoundary
-      fallback={<div>Fidget Error: {fidgetId}</div>}
-      onError={(error) => {
-        console.error('Fidget error:', error);
-        // Report error to analytics
-      }}
-    >
-      {children}
-    </ErrorBoundary>
-  );
-};
-```
-
-### 2. Missing Fidgets
-
-```typescript
-// Handle missing fidgets
-const getValidFidgetIds = (
-  layout: any,
-  fidgetInstanceDatums: Record<string, FidgetInstanceData>,
-  isMobile: boolean
-): string[] => {
-  const fidgetIds = extractFidgetIds(layout);
-  
-  return fidgetIds.filter(id => {
-    const fidgetData = fidgetInstanceDatums[id];
-    if (!fidgetData) return false;
-    
-    const fidgetModule = CompleteFidgets[fidgetData.fidgetType];
-    if (!fidgetModule) return false;
-    
-    // Check mobile compatibility
-    if (isMobile && fidgetModule.properties.mobile === false) return false;
-    
-    return true;
-  });
-};
-```
-
-## Testing
-
-### 1. Unit Tests
-
-```typescript
-// Test fidget creation
-describe('Fidget System', () => {
-  it('should create fidget instance', () => {
-    const fidget = generateFidgetInstance('text', textFidget, { title: 'Test' });
-    expect(fidget.fidgetType).toBe('text');
-    expect(fidget.config.settings.title).toBe('Test');
-  });
-});
-```
-
-### 2. Integration Tests
-
-```typescript
-// Test fidget rendering
-describe('Fidget Rendering', () => {
-  it('should render fidget in layout', () => {
-    const fidgetData = createTestFidgetData();
-    const bundle = createFidgetBundle(fidgetData, true);
-    
-    render(<FidgetRenderer bundle={bundle} />);
-    expect(screen.getByText('Test Fidget')).toBeInTheDocument();
-  });
-});
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Fidget Not Loading**: Check fidget type and module availability
-2. **Settings Not Saving**: Verify fidget configuration and permissions
-3. **Layout Issues**: Check fidget compatibility with layout type
-4. **Performance Issues**: Implement lazy loading and memoization
-
-### Debug Tools
-
-- Use React DevTools to inspect fidget state
-- Check browser console for fidget errors
-- Verify fidget configuration and properties
-- Test fidget rendering in isolation
-
-## Future Considerations
-
-- Enhanced fidget discovery
-- Advanced configuration options
-- Fidget marketplace
-- Performance monitoring
+- **Membership gates** - Show content based on token holdings
+- **Bounty boards** - Track community bounties
+- **Event calendars** - Upcoming community events
+- **Leaderboards** - Community engagement metrics
+- **Treasury displays** - Show DAO treasury balances
+- **Voting widgets** - Quick governance actions
+- **Member directories** - Who's in the community
+- **Announcement boards** - Important community updates

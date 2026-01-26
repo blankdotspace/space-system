@@ -1,126 +1,147 @@
 # Spaces
 
-Spaces are customizable pages in Blankspace. Each space can have multiple tabs, and each tab contains fidgets arranged in a layout.
+Spaces are the pages that make up a community's presence on Blankspace. Each community can have multiple types of spaces - for their token, their members, their channel, and custom pages.
 
 ## Space Types
 
-### Homebase (Private Space)
+### Homebase (Private)
 
-Your homebase is your personal dashboard at `/homebase`. It's private and encrypted - only you can see and edit it.
+Every community member gets their own private homebase - a personal dashboard they can customize.
 
 **URL:** `/homebase`
 
-**Who can edit:** Only you
+**Who can edit:** Only the owner (encrypted, private)
 
-**Features:**
-- Fully customizable with any fidgets
-- Multiple tabs for organization
-- Encrypted storage (no one else can see it)
-- Your personal feed and dashboard
+**Use cases:**
+- Personal feed dashboard
+- Bookmarked communities and tokens
+- Private notes and links
 
 ---
 
 ### Profile Spaces
 
-Profile spaces are public pages for Farcaster users.
+Profile spaces are public pages for Farcaster users and community members.
 
 **URL:** `/s/[handle]` (e.g., `/s/alice`)
 
 **Who can edit:** The Farcaster account owner
 
-If you're logged in as `@alice`, you can edit `/s/alice`. You cannot edit someone else's profile space.
-
-**Default tabs:** Profile, with ability to add custom tabs
+**Use cases:**
+- Member profiles
+- Creator portfolios
+- Personal branding
 
 ---
 
 ### Token Spaces
 
-Token spaces are pages for tokens deployed on supported networks.
+Token spaces are the home for token communities - where holders gather, trade, and engage.
 
 **URL:** `/t/[network]/[contractAddress]` (e.g., `/t/base/0x1234...`)
 
-**Who can edit:** Any of the following:
+**Who can edit:**
 - The wallet that deployed the token contract
-- The person who created the token via Clanker (matched by Farcaster ID)
-- The Empire token owner (for Empire tokens)
-- Anyone who has registered ownership via the space registration system
+- The Clanker token creator
+- The Empire token owner
+- Registered space owners
 
-**Default tabs:** Token, with ability to add custom tabs
+**Use cases:**
+- Token landing pages
+- Holder feeds and chat
+- Swap widgets and market data
+- Governance and proposals
 
 ---
 
 ### Channel Spaces
 
-Channel spaces are pages for Farcaster channels.
+Channel spaces are pages for Farcaster channels - perfect for topic-based communities.
 
-**URL:** `/c/[channelId]` (e.g., `/c/farcaster`)
+**URL:** `/c/[channelId]` (e.g., `/c/base`)
 
-**Who can edit:** Channel moderators
+**Who can edit:** Channel moderators (from Farcaster)
 
-Moderation is managed on Farcaster itself. If you're a moderator of a channel on Farcaster, you can edit its space in Blankspace.
-
-**Default tabs:** Channel feed, with ability to add custom tabs
+**Use cases:**
+- Channel feeds
+- Community resources
+- Event listings
+- Member spotlights
 
 ---
 
 ### Proposal Spaces
 
-Proposal spaces are pages for governance proposals.
+Proposal spaces give governance proposals their own dedicated page.
 
 **URL:** `/p/[proposalId]`
 
-**Who can edit:** The proposal creator (matched by wallet address)
+**Who can edit:** The proposal creator (by wallet)
 
-**Default tabs:** Proposal details, with ability to add custom tabs
+**Use cases:**
+- Proposal details and discussion
+- Voting widgets
+- Related resources
 
 ---
 
 ### Navigation Pages
 
-Navigation pages are custom community pages defined in the community configuration.
+Custom pages defined by community admins - for about pages, team pages, resources, etc.
 
-**URL:** `/[slug]` (e.g., `/about`, `/team`)
+**URL:** `/[slug]` (e.g., `/about`, `/team`, `/resources`)
 
-**Who can edit:** Community admins (defined by identity public keys in community config)
+**Who can edit:** Community admins (defined in community config)
 
-These pages are configured per-community and appear in the navigation.
+**Use cases:**
+- About pages
+- Team directories
+- Resource libraries
+- Custom landing pages
 
 ---
 
-## Space Components
+## What's In a Space?
 
-Every space consists of:
+Every space contains:
 
 | Component | Description |
 |-----------|-------------|
-| **Tabs** | Pages within the space (e.g., "Profile", "Gallery") |
-| **Fidgets** | Mini-apps placed within tabs |
-| **Theme** | Colors, fonts, backgrounds, custom CSS |
-| **Layout** | How fidgets are arranged (grid on desktop, stack on mobile) |
+| **Tabs** | Multiple pages within the space |
+| **Fidgets** | Community tools arranged in each tab |
+| **Theme** | Visual branding (colors, fonts, backgrounds) |
+| **Layout** | Grid (desktop) or stack (mobile) arrangement |
 
-## How Editing Works
+## Creating a Space
 
-When you have edit permission for a space:
+Spaces are created automatically when someone visits a URL:
+- `/s/alice` creates Alice's profile space (if it doesn't exist)
+- `/t/base/0x...` creates a token space
+- `/c/farcaster` creates a channel space
 
-1. An "Edit" button appears
-2. Click it to enter edit mode
-3. Add/remove/rearrange fidgets
-4. Customize the theme
-5. Add or modify tabs
-6. Save your changes
+The first person with edit permission can customize the space.
 
-Changes are saved to the server and visible to anyone viewing the space.
+## Editing a Space
+
+1. Visit the space
+2. If you have permission, you'll see an "Edit" button
+3. Enter edit mode to:
+   - Add/remove/configure fidgets
+   - Create/rename/delete tabs
+   - Customize the theme
+4. Save your changes
+
+Changes are saved to the server and visible to all visitors.
 
 ## Storage
 
-| Space Type | Storage Location | Encryption |
-|------------|------------------|------------|
+| Space Type | Where it's stored | Encrypted? |
+|------------|-------------------|------------|
 | Homebase | `private/{identityKey}/` | Yes |
-| Public Spaces | `spaces/{spaceId}/` | No |
+| All public spaces | `spaces/{spaceId}/` | No |
 
 ## Related Documentation
 
-- [Space Architecture](SPACE_ARCHITECTURE.md) - Technical deep-dive on how spaces work
-- [Public Spaces Pattern](PUBLIC_SPACES_PATTERN.md) - How public space data flows
-- [Multiple Layouts](MULTIPLE_LAYOUTS_OVERVIEW.md) - Desktop and mobile layout system
+- [Space Architecture](SPACE_ARCHITECTURE.md) - Technical implementation details
+- [Public Spaces Pattern](PUBLIC_SPACES_PATTERN.md) - Server/client data flow
+- [Multiple Layouts](MULTIPLE_LAYOUTS_OVERVIEW.md) - Desktop and mobile layouts
