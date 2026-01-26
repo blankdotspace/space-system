@@ -7,14 +7,14 @@ Forked from [herocast](https://github.com/hellno/herocast/) in April 2024.
 
 # Docs
 
-📚 **[View Documentation](https://blankdotspace.github.io/space-system/)** - Full documentation site
+📚 **[View Full Documentation](https://blankdotspace.github.io/space-system/docs/)**
 
 Quick links:
-- [Getting Started](https://blankdotspace.github.io/space-system/docs/getting-started) - Local development setup
-- [Architecture](https://blankdotspace.github.io/space-system/docs/architecture/overview) - System design
-- [Contributing](https://blankdotspace.github.io/space-system/docs/contributing) - How to contribute
+- [Getting Started](docs/GETTING_STARTED.md) - Local development setup
+- [Architecture](docs/ARCHITECTURE/OVERVIEW.md) - System design
+- [Contributing](docs/CONTRIBUTING.MD) - How to contribute
 
-> Source files are in [`docs/`](docs/) and [`docs-site/`](docs-site/)
+> Documentation source: [`docs/`](docs/) • Docusaurus site: [`docs-site/`](docs-site/)
 
 ## What is Farcaster?
 a protocol for decentralized social apps: https://www.farcaster.xyz
