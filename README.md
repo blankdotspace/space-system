@@ -80,35 +80,40 @@ a protocol for decentralized social apps: https://www.farcaster.xyz
   h. launch local copy of Supabase with `supabase start` (in the root directory of this repo), use the info provided -> <br>
 `API URL`:`NEXT_PUBLIC_SUPABASE_URL` + `anon key`:`NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-8. Run the setup script
-```bash
-./setup.sh
-```
-The script will attempt to start Supabase automatically if Docker is running; otherwise it will skip this step.
+8. **Start Supabase and run migrations**
+   ```bash
+   supabase start
+   supabase db reset
+   ```
 
 9. **Seed the local database**
-   After Supabase is running and migrations are applied, seed the database:
    ```bash
-   # Run migrations and seed SQL (if not already done)
-   supabase db reset
-   
-   # Seed community configs and navPage spaces
    yarn seed
    ```
    
-   This will:
-   - Upload Nouns assets to ImgBB (if `NEXT_PUBLIC_IMGBB_API_KEY` is set)
-   - Create navPage space registrations
-   - Seed community configs (nouns, example, clanker)
-   - Upload navPage space configs to Supabase Storage
-
-10. Run the test suite
+   This creates everything needed for local development:
+   - Storage buckets (spaces, private, explore)
+   - Community configs (nounspace.com, clanker.space, example)
+   - Domain mappings for local testing
+   - NavPage space registrations and configs
+   - Optionally uploads assets to ImgBB (if `NEXT_PUBLIC_IMGBB_API_KEY` is set)
+   
+   **Verify seeding worked:**
    ```bash
-   yarn test
+   yarn seed --check
    ```
 
-11. cp .env.development.local .env.local
-12. yarn build
+10. **Run the test suite**
+    ```bash
+    yarn test
+    ```
+
+11. **Build and run**
+    ```bash
+    cp .env.development.local .env.local
+    yarn build
+    yarn dev
+    ```
 
 ## Contributing and making Fidgets
 
