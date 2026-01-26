@@ -5,7 +5,6 @@ export { nounsTheme } from './nouns.theme';
 export { nounsCommunity } from './nouns.community';
 export { nounsFidgets } from './nouns.fidgets';
 export { nounsHomePage } from './nouns.home';
-export { nounsExplorePage } from './nouns.explore';
 export { nounsNavigation } from './nouns.navigation';
 export { nounsUI } from './nouns.ui';
 
