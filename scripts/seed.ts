@@ -62,10 +62,10 @@ const STORAGE_BUCKETS = [
   { id: 'explore', name: 'explore', public: false },
 ];
 
+// Domain mappings for local development
+// Note: Each community can only have one domain per domain_type due to DB constraint
+// Using short names for local dev (production would use full domains)
 const DOMAIN_MAPPINGS = [
-  { community_id: 'nounspace.com', domain: 'nounspace.com', domain_type: 'custom' },
-  { community_id: 'clanker.space', domain: 'clanker.space', domain_type: 'custom' },
-  // Dev-friendly short domains
   { community_id: 'nounspace.com', domain: 'nouns', domain_type: 'custom' },
   { community_id: 'clanker.space', domain: 'clanker', domain_type: 'custom' },
   { community_id: 'example', domain: 'example', domain_type: 'custom' },
@@ -226,7 +226,7 @@ async function uploadNavPageSpacesStep(): Promise<boolean> {
 const EXPECTED_COMMUNITIES = ['nounspace.com', 'clanker.space', 'example'];
 const EXPECTED_SPACES = ['nouns-home', 'nouns-explore', 'clanker-home'];
 const EXPECTED_BUCKETS = ['spaces', 'private', 'explore'];
-const EXPECTED_DOMAINS = ['nounspace.com', 'clanker.space', 'nouns', 'clanker', 'example'];
+const EXPECTED_DOMAINS = ['nouns', 'clanker', 'example'];
 
 type CheckResult = { pass: boolean; message: string };
 
