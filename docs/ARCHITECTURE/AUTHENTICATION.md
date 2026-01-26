@@ -217,7 +217,7 @@ const { callMethod } = useAuthenticatorManager();
 
 const result = await callMethod({
   requestingFidgetId: 'my-fidget',
-  authenticatorId: 'farcaster:signers',
+  authenticatorId: 'farcaster:blankspace',
   methodName: 'getUserInfo'
 });
 ```
