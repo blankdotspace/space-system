@@ -10,6 +10,8 @@ export interface FidgetOption {
   tags: string[];
   category: string;
   popularity?: number;
+  /** Whether this fidget has been verified to work well in Blankspace */
+  verified?: boolean;
 }
 
 // For existing static fidgets (cast, feed, gallery, etc.)
