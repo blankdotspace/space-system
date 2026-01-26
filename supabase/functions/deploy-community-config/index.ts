@@ -1028,7 +1028,7 @@ function buildExploreTabConfig(
   // Merge UI styling into directory settings
   const enhancedSettings: JsonRecord = {
     ...settings,
-    ...(uiFont ? { primaryFontFamily: uiFont, secondaryFontFamily: uiFont } : {}),
+    ...(uiFont ? { primaryFontFamily: uiFont } : {}),
     ...(buttonColor ? { buttonColor } : {}),
     ...(buttonFontColor ? { buttonFontColor } : {}),
   };
@@ -2044,10 +2044,8 @@ Deno.serve(async (req: Request) => {
     const urls = isRecord(updatedCommunityConfig.urls)
       ? { ...updatedCommunityConfig.urls }
       : {};
-    const existingWebsite = getString(urls.website);
-    if (!existingWebsite) {
-      urls.website = `https://${resolvedCustomDomain || resolvedBlankSubdomain}`;
-    }
+    // Don't default urls.website to the space's own domain - if no website is provided,
+    // the home tab should be empty rather than embedding the space's domain in an iframe
     updatedCommunityConfig.urls = urls;
 
     if (resolvedCustomDomain) {
@@ -2161,6 +2159,7 @@ Deno.serve(async (req: Request) => {
     const communitySocial = isRecord(communityConfigObj.social)
       ? (communityConfigObj.social as JsonRecord)
       : {};
+    const website = getString(communityUrls.website);
     const discordUrl = getString(communityUrls.discord);
     const farcaster = getString(communitySocial.farcaster);
     const rawXHandle = getString(
@@ -2199,7 +2198,7 @@ Deno.serve(async (req: Request) => {
       const tabs: Array<{ name: string; config: JsonRecord }> = [];
       const tabOrder: string[] = [];
 
-      tabs.push({ name: "Home", config: buildHomeTabConfig(existingWebsite, nowIso) });
+      tabs.push({ name: "Home", config: buildHomeTabConfig(website, nowIso) });
       tabOrder.push("Home");
 
       if (farcaster) {
