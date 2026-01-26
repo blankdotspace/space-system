@@ -1,5 +1,5 @@
 import { SpaceConfig } from "@/app/(spaces)/Space";
-import { INITIAL_SPACE_CONFIG_EMPTY } from "../../initialSpaceConfig";
+import { INITIAL_SPACE_CONFIG_EMPTY } from "./initialSpaceConfig";
 import { getNetworkWithId } from "@/common/lib/utils/networks";
 import { EtherScanChainName } from "../../../constants/etherscanChainIds";
 import { getGeckoUrl } from "@/common/lib/utils/links";

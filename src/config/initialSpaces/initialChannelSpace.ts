@@ -1,6 +1,6 @@
 import { SpaceConfig } from "@/app/(spaces)/Space";
 import { getLayoutConfig } from "@/common/utils/layoutFormatUtils";
-import { INITIAL_SPACE_CONFIG_EMPTY } from "../../initialSpaceConfig";
+import { INITIAL_SPACE_CONFIG_EMPTY } from "./initialSpaceConfig";
 import { deepClone } from "@/common/lib/utils/deepClone";
 
 // Use string literals instead of importing from Neynar SDK to avoid Edge Runtime issues
