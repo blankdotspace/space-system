@@ -107,13 +107,13 @@ const Channel: React.FC<FidgetArgs<ChannelFidgetSettings>> = ({
     <div className="bg-black w-full h-full">
       <div className="flex w-full items-center h-1/6 gap-2 p-4">
         <img
-          src={channelInfo.channel.image_url}
+          src={channelInfo.channel?.image_url ?? ""}
           className="h-[50px] w-[50px]"
         />
         <div className="flex flex-col items-start justify-center">
-          <p className="text-white text-base">/{channelInfo.channel.id}</p>
+          <p className="text-white text-base">/{channelInfo.channel?.id}</p>
           <p className="text-white text-sm">
-            {channelInfo.channel.description}
+            {channelInfo.channel?.description}
           </p>
         </div>
       </div>
