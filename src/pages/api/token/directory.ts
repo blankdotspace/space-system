@@ -629,7 +629,7 @@ async function fetchEnsMetadata(
         const ids = batch.map((addr) => `ethereum,${addr}`).join(",");
         const url = `https://api.web3.bio/profile/batch/${encodeURIComponent(ids)}`;
         const response = await deps.fetchFn(url, {
-          signal: AbortSignal.timeout(10000), // 10 second timeout per batch
+          signal: AbortSignal.timeout(5000), // 5 second timeout per batch
         });
         if (!response.ok) {
           return [];
@@ -706,7 +706,7 @@ async function fetchEnsMetadata(
             url.searchParams.append("addresses[]", addr);
           }
           const response = await deps.fetchFn(url.toString(), {
-            signal: AbortSignal.timeout(10000), // 10 second timeout per batch
+            signal: AbortSignal.timeout(5000), // 5 second timeout per batch
           });
           if (!response.ok) {
             return [];
