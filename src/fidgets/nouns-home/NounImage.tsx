@@ -75,7 +75,7 @@ const NounImage: React.FC<Props> = ({ nounId, className, priority }) => {
   if (isLoading || !tokenImage) {
     return (
       <img
-        src="/noun-loading-skull.gif"
+        src="/media/noun-loading-skull.gif"
         alt="Loading Noun artwork"
         className={className}
         loading={priority ? "eager" : "lazy"}

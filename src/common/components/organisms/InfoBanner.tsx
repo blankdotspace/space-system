@@ -87,7 +87,7 @@ function InfoToastContent() {
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <img
-              src="/images/tom_alerts.png"
+              src="/ui/tom_alerts.png"
               alt="rocket"
               className="w-8 h-8 object-contain"
             />

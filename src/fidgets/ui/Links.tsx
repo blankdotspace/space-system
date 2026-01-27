@@ -368,7 +368,7 @@ export const Links: React.FC<FidgetArgs<LinkFidgetSettings>> = ({
                     className={isGridView ? "mb-2" : "mr-2 flex-shrink-0"}
                   >
                     <AvatarImage
-                      src="/images/chainEmoji.png"
+                      src="/ui/chainEmoji.png"
                       style={{ padding: "5px" }}
                       alt={link.text}
                     />

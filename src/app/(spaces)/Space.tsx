@@ -323,7 +323,7 @@ export default function Space({
         style={{
           backgroundColor: showMobileContainer ? undefined : config.theme?.properties.background,
           ...(showMobileContainer && {
-           backgroundImage: "url('/images/space-background.png')",
+           backgroundImage: "url('/ui/space-background.png')",
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',

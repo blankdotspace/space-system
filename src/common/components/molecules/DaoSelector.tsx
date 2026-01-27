@@ -49,7 +49,7 @@ export const DaoSelector: React.FC<DaoSelectorProps> = ({
               <div className="flex items-center">
                 {dao.icon && (
                   <img
-                    src={dao.icon || "/images/nouns.png"}
+                    src={dao.icon || "/brands/nouns_yellow_logo.jpg"}
                     alt={`${dao.name} icon`}
                     className="mr-2 h-auto w-5 rounded-sm"
                   />

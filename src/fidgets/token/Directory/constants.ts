@@ -82,9 +82,9 @@ export const CSV_SORT_OPTIONS = [
 }>;
 
 // Badge image paths
-export const FARCASTER_BADGE_SRC = "/images/farcaster.jpeg";
-export const ENS_BADGE_SRC = "/images/ens.svg";
-export const X_BADGE_SRC = "/images/twitter.avif";
-export const GITHUB_BADGE_SRC = "/images/github.svg";
-export const ETHERSCAN_BADGE_SRC = "/images/etherscan.svg";
+export const FARCASTER_BADGE_SRC = "/platforms/farcaster.jpeg";
+export const ENS_BADGE_SRC = "/platforms/ens.svg";
+export const X_BADGE_SRC = "/platforms/twitter.avif";
+export const GITHUB_BADGE_SRC = "/platforms/github.svg";
+export const ETHERSCAN_BADGE_SRC = "/platforms/etherscan.svg";
 

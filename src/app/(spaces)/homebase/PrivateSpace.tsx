@@ -218,7 +218,7 @@ function PrivateSpace({ tabName, castHash }: { tabName: string; castHash?: strin
           feedType: FeedType.Following,
           users: "",
           filterType: FilterType.Users,
-          selectPlatform: { name: "Farcaster", icon: "/images/farcaster.jpeg" },
+          selectPlatform: { name: "Farcaster", icon: "/platforms/farcaster.jpeg" },
           Xhandle: "",
           style: "",
           fontFamily: "var(--user-theme-font)",

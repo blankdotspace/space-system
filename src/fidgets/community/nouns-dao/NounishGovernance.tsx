@@ -207,7 +207,7 @@ export const NounishGovernance: React.FC<
             loading={listLoading}
             isBuilderSubgraph={isBuilderSubgraph}
             title={selectedDao.name}
-            daoIcon={selectedDao.icon || "/images/nouns_yellow_logo.jpg"}
+            daoIcon={selectedDao.icon || "/brands/nouns_yellow_logo.jpg"}
 
           />
         )}

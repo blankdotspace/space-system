@@ -77,7 +77,7 @@ const TokenDataHeader: React.FC = () => {
           {name === "nounspace" && (
             <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-black bg-opacity-50 rounded-full">
               <img
-                src="/images/noggles.png"
+                src="/brands/noggles.png"
                 alt="NOGGLES"
                 className="w-5 h-5"
               />
