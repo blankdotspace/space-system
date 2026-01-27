@@ -19,12 +19,12 @@ import {
 import { CreationMod } from "@mod-protocol/react";
 import { EditorContent, useEditor } from "@mod-protocol/react-editor";
 import { CastLengthUIIndicator } from "@mod-protocol/react-ui-shadcn/dist/components/cast-length-ui-indicator";
-import { ChannelList } from "@mod-protocol/react-ui-shadcn/dist/components/channel-list";
 import { createRenderMentionsSuggestionConfig } from "@mod-protocol/react-ui-shadcn/dist/lib/mentions";
 import { renderers } from "@mod-protocol/react-ui-shadcn/dist/renderers";
 import { Button } from "@/common/components/atoms/button";
 import { debounce, isEmpty, isUndefined, map } from "lodash";
 import { MentionList } from "./mentionList";
+import { ChannelList } from "./channelList";
 
 import {
   Popover,
