@@ -1,12 +1,40 @@
 /**
  * Clanker community configuration
+ *
+ * This file defines all data needed to seed the Clanker community:
+ * - Database config (brand, assets, community, fidgets, navigation, ui)
+ * - Asset mappings for Supabase Storage upload
  */
+
+// ============================================================================
+// Asset Configuration
+// ============================================================================
+
+export const clankerAssets = {
+  directory: 'clanker', // Relative to scripts/seed-data/assets/
+  files: [
+    { file: 'logo.png', key: 'main' },
+    // Add more assets here as they become available:
+    // { file: 'favicon.ico', key: 'favicon' },
+    // { file: 'apple-touch-icon.png', key: 'appleTouch' },
+    // { file: 'og.jpg', key: 'og' },
+  ],
+  fallbackPrefix: '/images/clanker',
+};
+
+// ============================================================================
+// Database Configuration
+// ============================================================================
 
 /**
  * Creates the Clanker community config for database insertion
+ * @param assetUrls - URLs from Supabase Storage upload (or fallbacks)
  * @param spaceIds - Space IDs for navigation items
  */
-export function createClankerCommunityConfig(spaceIds: { home?: string | null }) {
+export function createClankerCommunityConfig(
+  assetUrls: Record<string, string>,
+  spaceIds: { home?: string | null },
+) {
   return {
     community_id: 'clanker.space',
     is_published: true,
@@ -18,12 +46,12 @@ export function createClankerCommunityConfig(spaceIds: { home?: string | null })
     },
     assets_config: {
       logos: {
-        main: '/images/clanker/logo.svg',
-        icon: '/images/clanker/logo.svg',
-        favicon: '/images/clanker/favicon.ico',
-        appleTouch: '/images/clanker/apple.png',
-        og: '/images/clanker/og.jpg',
-        splash: '/images/clanker/og.jpg',
+        main: assetUrls.main || '/images/clanker/logo.png',
+        icon: assetUrls.main || '/images/clanker/logo.png', // Use main logo as icon
+        favicon: assetUrls.favicon || '/images/clanker/favicon.ico',
+        appleTouch: assetUrls.appleTouch || '/images/clanker/apple-touch-icon.png',
+        og: assetUrls.og || '/images/clanker/og.jpg',
+        splash: assetUrls.og || '/images/clanker/og.jpg', // Use og as splash
       },
     },
     community_config: {

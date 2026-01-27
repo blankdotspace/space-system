@@ -32,6 +32,7 @@ import {
   nounsAssets,
   nounsExploreOptions,
   createNounsCommunityConfig,
+  clankerAssets,
   createClankerCommunityConfig,
   createExampleCommunityConfig,
 } from './seed-data/communities';
@@ -96,27 +97,43 @@ async function createStorageBucketsStep(): Promise<void> {
 }
 
 /**
- * Step 2: Upload Nouns assets to Supabase Storage
+ * Step 2: Upload community assets to Supabase Storage
  */
-async function uploadNounsAssetsStep(): Promise<Record<string, string>> {
-  console.log('\n📤 Step 2: Uploading Nouns assets to Supabase Storage...\n');
+type CommunityAssetUrls = {
+  nouns: Record<string, string>;
+  clanker: Record<string, string>;
+};
+
+async function uploadCommunityAssetsStep(): Promise<CommunityAssetUrls> {
+  console.log('\n📤 Step 2: Uploading community assets to Supabase Storage...\n');
 
   // Ensure images bucket exists
   await ensureImagesBucket();
 
-  const assetsDir = join(__dirname, 'seed-data', 'assets', nounsAssets.directory);
-  const uploadedUrls = await uploadAssets(
-    assetsDir,
+  // Upload Nouns assets
+  console.log('  📁 Nouns assets:');
+  const nounsAssetsDir = join(__dirname, 'seed-data', 'assets', nounsAssets.directory);
+  const nounsUrls = await uploadAssets(
+    nounsAssetsDir,
     nounsAssets.files,
     nounsAssets.fallbackPrefix,
-    'nouns', // folder name in the images bucket
+    'nouns',
   );
 
-  // Add static paths
-  uploadedUrls.favicon = nounsAssets.static.favicon;
-  uploadedUrls.appleTouch = nounsAssets.static.appleTouch;
+  // Upload Clanker assets
+  console.log('\n  📁 Clanker assets:');
+  const clankerAssetsDir = join(__dirname, 'seed-data', 'assets', clankerAssets.directory);
+  const clankerUrls = await uploadAssets(
+    clankerAssetsDir,
+    clankerAssets.files,
+    clankerAssets.fallbackPrefix,
+    'clanker',
+  );
 
-  return uploadedUrls;
+  return {
+    nouns: nounsUrls,
+    clanker: clankerUrls,
+  };
 }
 
 /**
@@ -139,7 +156,7 @@ async function createNavPageSpacesStep(): Promise<Record<string, string | null>>
  * Step 4: Seed community configs to database
  */
 async function seedCommunityConfigsStep(
-  assetUrls: Record<string, string>,
+  assetUrls: CommunityAssetUrls,
   spaceIds: Record<string, string | null>,
 ): Promise<void> {
   console.log('\n⚙️  Step 4: Seeding community configs...\n');
@@ -147,14 +164,14 @@ async function seedCommunityConfigsStep(
   const configs = [
     {
       name: 'Nouns',
-      config: createNounsCommunityConfig(assetUrls, {
+      config: createNounsCommunityConfig(assetUrls.nouns, {
         home: spaceIds['nouns-home'],
         explore: spaceIds['nouns-explore'],
       }),
     },
     {
       name: 'Clanker',
-      config: createClankerCommunityConfig({
+      config: createClankerCommunityConfig(assetUrls.clanker, {
         home: spaceIds['clanker-home'],
       }),
     },
@@ -470,9 +487,9 @@ async function main() {
     await createStorageBucketsStep();
 
     // Step 2: Upload assets (skip if --skip-assets)
-    let assetUrls: Record<string, string> = {};
+    let assetUrls: CommunityAssetUrls = { nouns: {}, clanker: {} };
     if (!flags.skipAssets) {
-      assetUrls = await uploadNounsAssetsStep();
+      assetUrls = await uploadCommunityAssetsStep();
     } else {
       console.log('\n⏭️  Skipping asset upload (--skip-assets flag)');
     }
@@ -498,7 +515,7 @@ async function main() {
     console.log('\n📋 Summary:');
     console.log('  ✓ Storage buckets created');
     if (!flags.skipAssets) {
-      console.log('  ✓ Nouns assets uploaded to Supabase Storage');
+      console.log('  ✓ Community assets uploaded to Supabase Storage');
     }
     console.log('  ✓ NavPage spaces created');
     console.log('  ✓ Community configs seeded');

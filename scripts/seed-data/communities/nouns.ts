@@ -1,10 +1,10 @@
 /**
  * Nouns community configuration
- * 
+ *
  * This file defines all data needed to seed the Nouns community:
  * - Database config (brand, assets, community, fidgets, navigation, ui)
  * - Explore page parameters (tokens, channel)
- * - Asset mappings for ImgBB upload
+ * - Asset mappings for Supabase Storage upload
  */
 
 import type { ExplorePageOptions, TokenInput } from '../../lib/explore-config';
@@ -20,13 +20,10 @@ export const nounsAssets = {
     { file: 'noggles.svg', key: 'icon' },
     { file: 'og.svg', key: 'og' },
     { file: 'splash.svg', key: 'splash' },
+    { file: 'favicon.ico', key: 'favicon' },
+    { file: 'apple-touch-icon.png', key: 'appleTouch' },
   ],
   fallbackPrefix: '/images/nouns',
-  // Static paths (not uploaded to ImgBB)
-  static: {
-    favicon: '/images/favicon.ico',
-    appleTouch: '/images/apple-touch-icon.png',
-  },
 };
 
 // ============================================================================
@@ -61,7 +58,7 @@ export const nounsExploreOptions: ExplorePageOptions = {
 
 /**
  * Creates the Nouns community config for database insertion
- * @param assetUrls - URLs from ImgBB upload (or fallbacks)
+ * @param assetUrls - URLs from Supabase Storage upload (or fallbacks)
  * @param spaceIds - Space IDs for navigation items
  */
 export function createNounsCommunityConfig(
@@ -81,8 +78,8 @@ export function createNounsCommunityConfig(
       logos: {
         main: assetUrls.main || '/images/nouns/logo.svg',
         icon: assetUrls.icon || '/images/nouns/noggles.svg',
-        favicon: nounsAssets.static.favicon,
-        appleTouch: nounsAssets.static.appleTouch,
+        favicon: assetUrls.favicon || '/images/nouns/favicon.ico',
+        appleTouch: assetUrls.appleTouch || '/images/nouns/apple-touch-icon.png',
         og: assetUrls.og || '/images/nouns/og.svg',
         splash: assetUrls.splash || '/images/nouns/splash.svg',
       },
