@@ -32,6 +32,7 @@ interface SignedFile {
 interface DeployRequest {
   walletAddress: string;
   communityId?: string;
+  signedTargetCommunityId?: string | null;
   walletSignature: string;
   nonce: string;
   timestamp: string;
@@ -1014,15 +1015,31 @@ function buildExploreTabConfig(
   settings: JsonRecord,
   timestamp: string,
   data: JsonRecord,
+  uiConfig?: JsonRecord,
 ): JsonRecord {
   const fidgetId = `Directory:${idSuffix}`;
+
+  // Extract UI styling from uiConfig
+  const uiFont = uiConfig ? getString(uiConfig.font) : null;
+  const castButton = uiConfig && isRecord(uiConfig.castButton) ? uiConfig.castButton : {};
+  const buttonColor = getString(castButton.backgroundColor);
+  const buttonFontColor = getString(castButton.fontColor);
+
+  // Merge UI styling into directory settings
+  const enhancedSettings: JsonRecord = {
+    ...settings,
+    ...(uiFont ? { primaryFontFamily: uiFont } : {}),
+    ...(buttonColor ? { buttonColor } : {}),
+    ...(buttonFontColor ? { buttonFontColor } : {}),
+  };
+
   return {
     fidgetInstanceDatums: {
       [fidgetId]: {
         config: {
           data,
           editable: false,
-          settings,
+          settings: enhancedSettings,
         },
         fidgetType: "Directory",
         id: fidgetId,
@@ -1612,6 +1629,7 @@ Deno.serve(async (req: Request) => {
     const {
       walletAddress,
       communityId,
+      signedTargetCommunityId,
       walletSignature,
       nonce,
       timestamp,
@@ -1684,13 +1702,16 @@ Deno.serve(async (req: Request) => {
     // Verify wallet signature cryptographically before any DB operations
     // The signature must be bound to the specific deploy payload (communityId + timestamp + nonce)
     // The target community ID should match what the client signed (blank subdomain, custom domain, or null for new)
-    const signedTargetCommunityId = blankSubdomain || communityId || customDomain || null;
+    // Use explicit undefined check so null remains a valid "new-community" target.
+    const verificationTarget = signedTargetCommunityId === undefined
+      ? blankSubdomain || communityId || customDomain || null
+      : signedTargetCommunityId;
     const signatureResult = await verifyWalletSignature(supabase, {
       walletAddress,
       signature: walletSignature,
       nonce,
       timestamp,
-      communityId: signedTargetCommunityId,
+      communityId: verificationTarget,
     });
 
     if (!signatureResult.valid) {
@@ -2023,10 +2044,8 @@ Deno.serve(async (req: Request) => {
     const urls = isRecord(updatedCommunityConfig.urls)
       ? { ...updatedCommunityConfig.urls }
       : {};
-    const existingWebsite = getString(urls.website);
-    if (!existingWebsite) {
-      urls.website = `https://${resolvedCustomDomain || resolvedBlankSubdomain}`;
-    }
+    // Don't default urls.website to the space's own domain - if no website is provided,
+    // the home tab should be empty rather than embedding the space's domain in an iframe
     updatedCommunityConfig.urls = urls;
 
     if (resolvedCustomDomain) {
@@ -2356,9 +2375,17 @@ Deno.serve(async (req: Request) => {
         : candidate.baseName;
       const tabName = uniqueTabName(baseName, usedExploreTabNames);
       const idSuffix = slugify(tabName, candidate.idFallback);
+      const uiConfigRecord = isRecord(uiConfig) ? (uiConfig as JsonRecord) : undefined;
       exploreTabs.push({
         name: tabName,
-        config: buildExploreTabConfig(tabName, idSuffix, candidate.settings, nowIso, candidate.data),
+        config: buildExploreTabConfig(
+          tabName,
+          idSuffix,
+          candidate.settings,
+          nowIso,
+          candidate.data,
+          uiConfigRecord,
+        ),
       });
       exploreTabOrder.push(tabName);
     });

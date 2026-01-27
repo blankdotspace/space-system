@@ -33,6 +33,7 @@ export type DirectoryCardViewProps = {
   tokenSymbol?: string | null;
   headingTextStyle: React.CSSProperties;
   headingFontFamilyStyle: React.CSSProperties;
+  secondaryFontFamily: string;
   network: DirectoryNetwork;
   includeFilter: DirectoryIncludeOption;
   viewerFid: number;
@@ -45,6 +46,7 @@ export const DirectoryCardView: React.FC<DirectoryCardViewProps> = ({
   tokenSymbol,
   headingTextStyle,
   headingFontFamilyStyle,
+  secondaryFontFamily,
   network,
   includeFilter,
   viewerFid,
@@ -157,6 +159,9 @@ export const DirectoryCardView: React.FC<DirectoryCardViewProps> = ({
                 viewerFid={viewerFid}
                 signer={signer}
                 className="pointer-events-auto px-3 py-1 text-xs font-semibold"
+                buttonColor={settings.buttonColor}
+                buttonFontColor={settings.buttonFontColor}
+                buttonFontFamily={secondaryFontFamily}
               />
             </div>
           </div>

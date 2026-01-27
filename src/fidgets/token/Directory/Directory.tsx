@@ -1058,6 +1058,7 @@ const Directory: React.FC<
             settings={settings}
             tokenSymbol={directoryData.tokenSymbol}
             headingTextStyle={headingTextStyle}
+            secondaryFontFamily={secondaryFontFamily}
             network={network}
             includeFilter={includeFilter}
             viewerFid={viewerFid}
@@ -1070,6 +1071,7 @@ const Directory: React.FC<
             tokenSymbol={directoryData.tokenSymbol}
             headingTextStyle={headingTextStyle}
             headingFontFamilyStyle={headingFontFamilyStyle}
+            secondaryFontFamily={secondaryFontFamily}
             network={network}
             includeFilter={includeFilter}
             viewerFid={viewerFid}
