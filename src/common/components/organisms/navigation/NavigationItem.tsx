@@ -113,7 +113,7 @@ const NavigationItemComponent: React.FC<NavigationItemProps> = ({
       <Link
         href={disable ? "#" : href}
         className={mergeClasses(
-          "flex relative items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 w-full group",
+          "flex relative items-center p-2 text-inherit rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 w-full group",
           isSelected ? "bg-gray-100" : "",
           shrunk ? "justify-center" : "",
           disable ? "opacity-50 cursor-not-allowed pointer-events-none" : ""
@@ -202,7 +202,7 @@ const NavigationButtonComponent: React.FC<NavigationButtonProps> = ({
       <button
         disabled={disable}
         className={mergeClasses(
-          "flex relative items-center p-2 text-gray-900 rounded-lg dark:text-white w-full group",
+          "flex relative items-center p-2 text-inherit rounded-lg dark:text-white w-full group",
           "hover:bg-gray-100 dark:hover:bg-gray-700",
           shrunk ? "justify-center" : "",
           disable ? "opacity-50 cursor-not-allowed pointer-events-none" : ""
@@ -241,4 +241,3 @@ export const NavigationButton = React.memo(
     );
   }
 );
-
