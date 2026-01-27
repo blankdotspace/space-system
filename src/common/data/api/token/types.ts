@@ -1,5 +1,4 @@
 import { z } from "zod";
-import type { Address } from "viem";
 import neynar from "@/common/data/api/neynar";
 
 // Query validation schema
@@ -100,8 +99,6 @@ export type DirectoryApiResponse = {
 export type DirectoryDependencies = {
   fetchFn: typeof fetch;
   neynarClient: typeof neynar;
-  getEnsNameFn: (address: Address) => Promise<string | null>;
-  getEnsAvatarFn: (name: string) => Promise<string | null>;
 };
 
 // Fetch result types
