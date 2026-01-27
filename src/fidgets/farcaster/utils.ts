@@ -420,6 +420,21 @@ export const getSignatureForUsernameProof = async (
   return signature;
 };
 
+type ChannelResponse = Channel & {
+  channel_image_url?: string | null;
+  channel_id?: string | null;
+};
+
+const normalizeChannel = (channel: ChannelResponse): Channel => {
+  const id = channel.id ?? channel.channel_id ?? "";
+  return {
+    ...channel,
+    id,
+    name: channel.name ?? id,
+    image_url: channel.image_url ?? channel.channel_image_url ?? "",
+  } as Channel;
+};
+
 export async function fetchChannelsForUser(
   fid: number,
   limit: number = 20,
@@ -428,7 +443,9 @@ export async function fetchChannelsForUser(
     const channelsResponse = await axiosBackend.get(
       `/api/farcaster/neynar/active-channels/?limit=${limit}&fid=${fid}`,
     );
-    return channelsResponse.data.channels as Channel[];
+    return (channelsResponse.data.channels as ChannelResponse[] | undefined)?.map(
+      normalizeChannel,
+    ) ?? [];
   } catch (e) {
     return [] as Channel[];
   }
@@ -442,7 +459,9 @@ export async function fetchChannelsByName(
     const channelsResponse = await axiosBackend.get(
       `/api/farcaster/neynar/search-channels?limit=${limit}&q=${query}`,
     );
-    return channelsResponse.data.channels as Channel[];
+    return (channelsResponse.data.channels as ChannelResponse[] | undefined)?.map(
+      normalizeChannel,
+    ) ?? [];
   } catch (e) {
     return [] as Channel[];
   }
