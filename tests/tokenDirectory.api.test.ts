@@ -45,13 +45,6 @@ describe("token directory API", () => {
           json: async () => ({ response: [] }),
         } as any;
       }
-      // ensdata.net fallback for addresses without ENS from enstate.rs
-      if (url.startsWith("https://ensdata.net/")) {
-        return {
-          ok: false,
-          status: 404,
-        } as any;
-      }
       throw new Error(`Unexpected fetch call: ${url}`);
     });
 
@@ -82,8 +75,8 @@ describe("token directory API", () => {
       },
     );
 
-    // 3 calls: moralis, enstate.rs, ensdata.net fallback
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    // 2 calls: moralis, enstate.rs (no more ensdata.net fallback)
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     const [moralisCall, enstateCall] = fetchMock.mock.calls;
     expect(moralisCall[0]).toContain(
       "https://deep-index.moralis.io/api/v2.2/erc20/0x000000000000000000000000000000000000ABCD/owners",
@@ -180,13 +173,6 @@ describe("token directory API", () => {
           }),
         } as any;
       }
-      // ensdata.net fallback for addresses without ENS from enstate.rs
-      if (url.startsWith("https://ensdata.net/")) {
-        return {
-          ok: false,
-          status: 404,
-        } as any;
-      }
       throw new Error(`Unexpected fetch call: ${url}`);
     });
 
@@ -207,8 +193,8 @@ describe("token directory API", () => {
       },
     );
 
-    // 4 calls: 2 alchemy, 1 enstate.rs, 1 ensdata.net fallback
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    // 3 calls: 2 alchemy, 1 enstate.rs (no more ensdata.net fallback)
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     const alchemyCalls = fetchMock.mock.calls.filter(([url]) =>
       (typeof url === "string" ? url : url.toString()).includes("alchemy.com"),
     );
@@ -283,13 +269,6 @@ describe("token directory API", () => {
               },
             ],
           }),
-        } as any;
-      }
-      // ensdata.net fallback for addresses without ENS from enstate.rs
-      if (url.startsWith("https://ensdata.net/")) {
-        return {
-          ok: false,
-          status: 404,
         } as any;
       }
       throw new Error(`Unexpected fetch call: ${url}`);

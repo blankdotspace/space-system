@@ -3,12 +3,14 @@ import type { DirectoryDependencies, EnsMetadata, TokenHolder } from "./types";
 import { normalizeAddress, isAddress, extractOwnerAddress, parseSocialRecord } from "./utils";
 
 const ENSTATE_BATCH_SIZE = 50;
-const ENSDATA_BATCH_SIZE = 50;
 
 /**
- * Fetches ENS metadata for a list of addresses
- * Uses Enstate.rs for bulk lookups, with ensdata.net as fallback
- * Gracefully handles addresses without ENS names (returns null values)
+ * Fetches ENS metadata for a list of addresses using Enstate.rs bulk lookups.
+ * Gracefully handles addresses without ENS names (returns null values).
+ *
+ * Note: We only use enstate.rs for ENS resolution to avoid timeouts.
+ * Most token holders don't have ENS names, so additional fallback APIs
+ * would just add latency without meaningful benefit.
  */
 export async function enrichWithEns(
   holders: TokenHolder[],
@@ -28,20 +30,30 @@ export async function enrichWithEns(
 
   const enstateMetadata: Record<string, Partial<EnsMetadata>> = {};
 
-  // First, try bulk lookup via Enstate.rs
+  // Bulk lookup via Enstate.rs (parallel batches for speed)
   try {
-    for (const batch of chunk(uniqueAddresses, ENSTATE_BATCH_SIZE)) {
-      if (batch.length === 0) continue;
-      const url = new URL("https://enstate.rs/bulk/a");
-      for (const addr of batch) {
-        url.searchParams.append("addresses[]", addr);
-      }
-      const response = await deps.fetchFn(url.toString());
-      if (!response.ok) {
-        continue;
-      }
-      const json = await response.json();
-      const records: any[] = Array.isArray(json?.response) ? json.response : [];
+    const batches = chunk(uniqueAddresses, ENSTATE_BATCH_SIZE);
+    const batchResults = await Promise.allSettled(
+      batches.map(async (batch) => {
+        if (batch.length === 0) return [];
+        const url = new URL("https://enstate.rs/bulk/a");
+        for (const addr of batch) {
+          url.searchParams.append("addresses[]", addr);
+        }
+        const response = await deps.fetchFn(url.toString(), {
+          signal: AbortSignal.timeout(10000), // 10 second timeout per batch
+        });
+        if (!response.ok) {
+          return [];
+        }
+        const json = await response.json();
+        return Array.isArray(json?.response) ? json.response : [];
+      }),
+    );
+
+    for (const result of batchResults) {
+      if (result.status !== "fulfilled") continue;
+      const records = result.value;
       for (const record of records) {
         const addr = normalizeAddress(record?.address || "");
         if (!addr) continue;
@@ -85,81 +97,7 @@ export async function enrichWithEns(
       }
     }
   } catch (error) {
-    console.error("Failed to fetch ENS social metadata", error);
-  }
-
-  // Try ensdata.net as fallback for addresses not resolved by enstate.rs
-  const unresolvedAddresses = uniqueAddresses.filter(
-    (addr) => !enstateMetadata[addr]?.ensName,
-  );
-
-  if (unresolvedAddresses.length > 0) {
-    try {
-      for (const batch of chunk(unresolvedAddresses, ENSDATA_BATCH_SIZE)) {
-        // ensdata.net supports individual lookups; fetch in parallel with concurrency limit
-        const results = await Promise.allSettled(
-          batch.map(async (addr) => {
-            try {
-              const response = await fetch(`https://ensdata.net/${addr}`, {
-                signal: AbortSignal.timeout(5000),
-              });
-              if (!response.ok) return null;
-              const data = await response.json();
-              return { address: addr, data };
-            } catch {
-              return null;
-            }
-          }),
-        );
-
-        for (const result of results) {
-          if (result.status !== "fulfilled" || !result.value) continue;
-          const { address: addr, data } = result.value;
-          if (!data || typeof data !== "object") continue;
-
-          const partial = enstateMetadata[addr] ?? {};
-          if (!partial.ensName && typeof data.ens === "string") {
-            partial.ensName = data.ens;
-          }
-          if (!partial.ensAvatarUrl && typeof data.avatar === "string") {
-            partial.ensAvatarUrl = data.avatar;
-          }
-          if (!partial.primaryAddress && typeof data.address === "string") {
-            partial.primaryAddress = normalizeAddress(data.address);
-          }
-          // ensdata.net may include records in different format
-          const records = data.records;
-          if (records && typeof records === "object") {
-            if (!partial.twitterHandle) {
-              const parsedTwitter = parseSocialRecord(
-                records["com.twitter"] ??
-                  records["twitter"] ??
-                  records["com.x"] ??
-                  records["x"],
-                "twitter",
-              );
-              if (parsedTwitter) {
-                partial.twitterHandle = parsedTwitter.handle;
-                partial.twitterUrl = parsedTwitter.url;
-              }
-            }
-            if (!partial.githubHandle) {
-              const parsedGithub = parseSocialRecord(
-                records["com.github"] ?? records["github"],
-                "github",
-              );
-              if (parsedGithub) {
-                partial.githubHandle = parsedGithub.handle;
-                partial.githubUrl = parsedGithub.url;
-              }
-            }
-          }
-          enstateMetadata[addr] = partial;
-        }
-      }
-    } catch (error) {
-      console.error("Failed to fetch ENS metadata from ensdata.net", error);
-    }
+    console.error("Failed to fetch ENS metadata from enstate.rs", error);
   }
 
   // Build final metadata entries for all addresses
@@ -196,4 +134,3 @@ export async function enrichWithEns(
 
   return Object.fromEntries(entries);
 }
-
