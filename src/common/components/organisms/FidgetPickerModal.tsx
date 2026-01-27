@@ -14,6 +14,7 @@ import { Input } from "../atoms/input";
 import Image from "next/image";
 
 import { Search, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { useUIColors } from "@/common/lib/hooks/useUIColors";
 
 // Tag configuration for consistent styling - Core 8 categories
 const TAG_CONFIG: Record<string, { color: string; icon: string | any; displayName?: string }> = {
@@ -103,6 +104,7 @@ export const FidgetPickerModal: React.FC<FidgetPickerModalProps> = ({
   setCurrentlyDragging,
   generateFidgetInstance,
 }) => {
+  const uiColors = useUIColors();
   const [fidgetOptions, setFidgetOptions] = useState<FidgetOption[]>([]);
   // State for selected tags (single selection)
   const [selectedTag, setSelectedTag] = useState<string>('');
@@ -306,7 +308,7 @@ export const FidgetPickerModal: React.FC<FidgetPickerModalProps> = ({
       }
       return (
         <span
-          className="text-lg leading-none text-black group-hover:text-black"
+          className="text-lg leading-none text-inherit group-hover:text-inherit"
           role="img"
           aria-label={option.name}
         >
@@ -347,16 +349,19 @@ export const FidgetPickerModal: React.FC<FidgetPickerModalProps> = ({
           className="group w-full h-16 flex items-center gap-3 p-2 bg-transparent transform-gpu transition-transform will-change-transform hover:scale-[1.02]"
           onClick={() => handleFidgetSelect(option)}
         >
-          <Card className={`w-full h-full flex items-center p-3 rounded-lg ${
+          <Card className={`w-full h-full flex items-center p-3 rounded-lg border-0 ${
             isUnverifiedMiniApp 
-              ? 'bg-amber-50 border border-amber-200' 
-              : 'bg-[#F3F4F6]'
+              ? 'bg-amber-50' 
+              : 'bg-[rgba(128,128,128,0.2)]'
           }`}>
-            <CardContent className="overflow-hidden flex items-center gap-4 p-0 w-full">
+            <CardContent
+              className="overflow-hidden flex items-center gap-4 p-0 w-full"
+              style={{ color: uiColors.fontColor }}
+            >
               <div className="flex items-center justify-center w-8 h-8 flex-shrink-0 relative">
                 {renderIcon()}
                 <span
-                  className="text-lg leading-none text-black group-hover:text-black hidden"
+                  className="text-lg leading-none text-inherit group-hover:text-inherit hidden"
                   role="img"
                   aria-label={option.name}
                 >
@@ -365,7 +370,10 @@ export const FidgetPickerModal: React.FC<FidgetPickerModalProps> = ({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1.5">
-                  <span className="text-sm font-medium text-black text-left leading-none group-hover:text-black truncate">
+                  <span
+                    className="text-sm font-medium text-inherit text-left leading-none group-hover:text-inherit truncate"
+                    style={{ color: uiColors.fontColor }}
+                  >
                     {option.name}
                   </span>
                   {/* Verification badge */}
@@ -380,7 +388,10 @@ export const FidgetPickerModal: React.FC<FidgetPickerModalProps> = ({
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-gray-600 text-left leading-tight truncate">
+                <p
+                  className="text-xs text-inherit text-left leading-tight truncate opacity-50"
+                  style={{ color: uiColors.fontColor }}
+                >
                   {isUnverifiedMiniApp 
                     ? 'Third-party mini-app - may not work as expected'
                     : option.description
