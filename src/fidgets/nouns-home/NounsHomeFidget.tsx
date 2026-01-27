@@ -269,7 +269,10 @@ const NounsHomeInner: React.FC = () => {
           setCountdown(Math.max(0, endMs - Date.now()));
         }
         const bgIdx = await fetchNounSeedBackground(viewNounId);
-        if (bgIdx !== undefined) setBgHex(NOUNS_BG_HEX[bgIdx as 0 | 1] ?? NOUNS_BG_HEX[0]);
+        if (bgIdx !== undefined && bgIdx !== null) {
+          const bgColor = NOUNS_BG_HEX[bgIdx as 0 | 1];
+          if (bgColor) setBgHex(bgColor);
+        }
       } catch (e) {
         console.warn('Failed loading display auction or background', e);
       }

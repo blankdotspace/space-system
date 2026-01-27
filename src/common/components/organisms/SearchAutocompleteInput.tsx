@@ -111,25 +111,27 @@ const SearchAutocompleteInputContent: React.FC<SearchAutocompleteInputProps> = (
           )}
           {channels?.length > 0 && (
             <CommandGroup heading="Channels">
-              {channels.map((channel: Channel, i: number) => (
-                <CommandItem
-                  key={`c-${channel.id}-${i}`}
-                  onSelect={() => onSelectChannel(channel)}
-                  value={channel.id}
-                  className="gap-x-2 cursor-pointer"
-                >
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage src={channel.image_url || ""} alt={channel.name || channel.id} />
-                    <AvatarFallback>
-                      {(channel.name || channel.id || "").slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="leading-[1.3]">
-                    <p className="font-bold opacity-80">{channel.name || channel.id}</p>
-                    <p className="font-normal opacity-80">/{channel.id}</p>
-                  </div>
-                </CommandItem>
-              ))}
+              {channels
+                .filter((channel): channel is Channel => channel != null)
+                .map((channel: Channel, i: number) => (
+                  <CommandItem
+                    key={`c-${channel.id}-${i}`}
+                    onSelect={() => onSelectChannel(channel)}
+                    value={channel.id}
+                    className="gap-x-2 cursor-pointer"
+                  >
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={channel.image_url || ""} alt={channel.name || channel.id} />
+                      <AvatarFallback>
+                        {(channel.name || channel.id || "").slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="leading-[1.3]">
+                      <p className="font-bold opacity-80">{channel.name || channel.id}</p>
+                      <p className="font-normal opacity-80">/{channel.id}</p>
+                    </div>
+                  </CommandItem>
+                ))}
             </CommandGroup>
           )}
           {tokens?.length > 0 && (

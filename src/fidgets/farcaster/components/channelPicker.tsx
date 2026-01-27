@@ -103,24 +103,26 @@ export function ChannelPicker(props: Props) {
               {channelResults.length === 0 ? (
                 <CommandEmpty>No channels found.</CommandEmpty>
               ) : (
-                channelResults.map((channel) => (
-                  <CommandItem
-                    key={channel.parent_url || "home"}
-                    value={channel.name || "home"}
-                    className="cursor-pointer flex items-center px-4 py-2 hover:bg-gray-100"
-                    {...{ [CAST_MODAL_INTERACTIVE_ATTR]: "true" }}
-                    onSelect={() => handleSelect(channel)}
-                  >
-                    <img
-                      src={channel.image_url ?? ""}
-                      alt={channel.name}
-                      width={24}
-                      height={24}
-                      className="mr-2"
-                    />
-                    {channel.name}
-                  </CommandItem>
-                ))
+                channelResults
+                  .filter((channel): channel is Channel => channel != null)
+                  .map((channel) => (
+                    <CommandItem
+                      key={channel.parent_url || "home"}
+                      value={channel.name || "home"}
+                      className="cursor-pointer flex items-center px-4 py-2 hover:bg-gray-100"
+                      {...{ [CAST_MODAL_INTERACTIVE_ATTR]: "true" }}
+                      onSelect={() => handleSelect(channel)}
+                    >
+                      <img
+                        src={channel.image_url ?? ""}
+                        alt={channel.name ?? ""}
+                        width={24}
+                        height={24}
+                        className="mr-2"
+                      />
+                      {channel.name}
+                    </CommandItem>
+                  ))
               )}
             </CommandList>
           </Command>
