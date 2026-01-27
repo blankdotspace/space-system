@@ -780,6 +780,7 @@ const ClankerManagerFidget: React.FC<FidgetArgs<ClankerManagerSettings>> = ({
             >
               <Link
                 href={tokenSpaceHref}
+                prefetch={false}
                 className="group flex flex-col gap-3 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:flex-row sm:items-center sm:justify-between"
                 style={{
                   color: "inherit",

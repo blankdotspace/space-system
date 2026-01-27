@@ -637,6 +637,7 @@ const CastReactions = ({ cast }: { cast: CastWithInteractions }) => {
             href={`/c/${encodeURIComponent((cast.channel.id || cast.channel.name).toString())}`}
             className="mt-1.5 flex items-center text-sm opacity-60 transition-colors hover:text-blue-500 focus:text-blue-500 py-1 px-1.5 rounded-md"
             onClick={(event) => event.stopPropagation()}
+            prefetch={false}
           >
             /{cast.channel.name}
           </Link>
