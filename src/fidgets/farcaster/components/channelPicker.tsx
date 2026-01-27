@@ -76,13 +76,13 @@ export function ChannelPicker(props: Props) {
           className="flex items-center px-4 py-2 border-[rgba(128,128,128,0.2)]"
         >
           <img
-            src={value.image_url ?? ""}
-            alt={value.name}
+            src={value?.image_url ?? ""}
+            alt={value?.name ?? ""}
             width={24}
             height={24}
             className="mr-2 -ml-2"
           />
-          {value.name}
+          {value?.name ?? "Home"}
           <CaretDownIcon className="-mr-2 ml-2" />
         </Button>
       </PopoverTrigger>
