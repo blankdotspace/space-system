@@ -2,7 +2,7 @@
  * Seed script utilities index
  */
 
-export { supabase } from './supabase';
+export { supabase, initSupabase } from './supabase';
 export { uploadToSupabaseStorage, uploadAssets, ensureImagesBucket, type AssetMapping } from './images';
 export {
   uploadPageConfig,
