@@ -38,6 +38,15 @@ describe("token directory API", () => {
           }),
         } as any;
       }
+      // web3.bio primary API
+      if (url.startsWith("https://api.web3.bio/")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => [],
+        } as any;
+      }
+      // enstate.rs fallback
       if (url.startsWith("https://enstate.rs")) {
         return {
           ok: true,
@@ -75,9 +84,9 @@ describe("token directory API", () => {
       },
     );
 
-    // 2 calls: moralis, enstate.rs (no more ensdata.net fallback)
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    const [moralisCall, enstateCall] = fetchMock.mock.calls;
+    // 3 calls: moralis, web3.bio, enstate.rs fallback
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const [moralisCall] = fetchMock.mock.calls;
     expect(moralisCall[0]).toContain(
       "https://deep-index.moralis.io/api/v2.2/erc20/0x000000000000000000000000000000000000ABCD/owners",
     );
@@ -89,9 +98,11 @@ describe("token directory API", () => {
       }),
       cache: "no-store",
     });
-    expect(enstateCall[0]).toMatch(
-      /https:\/\/enstate\.rs\/bulk\/a\?addresses%5B%5D=0x000000000000000000000000000000000000abcd/,
+    // Verify web3.bio was called
+    const web3bioCalls = fetchMock.mock.calls.filter(([url]) =>
+      (typeof url === "string" ? url : url.toString()).includes("api.web3.bio"),
     );
+    expect(web3bioCalls).toHaveLength(1);
     expect(neynarMock.fetchBulkUsersByEthOrSolAddress).toHaveBeenCalledWith({
       addresses: ["0x000000000000000000000000000000000000abcd"],
     });
@@ -156,21 +167,27 @@ describe("token directory API", () => {
         }
         return response as any;
       }
+      // web3.bio primary API - return ENS data for one address
+      if (url.startsWith("https://api.web3.bio/")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => [
+            {
+              address: "0x000000000000000000000000000000000000aaaa",
+              identity: "example.eth",
+              platform: "ens",
+              avatar: null,
+            },
+          ],
+        } as any;
+      }
+      // enstate.rs fallback for addresses not resolved by web3.bio
       if (url.startsWith("https://enstate.rs")) {
         return {
           ok: true,
           status: 200,
-          json: async () => ({
-            response: [
-              {
-                address: "0x000000000000000000000000000000000000aaaa",
-                name: "example.eth",
-              },
-              {
-                address: "0x000000000000000000000000000000000000bbbb",
-              },
-            ],
-          }),
+          json: async () => ({ response: [] }),
         } as any;
       }
       throw new Error(`Unexpected fetch call: ${url}`);
@@ -193,8 +210,8 @@ describe("token directory API", () => {
       },
     );
 
-    // 3 calls: 2 alchemy, 1 enstate.rs (no more ensdata.net fallback)
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    // 4 calls: 2 alchemy, 1 web3.bio, 1 enstate.rs fallback
+    expect(fetchMock).toHaveBeenCalledTimes(4);
     const alchemyCalls = fetchMock.mock.calls.filter(([url]) =>
       (typeof url === "string" ? url : url.toString()).includes("alchemy.com"),
     );
@@ -254,21 +271,27 @@ describe("token directory API", () => {
           }),
         } as any;
       }
+      // web3.bio primary API - return ENS data for one address
+      if (url.startsWith("https://api.web3.bio/")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => [
+            {
+              address: "0x0000000000000000000000000000000000001111",
+              identity: "basefan.eth",
+              platform: "ens",
+              avatar: null,
+            },
+          ],
+        } as any;
+      }
+      // enstate.rs fallback for addresses not resolved by web3.bio
       if (url.startsWith("https://enstate.rs")) {
         return {
           ok: true,
           status: 200,
-          json: async () => ({
-            response: [
-              {
-                address: "0x0000000000000000000000000000000000001111",
-                name: "basefan.eth",
-              },
-              {
-                address: "0x0000000000000000000000000000000000002222",
-              },
-            ],
-          }),
+          json: async () => ({ response: [] }),
         } as any;
       }
       throw new Error(`Unexpected fetch call: ${url}`);
