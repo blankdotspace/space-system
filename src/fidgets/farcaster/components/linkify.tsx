@@ -28,6 +28,7 @@ const renderMention = ({ content }: RenderFunctionArgs) => {
     <Link
       className="cursor-pointer text-blue-500 text-font-medium hover:underline hover:text-blue-500/70"
       href={`/s/${handleWithoutAt}`}
+      prefetch={false}
     >
       {content}
     </Link>
