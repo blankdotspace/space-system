@@ -669,7 +669,7 @@ const Navigation = React.memo(
                     label={navEditMode ? "Exit Edit" : "Edit Nav"}
                     Icon={navEditMode ? LogoutIcon : () => (
                       <div className="w-6 h-6 flex items-center justify-center">
-                        <FaPencil className="w-4 h-4 text-gray-800 dark:text-white" />
+                        <FaPencil className="w-4 h-4" />
                       </div>
                     )}
                     onClick={() => {
@@ -808,7 +808,7 @@ const Navigation = React.memo(
                   <Link
                     href={discordUrl}
                     className={mergeClasses(
-                      "flex items-center p-2 text-gray-900 rounded-lg dark:text-white group w-full gap-2 text-lg font-medium",
+                      "flex items-center p-2 text-inherit rounded-lg dark:text-white group w-full gap-2 text-lg font-medium",
                       shrunk ? "justify-center gap-0" : ""
                     )}
                     style={navTextStyle}
@@ -820,7 +820,7 @@ const Navigation = React.memo(
                   </Link>
                 )}
                 <div
-                  className="flex flex-col items-center text-xs text-gray-500 mt-5"
+                  className="flex flex-col items-center text-xs text-inherit mt-5"
                   style={navTextStyle}
                 >
                   <Link href="/terms" className="hover:underline">
