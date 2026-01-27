@@ -28,7 +28,7 @@ export const ProfileLink: React.FC<ProfileLinkProps> = ({
 
   if (username) {
     return (
-      <Link href={href} className={baseClassName}>
+      <Link href={href} prefetch={false} className={baseClassName}>
         {children}
       </Link>
     );
