@@ -148,19 +148,13 @@ export type {
   MiniAppConfig,
 };
 
-// Export individual configuration modules from example and clanker
-// Note: These are kept for backward compatibility, but community customizations
-// should be handled via database config (community_configs table), not code.
-export * from './example/index';
-export * from './clanker/index';
-
-// Space creators - use Nouns implementation directly
+// Space creators - default layouts for new spaces
 // Community customizations should be handled via database config, not code-level routing
-import { default as createInitialProfileSpaceConfigForFid } from './nouns/initialSpaces/initialProfileSpace';
-import { default as createInitialChannelSpaceConfig } from './nouns/initialSpaces/initialChannelSpace';
-import { default as createInitialTokenSpaceConfigForAddress } from './nouns/initialSpaces/initialTokenSpace';
-import { default as createInitalProposalSpaceConfigForProposalId } from './nouns/initialSpaces/initialProposalSpace';
-import { default as INITIAL_HOMEBASE_CONFIG } from './nouns/initialSpaces/initialHomebase';
+import { default as createInitialProfileSpaceConfigForFid } from './initialSpaces/initialProfileSpace';
+import { default as createInitialChannelSpaceConfig } from './initialSpaces/initialChannelSpace';
+import { default as createInitialTokenSpaceConfigForAddress } from './initialSpaces/initialTokenSpace';
+import { default as createInitalProposalSpaceConfigForProposalId } from './initialSpaces/initialProposalSpace';
+import { default as INITIAL_HOMEBASE_CONFIG } from './initialSpaces/initialHomebase';
 
 export { createInitialProfileSpaceConfigForFid };
 export { createInitialChannelSpaceConfig };
@@ -176,4 +170,4 @@ export function createInitialHomebaseConfig(userAddress?: string) {
   return INITIAL_HOMEBASE_CONFIG;
 }
 // Export initial space config
-export { INITIAL_SPACE_CONFIG_EMPTY } from './initialSpaceConfig';
+export { INITIAL_SPACE_CONFIG_EMPTY } from './initialSpaces/initialSpaceConfig';

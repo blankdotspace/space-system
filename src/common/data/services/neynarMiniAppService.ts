@@ -1,4 +1,5 @@
 // Pure API integration - no database dependencies
+import { isMiniAppApproved } from "@/common/data/constants/approvedMiniApps";
 
 export interface NeynarMiniAppManifest {
   version: string;
@@ -400,6 +401,7 @@ export class NeynarMiniAppService {
     return miniApps.map(app => {
       const mappedCategory = this.mapToNounspaceCategory(app);
       const enhancedTags = this.generateEnhancedTags(app, mappedCategory);
+      const isApproved = isMiniAppApproved(app.domain);
       
       return {
         id: `neynar-miniapp-${app.domain}`,
@@ -416,7 +418,7 @@ export class NeynarMiniAppService {
         imageUrl: app.metadata.heroImage || app.iconUrl,
         popularity: this.calculatePopularity(app),
         author: app.author.username,
-        verified: app.author.isPowerUser,
+        verified: isApproved, // Check against approved list
       };
     });
   }

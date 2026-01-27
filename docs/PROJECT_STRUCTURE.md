@@ -16,7 +16,7 @@ space-system/
 ├── supabase/                 # Database configuration
 ├── tests/                    # Test files
 ├── .husky/                   # Git hooks
-├── middleware.ts             # Next.js middleware (domain detection)
+├── (no middleware.ts)        # Domain detection happens in loadSystemConfig() using headers() API
 ├── package.json              # Dependencies
 ├── next.config.mjs           # Next.js configuration
 ├── tailwind.config.js        # Tailwind CSS configuration

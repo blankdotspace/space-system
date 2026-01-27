@@ -221,6 +221,25 @@ export const FidgetWrapper = memo(function FidgetWrapperComponent({
     .filter((f) => f.inputSelector === CSSInput)
     .map((f) => settingsWithDefaults[f.fieldName]);
 
+  const homebaseTheme = homebaseConfig?.theme?.properties;
+  const useDefaultColors = settingsWithDefaults.useDefaultColors;
+  const resolvedBackground = useDefaultColors
+    ? homebaseTheme?.fidgetBackground
+    : settingsWithDefaults.background;
+  const resolvedBorderColor = useDefaultColors
+    ? homebaseTheme?.fidgetBorderColor
+    : settingsWithDefaults.fidgetBorderColor;
+  const resolvedBorderWidth = useDefaultColors
+    ? homebaseTheme?.fidgetBorderWidth
+    : settingsWithDefaults.fidgetBorderWidth;
+  const resolvedBoxShadow = useDefaultColors
+    ? homebaseTheme?.fidgetShadow
+    : settingsWithDefaults.fidgetShadow;
+  const resolvedBorderRadius =
+    borderRadius !== undefined && borderRadius !== null
+      ? borderRadius
+      : homebaseTheme?.fidgetBorderRadius || "12px";
+
   return (
     <>
       <div
@@ -264,19 +283,11 @@ export const FidgetWrapper = memo(function FidgetWrapperComponent({
             : "size-full overflow-hidden"
         }
         style={{
-          background: settingsWithDefaults.useDefaultColors 
-            ? homebaseConfig?.theme?.properties.fidgetBackground
-            : settingsWithDefaults.background,
-          borderColor: settingsWithDefaults.useDefaultColors
-            ? homebaseConfig?.theme?.properties.fidgetBorderColor
-            : settingsWithDefaults.fidgetBorderColor,
-          borderWidth: settingsWithDefaults.useDefaultColors
-            ? homebaseConfig?.theme?.properties.fidgetBorderWidth
-            : settingsWithDefaults.fidgetBorderWidth,
-          boxShadow: settingsWithDefaults.useDefaultColors
-            ? homebaseConfig?.theme?.properties.fidgetShadow
-            : settingsWithDefaults.fidgetShadow,
-          borderRadius: borderRadius ?? homebaseConfig?.theme?.properties.fidgetBorderRadius ?? "12px",
+          background: resolvedBackground,
+          borderColor: resolvedBorderColor,
+          borderWidth: resolvedBorderWidth,
+          boxShadow: resolvedBoxShadow,
+          borderRadius: resolvedBorderRadius,
         }}
       >
         {bundle.config.editable && (

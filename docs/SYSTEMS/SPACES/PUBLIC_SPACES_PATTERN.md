@@ -222,6 +222,92 @@ export default function ProposalSpace({ spaceData, tabName }: ProposalSpaceProps
 - 404 handling for invalid proposal IDs
 - Type-safe `Omit<ProposalSpaceData, 'isEditable'>` pattern
 
+### 4. Channel Spaces (`/c/[channelId]`)
+
+**Purpose**: Farcaster channel spaces for community channels
+
+**Components**:
+- `src/app/(spaces)/c/[channelId]/page.tsx` - Page component (routing)
+- `src/app/(spaces)/c/[channelId]/utils.ts` - Data loading functions
+- `src/app/(spaces)/c/[channelId]/ChannelSpace.tsx` - Client-side space component
+- `src/app/(spaces)/c/[channelId]/layout.tsx` - Space-specific layout
+
+**Data Flow**:
+```typescript
+// Utils - Data loading functions
+export const loadChannelSpaceData = async (channelId, tabNameParam) => {
+  const channelMetadata = await getChannelMetadata(channelId);
+  return createChannelSpaceData(spaceId, channelId, displayName, description, imageUrl, followerCount, moderatorFids, tabName);
+};
+
+// Page Component - Routing and rendering
+export default async function ChannelSpacePage({ params }) {
+  const channelSpaceData = await loadChannelSpaceData(channelId, tabNameParam);
+  
+  if (!channelSpaceData) {
+    return <SpaceNotFound />;
+  }
+  
+  return (
+    <ChannelSpace
+      spaceData={channelSpaceData}
+      tabName={tabNameParam || channelSpaceData.defaultTab}
+    />
+  );
+}
+```
+
+**Key Features**:
+- Server-side data loading with channel metadata from Neynar API
+- Client-side editability based on moderator FIDs
+- Channel metadata (description, image, follower count)
+- Type-safe `Omit<ChannelSpacePageData, 'isEditable'>` pattern
+
+### 5. Nav Page Spaces (`/[navSlug]`)
+
+**Purpose**: Navigation pages (like `/home`, `/explore`) that are admin-editable spaces
+
+**Components**:
+- `src/app/[navSlug]/[[...tabName]]/page.tsx` - Page component (routing)
+- `src/app/[navSlug]/[[...tabName]]/utils.ts` - Data loading functions
+- `src/app/[navSlug]/[[...tabName]]/NavPageSpace.tsx` - Client-side space component
+
+**Data Flow**:
+```typescript
+// Utils - Data loading functions
+export const loadNavPageSpaceData = async (navSlug, tabNameParam) => {
+  const config = await loadSystemConfig();
+  const navItem = config.navigation?.items.find(item => item.href === `/${navSlug}`);
+  
+  if (!navItem || !navItem.spaceId) {
+    return null;
+  }
+  
+  return createNavPageSpaceData(navItem.spaceId, navSlug, tabNameParam, config.adminIdentityPublicKeys);
+};
+
+// Page Component - Routing and rendering
+export default async function NavPage({ params }) {
+  const spaceData = await loadNavPageSpaceData(navSlug, decodedTabName);
+  
+  return (
+    <NavPageSpace
+      spacePageData={spaceData}
+      tabName={decodedTabName}
+      navSlug={navSlug}
+      adminIdentityPublicKeys={config.adminIdentityPublicKeys || []}
+    />
+  );
+}
+```
+
+**Key Features**:
+- Navigation items stored in `community_configs.navigation_config`
+- Space content stored in Supabase Storage (referenced by `spaceId`)
+- Editability based on `adminIdentityPublicKeys` in community config
+- Dynamic routing via catch-all `[[...tabName]]` segment
+- Fallback to client-side local stores if server doesn't find space
+
 ## File Structure
 
 Each space type follows a consistent file structure:
@@ -240,12 +326,27 @@ src/app/(spaces)/
 │   ├── ProposalSpace.tsx          # Client-side space component
 │   ├── layout.tsx                 # Space-specific layout
 │   └── [tabname]/page.tsx         # Tab wrapper (re-exports main page)
-└── t/[network]/[contractAddress]/ # Token Spaces
-    ├── page.tsx                   # Page component (routing)
-    ├── utils.ts                   # Data loading functions
-    ├── layout.tsx                 # Space-specific layout
-    ├── [tabName]/page.tsx         # Tab wrapper (re-exports main page)
-    └── ../TokenSpace.tsx          # Client-side space component (shared)
+├── t/[network]/[contractAddress]/ # Token Spaces
+│   ├── page.tsx                   # Page component (routing)
+│   ├── utils.ts                   # Data loading functions
+│   ├── layout.tsx                 # Space-specific layout
+│   ├── [tabName]/page.tsx         # Tab wrapper (re-exports main page)
+│   └── ../TokenSpace.tsx          # Client-side space component (shared)
+├── c/[channelId]/                 # Channel Spaces
+│   ├── page.tsx                   # Page component (routing)
+│   ├── utils.ts                   # Data loading functions
+│   ├── ChannelSpace.tsx           # Client-side space component
+│   ├── layout.tsx                 # Space-specific layout
+│   └── [tabName]/page.tsx         # Tab wrapper (re-exports main page)
+└── homebase/                      # Private Spaces
+    └── [[...slug]]/
+        ├── page.tsx               # Client-side page (no server component)
+        └── layout.tsx
+        
+src/app/[navSlug]/[[...tabName]]/  # Nav Page Spaces
+├── page.tsx                       # Page component (routing)
+├── utils.ts                       # Data loading functions
+└── NavPageSpace.tsx               # Client-side space component
 ```
 
 ## Utils Pattern
@@ -390,24 +491,49 @@ Each space type defines its own default tab:
 - **Profile Spaces**: `"Profile"`
 - **Token Spaces**: `"Token"`  
 - **Proposal Spaces**: `"Overview"`
+- **Channel Spaces**: `"Channel"`
+- **Nav Page Spaces**: First tab in tabOrder
 
 The `defaultTab` property is used as a fallback when no specific tab is provided in the URL, ensuring consistent behavior across all space types.
 
 // Type-specific extensions
-interface ProfileSpaceData extends SpaceData {
-  fid: number;
+interface ProfileSpacePageData extends SpacePageData {
+  spaceType: 'profile';
+  identityPublicKey?: string;
 }
 
-interface TokenSpaceData extends SpaceData {
-  contractAddress: Address;
+interface TokenSpacePageData extends SpacePageData {
+  spaceType: 'token';
+  contractAddress: string;
   network: string;
-  ownerAddress: Address;
+  spaceOwnerAddress: Address;
   tokenData?: MasterToken;
+  identityPublicKey?: string;
 }
 
-interface ProposalSpaceData extends SpaceData {
+interface ProposalSpacePageData extends SpacePageData {
+  spaceType: 'proposal';
   proposalId: string;
-  ownerAddress: Address;
+  spaceOwnerAddress: Address;
+  proposalData?: ProposalData;
+  identityPublicKey?: string;
+}
+
+interface ChannelSpacePageData extends SpacePageData {
+  spaceType: 'channel';
+  channelId: string;
+  channelDisplayName?: string;
+  channelDescription?: string;
+  channelImageUrl?: string;
+  channelFollowerCount?: number;
+  moderatorFids: number[];
+  identityPublicKey?: string;
+}
+
+interface NavPageSpacePageData extends SpacePageData {
+  spaceType: 'navPage';
+  navSlug: string;
+  adminIdentityPublicKeys: string[];
 }
 ```
 

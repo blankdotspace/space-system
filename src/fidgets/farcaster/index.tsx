@@ -14,8 +14,7 @@ export const FARCASTER_AUTHENTICATOR_NAME = "farcaster:nounspace";
 const createFarcasterSignerFromAuthenticatorManager = async (
   authenticatorManager: AuthenticatorManager,
   fidgetId: string,
-  authenticatorName: string = FARCASTER_AUTHENTICATOR_NAME,
-  skipKeyTest: boolean = false,
+  authenticatorName: string = "farcaster:nounspace",
 ): Promise<Signer> => {
   // First verify the authenticator is ready
   const initializedAuths = await authenticatorManager.getInitializedAuthenticators();
@@ -111,7 +110,7 @@ const createFarcasterSignerFromAuthenticatorManager = async (
 
 export function useFarcasterSigner(
   fidgetId: string,
-  authenticatorName: string = FARCASTER_AUTHENTICATOR_NAME,
+  authenticatorName: string = "farcaster:nounspace",
 ) {
   const authenticatorManager = useAuthenticatorManager();
   const { currentIdentityFids, registerFidForCurrentIdentity, loadFids, currentSpaceIdentityPublicKey } =
