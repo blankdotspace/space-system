@@ -10,7 +10,7 @@ const ENSTATE_BATCH_SIZE = 50;
 /**
  * Extracts social handles from web3.bio links array
  */
-function extractWeb3BioSocials(links: Record<string, any> | undefined): {
+export function extractWeb3BioSocials(links: Record<string, any> | undefined): {
   twitterHandle: string | null;
   twitterUrl: string | null;
   githubHandle: string | null;

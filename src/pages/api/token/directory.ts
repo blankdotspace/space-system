@@ -7,6 +7,7 @@ import requestHandler, {
   type BlankspaceResponse,
 } from "@/common/data/api/requestHandler";
 import neynar from "@/common/data/api/neynar";
+import { extractWeb3BioSocials } from "@/common/data/api/token/enrichEns";
 import { fetchTokenData } from "@/common/lib/utils/fetchTokenData";
 import type { EtherScanChainName } from "@/constants/etherscanChainIds";
 import { ALCHEMY_API } from "@/constants/urls";
@@ -552,46 +553,6 @@ async function fetchMoralisTokenHolders(
 const WEB3BIO_BATCH_SIZE = 30;
 // enstate.rs supports up to 50 addresses per batch (used as fallback)
 const ENSTATE_BATCH_SIZE = 50;
-
-/**
- * Extracts social handles from web3.bio links array
- */
-function extractWeb3BioSocials(links: Record<string, any> | undefined): {
-  twitterHandle: string | null;
-  twitterUrl: string | null;
-  githubHandle: string | null;
-  githubUrl: string | null;
-} {
-  let twitterHandle: string | null = null;
-  let twitterUrl: string | null = null;
-  let githubHandle: string | null = null;
-  let githubUrl: string | null = null;
-
-  if (!links || typeof links !== "object") {
-    return { twitterHandle, twitterUrl, githubHandle, githubUrl };
-  }
-
-  // web3.bio returns links as an object with platform keys
-  const twitter = links.twitter || links.x;
-  if (twitter && typeof twitter === "object") {
-    const handle = twitter.handle || twitter.identity;
-    if (typeof handle === "string" && handle) {
-      twitterHandle = handle.replace(/^@/, "");
-      twitterUrl = twitter.link || `https://twitter.com/${twitterHandle}`;
-    }
-  }
-
-  const github = links.github;
-  if (github && typeof github === "object") {
-    const handle = github.handle || github.identity;
-    if (typeof handle === "string" && handle) {
-      githubHandle = handle.replace(/^@/, "");
-      githubUrl = github.link || `https://github.com/${githubHandle}`;
-    }
-  }
-
-  return { twitterHandle, twitterUrl, githubHandle, githubUrl };
-}
 
 /**
  * Fetches profile metadata for addresses using web3.bio API (primary)

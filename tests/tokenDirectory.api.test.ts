@@ -222,7 +222,7 @@ describe("token directory API", () => {
     expect((alchemyCalls[1][0] as string).toLowerCase()).toContain("pagekey=next-page");
 
     expect(result.members).toHaveLength(2);
-    // ENS data comes from enstate.rs only now (no wagmi fallback)
+    // ENS data comes from web3.bio mock; enstate.rs fallback returns empty
     expect(result.members[0]).toMatchObject({
       address: "0x000000000000000000000000000000000000aaaa",
       balanceRaw: "2",
