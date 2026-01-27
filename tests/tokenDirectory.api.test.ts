@@ -38,6 +38,15 @@ describe("token directory API", () => {
           }),
         } as any;
       }
+      // web3.bio primary API
+      if (url.startsWith("https://api.web3.bio/")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => [],
+        } as any;
+      }
+      // enstate.rs fallback
       if (url.startsWith("https://enstate.rs")) {
         return {
           ok: true,
@@ -62,9 +71,6 @@ describe("token directory API", () => {
       }),
     };
 
-    const getEnsNameMock = vi.fn().mockResolvedValue(null);
-    const getEnsAvatarMock = vi.fn().mockResolvedValue(null);
-
     const result = await fetchDirectoryData(
       {
         network: "base",
@@ -75,13 +81,12 @@ describe("token directory API", () => {
       {
         fetchFn: fetchMock,
         neynarClient: neynarMock as any,
-        getEnsNameFn: getEnsNameMock,
-        getEnsAvatarFn: getEnsAvatarMock,
       },
     );
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    const [moralisCall, enstateCall] = fetchMock.mock.calls;
+    // 3 calls: moralis, web3.bio, enstate.rs fallback
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const [moralisCall] = fetchMock.mock.calls;
     expect(moralisCall[0]).toContain(
       "https://deep-index.moralis.io/api/v2.2/erc20/0x000000000000000000000000000000000000ABCD/owners",
     );
@@ -93,9 +98,11 @@ describe("token directory API", () => {
       }),
       cache: "no-store",
     });
-    expect(enstateCall[0]).toMatch(
-      /https:\/\/enstate\.rs\/bulk\/a\?addresses%5B%5D=0x000000000000000000000000000000000000abcd/,
+    // Verify web3.bio was called
+    const web3bioCalls = fetchMock.mock.calls.filter(([url]) =>
+      (typeof url === "string" ? url : url.toString()).includes("api.web3.bio"),
     );
+    expect(web3bioCalls).toHaveLength(1);
     expect(neynarMock.fetchBulkUsersByEthOrSolAddress).toHaveBeenCalledWith({
       addresses: ["0x000000000000000000000000000000000000abcd"],
     });
@@ -117,10 +124,6 @@ describe("token directory API", () => {
       ensAvatarUrl: null,
     });
     expect(mockedFetchTokenData).not.toHaveBeenCalled();
-    expect(getEnsNameMock).toHaveBeenCalledWith(
-      "0x000000000000000000000000000000000000abcd",
-    );
-    expect(getEnsAvatarMock).not.toHaveBeenCalled();
   });
 
   it("paginates through NFT owners until page size reached", async () => {
@@ -164,21 +167,27 @@ describe("token directory API", () => {
         }
         return response as any;
       }
+      // web3.bio primary API - return ENS data for one address
+      if (url.startsWith("https://api.web3.bio/")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => [
+            {
+              address: "0x000000000000000000000000000000000000aaaa",
+              identity: "example.eth",
+              platform: "ens",
+              avatar: null,
+            },
+          ],
+        } as any;
+      }
+      // enstate.rs fallback for addresses not resolved by web3.bio
       if (url.startsWith("https://enstate.rs")) {
         return {
           ok: true,
           status: 200,
-          json: async () => ({
-            response: [
-              {
-                address: "0x000000000000000000000000000000000000aaaa",
-                name: "example.eth",
-              },
-              {
-                address: "0x000000000000000000000000000000000000bbbb",
-              },
-            ],
-          }),
+          json: async () => ({ response: [] }),
         } as any;
       }
       throw new Error(`Unexpected fetch call: ${url}`);
@@ -187,14 +196,6 @@ describe("token directory API", () => {
     const neynarMock = {
       fetchBulkUsersByEthOrSolAddress: vi.fn().mockResolvedValue({}),
     };
-
-    const getEnsNameMock = vi
-      .fn()
-      .mockResolvedValueOnce("example.eth")
-      .mockResolvedValueOnce(null);
-    const getEnsAvatarMock = vi
-      .fn()
-      .mockResolvedValueOnce("https://example.com/avatar.png");
 
     const result = await fetchDirectoryData(
       {
@@ -206,12 +207,11 @@ describe("token directory API", () => {
       {
         fetchFn: fetchMock,
         neynarClient: neynarMock as any,
-        getEnsNameFn: getEnsNameMock,
-        getEnsAvatarFn: getEnsAvatarMock,
       },
     );
 
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    // 4 calls: 2 alchemy, 1 web3.bio, 1 enstate.rs fallback
+    expect(fetchMock).toHaveBeenCalledTimes(4);
     const alchemyCalls = fetchMock.mock.calls.filter(([url]) =>
       (typeof url === "string" ? url : url.toString()).includes("alchemy.com"),
     );
@@ -222,12 +222,13 @@ describe("token directory API", () => {
     expect((alchemyCalls[1][0] as string).toLowerCase()).toContain("pagekey=next-page");
 
     expect(result.members).toHaveLength(2);
+    // ENS data comes from web3.bio mock; enstate.rs fallback returns empty
     expect(result.members[0]).toMatchObject({
       address: "0x000000000000000000000000000000000000aaaa",
       balanceRaw: "2",
       balanceFormatted: "2",
       ensName: "example.eth",
-      ensAvatarUrl: "https://example.com/avatar.png",
+      ensAvatarUrl: null, // No avatar from enstate.rs mock response
     });
     expect(result.members[1]).toMatchObject({
       address: "0x000000000000000000000000000000000000bbbb",
@@ -244,16 +245,6 @@ describe("token directory API", () => {
         "0x000000000000000000000000000000000000bbbb",
       ],
     });
-    expect(getEnsNameMock).toHaveBeenNthCalledWith(
-      1,
-      "0x000000000000000000000000000000000000aaaa",
-    );
-    expect(getEnsNameMock).toHaveBeenNthCalledWith(
-      2,
-      "0x000000000000000000000000000000000000bbbb",
-    );
-    expect(getEnsAvatarMock).toHaveBeenCalledTimes(1);
-    expect(getEnsAvatarMock).toHaveBeenCalledWith("example.eth");
   });
 
   it("uses Alchemy for Base NFT owner lookups", async () => {
@@ -280,21 +271,27 @@ describe("token directory API", () => {
           }),
         } as any;
       }
+      // web3.bio primary API - return ENS data for one address
+      if (url.startsWith("https://api.web3.bio/")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => [
+            {
+              address: "0x0000000000000000000000000000000000001111",
+              identity: "basefan.eth",
+              platform: "ens",
+              avatar: null,
+            },
+          ],
+        } as any;
+      }
+      // enstate.rs fallback for addresses not resolved by web3.bio
       if (url.startsWith("https://enstate.rs")) {
         return {
           ok: true,
           status: 200,
-          json: async () => ({
-            response: [
-              {
-                address: "0x0000000000000000000000000000000000001111",
-                name: "basefan.eth",
-              },
-              {
-                address: "0x0000000000000000000000000000000000002222",
-              },
-            ],
-          }),
+          json: async () => ({ response: [] }),
         } as any;
       }
       throw new Error(`Unexpected fetch call: ${url}`);
@@ -303,12 +300,6 @@ describe("token directory API", () => {
     const neynarMock = {
       fetchBulkUsersByEthOrSolAddress: vi.fn().mockResolvedValue({}),
     };
-
-    const getEnsNameMock = vi
-      .fn()
-      .mockResolvedValueOnce("basefan.eth")
-      .mockResolvedValueOnce(null);
-    const getEnsAvatarMock = vi.fn().mockResolvedValue(null);
 
     const result = await fetchDirectoryData(
       {
@@ -320,8 +311,6 @@ describe("token directory API", () => {
       {
         fetchFn: fetchMock,
         neynarClient: neynarMock as any,
-        getEnsNameFn: getEnsNameMock,
-        getEnsAvatarFn: getEnsAvatarMock,
       },
     );
 
