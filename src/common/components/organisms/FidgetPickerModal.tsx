@@ -350,7 +350,7 @@ export const FidgetPickerModal: React.FC<FidgetPickerModalProps> = ({
           <Card className={`w-full h-full flex items-center p-3 rounded-lg ${
             isUnverifiedMiniApp 
               ? 'bg-amber-50 border border-amber-200' 
-              : 'bg-[#F3F4F6]'
+              : 'bg-[rgba(128,128,128,0.2)]'
           }`}>
             <CardContent className="overflow-hidden flex items-center gap-4 p-0 w-full">
               <div className="flex items-center justify-center w-8 h-8 flex-shrink-0 relative">

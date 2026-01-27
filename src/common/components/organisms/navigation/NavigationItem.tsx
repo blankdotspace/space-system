@@ -114,7 +114,7 @@ const NavigationItemComponent: React.FC<NavigationItemProps> = ({
         href={disable ? "#" : href}
         className={mergeClasses(
           "flex relative items-center p-2 text-inherit rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 w-full group",
-          isSelected ? "bg-gray-100" : "",
+          isSelected ? "bg-[rgba(128,128,128,0.2)]" : "",
           shrunk ? "justify-center" : "",
           disable ? "opacity-50 cursor-not-allowed pointer-events-none" : ""
         )}
