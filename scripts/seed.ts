@@ -1,28 +1,28 @@
 #!/usr/bin/env tsx
 /**
  * Database Seeding Script
- * 
+ *
  * Seeds the local Supabase database with community configs and nav page spaces.
- * 
+ *
  * Usage:
  *   tsx scripts/seed.ts                    # Full seeding
  *   tsx scripts/seed.ts --check            # Check if already seeded
- *   tsx scripts/seed.ts --skip-assets      # Skip ImgBB asset upload
- * 
+ *   tsx scripts/seed.ts --skip-assets      # Skip asset upload to Supabase Storage
+ *
  * Requires:
  *   - NEXT_PUBLIC_SUPABASE_URL
  *   - SUPABASE_SERVICE_KEY
- *   - NEXT_PUBLIC_IMGBB_API_KEY (optional, for asset uploads)
  */
 
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 // Library utilities
-import { 
-  supabase, 
-  uploadAssets, 
-  uploadPageConfig, 
+import {
+  supabase,
+  uploadAssets,
+  ensureImagesBucket,
+  uploadPageConfig,
   createNavPageSpace,
   createExplorePageConfig,
 } from './lib';
@@ -60,6 +60,7 @@ const STORAGE_BUCKETS = [
   { id: 'spaces', name: 'spaces', public: true },
   { id: 'private', name: 'private', public: true },
   { id: 'explore', name: 'explore', public: false },
+  { id: 'images', name: 'images', public: true },
 ];
 
 // Domain mappings for local development
@@ -95,16 +96,20 @@ async function createStorageBucketsStep(): Promise<void> {
 }
 
 /**
- * Step 2: Upload Nouns assets to ImgBB
+ * Step 2: Upload Nouns assets to Supabase Storage
  */
 async function uploadNounsAssetsStep(): Promise<Record<string, string>> {
-  console.log('\n📤 Step 2: Uploading Nouns assets to ImgBB...\n');
+  console.log('\n📤 Step 2: Uploading Nouns assets to Supabase Storage...\n');
+
+  // Ensure images bucket exists
+  await ensureImagesBucket();
 
   const assetsDir = join(__dirname, 'seed-data', 'assets', nounsAssets.directory);
   const uploadedUrls = await uploadAssets(
     assetsDir,
     nounsAssets.files,
     nounsAssets.fallbackPrefix,
+    'nouns', // folder name in the images bucket
   );
 
   // Add static paths
@@ -225,7 +230,7 @@ async function uploadNavPageSpacesStep(): Promise<boolean> {
 
 const EXPECTED_COMMUNITIES = ['nounspace.com', 'clanker.space', 'example'];
 const EXPECTED_SPACES = ['nouns-home', 'nouns-explore', 'clanker-home'];
-const EXPECTED_BUCKETS = ['spaces', 'private', 'explore'];
+const EXPECTED_BUCKETS = ['spaces', 'private', 'explore', 'images'];
 const EXPECTED_DOMAINS = ['nouns', 'clanker', 'example'];
 
 type CheckResult = { pass: boolean; message: string };
@@ -493,7 +498,7 @@ async function main() {
     console.log('\n📋 Summary:');
     console.log('  ✓ Storage buckets created');
     if (!flags.skipAssets) {
-      console.log('  ✓ Nouns assets uploaded to ImgBB');
+      console.log('  ✓ Nouns assets uploaded to Supabase Storage');
     }
     console.log('  ✓ NavPage spaces created');
     console.log('  ✓ Community configs seeded');

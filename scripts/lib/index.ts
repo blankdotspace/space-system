@@ -3,10 +3,10 @@
  */
 
 export { supabase } from './supabase';
-export { uploadToImgBB, uploadAssets, type AssetMapping } from './imgbb';
-export { 
-  uploadPageConfig, 
-  createNavPageSpace, 
+export { uploadToSupabaseStorage, uploadAssets, ensureImagesBucket, type AssetMapping } from './images';
+export {
+  uploadPageConfig,
+  createNavPageSpace,
   getSpaceId,
   type PageConfigWithTabs,
 } from './storage';
