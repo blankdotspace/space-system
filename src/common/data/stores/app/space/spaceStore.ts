@@ -114,6 +114,10 @@ interface SpaceState {
   remoteSpaces: Record<string, CachedSpace>;
   editableSpaces: Record<SpaceId, string>;
   localSpaces: Record<string, LocalSpace>;
+  // Track which tabs are currently loading (spaceId -> Set of tabNames)
+  loadingTabs: Record<string, string[]>;
+  // Track which tabs have been checked from database (even if no data found)
+  checkedTabs: Record<string, string[]>;
 }
 
 export interface SpaceLookupInfo {
@@ -195,6 +199,9 @@ interface SpaceActions {
     moderatorFids?: number[],
   ) => Promise<string | undefined>;
   clear: () => void;
+  // Loading state helpers
+  isTabLoading: (spaceId: string, tabName: string) => boolean;
+  isTabChecked: (spaceId: string, tabName: string) => boolean;
 }
 
 export type SpaceStore = SpaceState & SpaceActions;
@@ -203,6 +210,8 @@ export const spaceStoreprofiles: SpaceState = {
   remoteSpaces: {},
   editableSpaces: {},
   localSpaces: {},
+  loadingTabs: {},
+  checkedTabs: {},
 };
 
 // Helper: Get storage file name for a tab (handles renames and edge cases)
@@ -681,6 +690,30 @@ export const createSpaceStoreFunc = (
   },
   loadSpaceTab: async (spaceId, tabName) => {
     const supabase = createClient();
+
+    // Helper to mark loading complete and tab as checked
+    const markLoadingComplete = () => {
+      set((draft) => {
+        // Remove from loadingTabs
+        const loadingTabs = draft.space.loadingTabs[spaceId] || [];
+        draft.space.loadingTabs[spaceId] = loadingTabs.filter(t => t !== tabName);
+
+        // Add to checkedTabs if not already present
+        const checkedTabs = draft.space.checkedTabs[spaceId] || [];
+        if (!checkedTabs.includes(tabName)) {
+          draft.space.checkedTabs[spaceId] = [...checkedTabs, tabName];
+        }
+      }, "loadSpaceTab-markComplete");
+    };
+
+    // Set loading state at the start
+    set((draft) => {
+      const loadingTabs = draft.space.loadingTabs[spaceId] || [];
+      if (!loadingTabs.includes(tabName)) {
+        draft.space.loadingTabs[spaceId] = [...loadingTabs, tabName];
+      }
+    }, "loadSpaceTab-setLoading");
+
     try {
       // Check if tab exists locally first
       const localSpace = get().space.localSpaces[spaceId];
@@ -703,6 +736,7 @@ export const createSpaceStoreFunc = (
             };
           }
         }, "loadSpaceTab-initRemote");
+        markLoadingComplete();
         return; // Use local tab, no need to fetch from storage
       }
       
@@ -735,9 +769,11 @@ export const createSpaceStoreFunc = (
           // Tab doesn't exist in storage - use local if available, otherwise return
           if (localTab) {
             // Local tab exists, use it (might be uncommitted)
+            markLoadingComplete();
             return;
           }
           // No local tab either - tab truly doesn't exist
+          markLoadingComplete();
           return;
         }
         
@@ -749,9 +785,11 @@ export const createSpaceStoreFunc = (
             // HTML error page - tab doesn't exist in storage
             if (localTab) {
               // Local tab exists, use it
+              markLoadingComplete();
               return;
             }
             // No local tab - tab doesn't exist
+            markLoadingComplete();
             return;
           }
         }
@@ -759,15 +797,17 @@ export const createSpaceStoreFunc = (
       }
 
       const textContent = await data.text();
-      
+
       // Check if response is HTML (404 error page) instead of JSON
       if (textContent.trim().startsWith("<!DOCTYPE") || textContent.trim().startsWith("<html")) {
         // HTML error page - tab doesn't exist in storage
         if (localTab) {
           // Local tab exists, use it
+          markLoadingComplete();
           return;
         }
         // No local tab - tab doesn't exist
+        markLoadingComplete();
         return;
       }
 
@@ -850,8 +890,10 @@ export const createSpaceStoreFunc = (
           );
         }
       }, "loadSpaceTab");
+      markLoadingComplete();
     } catch (e) {
       console.error(`Error loading space tab ${spaceId}/${tabName}:`, e);
+      markLoadingComplete();
     }
   },
   loadSpaceTabOrder: async (spaceId: string) => {
@@ -1467,10 +1509,20 @@ export const createSpaceStoreFunc = (
         draft.space.localSpaces = {};
         draft.space.editableSpaces = {};
         draft.space.remoteSpaces = {};
+        draft.space.loadingTabs = {};
+        draft.space.checkedTabs = {};
       },
       "clearSpaces",
       true,
     );
+  },
+  isTabLoading: (spaceId: string, tabName: string) => {
+    const loadingTabs = get().space.loadingTabs[spaceId] || [];
+    return loadingTabs.includes(tabName);
+  },
+  isTabChecked: (spaceId: string, tabName: string) => {
+    const checkedTabs = get().space.checkedTabs[spaceId] || [];
+    return checkedTabs.includes(tabName);
   },
 });
 
@@ -1478,4 +1530,6 @@ export const partializedSpaceStore = (state: AppStore): SpaceState => ({
   remoteSpaces: state.space.remoteSpaces,
   editableSpaces: state.space.editableSpaces,
   localSpaces: state.space.localSpaces,
+  loadingTabs: state.space.loadingTabs,
+  checkedTabs: state.space.checkedTabs,
 });
