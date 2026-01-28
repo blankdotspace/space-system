@@ -2,12 +2,13 @@
 /**
  * Database Seeding Script
  *
- * Seeds the local Supabase database with community configs and nav page spaces.
+ * Seeds the Supabase database with community configs and nav page spaces.
  *
  * Usage:
- *   tsx scripts/seed.ts                    # Full seeding
+ *   tsx scripts/seed.ts                    # Full seeding (uses local .env)
  *   tsx scripts/seed.ts --check            # Check if already seeded
  *   tsx scripts/seed.ts --skip-assets      # Skip asset upload to Supabase Storage
+ *   tsx scripts/seed.ts --env staging      # Prompt for credentials (remote env)
  *
  * Requires:
  *   - NEXT_PUBLIC_SUPABASE_URL
@@ -20,6 +21,8 @@ import { fileURLToPath } from 'url';
 // Library utilities
 import {
   supabase,
+  initializeSupabase,
+  targetEnv,
   uploadAssets,
   ensureImagesBucket,
   uploadPageConfig,
@@ -459,6 +462,11 @@ async function checkSeeding(): Promise<boolean> {
 // ============================================================================
 
 async function main() {
+  // Initialize Supabase client (handles --env flag for remote environments)
+  if (targetEnv) {
+    await initializeSupabase();
+  }
+
   // Handle --check flag
   if (flags.check) {
     const isSeeded = await checkSeeding();
@@ -466,6 +474,9 @@ async function main() {
   }
 
   console.log('🚀 Starting database seeding...\n');
+  if (targetEnv) {
+    console.log(`🌐 Target environment: ${targetEnv}\n`);
+  }
 
   try {
     // Step 1: Create storage buckets

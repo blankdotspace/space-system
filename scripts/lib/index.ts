@@ -2,7 +2,7 @@
  * Seed script utilities index
  */
 
-export { supabase } from './supabase';
+export { supabase, initializeSupabase, targetEnv } from './supabase';
 export {
   uploadToSupabaseStorage,
   uploadAssets,
