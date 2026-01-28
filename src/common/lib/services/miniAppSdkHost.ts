@@ -192,8 +192,24 @@ export function createMiniAppSdkHost(
       try {
         const { SiweMessage } = await import('siwe');
 
-        // Domain should be the current window's hostname
-        const signInDomain = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+        // Domain should be the iframe's origin (mini-app), not the host window
+        // This ties the SIWE signature to the requesting mini-app's domain
+        let signInDomain: string;
+        let signInUri: string;
+        if (_domain) {
+          try {
+            const domainUrl = new URL(_domain);
+            signInDomain = domainUrl.hostname;
+            signInUri = domainUrl.origin;
+          } catch {
+            // Fallback to window location if domain is invalid
+            signInDomain = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+            signInUri = typeof window !== 'undefined' ? window.location.origin : 'https://nounspace.com';
+          }
+        } else {
+          signInDomain = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+          signInUri = typeof window !== 'undefined' ? window.location.origin : 'https://nounspace.com';
+        }
 
         // Get Ethereum address if available
         let signerAddress = '0x0000000000000000000000000000000000000000';
@@ -215,7 +231,7 @@ export function createMiniAppSdkHost(
           domain: signInDomain,
           address: signerAddress,
           statement: 'Sign in with Farcaster',
-          uri: typeof window !== 'undefined' ? window.location.origin : 'https://nounspace.com',
+          uri: signInUri,
           version: '1',
           chainId: 1,
           nonce: signInOptions.nonce,
@@ -319,7 +335,9 @@ export function createMiniAppSdkHost(
         const params = new URLSearchParams();
         if (composeOptions.text) params.set('text', composeOptions.text);
         if (composeOptions.embeds?.length) {
-          composeOptions.embeds.forEach(embed => params.append('embeds[]', embed));
+          composeOptions.embeds.forEach((embed) => {
+            params.append('embeds[]', embed);
+          });
         }
         if (composeOptions.parentCastHash) params.set('parent', composeOptions.parentCastHash);
         window.open(`https://warpcast.com/~/compose?${params.toString()}`, '_blank');
@@ -408,7 +426,9 @@ export function createMiniAppSdkHost(
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         // Stop the stream immediately - we just wanted to request permission
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach((track) => {
+          track.stop();
+        });
         return true;
       } catch {
         return false;

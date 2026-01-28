@@ -367,7 +367,9 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      comlinkCleanups.current.forEach(cleanup => cleanup());
+      comlinkCleanups.current.forEach((cleanup) => {
+        cleanup();
+      });
       comlinkCleanups.current.clear();
     };
   }, []);
