@@ -1,8 +1,8 @@
 import React from "react";
 
-const NotificationsIcon = () => (
+const NotificationsIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
   <svg
-    className="w-6 h-6 text-current"
+    className={`${className} text-current`}
     aria-hidden="true"
     xmlns="http://www.w3.org/2000/svg"
     width="24"

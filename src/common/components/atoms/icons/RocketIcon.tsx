@@ -1,8 +1,8 @@
 import React from "react";
 
-const RocketIcon = () => (
+const RocketIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
   <svg
-    className="w-[24px] h-[24px] text-current"
+    className={`${className} text-current`}
     aria-hidden="true"
     xmlns="http://www.w3.org/2000/svg"
     width="24"

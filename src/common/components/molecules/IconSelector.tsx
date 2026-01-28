@@ -22,7 +22,7 @@ const ICON_PACK: Record<string, IconType> = {
   ...LuIcons,
 }
 
-const CUSTOM_NAV_ICONS: Record<string, React.FC> = {
+const CUSTOM_NAV_ICONS: Record<string, React.FC<{ className?: string }>> = {
   home: HomeIcon,
   explore: ExploreIcon,
   notifications: NotificationsIcon,
@@ -348,7 +348,7 @@ export function IconSelector({ onSelectIcon, triggerRef, onClose }: IconSelector
                   className="flex flex-col items-center justify-center p-2 hover:bg-gray-100 rounded-md"
                 >
                   <div className="w-8 h-8 bg-gray-100 rounded-md flex items-center justify-center mb-1">
-                    {CustomIcon ? <CustomIcon /> : ReactIcon ? <ReactIcon className="w-5 h-5" /> : icon.charAt(0)}
+                    {CustomIcon ? <CustomIcon className="w-5 h-5" /> : ReactIcon ? <ReactIcon className="w-5 h-5" /> : icon.charAt(0)}
                   </div>
                   <span className="text-xs text-gray-600 truncate w-full text-center">
                     {icon}
