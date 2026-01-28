@@ -8,7 +8,7 @@
 import { readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join, extname } from 'path';
-import { supabase, supabaseUrl } from './supabase';
+import { supabase } from './supabase';
 
 const IMAGES_BUCKET = 'images';
 
