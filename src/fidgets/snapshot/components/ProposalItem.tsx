@@ -46,10 +46,7 @@ const ProposalItem: React.FC<ProposalItemProps> = memo(
   ({ proposal, space, headingsFont, headingsColor, bodyFont, bodyColor }) => {
     const [visibleSection, setVisibleSection] = useState<string | undefined>();
 
-    const [state, dispatch] = useReducer<React.Reducer<State, Action>>(
-      reducer,
-      initialState
-    );
+    const [state, dispatch] = useReducer(reducer, initialState);
 
     // Get space quorum settings
     const spaceQuorum = useSpaceQuorum(space);
