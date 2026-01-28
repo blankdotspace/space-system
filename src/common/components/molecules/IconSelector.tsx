@@ -6,12 +6,27 @@ import * as BsIcons from 'react-icons/bs'
 import * as GiIcons from 'react-icons/gi'
 import type { IconType } from 'react-icons'
 import { DEFAULT_FIDGET_ICON_MAP } from '@/constants/mobileFidgetIcons'
+import HomeIcon from '@/common/components/atoms/icons/HomeIcon'
+import ExploreIcon from '@/common/components/atoms/icons/ExploreIcon'
+import NotificationsIcon from '@/common/components/atoms/icons/NotificationsIcon'
+import NavSearchIcon from '@/common/components/atoms/icons/SearchIcon'
+import RocketIcon from '@/common/components/atoms/icons/RocketIcon'
+import RobotIcon from '@/common/components/atoms/icons/RobotIcon'
 import ImgBBUploader from './ImgBBUploader'
 
 const ICON_PACK: Record<string, IconType> = {
   ...FaIcons,
   ...BsIcons,
   ...GiIcons,
+}
+
+const CUSTOM_NAV_ICONS: Record<string, React.FC> = {
+  home: HomeIcon,
+  explore: ExploreIcon,
+  notifications: NotificationsIcon,
+  search: NavSearchIcon,
+  space: RocketIcon,
+  robot: RobotIcon,
 }
 
 interface IconSelectorProps {
@@ -27,6 +42,14 @@ export function IconSelector({ onSelectIcon, triggerRef, onClose }: IconSelector
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   const iconLibrary = [
+    // Default navigation icons
+    'home',
+    'explore',
+    'notifications',
+    'search',
+    'space',
+    'robot',
+    // Core icons
     'FaRss',
     'FaVoteYea',
     'FaImage',
@@ -42,9 +65,44 @@ export function IconSelector({ onSelectIcon, triggerRef, onClose }: IconSelector
     'FaStar',
     'FaHeart',
     'FaShareNodes',
+    // Additional FontAwesome outlines
+    'FaCompass',
+    'FaMap',
+    'FaBookmark',
+    'FaComment',
+    'FaChartLine',
+    'FaCode',
+    'FaMusic',
+    'FaCamera',
+    'FaGamepad',
+    'FaPalette',
+    'FaGlobe',
+    'FaBriefcase',
+    'FaClock',
+    'FaDatabase',
+    'FaLightbulb',
+    'FaWallet',
+    'FaCircleUser',
+    'FaNewspaper',
+    'FaTag',
+    'FaLocationDot',
+    // Additional Bootstrap outlines
+    'BsGrid',
+    'BsColumnsGap',
+    'BsLayoutTextWindow',
+    'BsCollection',
+    'BsTrophy',
+    'BsDiamond',
+    'BsActivity',
+    'BsShield',
+    'BsEye',
+    'BsJoystick',
+    // Fidget icons
     ...Object.values(DEFAULT_FIDGET_ICON_MAP),
   ]
-  const uniqueIcons = Array.from(new Set(iconLibrary))
+  const uniqueIcons = Array.from(new Set(
+    iconLibrary.filter((icon) => !icon.includes('Fill') && !icon.includes('Solid'))
+  ))
   const filteredIcons = uniqueIcons.filter((icon) =>
     icon.toLowerCase().includes(searchTerm.toLowerCase()),
   )
@@ -130,7 +188,8 @@ export function IconSelector({ onSelectIcon, triggerRef, onClose }: IconSelector
         <div className="p-3 grid grid-cols-5 gap-2 overflow-auto max-h-[calc(100vh-100px)]" style={{ maxHeight: 'calc(100vh - 140px)' }}>
           {filteredIcons.length > 0 ? (
             filteredIcons.map((icon) => {
-              const Icon = ICON_PACK[icon] as IconType | undefined
+              const CustomIcon = CUSTOM_NAV_ICONS[icon]
+              const ReactIcon = ICON_PACK[icon] as IconType | undefined
               return (
                 <button
                   key={icon}
@@ -138,7 +197,7 @@ export function IconSelector({ onSelectIcon, triggerRef, onClose }: IconSelector
                   className="flex flex-col items-center justify-center p-2 hover:bg-gray-100 rounded-md"
                 >
                   <div className="w-8 h-8 bg-gray-100 rounded-md flex items-center justify-center mb-1">
-                    {Icon ? <Icon className="w-5 h-5" /> : icon.charAt(0)}
+                    {CustomIcon ? <CustomIcon /> : ReactIcon ? <ReactIcon className="w-5 h-5" /> : icon.charAt(0)}
                   </div>
                   <span className="text-xs text-gray-600 truncate w-full text-center">
                     {icon}

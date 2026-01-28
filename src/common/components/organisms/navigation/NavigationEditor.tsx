@@ -21,10 +21,23 @@ import {
 } from "@/common/utils/navUtils";
 import { NAVIGATION_MAX_LABEL_LENGTH } from "./constants";
 import { NavigationItem as NavItemComponent, NavigationButton } from "./NavigationItem";
+import HomeIcon from "@/common/components/atoms/icons/HomeIcon";
+import ExploreIcon from "@/common/components/atoms/icons/ExploreIcon";
 import NotificationsIcon from "@/common/components/atoms/icons/NotificationsIcon";
 import SearchIcon from "@/common/components/atoms/icons/SearchIcon";
+import RocketIcon from "@/common/components/atoms/icons/RocketIcon";
+import RobotIcon from "@/common/components/atoms/icons/RobotIcon";
 import LogoutIcon from "@/common/components/atoms/icons/LogoutIcon";
 import LoginIcon from "@/common/components/atoms/icons/LoginIcon";
+
+const LEGACY_ICONS: Record<string, React.FC> = {
+  home: HomeIcon,
+  explore: ExploreIcon,
+  notifications: NotificationsIcon,
+  search: SearchIcon,
+  space: RocketIcon,
+  robot: RobotIcon,
+};
 import { AnalyticsEvent } from "@/common/constants/analyticsEvents";
 import { trackAnalyticsEvent } from "@/common/lib/utils/analyticsUtils";
 
@@ -117,6 +130,12 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
       return (
         <div className="w-5 h-5 bg-gray-100 flex items-center justify-center rounded">?</div>
       );
+    }
+
+    // Handle legacy navigation icon keys (home, explore, etc.)
+    const LegacyIcon = LEGACY_ICONS[iconName];
+    if (LegacyIcon) {
+      return <LegacyIcon />;
     }
 
     // Handle custom icon URLs

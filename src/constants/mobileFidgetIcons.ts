@@ -2,7 +2,7 @@ export const DEFAULT_FIDGET_ICON_MAP: Record<string, string> = {
   frame: 'BsAspectRatio',
   cast: 'BsPin',
   feed: 'BsChatRightHeart',
-  SnapShot: 'BsFillLightningChargeFill',
+  SnapShot: 'BsLightningCharge',
   iframe: 'BsCloud',
   FramesV2: 'BsCloud',
   links: 'BsLink45Deg',
