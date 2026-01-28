@@ -1,0 +1,24 @@
+{
+  "id": "SYSTEMS/DISCOVERY/MINI_APP_DISCOVERY_SYSTEM",
+  "title": "Neynar Mini Apps Integration",
+  "description": "A streamlined Mini App integration that leverages the official Neynar Mini Apps Catalog API for high-quality, curated Farcaster Frame and Mini App discovery.",
+  "source": "@site/../docs/SYSTEMS/DISCOVERY/MINI_APP_DISCOVERY_SYSTEM.md",
+  "sourceDirName": "SYSTEMS/DISCOVERY",
+  "slug": "/SYSTEMS/DISCOVERY/MINI_APP_DISCOVERY_SYSTEM",
+  "permalink": "/space-system/docs/SYSTEMS/DISCOVERY/MINI_APP_DISCOVERY_SYSTEM",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/SYSTEMS/DISCOVERY/MINI_APP_DISCOVERY_SYSTEM.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Theme System Overview",
+    "permalink": "/space-system/docs/SYSTEMS/THEMES/OVERVIEW"
+  },
+  "next": {
+    "title": "Supabase Integration",
+    "permalink": "/space-system/docs/INTEGRATIONS/SUPABASE"
+  }
+}

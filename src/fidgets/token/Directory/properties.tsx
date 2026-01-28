@@ -404,6 +404,42 @@ export const directoryProperties: FidgetProperties<DirectoryFidgetSettings> = {
       ),
       group: "style",
     },
+    {
+      fieldName: "buttonColor",
+      displayName: "Button Color",
+      displayNameHint: "Background color for the Follow button.",
+      default: "",
+      required: false,
+      inputSelector: (props) => (
+        <WithMargin>
+          <ThemeColorSelector
+            {...props}
+            themeVariable=""
+            defaultColor="#3b82f6"
+            colorType="background"
+          />
+        </WithMargin>
+      ),
+      group: "style",
+    },
+    {
+      fieldName: "buttonFontColor",
+      displayName: "Button Font Color",
+      displayNameHint: "Text color for the Follow button.",
+      default: "",
+      required: false,
+      inputSelector: (props) => (
+        <WithMargin>
+          <ThemeColorSelector
+            {...props}
+            themeVariable=""
+            defaultColor="#ffffff"
+            colorType="font color"
+          />
+        </WithMargin>
+      ),
+      group: "style",
+    },
     ...styleFields,
   ],
   size: {

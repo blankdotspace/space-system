@@ -32,6 +32,7 @@ export type DirectoryListViewProps = {
   settings: DirectoryFidgetSettings;
   tokenSymbol?: string | null;
   headingTextStyle: React.CSSProperties;
+  secondaryFontFamily: string;
   network: DirectoryNetwork;
   includeFilter: DirectoryIncludeOption;
   viewerFid: number;
@@ -43,6 +44,7 @@ export const DirectoryListView: React.FC<DirectoryListViewProps> = ({
   settings,
   tokenSymbol,
   headingTextStyle,
+  secondaryFontFamily,
   network,
   includeFilter,
   viewerFid,
@@ -126,6 +128,9 @@ export const DirectoryListView: React.FC<DirectoryListViewProps> = ({
                 viewerFid={viewerFid}
                 signer={signer}
                 className="px-3 py-1 text-xs font-semibold"
+                buttonColor={settings.buttonColor}
+                buttonFontColor={settings.buttonFontColor}
+                buttonFontFamily={secondaryFontFamily}
               />
               <div className="flex flex-col items-end gap-1 text-right text-xs text-muted-foreground">
                 {(settings.source ?? "tokenHolders") === "tokenHolders" && (

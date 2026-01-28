@@ -134,7 +134,35 @@ const Navigation = React.memo(
   };
 
   const [shrunk, setShrunk] = useState(mobile ? false : true);
+  const [isExpandTransitioning, setIsExpandTransitioning] = useState(false);
   const forcedExpansionRef = useRef(false);
+  const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Track when sidebar is expanding (shrunk -> expanded) to delay text appearance
+  useEffect(() => {
+    // Clear any existing timeout
+    if (transitionTimeoutRef.current) {
+      clearTimeout(transitionTimeoutRef.current);
+    }
+
+    if (!shrunk && !mobile) {
+      // Sidebar is expanding - set transitioning state
+      setIsExpandTransitioning(true);
+      // Clear transitioning state after animation completes (300ms)
+      transitionTimeoutRef.current = setTimeout(() => {
+        setIsExpandTransitioning(false);
+      }, 300);
+    } else {
+      // Sidebar is collapsing or mobile - no transition delay needed
+      setIsExpandTransitioning(false);
+    }
+
+    return () => {
+      if (transitionTimeoutRef.current) {
+        clearTimeout(transitionTimeoutRef.current);
+      }
+    };
+  }, [shrunk, mobile]);
 
   // Force sidebar to remain expanded while in navigation edit mode
   // Use a ref to track if we've already forced expansion in this edit session
@@ -158,6 +186,10 @@ const Navigation = React.memo(
     if (mobile || navEditMode) return; // Disable toggle during navigation edit mode
     setShrunk((prev) => !prev);
   };
+
+  // Text visibility: hidden when shrunk OR during expand transition
+  // This prevents text from appearing until the sidebar animation completes
+  const showExpandedText = !shrunk && !isExpandTransitioning;
 
   const router = useRouter();
 
@@ -546,8 +578,8 @@ const Navigation = React.memo(
           </div>
           <div
             className={mergeClasses(
-              "flex flex-col text-lg font-medium pb-3 px-4 overflow-auto transition-all duration-300 pt-[18px]",
-              shrunk ? "px-1" : "px-4"
+              "flex flex-col text-lg font-medium pb-3 overflow-auto transition-all duration-300 pt-[18px]",
+              shrunk ? "px-1" : "pl-1 pr-4"
             )}
           >
             <div className="flex-auto">
@@ -607,6 +639,7 @@ const Navigation = React.memo(
                         shrunk={shrunk}
                         systemConfig={systemConfig}
                         onNavigate={onNavigate}
+                        showText={showExpandedText}
                       />
                     );
                   })}
@@ -620,6 +653,7 @@ const Navigation = React.memo(
                       shrunk={shrunk}
                       systemConfig={systemConfig}
                       onNavigate={onNavigate}
+                      showText={showExpandedText}
                     />
                   )}
                 <NavigationButton
@@ -631,6 +665,7 @@ const Navigation = React.memo(
                   }}
                   shrunk={shrunk}
                   systemConfig={systemConfig}
+                  showText={showExpandedText}
                 />
                 {isLoggedIn && (
                   <NavItemComponent
@@ -643,6 +678,7 @@ const Navigation = React.memo(
                     shrunk={shrunk}
                     systemConfig={systemConfig}
                     onNavigate={onNavigate}
+                    showText={showExpandedText}
                   />
                 )}
                 {isLoggedIn && (
@@ -652,6 +688,7 @@ const Navigation = React.memo(
                     onClick={handleLogout}
                     shrunk={shrunk}
                     systemConfig={systemConfig}
+                    showText={showExpandedText}
                   />
                 )}
                 {!isLoggedIn && (
@@ -661,6 +698,7 @@ const Navigation = React.memo(
                     onClick={openModal}
                     shrunk={shrunk}
                     systemConfig={systemConfig}
+                    showText={showExpandedText}
                   />
                 )}
                 {/* Edit Navigation Button - only show if user is admin */}
@@ -669,7 +707,7 @@ const Navigation = React.memo(
                     label={navEditMode ? "Exit Edit" : "Edit Nav"}
                     Icon={navEditMode ? LogoutIcon : () => (
                       <div className="w-6 h-6 flex items-center justify-center">
-                        <FaPencil className="w-4 h-4 text-gray-800 dark:text-white" />
+                        <FaPencil className="w-4 h-4" />
                       </div>
                     )}
                     onClick={() => {
@@ -677,6 +715,7 @@ const Navigation = React.memo(
                     }}
                     shrunk={shrunk}
                     systemConfig={systemConfig}
+                    showText={showExpandedText}
                   />
                 )}
               </ul>
@@ -792,8 +831,15 @@ const Navigation = React.memo(
                       e.currentTarget.style.backgroundColor = castButtonColors.hoverColor;
                     }}
                   >
-                    {shrunk ? <span className="sr-only">Cast</span> : "Cast"}
-                    {shrunk && (
+                    <span
+                      className={mergeClasses(
+                        "transition-opacity duration-200",
+                        showExpandedText ? "opacity-100" : "opacity-0 invisible absolute"
+                      )}
+                    >
+                      Cast
+                    </span>
+                    {!showExpandedText && (
                       <span className="text-lg font-bold">
                         <RiQuillPenLine />
                       </span>
@@ -807,20 +853,26 @@ const Navigation = React.memo(
                 {navigation?.showSocials !== false && (
                   <Link
                     href={discordUrl}
-                    className={mergeClasses(
-                      "flex items-center p-2 text-gray-900 rounded-lg dark:text-white group w-full gap-2 text-lg font-medium",
-                      shrunk ? "justify-center gap-0" : ""
-                    )}
+                    className="flex items-center p-0 text-inherit rounded-lg dark:text-white group w-full text-lg font-medium hover:bg-gray-100 dark:hover:bg-gray-700 min-h-[40px]"
                     style={navTextStyle}
                     rel="noopener noreferrer"
                     target="_blank"
                   >
-                    <FaDiscord className="text-[#5865f2] w-6 h-6" />
-                    {!shrunk && "Join"}
+                    <div className="w-[82px] flex justify-center shrink-0">
+                      <FaDiscord className="text-[#5865f2] w-6 h-6" />
+                    </div>
+                    <span
+                      className={mergeClasses(
+                        "whitespace-nowrap transition-opacity duration-200 -ml-3",
+                        showExpandedText ? "opacity-100" : "opacity-0 invisible"
+                      )}
+                    >
+                      Join
+                    </span>
                   </Link>
                 )}
                 <div
-                  className="flex flex-col items-center text-xs text-gray-500 mt-5"
+                  className="flex flex-col items-center text-xs text-inherit mt-5"
                   style={navTextStyle}
                 >
                   <Link href="/terms" className="hover:underline">

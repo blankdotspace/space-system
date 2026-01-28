@@ -1,0 +1,24 @@
+{
+  "id": "SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW",
+  "title": "Architecture Overview",
+  "description": "Executive Summary",
+  "source": "@site/../docs/SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW.md",
+  "sourceDirName": "SYSTEMS/CONFIGURATION",
+  "slug": "/SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW",
+  "permalink": "/space-system/docs/SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Fidget Data Field Patterns",
+    "permalink": "/space-system/docs/SYSTEMS/FIDGETS/DATA_FIELD_PATTERNS"
+  },
+  "next": {
+    "title": "Navigation System Overview",
+    "permalink": "/space-system/docs/SYSTEMS/NAVIGATION/OVERVIEW"
+  }
+}

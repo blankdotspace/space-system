@@ -35,6 +35,8 @@ export interface NavigationItemProps {
   shrunk?: boolean;
   systemConfig: SystemConfig;
   onNavigate?: () => void;
+  /** Controls whether text label is shown (for delayed appearance after sidebar expands) */
+  showText?: boolean;
 }
 
 const NavigationItemComponent: React.FC<NavigationItemProps> = ({
@@ -48,7 +50,10 @@ const NavigationItemComponent: React.FC<NavigationItemProps> = ({
   shrunk = false,
   systemConfig,
   onNavigate,
+  showText,
 }) => {
+  // Show text if explicitly set, otherwise fall back to !shrunk for backwards compatibility
+  const shouldShowText = showText !== undefined ? showText : !shrunk;
   const router = useRouter();
   const pathname = usePathname();
 
@@ -113,9 +118,8 @@ const NavigationItemComponent: React.FC<NavigationItemProps> = ({
       <Link
         href={disable ? "#" : href}
         className={mergeClasses(
-          "flex relative items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 w-full group",
-          isSelected ? "bg-gray-100" : "",
-          shrunk ? "justify-center" : "",
+          "flex relative items-center p-0 text-inherit rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 w-full group min-h-[40px]",
+          isSelected ? "bg-[rgba(128,128,128,0.2)]" : "",
           disable ? "opacity-50 cursor-not-allowed pointer-events-none" : ""
         )}
         onClick={handleClick}
@@ -126,9 +130,20 @@ const NavigationItemComponent: React.FC<NavigationItemProps> = ({
         aria-current={isSelected ? "page" : undefined}
         tabIndex={disable ? -1 : 0}
       >
-        {badgeText && <NavIconBadge systemConfig={systemConfig}>{badgeText}</NavIconBadge>}
-        <Icon aria-hidden="true" />
-        {!shrunk && <span className="ms-3 relative z-10">{label}</span>}
+        {/* Fixed-width icon container matching condensed sidebar - icons always centered here */}
+        <div className="w-[82px] flex justify-center shrink-0 relative">
+          {badgeText && <NavIconBadge systemConfig={systemConfig}>{badgeText}</NavIconBadge>}
+          <Icon aria-hidden="true" />
+        </div>
+        {/* Text overlays icon container with negative margin, fades in after sidebar expands */}
+        <span
+          className={mergeClasses(
+            "relative z-10 whitespace-nowrap transition-opacity duration-200 -ml-3",
+            shouldShowText ? "opacity-100" : "opacity-0 invisible"
+          )}
+        >
+          {label}
+        </span>
       </Link>
     </li>
   );
@@ -153,6 +168,7 @@ export const NavigationItem = React.memo(
       prevProps.disable === nextProps.disable &&
       prevProps.openInNewTab === nextProps.openInNewTab &&
       prevProps.badgeText === nextProps.badgeText &&
+      prevProps.showText === nextProps.showText &&
       // Compare systemConfig by stable communityId instead of object reference
       prevProps.systemConfig.communityId === nextProps.systemConfig.communityId
     );
@@ -167,6 +183,8 @@ export interface NavigationButtonProps {
   badgeText?: string | null;
   shrunk?: boolean;
   systemConfig: SystemConfig;
+  /** Controls whether text label is shown (for delayed appearance after sidebar expands) */
+  showText?: boolean;
 }
 
 const NavigationButtonComponent: React.FC<NavigationButtonProps> = ({
@@ -177,7 +195,10 @@ const NavigationButtonComponent: React.FC<NavigationButtonProps> = ({
   badgeText = null,
   shrunk = false,
   systemConfig,
+  showText,
 }) => {
+  // Show text if explicitly set, otherwise fall back to !shrunk for backwards compatibility
+  const shouldShowText = showText !== undefined ? showText : !shrunk;
   /**
    * Handles keyboard navigation for accessibility
    */
@@ -202,9 +223,8 @@ const NavigationButtonComponent: React.FC<NavigationButtonProps> = ({
       <button
         disabled={disable}
         className={mergeClasses(
-          "flex relative items-center p-2 text-gray-900 rounded-lg dark:text-white w-full group",
+          "flex relative items-center p-0 text-inherit rounded-lg dark:text-white w-full group min-h-[40px]",
           "hover:bg-gray-100 dark:hover:bg-gray-700",
-          shrunk ? "justify-center" : "",
           disable ? "opacity-50 cursor-not-allowed pointer-events-none" : ""
         )}
         onClick={onClick}
@@ -212,9 +232,20 @@ const NavigationButtonComponent: React.FC<NavigationButtonProps> = ({
         aria-label={shrunk ? label : undefined}
         tabIndex={disable ? -1 : 0}
       >
-        {badgeText && <NavIconBadge systemConfig={systemConfig}>{badgeText}</NavIconBadge>}
-        <Icon aria-hidden="true" />
-        {!shrunk && <span className="ms-3 relative z-10">{label}</span>}
+        {/* Fixed-width icon container matching condensed sidebar - icons always centered here */}
+        <div className="w-[82px] flex justify-center shrink-0 relative">
+          {badgeText && <NavIconBadge systemConfig={systemConfig}>{badgeText}</NavIconBadge>}
+          <Icon aria-hidden="true" />
+        </div>
+        {/* Text overlays icon container with negative margin, fades in after sidebar expands */}
+        <span
+          className={mergeClasses(
+            "relative z-10 whitespace-nowrap transition-opacity duration-200 -ml-3",
+            shouldShowText ? "opacity-100" : "opacity-0 invisible"
+          )}
+        >
+          {label}
+        </span>
       </button>
     </li>
   );
@@ -236,9 +267,9 @@ export const NavigationButton = React.memo(
       prevProps.shrunk === nextProps.shrunk &&
       prevProps.disable === nextProps.disable &&
       prevProps.badgeText === nextProps.badgeText &&
+      prevProps.showText === nextProps.showText &&
       // Compare systemConfig by stable communityId instead of object reference
       prevProps.systemConfig.communityId === nextProps.systemConfig.communityId
     );
   }
 );
-

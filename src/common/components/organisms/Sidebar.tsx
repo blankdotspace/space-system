@@ -18,7 +18,7 @@ export type SidebarContextValue = {
   navEditMode: boolean;
   setNavEditMode: React.Dispatch<React.SetStateAction<boolean>>;
   sidebarEditable: boolean;
-  setSidebarEditable: React.Dispatch<React.SetStateAction<boolean>>;
+  setSidebarEditable: (value: boolean) => void;
   portalRef: React.RefObject<HTMLDivElement | null>;
 };
 

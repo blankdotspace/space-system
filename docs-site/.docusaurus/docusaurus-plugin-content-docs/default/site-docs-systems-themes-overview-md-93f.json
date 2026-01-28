@@ -1,0 +1,24 @@
+{
+  "id": "SYSTEMS/THEMES/OVERVIEW",
+  "title": "Theme System Overview",
+  "description": "The theme system in Blankspace provides comprehensive visual customization capabilities, allowing users to personalize their spaces with custom colors, fonts, layouts, and interactive elements.",
+  "source": "@site/../docs/SYSTEMS/THEMES/OVERVIEW.md",
+  "sourceDirName": "SYSTEMS/THEMES",
+  "slug": "/SYSTEMS/THEMES/OVERVIEW",
+  "permalink": "/space-system/docs/SYSTEMS/THEMES/OVERVIEW",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/SYSTEMS/THEMES/OVERVIEW.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Navigation System Overview",
+    "permalink": "/space-system/docs/SYSTEMS/NAVIGATION/OVERVIEW"
+  },
+  "next": {
+    "title": "Neynar Mini Apps Integration",
+    "permalink": "/space-system/docs/SYSTEMS/DISCOVERY/MINI_APP_DISCOVERY_SYSTEM"
+  }
+}

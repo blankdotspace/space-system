@@ -1,0 +1,24 @@
+{
+  "id": "DEVELOPMENT/AGENTS",
+  "title": "Blankspace Codex Instructions",
+  "description": "Project Snapshot",
+  "source": "@site/../docs/DEVELOPMENT/AGENTS.md",
+  "sourceDirName": "DEVELOPMENT",
+  "slug": "/DEVELOPMENT/AGENTS",
+  "permalink": "/space-system/docs/DEVELOPMENT/AGENTS",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/DEVELOPMENT/AGENTS.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Debugging Guide",
+    "permalink": "/space-system/docs/DEVELOPMENT/DEBUGGING"
+  },
+  "next": {
+    "title": "Blankspace Layout & Mobile Navbar Refactor",
+    "permalink": "/space-system/docs/DEVELOPMENT/DEVELOPMENT_NOTES"
+  }
+}

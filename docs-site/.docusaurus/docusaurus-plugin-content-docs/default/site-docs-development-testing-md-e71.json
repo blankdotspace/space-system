@@ -1,0 +1,24 @@
+{
+  "id": "DEVELOPMENT/TESTING",
+  "title": "Testing Guide",
+  "description": "This guide covers testing strategies, patterns, and best practices for the Blankspace codebase to ensure code quality and reliability.",
+  "source": "@site/../docs/DEVELOPMENT/TESTING.md",
+  "sourceDirName": "DEVELOPMENT",
+  "slug": "/DEVELOPMENT/TESTING",
+  "permalink": "/space-system/docs/DEVELOPMENT/TESTING",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/DEVELOPMENT/TESTING.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Component Architecture",
+    "permalink": "/space-system/docs/DEVELOPMENT/COMPONENT_ARCHITECTURE"
+  },
+  "next": {
+    "title": "Debugging Guide",
+    "permalink": "/space-system/docs/DEVELOPMENT/DEBUGGING"
+  }
+}

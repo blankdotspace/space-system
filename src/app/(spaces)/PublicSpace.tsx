@@ -57,6 +57,8 @@ export default function PublicSpace({
     registerSpaceContract,
     registerProposalSpace,
     registerChannelSpace,
+    isTabLoading,
+    isTabChecked,
   } = useAppStore((state) => ({
     clearLocalSpaces: state.clearLocalSpaces,
     getCurrentSpaceId: state.currentSpace.getCurrentSpaceId,
@@ -82,6 +84,8 @@ export default function PublicSpace({
     registerSpaceContract: state.space.registerSpaceContract,
     registerProposalSpace: state.space.registerProposalSpace,
     registerChannelSpace: state.space.registerChannelSpace,
+    isTabLoading: state.space.isTabLoading,
+    isTabChecked: state.space.isTabChecked,
   }));
 
   const router = useRouter();
@@ -174,15 +178,42 @@ export default function PublicSpace({
 
   // Config logic:
   // - If we have currentTabName and the tab is loaded in store, use it
-  // - If we don't have currentSpaceId (viewing someone else's space), use default config
-  // - Otherwise, return undefined to trigger Suspense while loading
-  const config = currentTabName && currentConfig?.tabs?.[currentTabName] ? {
-    ...currentConfig.tabs[currentTabName],
+  // - If we're still loading from the database, return undefined to trigger Suspense/skeleton
+  // - If we've checked and no data exists, use the default config
+  const config = useMemo(() => {
+    // If tab data is loaded in the store, use it
+    if (currentTabName && currentConfig?.tabs?.[currentTabName]) {
+      return {
+        ...currentConfig.tabs[currentTabName],
+        isEditable,
+      };
+    }
+
+    // If we have a spaceId and haven't finished checking the database yet, show loading
+    if (currentSpaceId && currentTabName) {
+      const loading = isTabLoading(currentSpaceId, currentTabName);
+      const checked = isTabChecked(currentSpaceId, currentTabName);
+
+      // Still loading - return undefined to show skeleton
+      if (loading || !checked) {
+        return undefined;
+      }
+    }
+
+    // Tab has been checked and no data exists - use default config
+    return {
+      ...spacePageData.config,
+      isEditable,
+    };
+  }, [
+    currentTabName,
+    currentConfig,
+    currentSpaceId,
+    isTabLoading,
+    isTabChecked,
+    spacePageData.config,
     isEditable,
-  } : {
-    ...spacePageData.config,
-    isEditable,
-  };
+  ]);
 
   // Register the space if it doesn't exist
   useEffect(() => {

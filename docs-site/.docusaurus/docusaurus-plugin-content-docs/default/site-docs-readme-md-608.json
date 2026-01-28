@@ -1,0 +1,20 @@
+{
+  "id": "README",
+  "title": "Blankspace Documentation",
+  "description": "Blankspace is a platform where communities build their home on Farcaster.",
+  "source": "@site/../docs/README.md",
+  "sourceDirName": ".",
+  "slug": "/",
+  "permalink": "/space-system/docs/",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/README.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "next": {
+    "title": "Getting Started",
+    "permalink": "/space-system/docs/GETTING_STARTED"
+  }
+}

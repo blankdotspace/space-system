@@ -12,7 +12,7 @@ import {
   renderSingleChoiceVotingUI,
   renderWeightedVotingUI,
 } from "../utils/renderVotingUI";
-import { Action, initialState, reducer, State } from "../utils/stateManagement";
+import { initialState, reducer } from "../utils/stateManagement";
 import voteOnProposal, { ProposalType } from "../utils/voteOnProposal";
 
 import { resolveIpfsUrl } from "@/common/lib/utils/url";
@@ -46,10 +46,7 @@ const ProposalItem: React.FC<ProposalItemProps> = memo(
   ({ proposal, space, headingsFont, headingsColor, bodyFont, bodyColor }) => {
     const [visibleSection, setVisibleSection] = useState<string | undefined>();
 
-    const [state, dispatch] = useReducer(
-      reducer,
-      initialState
-    );
+    const [state, dispatch] = useReducer(reducer, initialState);
 
     // Get space quorum settings
     const spaceQuorum = useSpaceQuorum(space);

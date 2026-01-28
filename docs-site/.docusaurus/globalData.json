@@ -1,0 +1,172 @@
+{
+  "docusaurus-plugin-content-docs": {
+    "default": {
+      "path": "/space-system/docs",
+      "versions": [
+        {
+          "name": "current",
+          "label": "Next",
+          "isLast": true,
+          "path": "/space-system/docs",
+          "mainDocId": "README",
+          "docs": [
+            {
+              "id": "ARCHITECTURE/AUTHENTICATION",
+              "path": "/space-system/docs/ARCHITECTURE/AUTHENTICATION",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "ARCHITECTURE/OVERVIEW",
+              "path": "/space-system/docs/ARCHITECTURE/OVERVIEW",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "ARCHITECTURE/STATE_MANAGEMENT",
+              "path": "/space-system/docs/ARCHITECTURE/STATE_MANAGEMENT",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "CONTRIBUTING",
+              "path": "/space-system/docs/CONTRIBUTING",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "DEVELOPMENT/AGENTS",
+              "path": "/space-system/docs/DEVELOPMENT/AGENTS",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "DEVELOPMENT/CODING_STANDARDS",
+              "path": "/space-system/docs/DEVELOPMENT/CODING_STANDARDS",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "DEVELOPMENT/COMPONENT_ARCHITECTURE",
+              "path": "/space-system/docs/DEVELOPMENT/COMPONENT_ARCHITECTURE",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "DEVELOPMENT/DEBUGGING",
+              "path": "/space-system/docs/DEVELOPMENT/DEBUGGING",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "DEVELOPMENT/DEVELOPMENT_GUIDE",
+              "path": "/space-system/docs/DEVELOPMENT/DEVELOPMENT_GUIDE",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "DEVELOPMENT/DEVELOPMENT_NOTES",
+              "path": "/space-system/docs/DEVELOPMENT/DEVELOPMENT_NOTES",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "DEVELOPMENT/TESTING",
+              "path": "/space-system/docs/DEVELOPMENT/TESTING",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "DOCUMENTATION_OVERVIEW",
+              "path": "/space-system/docs/DOCUMENTATION_OVERVIEW"
+            },
+            {
+              "id": "GETTING_STARTED",
+              "path": "/space-system/docs/GETTING_STARTED",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "INTEGRATIONS/FARCASTER",
+              "path": "/space-system/docs/INTEGRATIONS/FARCASTER",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "INTEGRATIONS/SUPABASE",
+              "path": "/space-system/docs/INTEGRATIONS/SUPABASE",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "PROJECT_STRUCTURE",
+              "path": "/space-system/docs/PROJECT_STRUCTURE",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "README",
+              "path": "/space-system/docs/",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW",
+              "path": "/space-system/docs/SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "SYSTEMS/DISCOVERY/MINI_APP_DISCOVERY_SYSTEM",
+              "path": "/space-system/docs/SYSTEMS/DISCOVERY/MINI_APP_DISCOVERY_SYSTEM",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "SYSTEMS/FIDGETS/DATA_FIELD_PATTERNS",
+              "path": "/space-system/docs/SYSTEMS/FIDGETS/DATA_FIELD_PATTERNS",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "SYSTEMS/FIDGETS/FIDGET_PICKER",
+              "path": "/space-system/docs/SYSTEMS/FIDGETS/FIDGET_PICKER",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "SYSTEMS/FIDGETS/OVERVIEW",
+              "path": "/space-system/docs/SYSTEMS/FIDGETS/OVERVIEW",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "SYSTEMS/NAVIGATION/OVERVIEW",
+              "path": "/space-system/docs/SYSTEMS/NAVIGATION/OVERVIEW",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "SYSTEMS/SPACES/LAYOUT_MIGRATION_GUIDE",
+              "path": "/space-system/docs/SYSTEMS/SPACES/LAYOUT_MIGRATION_GUIDE",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "SYSTEMS/SPACES/MULTIPLE_LAYOUTS_OVERVIEW",
+              "path": "/space-system/docs/SYSTEMS/SPACES/MULTIPLE_LAYOUTS_OVERVIEW",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "SYSTEMS/SPACES/OVERVIEW",
+              "path": "/space-system/docs/SYSTEMS/SPACES/OVERVIEW",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "SYSTEMS/SPACES/PUBLIC_SPACES_PATTERN",
+              "path": "/space-system/docs/SYSTEMS/SPACES/PUBLIC_SPACES_PATTERN",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "SYSTEMS/SPACES/SPACE_ARCHITECTURE",
+              "path": "/space-system/docs/SYSTEMS/SPACES/SPACE_ARCHITECTURE",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "SYSTEMS/THEMES/OVERVIEW",
+              "path": "/space-system/docs/SYSTEMS/THEMES/OVERVIEW",
+              "sidebar": "docsSidebar"
+            }
+          ],
+          "draftIds": [],
+          "sidebars": {
+            "docsSidebar": {
+              "link": {
+                "path": "/space-system/docs/",
+                "label": "Introduction"
+              }
+            }
+          }
+        }
+      ],
+      "breadcrumbs": true
+    }
+  }
+}

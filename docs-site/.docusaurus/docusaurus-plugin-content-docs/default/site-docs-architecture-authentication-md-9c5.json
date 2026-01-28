@@ -1,0 +1,24 @@
+{
+  "id": "ARCHITECTURE/AUTHENTICATION",
+  "title": "Authentication System",
+  "description": "The Blankspace authentication system combines Privy for wallet-based authentication with Farcaster for social identity, creating a seamless Web3 social experience.",
+  "source": "@site/../docs/ARCHITECTURE/AUTHENTICATION.md",
+  "sourceDirName": "ARCHITECTURE",
+  "slug": "/ARCHITECTURE/AUTHENTICATION",
+  "permalink": "/space-system/docs/ARCHITECTURE/AUTHENTICATION",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/ARCHITECTURE/AUTHENTICATION.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Architecture Overview",
+    "permalink": "/space-system/docs/ARCHITECTURE/OVERVIEW"
+  },
+  "next": {
+    "title": "State Management Architecture",
+    "permalink": "/space-system/docs/ARCHITECTURE/STATE_MANAGEMENT"
+  }
+}

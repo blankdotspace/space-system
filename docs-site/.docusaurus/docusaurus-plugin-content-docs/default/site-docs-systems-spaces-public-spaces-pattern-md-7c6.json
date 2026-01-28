@@ -1,0 +1,24 @@
+{
+  "id": "SYSTEMS/SPACES/PUBLIC_SPACES_PATTERN",
+  "title": "Public Spaces Pattern",
+  "description": "This document describes the architectural pattern used for public spaces in Nounspace, including how different space types are structured and how common functionality is shared.",
+  "source": "@site/../docs/SYSTEMS/SPACES/PUBLIC_SPACES_PATTERN.md",
+  "sourceDirName": "SYSTEMS/SPACES",
+  "slug": "/SYSTEMS/SPACES/PUBLIC_SPACES_PATTERN",
+  "permalink": "/space-system/docs/SYSTEMS/SPACES/PUBLIC_SPACES_PATTERN",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/SYSTEMS/SPACES/PUBLIC_SPACES_PATTERN.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Blankspace Architecture Documentation",
+    "permalink": "/space-system/docs/SYSTEMS/SPACES/SPACE_ARCHITECTURE"
+  },
+  "next": {
+    "title": "Multiple Layouts System Documentation",
+    "permalink": "/space-system/docs/SYSTEMS/SPACES/MULTIPLE_LAYOUTS_OVERVIEW"
+  }
+}

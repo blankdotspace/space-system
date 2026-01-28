@@ -1,0 +1,24 @@
+{
+  "id": "GETTING_STARTED",
+  "title": "Getting Started",
+  "description": "This guide walks you through setting up Blankspace for local development, including database setup and seeding.",
+  "source": "@site/../docs/GETTING_STARTED.md",
+  "sourceDirName": ".",
+  "slug": "/GETTING_STARTED",
+  "permalink": "/space-system/docs/GETTING_STARTED",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/GETTING_STARTED.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Introduction",
+    "permalink": "/space-system/docs/"
+  },
+  "next": {
+    "title": "Project Structure",
+    "permalink": "/space-system/docs/PROJECT_STRUCTURE"
+  }
+}

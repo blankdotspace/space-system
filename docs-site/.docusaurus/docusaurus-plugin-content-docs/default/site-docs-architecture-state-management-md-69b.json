@@ -1,0 +1,24 @@
+{
+  "id": "ARCHITECTURE/STATE_MANAGEMENT",
+  "title": "State Management Architecture",
+  "description": "Blankspace uses a sophisticated Zustand-based state management system with store composition, persistence, and optimistic updates.",
+  "source": "@site/../docs/ARCHITECTURE/STATE_MANAGEMENT.md",
+  "sourceDirName": "ARCHITECTURE",
+  "slug": "/ARCHITECTURE/STATE_MANAGEMENT",
+  "permalink": "/space-system/docs/ARCHITECTURE/STATE_MANAGEMENT",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/ARCHITECTURE/STATE_MANAGEMENT.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Authentication System",
+    "permalink": "/space-system/docs/ARCHITECTURE/AUTHENTICATION"
+  },
+  "next": {
+    "title": "Spaces",
+    "permalink": "/space-system/docs/SYSTEMS/SPACES/OVERVIEW"
+  }
+}

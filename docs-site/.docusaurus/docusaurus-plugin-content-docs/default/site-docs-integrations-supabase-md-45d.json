@@ -1,0 +1,24 @@
+{
+  "id": "INTEGRATIONS/SUPABASE",
+  "title": "Supabase Integration",
+  "description": "Blankspace uses Supabase for database management, authentication, and file storage, providing a scalable backend infrastructure.",
+  "source": "@site/../docs/INTEGRATIONS/SUPABASE.md",
+  "sourceDirName": "INTEGRATIONS",
+  "slug": "/INTEGRATIONS/SUPABASE",
+  "permalink": "/space-system/docs/INTEGRATIONS/SUPABASE",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/INTEGRATIONS/SUPABASE.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Neynar Mini Apps Integration",
+    "permalink": "/space-system/docs/SYSTEMS/DISCOVERY/MINI_APP_DISCOVERY_SYSTEM"
+  },
+  "next": {
+    "title": "Farcaster Integration",
+    "permalink": "/space-system/docs/INTEGRATIONS/FARCASTER"
+  }
+}

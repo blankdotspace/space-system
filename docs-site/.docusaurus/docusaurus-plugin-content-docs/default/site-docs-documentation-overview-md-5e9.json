@@ -1,0 +1,15 @@
+{
+  "id": "DOCUMENTATION_OVERVIEW",
+  "title": "Documentation Overview",
+  "description": "This document provides an overview of the Blankspace documentation structure and organization.",
+  "source": "@site/../docs/DOCUMENTATION_OVERVIEW.md",
+  "sourceDirName": ".",
+  "slug": "/DOCUMENTATION_OVERVIEW",
+  "permalink": "/space-system/docs/DOCUMENTATION_OVERVIEW",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/blankdotspace/space-system/tree/main/../docs/DOCUMENTATION_OVERVIEW.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

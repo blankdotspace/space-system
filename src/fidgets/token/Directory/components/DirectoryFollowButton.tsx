@@ -9,6 +9,9 @@ export type DirectoryFollowButtonProps = {
   viewerFid: number;
   signer: Parameters<typeof followUser>[2] | undefined;
   className?: string;
+  buttonColor?: string;
+  buttonFontColor?: string;
+  buttonFontFamily?: string;
 };
 
 export const DirectoryFollowButton: React.FC<DirectoryFollowButtonProps> = ({
@@ -16,6 +19,9 @@ export const DirectoryFollowButton: React.FC<DirectoryFollowButtonProps> = ({
   viewerFid,
   signer,
   className,
+  buttonColor,
+  buttonFontColor,
+  buttonFontFamily,
 }) => {
   const { setModalOpen, getIsAccountReady } = useAppStore((state) => ({
     setModalOpen: state.setup.setModalOpen,
@@ -88,6 +94,17 @@ export const DirectoryFollowButton: React.FC<DirectoryFollowButtonProps> = ({
         : "Following"
       : "Follow";
 
+  const customStyle: React.CSSProperties | undefined =
+    !isFollowing && (buttonColor || buttonFontColor || buttonFontFamily)
+      ? {
+          ...(buttonColor ? { backgroundColor: buttonColor } : {}),
+          ...(buttonFontColor ? { color: buttonFontColor } : {}),
+          ...(buttonFontFamily ? { fontFamily: buttonFontFamily } : {}),
+        }
+      : buttonFontFamily
+        ? { fontFamily: buttonFontFamily }
+        : undefined;
+
   return (
     <Button
       type="button"
@@ -98,6 +115,7 @@ export const DirectoryFollowButton: React.FC<DirectoryFollowButtonProps> = ({
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
       className={className}
+      style={customStyle}
     >
       {label}
     </Button>
