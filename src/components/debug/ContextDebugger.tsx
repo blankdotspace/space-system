@@ -549,7 +549,7 @@ Mini-App #${app.index} (${app.id || "Unknown"})
 
                           // Test signIn with a test nonce
                           const signInResult = await mockSdkHost.signIn({
-                            nonce: 'test-nonce-' + Date.now(),
+                            nonce: 'testnonce' + Date.now(),
                             acceptAuthAddress: true,
                           });
 
