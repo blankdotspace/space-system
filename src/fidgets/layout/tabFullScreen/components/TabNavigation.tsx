@@ -4,6 +4,7 @@ import { MdGridView } from "react-icons/md";
 import * as FaIcons from "react-icons/fa6";
 import * as BsIcons from "react-icons/bs";
 import * as GiIcons from "react-icons/gi";
+import * as LuIcons from "react-icons/lu";
 import type { IconType } from "react-icons";
 import { CompleteFidgets } from "@/fidgets";
 import { getFidgetDisplayName } from "../utils";
@@ -12,6 +13,7 @@ const ICON_PACK: Record<string, IconType> = {
   ...FaIcons,
   ...BsIcons,
   ...GiIcons,
+  ...LuIcons,
 };
 
 interface TabNavigationProps {

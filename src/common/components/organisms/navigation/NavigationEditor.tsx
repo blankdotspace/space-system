@@ -15,6 +15,7 @@ import { IconSelector } from "@/common/components/molecules/IconSelector";
 import * as FaIcons from "react-icons/fa6";
 import * as BsIcons from "react-icons/bs";
 import * as GiIcons from "react-icons/gi";
+import * as LuIcons from "react-icons/lu";
 import type { IconType } from "react-icons";
 import {
   validateNavItemLabel,
@@ -109,6 +110,7 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
     ...FaIcons,
     ...BsIcons,
     ...GiIcons,
+    ...LuIcons,
   }), []);
 
   // Track which item's icon selector is open (by itemId)

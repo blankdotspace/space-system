@@ -5,6 +5,7 @@ import { EyeIcon, EyeOffIcon, GripVerticalIcon } from 'lucide-react'
 import * as FaIcons from 'react-icons/fa6'
 import * as BsIcons from 'react-icons/bs'
 import * as GiIcons from 'react-icons/gi'
+import * as LuIcons from 'react-icons/lu'
 import type { IconType } from 'react-icons'
 import { useUIColors } from '@/common/lib/hooks/useUIColors'
 
@@ -12,6 +13,7 @@ const ICON_PACK: Record<string, IconType> = {
   ...FaIcons,
   ...BsIcons,
   ...GiIcons,
+  ...LuIcons,
 }
 
 export interface MiniApp {
