@@ -4,14 +4,31 @@ import { createPortal } from 'react-dom'
 import * as FaIcons from 'react-icons/fa6'
 import * as BsIcons from 'react-icons/bs'
 import * as GiIcons from 'react-icons/gi'
+import * as LuIcons from 'react-icons/lu'
 import type { IconType } from 'react-icons'
 import { DEFAULT_FIDGET_ICON_MAP } from '@/constants/mobileFidgetIcons'
+import HomeIcon from '@/common/components/atoms/icons/HomeIcon'
+import ExploreIcon from '@/common/components/atoms/icons/ExploreIcon'
+import NotificationsIcon from '@/common/components/atoms/icons/NotificationsIcon'
+import NavSearchIcon from '@/common/components/atoms/icons/SearchIcon'
+import RocketIcon from '@/common/components/atoms/icons/RocketIcon'
+import RobotIcon from '@/common/components/atoms/icons/RobotIcon'
 import ImgBBUploader from './ImgBBUploader'
 
 const ICON_PACK: Record<string, IconType> = {
   ...FaIcons,
   ...BsIcons,
   ...GiIcons,
+  ...LuIcons,
+}
+
+const CUSTOM_NAV_ICONS: Record<string, React.FC> = {
+  home: HomeIcon,
+  explore: ExploreIcon,
+  notifications: NotificationsIcon,
+  search: NavSearchIcon,
+  space: RocketIcon,
+  robot: RobotIcon,
 }
 
 interface IconSelectorProps {
@@ -27,24 +44,213 @@ export function IconSelector({ onSelectIcon, triggerRef, onClose }: IconSelector
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   const iconLibrary = [
-    'FaRss',
-    'FaVoteYea',
-    'FaImage',
-    'FaHouse',
-    'FaGift',
-    'FaUser',
-    'FaGear',
-    'FaBell',
-    'FaCalendar',
-    'FaEnvelope',
-    'FaFile',
-    'FaFolder',
-    'FaStar',
-    'FaHeart',
-    'FaShareNodes',
+    // Default navigation icons
+    'home',
+    'explore',
+    'notifications',
+    'search',
+    'space',
+    'robot',
+    // Lucide outline icons (stroke-width 2, rounded caps/joins — matches nav icons)
+    // General UI
+    'LuHome',
+    'LuStar',
+    'LuHeart',
+    'LuBell',
+    'LuSettings',
+    'LuEye',
+    'LuGrid2x2',
+    'LuLayoutGrid',
+    'LuLayoutList',
+    'LuColumns2',
+    'LuPanelLeft',
+    'LuSquare',
+    'LuCircle',
+    'LuTriangle',
+    'LuDiamond',
+    'LuHexagon',
+    'LuShield',
+    'LuTrophy',
+    'LuCrown',
+    'LuAward',
+    'LuMedal',
+    'LuBadgeCheck',
+    'LuFlag',
+    'LuActivity',
+    // Files & content
+    'LuImage',
+    'LuFile',
+    'LuFileText',
+    'LuFolder',
+    'LuFolderOpen',
+    'LuBookmark',
+    'LuTag',
+    'LuTags',
+    'LuClipboard',
+    'LuClipboardList',
+    'LuNotebook',
+    'LuBook',
+    'LuBookOpen',
+    'LuNewspaper',
+    'LuArchive',
+    'LuBox',
+    'LuPackage',
+    'LuTrash2',
+    'LuPencil',
+    'LuPenLine',
+    // Communication
+    'LuMail',
+    'LuMailOpen',
+    'LuMessageSquare',
+    'LuMessageCircle',
+    'LuMessagesSquare',
+    'LuSend',
+    'LuPhone',
+    'LuVideo',
+    'LuMic',
+    'LuMegaphone',
+    'LuAtSign',
+    // Calendar & time
+    'LuCalendar',
+    'LuCalendarDays',
+    'LuClock',
+    'LuTimer',
+    'LuAlarmClock',
+    'LuHourglass',
+    // Navigation & location
+    'LuCompass',
+    'LuMap',
+    'LuMapPin',
+    'LuNavigation',
+    'LuGlobe',
+    'LuSignpost',
+    'LuLocate',
+    // Media & creative
+    'LuCamera',
+    'LuMusic',
+    'LuHeadphones',
+    'LuPalette',
+    'LuPaintbrush',
+    'LuPlay',
+    'LuPause',
+    'LuSkipForward',
+    'LuShuffle',
+    'LuVolume2',
+    'LuFilm',
+    'LuClapperboard',
+    // Commerce & finance
+    'LuShoppingCart',
+    'LuShoppingBag',
+    'LuWallet',
+    'LuCreditCard',
+    'LuGift',
+    'LuReceipt',
+    'LuBanknote',
+    'LuCoins',
+    // Dev & data
+    'LuCode',
+    'LuTerminal',
+    'LuDatabase',
+    'LuCpu',
+    'LuBraces',
+    'LuGitBranch',
+    'LuGitCommit',
+    'LuBug',
+    'LuWrench',
+    'LuHammer',
+    // Charts & analytics
+    'LuChartLine',
+    'LuChartBar',
+    'LuChartPie',
+    'LuChartNoAxesCombined',
+    'LuTrendingUp',
+    'LuBarChart3',
+    // Connectivity & sharing
+    'LuShare2',
+    'LuLink',
+    'LuWifi',
+    'LuBluetooth',
+    'LuCast',
+    'LuRss',
+    'LuPrinter',
+    'LuDownload',
+    'LuUpload',
+    'LuCloudUpload',
+    'LuCloudDownload',
+    // Security
+    'LuLock',
+    'LuUnlock',
+    'LuKey',
+    'LuShieldCheck',
+    'LuScanFace',
+    'LuFingerprint',
+    // Weather & nature
+    'LuSun',
+    'LuMoon',
+    'LuCloudSun',
+    'LuSnowflake',
+    'LuDroplet',
+    'LuFlame',
+    'LuTreePine',
+    'LuFlower2',
+    'LuLeaf',
+    'LuMountain',
+    // Emoji & people
+    'LuSmile',
+    'LuLaugh',
+    'LuFrown',
+    'LuThumbsUp',
+    'LuUser',
+    'LuUsers',
+    'LuUserPlus',
+    'LuBaby',
+    // Transport & travel
+    'LuRocket',
+    'LuPlane',
+    'LuBike',
+    'LuTruck',
+    'LuShip',
+    'LuTrain',
+    'LuFuel',
+    // Work & productivity
+    'LuBriefcase',
+    'LuLightbulb',
+    'LuListTodo',
+    'LuCheckSquare',
+    'LuTarget',
+    'LuCrosshair',
+    'LuFocus',
+    'LuSparkles',
+    // Controls & settings
+    'LuFilter',
+    'LuSliders',
+    'LuToggleLeft',
+    'LuPlug',
+    'LuZap',
+    'LuMagnet',
+    'LuMousePointer2',
+    'LuMove',
+    'LuMaximize2',
+    'LuMinimize2',
+    // Misc
+    'LuHash',
+    'LuQrCode',
+    'LuScan',
+    'LuScissors',
+    'LuPaperclip',
+    'LuAnchor',
+    'LuUmbrella',
+    'LuGlasses',
+    'LuDice5',
+    'LuGamepad2',
+    'LuPuzzle',
+    'LuToyBrick',
+    // Fidget icons
     ...Object.values(DEFAULT_FIDGET_ICON_MAP),
   ]
-  const uniqueIcons = Array.from(new Set(iconLibrary))
+  const uniqueIcons = Array.from(new Set(
+    iconLibrary.filter((icon) => !icon.includes('Fill') && !icon.includes('Solid'))
+  ))
   const filteredIcons = uniqueIcons.filter((icon) =>
     icon.toLowerCase().includes(searchTerm.toLowerCase()),
   )
@@ -97,6 +303,9 @@ export function IconSelector({ onSelectIcon, triggerRef, onClose }: IconSelector
       ref={dropdownRef}
       className="fixed bg-white border border-gray-200 rounded-md shadow-lg z-50 overflow-auto"
       style={{ top: `${position.top}px`, left: `${position.left}px`, width: `${position.width}px`, maxHeight: `${position.maxHeight}px` }}
+      onPointerDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
     >
       <div className="p-3 border-b border-gray-200">
         <div className="relative">
@@ -130,7 +339,8 @@ export function IconSelector({ onSelectIcon, triggerRef, onClose }: IconSelector
         <div className="p-3 grid grid-cols-5 gap-2 overflow-auto max-h-[calc(100vh-100px)]" style={{ maxHeight: 'calc(100vh - 140px)' }}>
           {filteredIcons.length > 0 ? (
             filteredIcons.map((icon) => {
-              const Icon = ICON_PACK[icon] as IconType | undefined
+              const CustomIcon = CUSTOM_NAV_ICONS[icon]
+              const ReactIcon = ICON_PACK[icon] as IconType | undefined
               return (
                 <button
                   key={icon}
@@ -138,7 +348,7 @@ export function IconSelector({ onSelectIcon, triggerRef, onClose }: IconSelector
                   className="flex flex-col items-center justify-center p-2 hover:bg-gray-100 rounded-md"
                 >
                   <div className="w-8 h-8 bg-gray-100 rounded-md flex items-center justify-center mb-1">
-                    {Icon ? <Icon className="w-5 h-5" /> : icon.charAt(0)}
+                    {CustomIcon ? <CustomIcon /> : ReactIcon ? <ReactIcon className="w-5 h-5" /> : icon.charAt(0)}
                   </div>
                   <span className="text-xs text-gray-600 truncate w-full text-center">
                     {icon}

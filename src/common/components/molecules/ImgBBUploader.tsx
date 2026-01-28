@@ -33,6 +33,8 @@ const ImgBBUploader: React.FC<ImgBBUploaderProps> = ({ onImageUploaded }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+  const [pasteUrl, setPasteUrl] = useState('');
+  const [urlError, setUrlError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const imgBBApiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
@@ -93,11 +95,55 @@ const ImgBBUploader: React.FC<ImgBBUploaderProps> = ({ onImageUploaded }) => {
     fileInputRef.current?.click();
   };
 
+  const handlePasteUrl = () => {
+    setUrlError(null);
+    const trimmed = pasteUrl.trim();
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+      setUrlError('URL must start with http:// or https://');
+      return;
+    }
+    setUploadedUrl(trimmed);
+    onImageUploaded(trimmed);
+    setPasteUrl('');
+  };
+
   return (
     <div
-      className="flex flex-col gap-4"
+      className="flex flex-col gap-4 w-full"
       onSubmit={(e) => e.preventDefault()}
     >
+      {/* Paste URL option */}
+      <div className="grid w-full max-w-sm items-center gap-1.5">
+        <label htmlFor="icon-url-input" className="text-sm font-medium text-gray-700">
+          Paste Image URL
+        </label>
+        <div className="flex gap-2">
+          <input
+            id="icon-url-input"
+            type="url"
+            placeholder="https://example.com/icon.png"
+            value={pasteUrl}
+            onChange={(e) => { setPasteUrl(e.target.value); setUrlError(null); }}
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          />
+          <Button
+            variant="outline"
+            onClick={handlePasteUrl}
+            disabled={!pasteUrl.trim()}
+          >
+            Use
+          </Button>
+        </div>
+        {urlError && <p className="text-red-500 text-sm">{urlError}</p>}
+      </div>
+
+      <div className="flex items-center gap-2 text-xs text-gray-400">
+        <div className="flex-1 border-t border-gray-200" />
+        or upload a file
+        <div className="flex-1 border-t border-gray-200" />
+      </div>
+
+      {/* File upload option */}
       <div className="grid w-full max-w-sm items-center gap-1.5">
         <input
           ref={fileInputRef}

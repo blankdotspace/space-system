@@ -22,6 +22,7 @@ import {
 import * as FaIcons from "react-icons/fa6";
 import * as BsIcons from "react-icons/bs";
 import * as GiIcons from "react-icons/gi";
+import * as LuIcons from "react-icons/lu";
 import type { IconType } from "react-icons";
 import { Button } from "../atoms/button";
 import BrandHeader from "../molecules/BrandHeader";
@@ -340,6 +341,7 @@ const Navigation = React.memo(
     ...FaIcons,
     ...BsIcons,
     ...GiIcons,
+    ...LuIcons,
   }), []);
 
   // Cache for wrapper components to prevent remounts
