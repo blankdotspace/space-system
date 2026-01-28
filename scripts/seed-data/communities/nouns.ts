@@ -1,32 +1,30 @@
 /**
  * Nouns community configuration
- * 
+ *
  * This file defines all data needed to seed the Nouns community:
  * - Database config (brand, assets, community, fidgets, navigation, ui)
  * - Explore page parameters (tokens, channel)
- * - Asset mappings for ImgBB upload
+ * - Asset mappings for Supabase Storage upload
  */
 
 import type { ExplorePageOptions, TokenInput } from '../../lib/explore-config';
+import type { AssetConfig } from '../../lib/images';
 
 // ============================================================================
 // Asset Configuration
 // ============================================================================
 
-export const nounsAssets = {
+export const nounsAssets: AssetConfig = {
   directory: 'nouns', // Relative to scripts/seed-data/assets/
+  storageFolder: 'nouns', // Folder in Supabase Storage images bucket
   files: [
     { file: 'logo.svg', key: 'main' },
     { file: 'noggles.svg', key: 'icon' },
     { file: 'og.svg', key: 'og' },
     { file: 'splash.svg', key: 'splash' },
+    { file: 'favicon.ico', key: 'favicon' },
+    { file: 'apple-touch-icon.png', key: 'appleTouch' },
   ],
-  fallbackPrefix: '/images/nouns',
-  // Static paths (not uploaded to ImgBB)
-  static: {
-    favicon: '/images/favicon.ico',
-    appleTouch: '/images/apple-touch-icon.png',
-  },
 };
 
 // ============================================================================
@@ -79,12 +77,12 @@ export function createNounsCommunityConfig(
     },
     assets_config: {
       logos: {
-        main: assetUrls.main || '/images/nouns/logo.svg',
-        icon: assetUrls.icon || '/images/nouns/noggles.svg',
-        favicon: nounsAssets.static.favicon,
-        appleTouch: nounsAssets.static.appleTouch,
-        og: assetUrls.og || '/images/nouns/og.svg',
-        splash: assetUrls.splash || '/images/nouns/splash.svg',
+        main: assetUrls.main,
+        icon: assetUrls.icon,
+        favicon: assetUrls.favicon,
+        appleTouch: assetUrls.appleTouch,
+        og: assetUrls.og,
+        splash: assetUrls.splash,
       },
     },
     community_config: {

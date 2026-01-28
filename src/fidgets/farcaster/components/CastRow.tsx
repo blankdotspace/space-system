@@ -410,7 +410,7 @@ const CastAttributionPrimary = ({ cast }) => {
         <span className="hover:underline">{cast.author.display_name}</span>
       </PriorityLink>
       {cast?.author?.power_badge && (
-        <Image src="/images/ActiveBadge.webp" className="size-4" alt="power badge" width={50} height={30} />
+        <Image src="/fidgets/ActiveBadge.webp" className="size-4" alt="power badge" width={50} height={30} />
       )}
     </div>
   );

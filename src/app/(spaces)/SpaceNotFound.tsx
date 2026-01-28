@@ -1,7 +1,7 @@
 import React from "react";
 import Image from "next/image";
 
-export default function SpaceNotFound({ src = "/images/UserNotFound.png" }) {
+export default function SpaceNotFound({ src = "/ui/UserNotFound.png" }) {
   return (
     <div className="flex w-full h-full">
       <div className="w-full transition-all duration-100 ease-out p-8 flex">

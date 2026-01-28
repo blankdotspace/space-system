@@ -2,11 +2,30 @@
  * Clanker community configuration
  */
 
+import type { AssetConfig } from '../../lib/images';
+
+// ============================================================================
+// Asset Configuration
+// ============================================================================
+
+export const clankerAssets: AssetConfig = {
+  directory: 'clanker', // Relative to scripts/seed-data/assets/
+  storageFolder: 'clanker', // Folder in Supabase Storage images bucket
+  files: [
+    { file: 'logo.png', key: 'main' },
+    { file: 'logo.png', key: 'icon' },
+  ],
+};
+
 /**
  * Creates the Clanker community config for database insertion
+ * @param assetUrls - URLs from Supabase Storage upload
  * @param spaceIds - Space IDs for navigation items
  */
-export function createClankerCommunityConfig(spaceIds: { home?: string | null }) {
+export function createClankerCommunityConfig(
+  assetUrls: Record<string, string>,
+  spaceIds: { home?: string | null },
+) {
   return {
     community_id: 'clanker.space',
     is_published: true,
@@ -18,12 +37,12 @@ export function createClankerCommunityConfig(spaceIds: { home?: string | null })
     },
     assets_config: {
       logos: {
-        main: '/images/clanker/logo.svg',
-        icon: '/images/clanker/logo.svg',
-        favicon: '/images/clanker/favicon.ico',
-        appleTouch: '/images/clanker/apple.png',
-        og: '/images/clanker/og.jpg',
-        splash: '/images/clanker/og.jpg',
+        main: assetUrls.main,
+        icon: assetUrls.icon,
+        favicon: assetUrls.main, // Use logo as favicon for now
+        appleTouch: assetUrls.main, // Use logo as apple touch for now
+        og: assetUrls.main,
+        splash: assetUrls.main,
       },
     },
     community_config: {

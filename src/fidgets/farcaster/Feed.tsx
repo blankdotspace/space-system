@@ -97,7 +97,7 @@ const feedProperties: FidgetProperties<FeedFidgetSettings> = {
         </WithMargin>
       ),
       required: false,
-      default: { name: "Farcaster", icon: "/images/farcaster.jpeg" },
+      default: { name: "Farcaster", icon: "/platforms/farcaster.jpeg" },
       group: "settings",
     },
     {
@@ -361,7 +361,7 @@ const Feed: React.FC<FidgetArgs<FeedFidgetSettings, FeedFidgetData>> = ({
   data: initialData,
 }) => {
   const {
-    selectPlatform = { name: "Farcaster", icon: "/images/farcaster.jpeg" },
+    selectPlatform = { name: "Farcaster", icon: "/platforms/farcaster.jpeg" },
     Xhandle,
     style,
   } = settings;

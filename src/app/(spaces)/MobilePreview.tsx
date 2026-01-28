@@ -52,7 +52,7 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
     <>
       <div 
         className="w-full h-full min-h-screen bg-cover bg-center bg-no-repeat flex items-center justify-center"
-        style={{ backgroundImage: "url('/images/space-background.png')" }}
+        style={{ backgroundImage: "url('/ui/space-background.png')" }}
       >
         <div className="flex items-center justify-center h-full">
           <div className="relative w-[344px] h-[744px]">

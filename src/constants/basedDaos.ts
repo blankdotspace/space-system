@@ -8,7 +8,7 @@ export const DAO_OPTIONS = [
     name: "Nouns DAO",
     contract: "", // nouns dao does not have a contract address
     graphUrl: NOUNS_DAO,
-    icon: "/images/nouns_yellow_logo.jpg",
+    icon: "/brands/nouns_yellow_logo.jpg",
   },
   {
     name: "BASED DAO",

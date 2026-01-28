@@ -848,7 +848,7 @@ export const AiChatSidebar: React.FC<AiChatSidebarProps> = ({
                   {message.aiType === "builder" && message.type !== "checkpoint" && (
                     <div className="flex items-center gap-2 mb-2 text-xs text-purple-600 font-medium">
                       <Image
-                        src="/images/tom_alerts.png"
+                        src="/ui/tom_alerts.png"
                         alt="Tom AI"
                         width={12}
                         height={12}

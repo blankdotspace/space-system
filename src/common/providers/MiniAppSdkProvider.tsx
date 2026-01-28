@@ -9,7 +9,7 @@ type MiniAppContext = Context.MiniAppContext;
 export const MINI_APP_PROVIDER_METADATA = {
   uuid: "nounspace-miniapp-eth-provider",
   name: "Nounspace Mini App",
-  iconPath: "/images/mini_app_icon.png",
+  iconPath: "/app/mini_app_icon.png",
   rdns: "wtf.nounspace",
 };
 

@@ -109,3 +109,6 @@ dist/
 .env
 .env.development
 .env.development.local
+
+# Claude Code project guidelines
+CLAUDE.md

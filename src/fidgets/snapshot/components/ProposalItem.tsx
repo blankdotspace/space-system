@@ -71,7 +71,7 @@ const ProposalItem: React.FC<ProposalItemProps> = memo(
     const [currentAvatarUrl, setCurrentAvatarUrl] = useState<string>(avatarUrl);
 
     const handleError = useCallback(() => {
-      setCurrentAvatarUrl("/images/noggles.svg");
+      setCurrentAvatarUrl("/brands/noggles.svg");
     }, []);
 
     const handleVote = useCallback(
