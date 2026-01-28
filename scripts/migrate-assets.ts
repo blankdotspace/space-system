@@ -178,7 +178,7 @@ async function main() {
 
     // Update Nouns config
     if (nounsUrls.main || flags.dryRun) {
-      const nounsUpdate = flags.dryRun
+      const nounsUpdate: Record<string, string> = flags.dryRun
         ? { main: '[new-url]', icon: '[new-url]', og: '[new-url]', splash: '[new-url]', favicon: '[new-url]', appleTouch: '[new-url]' }
         : nounsUrls;
       await updateCommunityConfig('nounspace.com', nounsUpdate);
@@ -186,8 +186,8 @@ async function main() {
 
     // Update Clanker config
     if (clankerUrls.main || flags.dryRun) {
-      const clankerUpdate = flags.dryRun
-        ? { main: '[new-url]', icon: '[new-url]' }
+      const clankerUpdate: Record<string, string> = flags.dryRun
+        ? { main: '[new-url]', icon: '[new-url]', favicon: '[new-url]', appleTouch: '[new-url]', og: '[new-url]', splash: '[new-url]' }
         : {
             main: clankerUrls.main,
             icon: clankerUrls.icon,
