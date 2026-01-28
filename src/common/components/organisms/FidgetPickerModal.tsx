@@ -60,7 +60,7 @@ const TAG_CONFIG: Record<string, { color: string; icon: string | any; displayNam
   'tiktok': { color: 'bg-black text-white', icon: '🎵' },
   'skateboarding': { color: 'bg-orange-100 text-orange-800', icon: '🛹' },
   'aerodrome': { color: 'bg-blue-100 text-blue-800', icon: '✈️' },
-  'clanker': { color: 'bg-purple-100 text-purple-800', icon: '/images/clanker-logo.png', displayName: 'Clanker' },
+  'clanker': { color: 'bg-purple-100 text-purple-800', icon: '/brands/clanker-logo.png', displayName: 'Clanker' },
   'scheduling': { color: 'bg-blue-100 text-blue-800', icon: '📅' },
   'presentations': { color: 'bg-gray-100 text-gray-800', icon: '📊' },
   'networking': { color: 'bg-blue-100 text-blue-800', icon: '👥' },

@@ -20,17 +20,17 @@ export interface PlatformSelectorProps {
 
 const PlatformSelector: React.FC<PlatformSelectorProps> = ({
   onChange,
-  value = { name: "Farcaster", icon: "/images/farcaster.jpeg" },
+  value = { name: "Farcaster", icon: "/platforms/farcaster.jpeg" },
   className,
 }) => {
   const settings: Platform[] = [
     {
       name: "Farcaster",
-      icon: "/images/farcaster.jpeg",
+      icon: "/platforms/farcaster.jpeg",
     },
     {
       name: "X",
-      icon: "/images/twitter.avif",
+      icon: "/platforms/twitter.avif",
     },
   ];
 
@@ -49,7 +49,7 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
           <SelectValue>
             <div className="flex items-center">
               <img
-                src={value?.icon || "/images/farcaster.jpeg"}
+                src={value?.icon || "/platforms/farcaster.jpeg"}
                 alt={`${value?.name || "Platform"} icon`}
                 className="mr-2 h-auto w-5 rounded-sm"
               />
@@ -63,7 +63,7 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
               <div className="flex items-center">
                 {app.icon && (
                   <img
-                    src={app.icon || "/images/tom-alerts.png"}
+                    src={app.icon || "/ui/tom_alerts.png"}
                     alt={`${app.name} icon`}
                     className="mr-2 h-auto w-5 rounded-sm"
                   />

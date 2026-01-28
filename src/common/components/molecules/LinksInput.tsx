@@ -100,7 +100,7 @@ const LinksInput = forwardRef<HTMLInputElement, LinksInputProps>(
       const newLink = {
         text: "New Link",
         url: "https://",
-        avatar: "https://www.nounspace.com/images/chainEmoji.png",
+        avatar: "https://www.nounspace.com/ui/chainEmoji.png",
         description: "Description",
       };
 

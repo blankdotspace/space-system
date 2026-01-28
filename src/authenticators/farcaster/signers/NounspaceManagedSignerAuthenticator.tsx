@@ -262,7 +262,7 @@ const initializer: AuthenticatorInitializer<
           >
             <span>Sign in with</span>
             <img
-              src="/images/farcaster_nude.png"
+              src="/fidgets/farcaster_nude.png"
               alt="Icon"
               style={{ width: "22px", height: "22px" }}
             />

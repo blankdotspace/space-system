@@ -47,7 +47,7 @@ const ClaimModal: React.FC<ClaimModalProps> = ({
         muted
         playsInline
         className="w-full h-full"
-        src="/images/tutorial.webm"
+        src="/media/tutorial.webm"
       />
       <div className="flex flex-col items-center justify-center p-4">
         <Button
