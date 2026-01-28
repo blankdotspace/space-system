@@ -183,10 +183,6 @@ export function createMiniAppSdkHost(
     // The SDK's quickAuth.getToken() calls this method internally
     // =========================================================================
     async signIn(signInOptions: SignInOptions): Promise<SignInJsonResult> {
-      console.log('[MiniApp Host] signIn called with options:', signInOptions);
-      console.log('[MiniApp Host] signIn: context.user =', context.user);
-      console.log('[MiniApp Host] signIn: _domain =', _domain);
-
       if (!context.user?.fid) {
         console.warn('[MiniApp Host] signIn: No user FID in context');
         return { error: { type: 'rejected_by_user' } };
@@ -196,8 +192,6 @@ export function createMiniAppSdkHost(
         console.warn('[MiniApp Host] signIn: No authenticator manager available');
         return { error: { type: 'rejected_by_user' } };
       }
-
-      console.log('[MiniApp Host] signIn: Prerequisites met, proceeding...');
 
       const authenticatorManager = options.authenticatorManager;
 
@@ -263,7 +257,6 @@ export function createMiniAppSdkHost(
         const messageBytes = new TextEncoder().encode(message);
 
         // Sign with Farcaster authenticator
-        console.log('[MiniApp Host] signIn: Calling authenticator signMessage...');
         const signResult = await authenticatorManager.callMethod(
           {
             requestingFidgetId: 'nounspace-miniapp-host',
@@ -273,8 +266,6 @@ export function createMiniAppSdkHost(
           },
           messageBytes
         );
-
-        console.log('[MiniApp Host] signIn: signResult =', JSON.stringify(signResult));
 
         if (signResult.result !== 'success' || !signResult.value) {
           console.warn(
