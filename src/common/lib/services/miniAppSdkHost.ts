@@ -89,8 +89,12 @@ export type WireMiniAppHost = {
   composeCast: (options: ComposeCastOptions) => Promise<{ hash?: string } | null>;
 
   // Token operations
-  sendToken: (options: { token: string; amount: string; recipientFid?: number }) => Promise<{ transactionHash?: string } | null>;
-  swapToken: (options: { sell: TokenInfo; buy: TokenInfo; sellAmount?: string }) => Promise<{ transactionHash?: string } | null>;
+  sendToken: (
+    options: { token: string; amount: string; recipientFid?: number }
+  ) => Promise<{ transactionHash?: string } | null>;
+  swapToken: (
+    options: { sell: TokenInfo; buy: TokenInfo; sellAmount?: string }
+  ) => Promise<{ transactionHash?: string } | null>;
   viewToken: (options: { token: string; chainId?: number }) => Promise<void>;
 
   // Ethereum provider (EIP-1193)
@@ -115,7 +119,9 @@ export type WireMiniAppHost = {
   getChains: () => Promise<string[]>;
 
   // Manifest signing (for app verification)
-  signManifest: (options: { domain: string; manifest: unknown }) => Promise<{ signature: string } | { error: { type: string } }>;
+  signManifest: (
+    options: { domain: string; manifest: unknown }
+  ) => Promise<{ signature: string } | { error: { type: string } }>;
 };
 
 /**
@@ -207,16 +213,23 @@ export function createMiniAppSdkHost(
             signInUri = typeof window !== 'undefined' ? window.location.origin : 'https://nounspace.com';
           }
         } else {
-          signInDomain = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-          signInUri = typeof window !== 'undefined' ? window.location.origin : 'https://nounspace.com';
+          signInDomain = typeof window !== 'undefined'
+            ? window.location.hostname
+            : 'localhost';
+          signInUri = typeof window !== 'undefined'
+            ? window.location.origin
+            : 'https://nounspace.com';
         }
 
         // Get Ethereum address if available
         let signerAddress = '0x0000000000000000000000000000000000000000';
-        if (ethProvider && typeof (ethProvider as { request?: unknown }).request === 'function') {
+        const hasRequest = ethProvider &&
+          typeof (ethProvider as { request?: unknown }).request === 'function';
+        if (hasRequest) {
           try {
-            const accounts = await (ethProvider as { request: (args: { method: string }) => Promise<string[]> }).request({
-              method: 'eth_accounts'
+            type EthProvider = { request: (a: { method: string }) => Promise<string[]> };
+            const accounts = await (ethProvider as EthProvider).request({
+              method: 'eth_accounts',
             });
             if (accounts && accounts.length > 0) {
               signerAddress = accounts[0];
@@ -348,12 +361,16 @@ export function createMiniAppSdkHost(
     // =========================================================================
     // Token operations
     // =========================================================================
-    async sendToken(_options: { token: string; amount: string; recipientFid?: number }): Promise<{ transactionHash?: string } | null> {
+    async sendToken(
+      _options: { token: string; amount: string; recipientFid?: number }
+    ): Promise<{ transactionHash?: string } | null> {
       console.log('[MiniApp Host] sendToken not implemented in embedded context');
       return null;
     },
 
-    async swapToken(_options: { sell: TokenInfo; buy: TokenInfo; sellAmount?: string }): Promise<{ transactionHash?: string } | null> {
+    async swapToken(
+      _options: { sell: TokenInfo; buy: TokenInfo; sellAmount?: string }
+    ): Promise<{ transactionHash?: string } | null> {
       console.log('[MiniApp Host] swapToken not implemented in embedded context');
       return null;
     },
@@ -366,11 +383,17 @@ export function createMiniAppSdkHost(
     // =========================================================================
     // Ethereum provider (EIP-1193)
     // =========================================================================
-    async ethProviderRequest(args: { method: string; params?: unknown[] }): Promise<unknown> {
-      if (!ethProvider || typeof (ethProvider as { request?: unknown }).request !== 'function') {
+    async ethProviderRequest(
+      args: { method: string; params?: unknown[] }
+    ): Promise<unknown> {
+      type EthProvider = {
+        request: (a: { method: string; params?: unknown[] }) => Promise<unknown>;
+      };
+      const provider = ethProvider as EthProvider | undefined;
+      if (!provider || typeof provider.request !== 'function') {
         throw new Error('Ethereum provider not available');
       }
-      return (ethProvider as { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> }).request(args);
+      return provider.request(args);
     },
 
     async ethProviderRequestV2(args: { method: string; params?: unknown[] }): Promise<unknown> {
@@ -481,7 +504,9 @@ export function createMiniAppSdkHost(
     // =========================================================================
     // Manifest signing
     // =========================================================================
-    async signManifest(_options: { domain: string; manifest: unknown }): Promise<{ signature: string } | { error: { type: string } }> {
+    async signManifest(
+      _options: { domain: string; manifest: unknown }
+    ): Promise<{ signature: string } | { error: { type: string } }> {
       console.log('[MiniApp Host] signManifest not implemented');
       return { error: { type: 'not_supported' } };
     },
