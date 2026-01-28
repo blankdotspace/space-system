@@ -14,24 +14,24 @@ import { useCurrentFid } from "@/common/lib/hooks/useCurrentFid";
  * @returns A valid MiniAppContext object
  */
 export function createMiniAppContext(userFid?: number | null): Context.MiniAppContext {
-  const platform = typeof window !== 'undefined' 
-    ? (window.navigator.userAgent.includes('Mobile') ? 'mobile' : 'web')
-    : 'unknown';
+  const isMobile = typeof window !== 'undefined'
+    && window.navigator.userAgent.includes('Mobile');
 
   return {
     client: {
-      version: "1.0.0",
-      platform: platform as Context.ClientContext['platform'],
-      platformType: platform === 'mobile' ? 'ios' : 'web', // Default to web for now
+      clientFid: 456830, // Nounspace registered client FID
+      added: false,
+      platformType: isMobile ? 'mobile' : 'web',
     },
     user: userFid ? {
       fid: userFid,
-      // Additional user data can be added here if needed
-    } : undefined,
+    } : { fid: 0 },
     location: {
       type: "launcher",
     },
-    features: {},
+    features: {
+      haptics: typeof navigator !== 'undefined' && 'vibrate' in navigator,
+    },
   };
 }
 
