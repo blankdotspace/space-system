@@ -184,6 +184,13 @@
     "hono": "4.11.4",
     "preact": "10.26.10",
     "@coinbase/wallet-sdk": "4.3.0",
-    "lodash": "4.17.23"
+    "lodash": "4.17.23",
+    "glob": "11.1.0",
+    "jws": "4.0.1",
+    "qs": "6.14.1",
+    "min-document": "2.19.1",
+    "tmp": "0.2.4",
+    "js-yaml": "3.14.2",
+    "mdast-util-to-hast": "13.2.1"
   }
 }
