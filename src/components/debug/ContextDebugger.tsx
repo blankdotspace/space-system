@@ -138,7 +138,7 @@ export function ContextDebugger() {
       } : null,
       context: {
         userFid: userFid || contextForEmbedded?.user?.fid || null,
-        platform: contextForEmbedded?.client?.platformType || contextForEmbedded?.client?.platform || null,
+        platform: contextForEmbedded?.client?.platformType || null,
         locationType: contextForEmbedded?.location?.type || null,
       },
       sdkContext: sdkContext,
@@ -380,7 +380,7 @@ Mini-App #${app.index} (${app.id || "Unknown"})
               </div>
               <div className="flex justify-between">
                 <span>Platform:</span>
-                <span>{contextForEmbedded?.client?.platformType || contextForEmbedded?.client?.platform || "N/A"}</span>
+                <span>{contextForEmbedded?.client?.platformType || "N/A"}</span>
               </div>
               {contextForEmbedded?.location && (
                 <div className="flex justify-between">
@@ -508,37 +508,37 @@ Mini-App #${app.index} (${app.id || "Unknown"})
                         };
                         
                         try {
-                          steps.push({ step: 'Test Our Quick Auth System', status: 'pending' });
+                          steps.push({ step: 'Test signIn API', status: 'pending' });
                           setQuickAuthTest({ status: 'testing', steps: [...steps] });
-                          
+
                           // Import the SDK host creator
                           const { createMiniAppSdkHost } = await import('@/common/lib/services/miniAppSdkHost');
-                          
+
                           // Create a mock SDK host with the same configuration as the iframe
                           // Use the actual context being sent to embedded apps
                           const testContext = contextForEmbedded || {
-                            client: { version: '1.0.0', platform: 'web' },
-                            location: { type: 'launcher' },
-                            features: {},
+                            client: { clientFid: 1, added: false },
+                            location: { type: 'launcher' as const },
+                            features: { haptics: false },
+                            user: { fid: testUserFid },
                           };
-                          
+
                           const mockSdkHost = createMiniAppSdkHost(
                             testContext,
                             (window as any).__nounspaceMiniAppEthProvider,
                             testIframe,
                             testDomain,
                             {
-                              // Don't pass realSdk - we want to test OUR implementation
                               authenticatorManager: authenticatorManager || undefined,
-                              userFid: testUserFid, // Use the FID we checked earlier
+                              userFid: testUserFid,
                             }
                           );
-                          
-                          // Test the full Quick Auth flow with detailed logging
-                          steps[steps.length - 1] = { 
-                            step: 'Test Our Quick Auth System', 
+
+                          // Test the signIn method (used by SDK's Quick Auth internally)
+                          steps[steps.length - 1] = {
+                            step: 'Test signIn API',
                             status: 'pending',
-                            details: 'Calling getToken() which will: generateNonce -> signIn -> verifySiwf',
+                            details: 'Calling signIn() - the SDK uses this for Quick Auth',
                             data: {
                               domain: testDomain,
                               userFid: testUserFid,
@@ -546,85 +546,51 @@ Mini-App #${app.index} (${app.id || "Unknown"})
                             },
                           };
                           setQuickAuthTest({ status: 'testing', steps: [...steps] });
-                          
-                          const tokenResult = await mockSdkHost.quickAuth.getToken();
-                            
-                              if (tokenResult?.token) {
-                                steps[steps.length - 1] = { 
-                                  step: 'Test Our Quick Auth System', 
-                                  status: 'success', 
-                                  details: 'Full Quick Auth flow completed successfully!',
-                                  data: {
-                                    tokenLength: tokenResult.token.length,
-                                    tokenPrefix: tokenResult.token.substring(0, 50),
-                                    logs: quickAuthLogs,
-                                    fullResult: tokenResult,
-                                  },
-                                };
-                                
-                                // Try to decode token (if it's a JWT)
-                                try {
-                                  const parts = tokenResult.token.split('.');
-                                  if (parts.length === 3) {
-                                    const header = JSON.parse(atob(parts[0]));
-                                    const payload = JSON.parse(atob(parts[1]));
-                                    steps.push({ 
-                                      step: 'Decode token', 
-                                      status: 'success', 
-                                      details: `Token is valid JWT. Domain: ${payload.domain || 'N/A'}, Expires: ${payload.exp ? new Date(payload.exp * 1000).toISOString() : 'unknown'}`,
-                                      data: {
-                                        header,
-                                        payload,
-                                        signature: parts[2].substring(0, 20) + '...',
-                                      },
-                                    });
-                                    setQuickAuthTest({ 
-                                      status: 'success', 
-                                      steps: [...steps],
-                                      token: tokenResult.token,
-                                      tokenDetails: {
-                                        isValid: true,
-                                        domain: payload.domain,
-                                        expiresAt: payload.exp ? new Date(payload.exp * 1000).toISOString() : undefined,
-                                        payload,
-                                      },
-                                    });
-                                    console.log = originalLog;
-                                    return;
-                                  }
-                                } catch (decodeError) {
-                                  // Not a JWT, that's okay
-                                  steps.push({ 
-                                    step: 'Decode token', 
-                                    status: 'success', 
-                                    details: 'Token received (not a JWT)',
-                                    data: {
-                                      decodeError:
-                                        decodeError instanceof Error
-                                          ? decodeError.message
-                                          : String(decodeError),
-                                    },
-                                  });
-                                }
-                                
-                                setQuickAuthTest({ 
-                                  status: 'success', 
-                                  steps: [...steps],
-                                  token: tokenResult.token,
-                                  tokenDetails: {
-                                    isValid: true,
-                                  },
-                                });
-                                console.log = originalLog;
-                                return;
-                              } else {
-                                throw new Error('getToken() returned no token');
-                              }
+
+                          // Test signIn with a test nonce
+                          const signInResult = await mockSdkHost.signIn({
+                            nonce: 'test-nonce-' + Date.now(),
+                            acceptAuthAddress: true,
+                          });
+
+                          // Check if signIn succeeded
+                          if ('result' in signInResult && signInResult.result) {
+                            const { signature, message, authMethod } = signInResult.result;
+
+                            steps[steps.length - 1] = {
+                              step: 'Test signIn API',
+                              status: 'success',
+                              details: `signIn succeeded! Auth method: ${authMethod}`,
+                              data: {
+                                signatureLength: signature.length,
+                                signaturePrefix: signature.substring(0, 30) + '...',
+                                messagePreview: message.substring(0, 100) + '...',
+                                authMethod,
+                                logs: quickAuthLogs,
+                              },
+                            };
+
+                            setQuickAuthTest({
+                              status: 'success',
+                              steps: [...steps],
+                              token: signature, // Using signature as "token" for display
+                              tokenDetails: {
+                                isValid: true,
+                                domain: testDomain,
+                              },
+                            });
+                            console.log = originalLog;
+                            return;
+                          } else if ('error' in signInResult) {
+                            throw new Error(`signIn rejected: ${signInResult.error.type}`);
+                          } else {
+                            throw new Error('signIn returned unexpected result');
+                          }
                         } catch (error) {
                           const errorObj = error instanceof Error ? error : new Error(String(error));
-                          steps[steps.length - 1] = { 
-                            step: 'Test Our Quick Auth System', 
-                            status: 'error', 
+                          steps[steps.length - 1] = {
+                            step: 'Test signIn API',
+                            status: 'error',
                             error: errorObj.message,
                             errorStack: errorObj.stack,
                             data: {
@@ -634,8 +600,8 @@ Mini-App #${app.index} (${app.id || "Unknown"})
                               logs: quickAuthLogs,
                             },
                           };
-                          setQuickAuthTest({ 
-                            status: 'error', 
+                          setQuickAuthTest({
+                            status: 'error',
                             steps: [...steps],
                           });
                         } finally {
@@ -809,26 +775,11 @@ Mini-App #${app.index} (${app.id || "Unknown"})
                                 <strong>Setup Error:</strong> {debugInfo.setupError}
                               </div>
                             )}
-                            {app.setupError && (
-                              <div className="text-red-400 text-xs mt-2 p-2 bg-red-900/20 rounded">
-                                <strong>Comlink Setup Error:</strong> {app.setupError}
-                              </div>
-                            )}
-                          </>
+                              </>
                         )}
                         <div className="text-xs text-gray-400 mt-1 pt-1 border-t border-gray-700">
                           Context provided via Comlink (sdk.context from @farcaster/miniapp-sdk)
                         </div>
-                        {app.quickAuthDomain && (
-                          <div className="text-xs text-gray-400 mt-1">
-                            <strong>Quick Auth Domain:</strong> {app.quickAuthDomain}
-                          </div>
-                        )}
-                        {app.postMessageOrigin && (
-                          <div className="text-xs text-gray-400 mt-1">
-                            <strong>PostMessage Origin:</strong> {app.postMessageOrigin}
-                          </div>
-                        )}
                         <details className="mt-2">
                           <summary className="cursor-pointer text-blue-400 text-xs">View full context data</summary>
                           <pre className="mt-1 text-xs font-mono whitespace-pre-wrap break-all bg-gray-950 p-2 rounded overflow-x-auto max-h-32 overflow-y-auto">

@@ -12,8 +12,7 @@ import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } 
 import DOMPurify from "isomorphic-dompurify";
 import { BsCloud, BsCloudFill } from "react-icons/bs";
 import { useMiniApp } from "@/common/utils/useMiniApp";
-import { MINI_APP_PROVIDER_METADATA, MiniAppSdkContext } from "@/common/providers/MiniAppSdkProvider";
-import { useMiniAppSdk } from "@/common/lib/hooks/useMiniAppSdk";
+import { MiniAppSdkContext } from "@/common/providers/MiniAppSdkProvider";
 import { AuthenticatorContext } from "@/authenticators/AuthenticatorManager";
 import type { AuthenticatorManager } from "@/authenticators/AuthenticatorManager";
 import { setupComlinkHandler } from "@/common/lib/services/miniAppSdkHost";
@@ -42,7 +41,7 @@ const ensureSandboxRules = (sandbox?: string) => {
   return Array.from(rules).join(" ");
 };
 
-const sanitizeMiniAppNavigationTarget = (targetUrl: string) => {
+const _sanitizeMiniAppNavigationTarget = (targetUrl: string) => {
   const fallback = "about:blank";
 
   if (!targetUrl) {
@@ -335,33 +334,24 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
     // Wait a bit for iframe to be ready (especially if using srcDoc)
     const setupHandler = () => {
       try {
-        // Prepare Quick Auth options
-        const quickAuthOptions = {
-          // If we have the real SDK (embedded in Farcaster client), use it
-          realSdk: rawSdkInstance && (rawSdkInstance as any).quickAuth ? {
-            quickAuth: {
-              getToken: () => (rawSdkInstance as any).quickAuth.getToken(),
-              fetch: (url: string, init?: RequestInit) => (rawSdkInstance as any).quickAuth.fetch(url, init),
-              token: (rawSdkInstance as any).quickAuth.token || null,
-            },
-          } : undefined,
-          // Use authenticator manager for signing when standalone
+        // Host options - the SDK handles Quick Auth internally by calling signIn
+        const hostOptions = {
+          // Use authenticator manager for signing
           authenticatorManager: authenticatorManager || undefined,
           // User FID from our own data (we create the context)
           userFid: userFid || contextForEmbedded?.user?.fid,
         };
-        
+
         const cleanup = setupComlinkHandler(
           iframe,
           contextForEmbedded,
           ethProvider,
           targetOrigin,
-          quickAuthOptions
+          hostOptions
         );
         comlinkCleanups.current.set(iframe, cleanup);
       } catch (error) {
         console.error('Failed to set up Comlink handler for iframe:', error);
-        // Error is already logged, don't set up handler if origin validation fails
       }
     };
     
