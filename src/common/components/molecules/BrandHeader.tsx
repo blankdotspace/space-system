@@ -22,16 +22,29 @@ const BrandHeader = ({ systemConfig }: BrandHeaderProps) => {
   const logoTooltip = navigation?.logoTooltip;
   const logoSrc = assets.logos.icon || assets.logos.main;
 
+  // Check if the logo is an SVG (use regular img tag for security - SVGs can contain scripts)
+  const isSvg = logoSrc?.toLowerCase().endsWith('.svg');
+
   const logoImage = (
     <div className="w-12 h-8 sm:w-16 sm:h-10 me-3 flex items-center justify-center">
-      <Image
-        src={logoSrc}
-        alt={`${brand.displayName} Logo`}
-        width={60}
-        height={40}
-        priority
-        className="w-full h-full object-contain"
-      />
+      {isSvg ? (
+        // Use regular img tag for SVGs to avoid Next.js Image optimization issues
+        // SVGs are rendered in an img tag context which prevents script execution
+        <img
+          src={logoSrc}
+          alt={`${brand.displayName} Logo`}
+          className="w-full h-full object-contain"
+        />
+      ) : (
+        <Image
+          src={logoSrc}
+          alt={`${brand.displayName} Logo`}
+          width={60}
+          height={40}
+          priority
+          className="w-full h-full object-contain"
+        />
+      )}
     </div>
   );
 
