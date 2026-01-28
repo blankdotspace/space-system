@@ -177,6 +177,13 @@
     "esbuild": "0.25.0",
     "cookie": "0.7.0",
     "lodash.set": "4.3.2",
-    "@internationalized/date": "^3.10.0"
+    "@internationalized/date": "^3.10.0",
+    "tar": "7.5.4",
+    "undici": "7.18.2",
+    "h3": "1.15.5",
+    "hono": "4.11.4",
+    "preact": "10.26.10",
+    "@coinbase/wallet-sdk": "4.3.0",
+    "lodash": "4.17.23"
   }
 }
