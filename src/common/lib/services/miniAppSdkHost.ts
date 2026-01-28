@@ -287,8 +287,21 @@ export function createMiniAppSdkHost(
         }
 
         // Convert signature to hex string
-        const signature = Array.from(signResult.value as Uint8Array)
-          .map(b => b.toString(16).padStart(2, '0'))
+        // Handle both Uint8Array and serialized object formats
+        let signatureBytes: number[];
+        const rawValue = signResult.value;
+        if (rawValue instanceof Uint8Array) {
+          signatureBytes = Array.from(rawValue);
+        } else if (typeof rawValue === 'object' && rawValue !== null) {
+          // Handle serialized Uint8Array (object with numeric keys)
+          const keys = Object.keys(rawValue).map(Number).sort((a, b) => a - b);
+          signatureBytes = keys.map((k) => (rawValue as Record<number, number>)[k]);
+        } else {
+          console.error('[MiniApp Host] signIn: Unexpected signature format', rawValue);
+          return { error: { type: 'rejected_by_user' } };
+        }
+        const signature = signatureBytes
+          .map((b) => b.toString(16).padStart(2, '0'))
           .join('');
 
         return {
