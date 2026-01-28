@@ -41,6 +41,7 @@
   "dependencies": {
     "@cloudflare/workers-types": "^4.20251109.0",
     "@coinbase/onchainkit": "^0.38.19",
+    "@cowprotocol/widget-lib": "^0.22.1",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@farcaster/core": "^0.18.5",
