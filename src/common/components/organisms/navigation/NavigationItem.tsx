@@ -131,7 +131,7 @@ const NavigationItemComponent: React.FC<NavigationItemProps> = ({
         tabIndex={disable ? -1 : 0}
       >
         {/* Fixed-width icon container matching condensed sidebar - icons always centered here */}
-        <div className="w-[58px] flex justify-center shrink-0 relative">
+        <div className="w-[82px] flex justify-center shrink-0 relative">
           {badgeText && <NavIconBadge systemConfig={systemConfig}>{badgeText}</NavIconBadge>}
           <Icon aria-hidden="true" />
         </div>
@@ -233,7 +233,7 @@ const NavigationButtonComponent: React.FC<NavigationButtonProps> = ({
         tabIndex={disable ? -1 : 0}
       >
         {/* Fixed-width icon container matching condensed sidebar - icons always centered here */}
-        <div className="w-[58px] flex justify-center shrink-0 relative">
+        <div className="w-[82px] flex justify-center shrink-0 relative">
           {badgeText && <NavIconBadge systemConfig={systemConfig}>{badgeText}</NavIconBadge>}
           <Icon aria-hidden="true" />
         </div>

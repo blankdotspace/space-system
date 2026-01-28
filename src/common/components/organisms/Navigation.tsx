@@ -578,8 +578,8 @@ const Navigation = React.memo(
           </div>
           <div
             className={mergeClasses(
-              "flex flex-col text-lg font-medium pb-3 px-4 overflow-auto transition-all duration-300 pt-[18px]",
-              shrunk ? "px-1" : "px-4"
+              "flex flex-col text-lg font-medium pb-3 overflow-auto transition-all duration-300 pt-[18px]",
+              shrunk ? "px-1" : "pl-1 pr-4"
             )}
           >
             <div className="flex-auto">
@@ -858,7 +858,7 @@ const Navigation = React.memo(
                     rel="noopener noreferrer"
                     target="_blank"
                   >
-                    <div className="w-[58px] flex justify-center shrink-0">
+                    <div className="w-[82px] flex justify-center shrink-0">
                       <FaDiscord className="text-[#5865f2] w-6 h-6" />
                     </div>
                     <span
