@@ -42,7 +42,7 @@ const createFarcasterSignerFromAuthenticatorManager = async (
   
   // Only verify we can get the public key if explicitly requested (to avoid extra calls)
   let canGetKey = scheme !== SignatureScheme.NONE;
-  if (scheme !== SignatureScheme.NONE && !skipKeyTest) {
+  if (scheme !== SignatureScheme.NONE) {
     try {
       const testKeyResult = await authenticatorManager.callMethod({
         requestingFidgetId: fidgetId,
