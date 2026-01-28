@@ -71,6 +71,12 @@ const cspHeader = `
 const nextConfig = {
   // output: 'export', // Outputs a Single-Page Application (SPA).
   // distDir: './dist', // Changes the build output directory to `./dist/`.
+  compiler: {
+    // Remove console.log in production builds (keep console.error and console.warn)
+    removeConsole: process.env.NODE_ENV === 'production' ? {
+      exclude: ['error', 'warn'],
+    } : false,
+  },
   transpilePackages: [
     "react-tweet", 
     "react-best-gradient-color-picker",
