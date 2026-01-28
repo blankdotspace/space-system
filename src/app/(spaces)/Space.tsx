@@ -55,7 +55,7 @@ export type SpaceConfigSaveDetails = Partial<
 };
 
 type SpaceArgs = {
-  config: SpaceConfig;
+  config: SpaceConfig | undefined;
   saveConfig: (config: SpaceConfigSaveDetails) => Promise<void>;
   commitConfig: () => Promise<void>;
   resetConfig: () => Promise<void>;
@@ -128,14 +128,17 @@ export default function Space({
   const isHomebasePath = usePathHelper();
   const { isMobile, showMobileContainer, viewportMobile, setMobilePreview } = useViewportManager();
   const { saveLocalConfig } = useConfigManager(saveConfig);
-  
+
+  // Track if config is loading
+  const isConfigLoading = isUndefined(config);
+
   // Calculate layout stuff once instead of re-computing
   const layoutConfig = getLayoutConfig(config?.layoutDetails);
-  const layoutFidgetIds = layoutConfig?.layout && config.fidgetInstanceDatums 
+  const layoutFidgetIds = layoutConfig?.layout && config?.fidgetInstanceDatums
     ? extractFidgetIdsFromLayout(layoutConfig.layout, config.fidgetInstanceDatums)
     : [];
 
-  
+
   // Figure out what should be visible
   const shouldShowFeed = !!feed && (!isMobile || (showFeedOnMobile && !isHomebasePath));
   const shouldShowMainLayout = !(isMobile && showFeedOnMobile && !isHomebasePath);
@@ -155,8 +158,10 @@ export default function Space({
   }), [commitConfig, resetConfig, setEditMode, setMobilePreview]);
 
   useEffect(() => {
-    setSidebarEditable(config.isEditable);
-  }, [config.isEditable, setSidebarEditable]);
+    if (config) {
+      setSidebarEditable(config.isEditable);
+    }
+  }, [config?.isEditable, setSidebarEditable]);
 
   // Cleanup logic to remove orphaned fidgets
   const cleanupHasRun = React.useRef(false);
@@ -191,10 +196,10 @@ export default function Space({
     }
 
     cleanupHasRun.current = true;
-  }, [config.layoutDetails, config.fidgetInstanceDatums, profile, feed, saveConfig, commitConfig]);
+  }, [config?.layoutDetails, config?.fidgetInstanceDatums, profile, feed, saveConfig, commitConfig]);
 
-  // Props for our layout components
-  const baseLayoutProps = {
+  // Props for our layout components (only used when config is defined)
+  const baseLayoutProps = config ? {
     theme: config.theme,
     fidgetInstanceDatums: config.fidgetInstanceDatums,
     fidgetTrayContents: config.fidgetTrayContents,
@@ -210,21 +215,21 @@ export default function Space({
     fid: config.fid,
     inEditMode: !viewportMobile && editMode,
     isHomebasePath: isHomebasePath,
-  };
+  } : null;
 
-  const desktopViewProps = {
+  const desktopViewProps = baseLayoutProps ? {
     ...baseLayoutProps,
     layoutFidgetKey: getLayoutFidgetForMode(config?.layoutDetails, 'desktop'),
     inEditMode: !viewportMobile && editMode,
-  };
+  } : null;
 
-  const mobileLayoutProps = {
+  const mobileLayoutProps = baseLayoutProps ? {
     ...baseLayoutProps,
     layoutFidgetIds,
     isHomebasePath,
     hasFeed: !!feed,
     feed,
-  };
+  } : null;
 
   const mainContent = (
     <div className="flex flex-col h-full">
@@ -266,22 +271,29 @@ export default function Space({
                   : "grow h-[calc(100vh-64px)]"
             }
           >
-            <Suspense
-              fallback={
-                <SpaceLoading
-                  hasProfile={!isNil(profile)}
-                  hasFeed={!isNil(feed)}
-                />
-              }
-            >
-              {isMobile ? (
-                <MobileViewSimplified
-                  {...mobileLayoutProps}
-                />
-              ) : (
-                <DesktopView {...desktopViewProps} />
-              )}
-            </Suspense>
+            {isConfigLoading ? (
+              <SpaceLoading
+                hasProfile={!isNil(profile)}
+                hasFeed={!isNil(feed)}
+              />
+            ) : (
+              <Suspense
+                fallback={
+                  <SpaceLoading
+                    hasProfile={!isNil(profile)}
+                    hasFeed={!isNil(feed)}
+                  />
+                }
+              >
+                {isMobile && mobileLayoutProps ? (
+                  <MobileViewSimplified
+                    {...mobileLayoutProps}
+                  />
+                ) : desktopViewProps ? (
+                  <DesktopView {...desktopViewProps} />
+                ) : null}
+              </Suspense>
+            )}
           </div>
         )}
       </div>
@@ -290,7 +302,7 @@ export default function Space({
 
   return (
     <>
-      {showMobileContainer && editMode && portalRef.current
+      {showMobileContainer && editMode && portalRef.current && config
         ? createPortal(
           <aside
             id="logo-sidebar"
@@ -321,7 +333,7 @@ export default function Space({
           : "user-theme-background flex flex-col"
           }`}
         style={{
-          backgroundColor: showMobileContainer ? undefined : config.theme?.properties.background,
+          backgroundColor: showMobileContainer ? undefined : config?.theme?.properties.background,
           ...(showMobileContainer && {
            backgroundImage: "url('/images/space-background.png')",
             backgroundSize: 'cover',
@@ -332,7 +344,7 @@ export default function Space({
         }}
       >
         <div className="w-full h-full transition-all duration-100 ease-out">
-          {showMobileContainer ? (
+          {showMobileContainer && config ? (
             <MobilePreview
               config={config}
               editMode={editMode}
@@ -349,7 +361,7 @@ export default function Space({
             />
           ) : (
             <>
-              <CustomHTMLBackground html={config.theme?.properties.backgroundHTML} />
+              <CustomHTMLBackground html={config?.theme?.properties.backgroundHTML ?? ""} />
               {mainContent}
             </>
           )}
