@@ -10122,7 +10122,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"axios@npm:^1.8.3":
+"axios@npm:^1.13.2":
   version: 1.13.4
   resolution: "axios@npm:1.13.4"
   dependencies:
@@ -16855,7 +16855,7 @@ __metadata:
     "@xmtp/frames-validator": "npm:^0.6.2"
     "@zoralabs/coins-sdk": "npm:^0.3.0"
     autoprefixer: "npm:^10.4.21"
-    axios: "npm:^1.8.3"
+    axios: "npm:^1.13.2"
     boring-avatars: "npm:^1.10.1"
     class-variance-authority: "npm:^0.7.0"
     clsx: "npm:^2.0.0"
