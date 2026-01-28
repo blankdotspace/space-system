@@ -16,7 +16,7 @@ const ICON_PACK: Record<string, IconType> = {
 
 interface IconSelectorProps {
   onSelectIcon: (icon: string) => void
-  triggerRef: React.RefObject<HTMLElement>
+  triggerRef: React.RefObject<HTMLElement | null>
   onClose: () => void
 }
 

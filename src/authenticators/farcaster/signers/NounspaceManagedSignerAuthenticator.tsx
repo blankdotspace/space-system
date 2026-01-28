@@ -193,8 +193,8 @@ const initializer: AuthenticatorInitializer<
 > = ({ data, saveData, done }) => {
   const self = makeAuthenticatorMethods(methods, { data, saveData }, true);
   const [loading, setLoading] = useState(false);
-  const pollInterval = useRef<NodeJS.Timeout | undefined>();
-  const doneInterval = useRef<NodeJS.Timeout | undefined>();
+  const pollInterval = useRef<NodeJS.Timeout | undefined>(undefined);
+  const doneInterval = useRef<NodeJS.Timeout | undefined>(undefined);
   const [devFid, setDevFid] = useState("");
 
   function createSigner() {

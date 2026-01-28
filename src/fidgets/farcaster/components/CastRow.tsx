@@ -546,7 +546,12 @@ const CastReactions = ({ cast }: { cast: CastWithInteractions }) => {
     }
   };
 
-  const renderReaction = (key: CastReactionType, isActive: boolean, count?: number | string, icon?: JSX.Element) => {
+  const renderReaction = (
+    key: CastReactionType,
+    isActive: boolean,
+    count?: number | string,
+    icon?: React.ReactElement,
+  ) => {
     return (
       <div
         key={`cast-${cast.hash}-${key}`}
@@ -842,7 +847,10 @@ const CastLeftGutter = ({ cast, connectTop, connectBottom }) => {
   );
 };
 
-const getIconForCastReactionType = (reactionType: CastReactionType, isActive?: boolean): JSX.Element | undefined => {
+const getIconForCastReactionType = (
+  reactionType: CastReactionType,
+  isActive?: boolean,
+): React.ReactElement | undefined => {
   const baseColor = isActive
     ? reactionType === CastReactionType.likes
       ? "text-red-500"
