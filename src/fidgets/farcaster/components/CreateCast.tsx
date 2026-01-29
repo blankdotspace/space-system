@@ -500,21 +500,47 @@ const CreateCast: React.FC<CreateCastProps> = ({
 
   // Set default channel from community config if available
   useEffect(() => {
+    console.log("[DefaultChannel] useEffect triggered");
+    console.log("[DefaultChannel] systemConfig:", systemConfig);
+    console.log("[DefaultChannel] systemConfig?.community:", systemConfig?.community);
+    console.log("[DefaultChannel] systemConfig?.community?.social:", systemConfig?.community?.social);
+
     const communityChannel = systemConfig?.community?.social?.farcaster;
-    if (!communityChannel || !setChannel) return;
+    console.log("[DefaultChannel] communityChannel value:", communityChannel);
+
+    if (!communityChannel) {
+      console.log("[DefaultChannel] No communityChannel configured, exiting");
+      return;
+    }
+    if (!setChannel) {
+      console.log("[DefaultChannel] setChannel not available, exiting");
+      return;
+    }
 
     // Only set default if no channel is currently selected
     const currentChannel = getChannel();
-    if (currentChannel) return;
+    console.log("[DefaultChannel] currentChannel:", currentChannel);
+    if (currentChannel) {
+      console.log("[DefaultChannel] Channel already selected, exiting");
+      return;
+    }
 
     const setDefaultChannel = async () => {
+      console.log("[DefaultChannel] Fetching channels for:", communityChannel);
       const channels = await fetchChannelsByName(communityChannel);
+      console.log("[DefaultChannel] fetchChannelsByName returned:", channels);
+
       // Find exact match for the community channel
       const matchingChannel = channels.find(
         (ch) => ch.id?.toLowerCase() === communityChannel.toLowerCase()
       );
+      console.log("[DefaultChannel] matchingChannel:", matchingChannel);
+
       if (matchingChannel) {
+        console.log("[DefaultChannel] Setting channel to:", matchingChannel);
         setChannel(matchingChannel);
+      } else {
+        console.log("[DefaultChannel] No matching channel found");
       }
     };
 
