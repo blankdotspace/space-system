@@ -31,7 +31,7 @@ type MiniAppContextState = {
   isReady: boolean;
   error: Error | null;
   sdk: typeof miniAppSdk | null;
-  frameContext: MiniAppContext | null;
+  context: MiniAppContext | null;
 };
 
 export const MiniAppSdkContext = createContext<MiniAppContextState>({
@@ -39,7 +39,7 @@ export const MiniAppSdkContext = createContext<MiniAppContextState>({
   isReady: false,
   error: null,
   sdk: null,
-  frameContext: null,
+  context: null,
 });
 
 export const MiniAppSdkProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -50,7 +50,7 @@ export const MiniAppSdkProvider: React.FC<{ children: React.ReactNode }> = ({
     isReady: false,
     error: null,
     sdk: null,
-    frameContext: null,
+    context: null,
   });
 
   useEffect(() => {
@@ -61,24 +61,22 @@ export const MiniAppSdkProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const initializeSdk = async () => {
       try {
-        // Initialize the frame SDK
+        // Initialize the mini app SDK
         await miniAppSdk.actions.ready();
 
         // Store the sdk reference
-        // Get initial frame context - it's a Promise
-        const initialFrameContext = await miniAppSdk.context;
-
-        // console.log("Frame SDK initialized successfully.", initialFrameContext);
+        // Get initial mini app context - it's a Promise
+        const initialMiniAppContext = await miniAppSdk.context;
 
         setState((prev) => ({
           ...prev,
           sdk: miniAppSdk,
-          frameContext: initialFrameContext,
+          context: initialMiniAppContext,
           isInitializing: false,
           isReady: true,
         }));
       } catch (err) {
-        console.error("Failed to initialize Frame SDK:", err);
+        console.error("Failed to initialize Mini App SDK:", err);
         setState((prev) => ({
           ...prev,
           isInitializing: false,

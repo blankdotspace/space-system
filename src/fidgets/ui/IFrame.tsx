@@ -8,11 +8,16 @@ import { useIsMobile } from "@/common/lib/hooks/useIsMobile";
 import { debounce } from "lodash";
 import { isValidHttpUrl } from "@/common/lib/utils/url";
 import { defaultStyleFields, ErrorWrapper, transformUrl, WithMargin } from "@/fidgets/helpers";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import DOMPurify from "isomorphic-dompurify";
 import { BsCloud, BsCloudFill } from "react-icons/bs";
 import { useMiniApp } from "@/common/utils/useMiniApp";
-import { MINI_APP_PROVIDER_METADATA } from "@/common/providers/MiniAppSdkProvider";
+import { MiniAppSdkContext } from "@/common/providers/MiniAppSdkProvider";
+import { AuthenticatorContext } from "@/authenticators/AuthenticatorManager";
+import type { AuthenticatorManager } from "@/authenticators/AuthenticatorManager";
+import { setupComlinkHandler } from "@/common/lib/services/miniAppSdkHost";
+import { useNounspaceMiniAppContext } from "@/common/lib/utils/createMiniAppContext";
+import { useCurrentFid } from "@/common/lib/hooks/useCurrentFid";
 
 const DEFAULT_SANDBOX_RULES =
   "allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox";
@@ -36,7 +41,7 @@ const ensureSandboxRules = (sandbox?: string) => {
   return Array.from(rules).join(" ");
 };
 
-const sanitizeMiniAppNavigationTarget = (targetUrl: string) => {
+const _sanitizeMiniAppNavigationTarget = (targetUrl: string) => {
   const fallback = "about:blank";
 
   if (!targetUrl) {
@@ -89,59 +94,6 @@ const resolveAllowedEmbedSrc = (src?: string | null): string | null => {
 
 type IframeAttributeMap = Record<string, string>;
 
-const createMiniAppBootstrapSrcDoc = (targetUrl: string) => {
-  const safeTargetUrl = sanitizeMiniAppNavigationTarget(targetUrl);
-  const iconPath = MINI_APP_PROVIDER_METADATA.iconPath;
-  const providerInfoScript = `
-        var providerInfo = parentWindow.__nounspaceMiniAppProviderInfo;
-        if (!providerInfo) {
-          var icon;
-          try {
-            icon = new URL(${JSON.stringify(iconPath)}, (window.parent && window.parent.location ? window.parent.location.origin : window.location.origin)).toString();
-          } catch (err) {
-            icon = ${JSON.stringify(iconPath)};
-          }
-          providerInfo = {
-            uuid: ${JSON.stringify(MINI_APP_PROVIDER_METADATA.uuid)},
-            name: ${JSON.stringify(MINI_APP_PROVIDER_METADATA.name)},
-            icon: icon,
-            rdns: ${JSON.stringify(MINI_APP_PROVIDER_METADATA.rdns)}
-          };
-        }
-      `;
-
-  return `<!DOCTYPE html><html><head><meta charset="utf-8" /></head><body><script>(function(){
-      try {
-        var parentWindow = window.parent;
-        if (!parentWindow) {
-          return;
-        }
-        var provider = parentWindow.__nounspaceMiniAppEthProvider;
-        if (provider) {
-          window.ethereum = provider;
-          ${providerInfoScript}
-          var announce = function() {
-            var detail = {
-              info: providerInfo,
-              provider: provider
-            };
-            window.dispatchEvent(new CustomEvent("eip6963:announceProvider", { detail: detail }));
-          };
-          window.dispatchEvent(new Event("ethereum#initialized"));
-          announce();
-          window.addEventListener("eip6963:requestProvider", announce);
-        }
-      } catch (err) {
-        console.error("Mini app provider bootstrap failed", err);
-      }
-      setTimeout(function(){
-        var target = ${JSON.stringify(safeTargetUrl)};
-        if (target) {
-          window.location.replace(target);
-        }
-      }, 0);
-    })();</script></body></html>`;
-};
 
 const parseIframeAttributes = (html: string | null): IframeAttributeMap | null => {
   if (typeof window === "undefined" || !html) {
@@ -312,6 +264,116 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
   const { isInMiniApp } = useMiniApp();
   const isMiniAppEnvironment = isInMiniApp === true;
 
+  // Get real SDK instance for Quick Auth (if we're embedded in a Farcaster client)
+  const sdkContextState = useContext(MiniAppSdkContext);
+  const rawSdkInstance = sdkContextState?.sdk;
+  const sdkContext = sdkContextState?.context;
+  
+  // Get authenticator manager from context (may be null if not inside AuthenticatorManagerProvider)
+  const authenticatorManager: AuthenticatorManager | null = useContext(AuthenticatorContext);
+  
+  // Get current user FID from our own data
+  const userFid = useCurrentFid();
+  
+  // Create context from our own data - WE ARE THE FARCASTER CLIENT
+  // Always call the hook (Rules of Hooks), then use SDK context if available
+  // (we're embedded), otherwise use our created context
+  const nounspaceContext = useNounspaceMiniAppContext();
+  const contextForEmbedded = sdkContext || nounspaceContext;
+
+  // Calculate transformedUrl early so it can be used in useCallback dependencies
+  const isValid = isValidHttpUrl(debouncedUrl);
+  const sanitizedUrl = useSafeUrl(debouncedUrl);
+  const transformedUrl = transformUrl(sanitizedUrl || "");
+
+  // Track cleanup functions for Comlink handlers
+  const comlinkCleanups = useRef<Map<HTMLIFrameElement, () => void>>(new Map());
+  
+  // Callback to set up Comlink handler when iframe is mounted
+  const setupIframeComlink = useCallback((iframe: HTMLIFrameElement | null) => {
+    if (!iframe || typeof window === 'undefined') {
+      return;
+    }
+    
+    // Always set up handler, even with fallback context
+    // This allows embedded apps to detect they're in a mini-app environment
+
+    // Clean up existing handler for this iframe if any
+    const existingCleanup = comlinkCleanups.current.get(iframe);
+    if (existingCleanup) {
+      existingCleanup();
+      comlinkCleanups.current.delete(iframe);
+    }
+
+    // Get ethProvider from window
+    const ethProvider = (window as any).__nounspaceMiniAppEthProvider;
+    
+    // Determine target origin - must be a valid URL origin for security
+    // Never use '*' as it's unsafe and allows any origin to receive messages
+    let targetOrigin: string | undefined;
+    try {
+      if (transformedUrl) {
+        targetOrigin = new URL(transformedUrl).origin;
+      } else if (iframe.src) {
+        // Fallback to iframe.src if transformedUrl is not available
+        targetOrigin = new URL(iframe.src).origin;
+      }
+    } catch (error) {
+      // Cannot determine origin - this is a security issue
+      console.error('Cannot determine target origin for iframe. transformedUrl:', transformedUrl, 'iframe.src:', iframe.src, error);
+      // Don't set up Comlink handler without a valid origin
+      return;
+    }
+    
+    if (!targetOrigin) {
+      console.error('No valid origin available for iframe. Cannot set up Comlink handler safely. transformedUrl:', transformedUrl, 'iframe.src:', iframe.src);
+      return;
+    }
+    
+    // Set up Comlink handler for this iframe
+    // Wait a bit for iframe to be ready (especially if using srcDoc)
+    const setupHandler = () => {
+      try {
+        // Host options - the SDK handles Quick Auth internally by calling signIn
+        const hostOptions = {
+          // Use authenticator manager for signing
+          authenticatorManager: authenticatorManager || undefined,
+          // User FID from our own data (we create the context)
+          userFid: userFid || contextForEmbedded?.user?.fid,
+        };
+
+        const cleanup = setupComlinkHandler(
+          iframe,
+          contextForEmbedded,
+          ethProvider,
+          targetOrigin,
+          hostOptions
+        );
+        comlinkCleanups.current.set(iframe, cleanup);
+      } catch (error) {
+        console.error('Failed to set up Comlink handler for iframe:', error);
+      }
+    };
+    
+    // If iframe has contentWindow, set up immediately
+    // Otherwise wait for load event
+    if (iframe.contentWindow) {
+      setupHandler();
+    } else {
+      iframe.addEventListener('load', setupHandler, { once: true });
+    }
+  }, [contextForEmbedded, transformedUrl, rawSdkInstance, authenticatorManager]);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      comlinkCleanups.current.forEach((cleanup) => {
+        cleanup();
+      });
+      comlinkCleanups.current.clear();
+    };
+  }, []);
+
   const [sanitizedEmbedAttributes, setSanitizedEmbedAttributes] =
     useState<IframeAttributeMap | null>(null);
   const [iframelyEmbedAttributes, setIframelyEmbedAttributes] =
@@ -368,6 +430,8 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
     setIframelyEmbedAttributes(parseIframeAttributes(embedInfo.iframelyHtml));
   }, [embedInfo?.iframelyHtml]);
 
+  // Context is provided via Comlink - no need to serialize for bootstrap
+
   const iframelyMiniAppConfig = useMemo(() => {
     if (!isMiniAppEnvironment || !iframelyEmbedAttributes?.src) {
       return undefined;
@@ -380,8 +444,7 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
     try {
       const safeSrc = new URL(iframelyEmbedAttributes.src).toString();
       return {
-        safeSrc,
-        bootstrapDoc: createMiniAppBootstrapSrcDoc(safeSrc),
+        safeSrc: safeSrc,
         allowFullScreen: "allowfullscreen" in iframelyEmbedAttributes,
         sandboxRules: ensureSandboxRules(iframelyEmbedAttributes.sandbox),
         widthAttr: iframelyEmbedAttributes.width,
@@ -393,9 +456,6 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
     }
   }, [isMiniAppEnvironment, iframelyEmbedAttributes]);
 
-  const isValid = isValidHttpUrl(debouncedUrl);
-  const sanitizedUrl = useSafeUrl(debouncedUrl);
-  const transformedUrl = transformUrl(sanitizedUrl || "");
   // Scale value is set from size prop
   const _scaleValue = size;
 
@@ -468,13 +528,6 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
     return resolveAllowedEmbedSrc(sanitizedEmbedSrc);
   }, [isMiniAppEnvironment, sanitizedEmbedSrc]);
 
-  const sanitizedMiniAppBootstrapDoc = useMemo(() => {
-    if (!resolvedSanitizedMiniAppSrc) {
-      return null;
-    }
-
-    return createMiniAppBootstrapSrcDoc(resolvedSanitizedMiniAppSrc);
-  }, [resolvedSanitizedMiniAppSrc]);
 
   if (sanitizedEmbedScript) {
     if (
@@ -494,7 +547,6 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
       isMiniAppEnvironment &&
       sanitizedEmbedSrc &&
       resolvedSanitizedMiniAppSrc &&
-      sanitizedMiniAppBootstrapDoc &&
       sanitizedEmbedAttributes
     ) {
       const allowFullScreen = "allowfullscreen" in sanitizedEmbedAttributes;
@@ -508,8 +560,10 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
       return (
         <div style={{ overflow: "hidden", width: "100%", height: "100%" }}>
           <iframe
+            ref={setupIframeComlink}
+            data-nounspace-context
             key={`miniapp-sanitized-${resolvedSanitizedMiniAppSrc}`}
-            srcDoc={sanitizedMiniAppBootstrapDoc}
+            src={resolvedSanitizedMiniAppSrc}
             title={sanitizedEmbedAttributes.title || "IFrame Fidget"}
             sandbox={sandboxRules}
             allow={sanitizedEmbedAttributes.allow}
@@ -654,10 +708,7 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
   }
 
   if (embedInfo.directEmbed && transformedUrl) {
-    const miniAppBootstrapDoc = isMiniAppEnvironment
-      ? createMiniAppBootstrapSrcDoc(transformedUrl)
-      : null;
-
+    // Context is provided via Comlink - use direct iframe src
     return (
       <div
         style={{
@@ -678,9 +729,10 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
             }}
           >
             <iframe
+              ref={setupIframeComlink}
+              data-nounspace-context
               key={`iframe-miniapp-${transformedUrl}`}
-              src={miniAppBootstrapDoc ? undefined : transformedUrl}
-              srcDoc={miniAppBootstrapDoc || undefined}
+              src={transformedUrl}
               title="IFrame Fidget"
               sandbox={DEFAULT_SANDBOX_RULES}
               style={{
@@ -710,9 +762,10 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
               }}
             >
               <iframe
+                ref={setupIframeComlink}
+                data-nounspace-context
                 key={`iframe-miniapp-${transformedUrl}`}
-                src={miniAppBootstrapDoc ? undefined : transformedUrl}
-                srcDoc={miniAppBootstrapDoc || undefined}
+                src={transformedUrl}
                 title="IFrame Fidget"
                 sandbox={DEFAULT_SANDBOX_RULES}
                 style={{
@@ -745,7 +798,6 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
       if (iframelyMiniAppConfig) {
         const {
           safeSrc,
-          bootstrapDoc,
           allowFullScreen,
           sandboxRules,
           widthAttr,
@@ -755,8 +807,10 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
         return (
           <div style={{ overflow: "hidden", width: "100%", height: "100%" }}>
             <iframe
+              ref={setupIframeComlink}
+              data-nounspace-context
               key={`miniapp-iframely-${safeSrc}`}
-              srcDoc={bootstrapDoc}
+              src={safeSrc}
               title={iframelyEmbedAttributes.title || "IFrame Fidget"}
               sandbox={sandboxRules}
               allow={iframelyEmbedAttributes.allow}

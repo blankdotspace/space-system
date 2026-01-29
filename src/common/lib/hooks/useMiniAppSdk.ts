@@ -5,10 +5,11 @@ import type { Context } from "@farcaster/miniapp-core";
 import { MiniAppSdkContext } from "../../providers/MiniAppSdkProvider";
 
 type CastEmbedLocationContext = Context.CastEmbedLocationContext;
+type CastShareLocationContext = Context.CastShareLocationContext;
 type ChannelLocationContext = Context.ChannelLocationContext;
 type LauncherLocationContext = Context.LauncherLocationContext;
-type MiniAppContext = Context.MiniAppContext;
 type NotificationLocationContext = Context.NotificationLocationContext;
+type OpenMiniAppLocationContext = Context.OpenMiniAppLocationContext;
 
 /**
  * Hook to access the Farcaster Mini App SDK
@@ -20,11 +21,11 @@ type NotificationLocationContext = Context.NotificationLocationContext;
  * - Use wallet integration
  */
 export function useMiniAppSdk() {
-  const { isInitializing, isReady, error, sdk: sdkInstance } = useContext(MiniAppSdkContext);
-  const [frameContext, setFrameContext] = useState<
+  const { isInitializing, isReady, error, sdk: sdkInstance, context: sdkContext } = useContext(MiniAppSdkContext);
+  const [miniAppContext, setMiniAppContext] = useState<
     Context.MiniAppContext | undefined
   >(
-    undefined,
+    sdkContext || undefined,
   );
 
   // Fetch context when SDK is available
@@ -34,7 +35,7 @@ export function useMiniAppSdk() {
         try {
           // Context is a promise in the SDK
           const context = await sdkInstance.context;
-          setFrameContext(context);
+          setMiniAppContext(context);
         } catch (err) {
           console.error("Error fetching context:", err);
         }
@@ -43,6 +44,13 @@ export function useMiniAppSdk() {
       fetchContext();
     }
   }, [sdkInstance]);
+
+  // Also update when SDK context changes
+  useEffect(() => {
+    if (sdkContext) {
+      setMiniAppContext(sdkContext);
+    }
+  }, [sdkContext]);
 
   /**
    * Mark the app as ready to hide the splash screen
@@ -173,25 +181,32 @@ export function useMiniAppSdk() {
     sdk: sdkInstance,
 
     // Context - properly typed based on context.d.ts
-    context: frameContext,
+    context: miniAppContext,
 
     // Typed context properties for easier access
-    clientContext: frameContext?.client,
-    userContext: frameContext?.user,
-    locationContext: frameContext?.location,
+    clientContext: miniAppContext?.client,
+    userContext: miniAppContext?.user,
+    locationContext: miniAppContext?.location,
+    featuresContext: miniAppContext?.features,
 
     // Access specific location context types if needed
-    castEmbedContext: frameContext?.location?.type === "cast_embed"
-      ? (frameContext.location as Context.CastEmbedLocationContext)
+    castEmbedContext: miniAppContext?.location?.type === "cast_embed"
+      ? (miniAppContext.location as CastEmbedLocationContext)
       : undefined,
-    notificationContext: frameContext?.location?.type === "notification"
-      ? (frameContext.location as Context.NotificationLocationContext)
+    castShareContext: miniAppContext?.location?.type === "cast_share"
+      ? (miniAppContext.location as CastShareLocationContext)
       : undefined,
-    launcherContext: frameContext?.location?.type === "launcher"
-      ? (frameContext.location as Context.LauncherLocationContext)
+    notificationContext: miniAppContext?.location?.type === "notification"
+      ? (miniAppContext.location as NotificationLocationContext)
       : undefined,
-    channelContext: frameContext?.location?.type === "channel"
-      ? (frameContext.location as Context.ChannelLocationContext)
+    launcherContext: miniAppContext?.location?.type === "launcher"
+      ? (miniAppContext.location as LauncherLocationContext)
+      : undefined,
+    channelContext: miniAppContext?.location?.type === "channel"
+      ? (miniAppContext.location as ChannelLocationContext)
+      : undefined,
+    openMiniAppContext: miniAppContext?.location?.type === "open_miniapp"
+      ? (miniAppContext.location as OpenMiniAppLocationContext)
       : undefined,
 
     // Actions
@@ -199,7 +214,8 @@ export function useMiniAppSdk() {
       ready,
       close,
       signIn,
-      addFrame,
+      addMiniApp: addFrame, // Legacy name for backward compatibility
+      addFrame, // Keep for backward compatibility
       // composeCast,
       openUrl,
       viewProfile,

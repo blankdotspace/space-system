@@ -115,7 +115,7 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
 
   // Track which item's icon selector is open (by itemId)
   const [openIconSelectorId, setOpenIconSelectorId] = useState<string | null>(null);
-  const iconButtonRefs = useRef<Record<string, React.RefObject<HTMLButtonElement | null>>>({});
+  const iconButtonRefs = useRef<Record<string, React.RefObject<HTMLButtonElement>>>({});
 
   // Helper to get or create ref for an item's icon button
   const getIconButtonRef = (itemId: string) => {
