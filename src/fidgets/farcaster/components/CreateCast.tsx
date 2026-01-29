@@ -498,6 +498,29 @@ const CreateCast: React.FC<CreateCastProps> = ({
     },
   });
 
+  // Set default channel from community config if available
+  useEffect(() => {
+    const communityChannel = systemConfig?.community?.social?.farcaster;
+    if (!communityChannel || !setChannel) return;
+
+    // Only set default if no channel is currently selected
+    const currentChannel = getChannel();
+    if (currentChannel) return;
+
+    const setDefaultChannel = async () => {
+      const channels = await fetchChannelsByName(communityChannel);
+      // Find exact match for the community channel
+      const matchingChannel = channels.find(
+        (ch) => ch.id?.toLowerCase() === communityChannel.toLowerCase()
+      );
+      if (matchingChannel) {
+        setChannel(matchingChannel);
+      }
+    };
+
+    setDefaultChannel();
+  }, [systemConfig, setChannel, getChannel]);
+
   const debouncedPasteUpload = useMemo(
     () =>
       debounce(
