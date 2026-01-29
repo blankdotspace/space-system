@@ -428,7 +428,7 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
                           toast.success("Navigation item deleted");
                         }
                       }}
-                      className="p-1 hover:bg-red-100 rounded opacity-0 group-hover:opacity-100 transition-opacity ml-auto"
+                      className="p-1 hover:bg-[rgba(239,68,68,0.2)] rounded opacity-0 group-hover:opacity-100 transition-opacity ml-auto"
                       aria-label={`Delete ${item.label}`}
                       title={`Delete ${item.label}`}
                     >

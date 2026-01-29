@@ -118,7 +118,7 @@ const NavigationItemComponent: React.FC<NavigationItemProps> = ({
       <Link
         href={disable ? "#" : href}
         className={mergeClasses(
-          "flex relative items-center p-0 text-inherit rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 w-full group min-h-[40px]",
+          "flex relative items-center p-0 text-inherit rounded-lg dark:text-white hover:bg-[rgba(128,128,128,0.15)] w-full group min-h-[40px]",
           isSelected ? "bg-[rgba(128,128,128,0.2)]" : "",
           disable ? "opacity-50 cursor-not-allowed pointer-events-none" : ""
         )}
@@ -224,7 +224,7 @@ const NavigationButtonComponent: React.FC<NavigationButtonProps> = ({
         disabled={disable}
         className={mergeClasses(
           "flex relative items-center p-0 text-inherit rounded-lg dark:text-white w-full group min-h-[40px]",
-          "hover:bg-gray-100 dark:hover:bg-gray-700",
+          "hover:bg-[rgba(128,128,128,0.15)]",
           disable ? "opacity-50 cursor-not-allowed pointer-events-none" : ""
         )}
         onClick={onClick}
