@@ -183,7 +183,8 @@ const CreateCast: React.FC<CreateCastProps> = ({
 
   const hasEmbeds = draft?.embeds && !!draft.embeds.length;
   const isReply = draft?.parentCastId !== undefined;
-  const { signer, isLoadingSigner, fid } = useFarcasterSigner("create-cast");
+  const { signer, isLoadingSigner, fid, hasSigner, getOrCreateSigner } =
+    useFarcasterSigner("create-cast");
   const [initialChannels, setInitialChannels] = useState() as any;
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
@@ -412,13 +413,14 @@ const CreateCast: React.FC<CreateCastProps> = ({
   );
 
   const onSubmitPost = async (): Promise<boolean> => {
-    if ((!draft?.text && !draft?.embeds?.length) || isUndefined(signer)) {
+    const activeSigner = signer ?? (await getOrCreateSigner());
+    if ((!draft?.text && !draft?.embeds?.length) || !activeSigner) {
       console.error(
         "Submission failed: Missing text or embeds, or signer is undefined.",
         {
           draftText: draft?.text,
           draftEmbedsLength: draft?.embeds?.length,
-          signerUndefined: isUndefined(signer),
+          signerUndefined: !activeSigner,
         },
       );
       return false;
@@ -437,7 +439,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
     }
 
     try {
-      const result = await publishPost(draft, fid, signer);
+      const result = await publishPost(draft, fid, activeSigner);
 
       if (result.success) {
         setSubmitStatus("success");
@@ -721,7 +723,8 @@ const CreateCast: React.FC<CreateCastProps> = ({
 
 
   const getButtonText = () => {
-    if (isLoadingSigner) return "Not signed into Farcaster";
+    if (!hasSigner && !isLoadingSigner) return "Connect Farcaster";
+    if (isLoadingSigner) return "Connecting Farcaster...";
     if (isPublishing) return "Publishing...";
     if (submissionError) return "Retry";
     if (isPublished) return "Published!";
@@ -972,7 +975,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
                 onBlur={(e) => {
                   e.currentTarget.style.backgroundColor = castButtonColors.backgroundColor;
                 }}
-                disabled={isPublishing || isLoadingSigner}
+                disabled={isPublishing}
               >
                 {getButtonText()}
               </Button>
@@ -1042,7 +1045,7 @@ const CreateCast: React.FC<CreateCastProps> = ({
                   onBlur={(e) => {
                     e.currentTarget.style.backgroundColor = castButtonColors.backgroundColor;
                   }}
-                  disabled={isPublishing || isLoadingSigner}
+                  disabled={isPublishing}
                 >
                   {getButtonText()}
                 </Button>

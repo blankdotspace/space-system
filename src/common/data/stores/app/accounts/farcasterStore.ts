@@ -12,9 +12,12 @@ import moment from "moment";
 import { bytesToHex } from "@noble/ciphers/utils";
 import { AnalyticsEvent } from "@/common/constants/analyticsEvents";
 import { analytics } from "@/common/providers/AnalyticsProvider";
+import { ed25519 } from "@noble/curves/ed25519";
+import { InferFidLinkRequest, InferFidLinkResponse } from "@/pages/api/fid-link/infer";
 
 type FarcasterActions = {
   getFidsForCurrentIdentity: () => Promise<void>;
+  inferFidForCurrentIdentity: (walletAddress: string) => Promise<number | null>;
   registerFidForCurrentIdentity: (
     fid: number,
     signingKey: string,
@@ -56,6 +59,43 @@ export const farcasterStore = (
     );
     if (!isUndefined(data.value)) {
       get().account.setFidsForCurrentIdentity(data.value!.fids);
+    }
+  },
+  inferFidForCurrentIdentity: async (walletAddress) => {
+    try {
+      const identity = get().account.getCurrentIdentity();
+      const identityPublicKey = identity?.rootKeys?.publicKey;
+      const identityPrivateKey = identity?.rootKeys?.privateKey;
+      if (!identityPublicKey || !identityPrivateKey) return null;
+
+      const unsigned: Omit<InferFidLinkRequest, "signature"> = {
+        identityPublicKey,
+        walletAddress: walletAddress.toLowerCase(),
+        timestamp: moment().toISOString(),
+      };
+      const signatureBytes = ed25519.sign(
+        hashObject(unsigned),
+        identityPrivateKey,
+      );
+      const signed: InferFidLinkRequest = {
+        ...unsigned,
+        signature: bytesToHex(signatureBytes),
+      };
+
+      const { data } = await axiosBackend.post<InferFidLinkResponse>(
+        "/api/fid-link/infer",
+        signed,
+      );
+      if (!data.value) return null;
+      get().account.addFidToCurrentIdentity(data.value.fid);
+      analytics.track(AnalyticsEvent.LINK_FID, {
+        fid: data.value.fid,
+        inferred: true,
+      });
+      return data.value.fid;
+    } catch (e) {
+      console.error("[inferFidForCurrentIdentity] failed", e);
+      return null;
     }
   },
   registerFidForCurrentIdentity: async (fid, signingKey, signMessage) => {
