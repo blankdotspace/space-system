@@ -226,11 +226,17 @@ const initializer: AuthenticatorInitializer<
   });
 
   function devSignin() {
+    const newPrivKey = ed25519.utils.randomPrivateKey();
+    const publicKeyHex = `0x${bytesToHex(ed25519.getPublicKey(newPrivKey))}`;
     saveData({
       ...data,
       status: "completed",
       accountFid: Number(devFid),
+      accountType: "account",
+      publicKeyHex,
+      privateKeyHex: `0x${bytesToHex(newPrivKey)}`,
     });
+    done();
   }
 
   const warpcastSignerUrl = data.signerUrl
