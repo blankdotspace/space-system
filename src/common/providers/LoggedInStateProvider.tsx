@@ -161,6 +161,11 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
   const installRequiredAuthenticators = async () => {
     await authenticatorManager.installAuthenticators(requiredAuthenticators);
     authenticatorManager.initializeAuthenticators(requiredAuthenticators);
+    // If no authenticators are required for signup, skip this step entirely.
+    if (requiredAuthenticators.length === 0) {
+      setCurrentStep(SetupStep.AUTHENTICATORS_INITIALIZED);
+      return;
+    }
     setCurrentStep(SetupStep.REQUIRED_AUTHENTICATORS_INSTALLED);
   };
 
@@ -261,7 +266,12 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
         (initializedAuthNames) => {
           const initializedAuthenticators = new Set(initializedAuthNames);
           const requiredAuthSet = new Set(requiredAuthenticators);
-          if (isEqual(initializedAuthenticators, requiredAuthSet)) {
+          // Consider the step complete once all required authenticators are initialized,
+          // even if other authenticators are also installed/initialized.
+          const allRequiredInitialized = Array.from(requiredAuthSet).every((id) =>
+            initializedAuthenticators.has(id),
+          );
+          if (allRequiredInitialized) {
             setCurrentStep(SetupStep.AUTHENTICATORS_INITIALIZED);
           }
         },
