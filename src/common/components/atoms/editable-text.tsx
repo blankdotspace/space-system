@@ -54,7 +54,8 @@ const EditableText = ({
   return isEditing ? (
     <input
       value={text}
-      className="bg-transparent border-none outline-none w-full min-w-0"
+      className="bg-transparent border-none outline-none text-center"
+      style={{ width: `${Math.max(text.length, 1)}ch` }}
       maxLength={maxLength}
       onKeyDown={(event) => {
         if (isEnterOrEscapeKeyEvent(event)) {
