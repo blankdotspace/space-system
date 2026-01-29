@@ -517,13 +517,16 @@ const CreateCast: React.FC<CreateCastProps> = ({
       return;
     }
 
-    // Only set default if no channel is currently selected
+    // Only set default if no real channel is currently selected
+    // The "Home" channel has id: '' which means posting to followers, not a real channel
     const currentChannel = getChannel();
     console.log("[DefaultChannel] currentChannel:", currentChannel);
-    if (currentChannel) {
-      console.log("[DefaultChannel] Channel already selected, exiting");
+    console.log("[DefaultChannel] currentChannel?.id:", currentChannel?.id);
+    if (currentChannel?.id) {
+      console.log("[DefaultChannel] Real channel already selected, exiting");
       return;
     }
+    console.log("[DefaultChannel] No real channel selected (Home/followers), proceeding to set default");
 
     const setDefaultChannel = async () => {
       console.log("[DefaultChannel] Fetching channels for:", communityChannel);
