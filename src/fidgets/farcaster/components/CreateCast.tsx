@@ -503,9 +503,10 @@ const CreateCast: React.FC<CreateCastProps> = ({
     const communityChannel = systemConfig?.community?.social?.farcaster;
     if (!communityChannel || !setChannel) return;
 
-    // Only set default if no channel is currently selected
+    // Only set default if no real channel is currently selected
+    // The "Home" channel has id: '' which means posting to followers, not a real channel
     const currentChannel = getChannel();
-    if (currentChannel) return;
+    if (currentChannel?.id) return;
 
     const setDefaultChannel = async () => {
       const channels = await fetchChannelsByName(communityChannel);
