@@ -350,8 +350,8 @@ export const FidgetPickerModal: React.FC<FidgetPickerModalProps> = ({
           onClick={() => handleFidgetSelect(option)}
         >
           <Card className={`w-full h-full flex items-center p-3 rounded-lg border-0 ${
-            isUnverifiedMiniApp 
-              ? 'bg-amber-50' 
+            isUnverifiedMiniApp
+              ? 'bg-[rgba(245,158,11,0.15)]'
               : 'bg-[rgba(128,128,128,0.2)]'
           }`}>
             <CardContent
