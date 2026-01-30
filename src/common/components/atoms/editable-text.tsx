@@ -71,9 +71,9 @@ const EditableText = ({
         e.stopPropagation();
       }}
       onDoubleClick={(e) => {
-        // Prevent navigation when double-clicking on input (select all text)
+        // Stop propagation to prevent navigation, but don't preventDefault
+        // so that the browser's native text selection on double-click works
         e.stopPropagation();
-        e.preventDefault();
       }}
       autoFocus
     />

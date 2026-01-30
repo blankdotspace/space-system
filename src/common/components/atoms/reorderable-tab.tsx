@@ -56,12 +56,24 @@ export const Tab = ({
       onTouchStart={() => preloadTabData && preloadTabData(tabName)}
     >
       <Link
-        href={getSpacePageUrl(tabName)}
+        href={inEditMode && isSelected ? "#" : getSpacePageUrl(tabName)}
         draggable={false}
         onClick={(e) => {
-          if (!inEditMode) {
+          // Prevent navigation for selected items in edit mode (matches NavigationEditor pattern)
+          // Allow normal Link navigation for non-selected items
+          if (inEditMode && isSelected) {
+            e.preventDefault();
+            e.stopPropagation();
+          } else {
             e.preventDefault();
             onClick(tabName, e);
+          }
+        }}
+        onDoubleClick={(e) => {
+          // Prevent navigation on double-click for selected items in edit mode
+          if (inEditMode && isSelected) {
+            e.preventDefault();
+            e.stopPropagation();
           }
         }}
         onDragStart={(e) => e.preventDefault()}
