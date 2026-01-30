@@ -94,13 +94,21 @@ Each identity has its own:
 
 ### Key Derivation
 
-Encryption keys are derived from the identity's private key:
+Encryption keys are derived from the identity's private key and salt:
 
 ```typescript
-function stringToCipherKey(privateKey: string): Uint8Array {
-  return hkdf(sha256, privateKey, "salt", "", 32);
+function stringToCipherKey(privateKey: string, identitySalt: string): Uint8Array {
+  return hkdf(sha256, privateKey, identitySalt, "", 32);
 }
+
+// Usage with identity
+const key = stringToCipherKey(
+  identity.rootKeys.privateKey,
+  identity.rootKeys.salt  // 32-byte random nonce from identity
+);
 ```
+
+The `identitySalt` comes from the identity's `rootKeys.salt` field - a 32-byte random nonce generated when the identity is created. This ensures each identity derives unique encryption keys even if private keys were somehow similar.
 
 ### Two Key Types
 
@@ -213,9 +221,27 @@ Body: SignedFile (encrypted homebase config)
 
 ### Load Homebase
 
+Private buckets require authenticated access. Use one of these methods:
+
+**Option 1: Time-limited signed URL**
+```typescript
+// Creates a temporary URL valid for the specified duration
+const { data, error } = await supabase.storage
+  .from("private")
+  .createSignedUrl("{identityKey}/homebase", 60); // expires in 60 seconds
+
+const response = await fetch(data.signedUrl);
 ```
-GET Supabase.storage.from("private").getPublicUrl("{identityKey}/homebase")
+
+**Option 2: Authenticated download (requires user JWT)**
+```typescript
+// Direct download with authenticated client
+const { data, error } = await supabase.storage
+  .from("private")
+  .download("{identityKey}/homebase");
 ```
+
+Note: `getPublicUrl()` does not work for private buckets - it only generates URLs for public buckets. Always use `createSignedUrl()` for time-limited access or `download()` with an authenticated Supabase client.
 
 ### Manage Tabs
 
