@@ -1,6 +1,22 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import requestHandler from "@/common/data/api/requestHandler";
-import { getFidForAddress } from "@/fidgets/farcaster/utils";
+import { createPublicClient, http, fallback } from "viem";
+import { optimism } from "viem/chains";
+import { ID_REGISTRY_ADDRESS, idRegistryABI } from "@farcaster/hub-web";
+
+const alchemyUrl = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY
+  ? `https://opt-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}`
+  : undefined;
+
+const optimismClient = createPublicClient({
+  chain: optimism,
+  transport: fallback(
+    [
+      alchemyUrl ? http(alchemyUrl) : undefined,
+      http("https://mainnet.optimism.io"),
+    ].filter(Boolean) as ReturnType<typeof http>[],
+  ),
+});
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   const address = req.query.address;
@@ -12,7 +28,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   try {
-    const fid = await getFidForAddress(address as `0x${string}`);
+    const fid = await optimismClient.readContract({
+      address: ID_REGISTRY_ADDRESS,
+      abi: idRegistryABI,
+      functionName: "idOf",
+      args: [address as `0x${string}`],
+    });
+
     return res.status(200).json({
       result: "success",
       value: { fid: fid ? Number(fid) : null },
