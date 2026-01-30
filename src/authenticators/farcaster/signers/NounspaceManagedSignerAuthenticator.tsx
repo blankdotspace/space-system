@@ -25,19 +25,16 @@ import QRCode from "@/common/components/atoms/qr-code";
 import { SignatureScheme } from "@farcaster/core";
 import { FaRedo } from "react-icons/fa";
 import TextInput from "@/common/components/molecules/TextInput";
-import { usePublicClient, useWriteContract } from "wagmi";
+import { useWriteContract } from "wagmi";
+import { waitForTransactionReceipt } from "@wagmi/core";
 import { optimism } from "viem/chains";
-import {
-  ID_REGISTRY_ADDRESS,
-  KEY_GATEWAY_ADDRESS,
-  idRegistryABI,
-  keyGatewayABI,
-} from "@farcaster/hub-web";
+import { KEY_GATEWAY_ADDRESS, keyGatewayABI } from "@farcaster/hub-web";
 import {
   getSignedKeyRequestMetadataFromAppAccount,
   getDeadline,
 } from "@/fidgets/farcaster/utils";
 import { APP_FID } from "@/constants/app";
+import { wagmiConfig } from "@/common/providers/Wagmi";
 
 export type NounspaceDeveloperManagedSignerData =
   FarcasterSignerAuthenticatorData & {
@@ -224,17 +221,12 @@ function AuthorizeWithWalletButton({
     undefined,
   );
   const { writeContractAsync } = useWriteContract();
-  const publicClient = usePublicClient({ chainId: optimism.id });
 
   async function authorizeWithWallet() {
     setWalletAuthState("checking");
     setWalletAuthError(undefined);
 
     try {
-      if (!publicClient) {
-        throw new Error("Network client not available. Please try again.");
-      }
-
       const walletAddress = data.currentWalletAddress as
         | `0x${string}`
         | undefined;
@@ -242,13 +234,14 @@ function AuthorizeWithWalletButton({
         throw new Error("No wallet connected");
       }
 
-      const fid = await publicClient.readContract({
-        address: ID_REGISTRY_ADDRESS,
-        abi: idRegistryABI,
-        functionName: "idOf",
-        args: [walletAddress],
+      // Look up FID via Neynar backend API (avoids direct RPC/CORS issues)
+      const resp = await axiosBackend.get("/api/farcaster/neynar/bulk-address", {
+        params: { "addresses[]": walletAddress },
       });
-      if (!fid || fid === 0n) {
+      const neynarData = resp.data;
+      const users = neynarData?.[walletAddress.toLowerCase()];
+      const fid = Array.isArray(users) && users.length > 0 ? users[0].fid : undefined;
+      if (!fid) {
         throw new Error(
           "No Farcaster ID found for your connected wallet. Please use a wallet that is registered as a Farcaster custody address.",
         );
@@ -278,8 +271,9 @@ function AuthorizeWithWalletButton({
 
       setWalletAuthState("confirming");
 
-      await publicClient.waitForTransactionReceipt({
+      await waitForTransactionReceipt(wagmiConfig, {
         hash: txHash,
+        chainId: optimism.id,
       });
 
       await saveData({
