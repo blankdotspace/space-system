@@ -25,15 +25,18 @@ import QRCode from "@/common/components/atoms/qr-code";
 import { SignatureScheme } from "@farcaster/core";
 import { FaRedo } from "react-icons/fa";
 import TextInput from "@/common/components/molecules/TextInput";
-import { useWriteContract } from "wagmi";
+import { usePublicClient, useWriteContract } from "wagmi";
 import { optimism } from "viem/chains";
-import { KEY_GATEWAY_ADDRESS, keyGatewayABI } from "@farcaster/hub-web";
 import {
-  getFidForAddress,
+  ID_REGISTRY_ADDRESS,
+  KEY_GATEWAY_ADDRESS,
+  idRegistryABI,
+  keyGatewayABI,
+} from "@farcaster/hub-web";
+import {
   getSignedKeyRequestMetadataFromAppAccount,
   getDeadline,
 } from "@/fidgets/farcaster/utils";
-import { optimismChaninClient } from "@/constants/optimismChainClient";
 import { APP_FID } from "@/constants/app";
 
 export type NounspaceDeveloperManagedSignerData =
@@ -221,12 +224,17 @@ function AuthorizeWithWalletButton({
     undefined,
   );
   const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient({ chainId: optimism.id });
 
   async function authorizeWithWallet() {
     setWalletAuthState("checking");
     setWalletAuthError(undefined);
 
     try {
+      if (!publicClient) {
+        throw new Error("Network client not available. Please try again.");
+      }
+
       const walletAddress = data.currentWalletAddress as
         | `0x${string}`
         | undefined;
@@ -234,7 +242,12 @@ function AuthorizeWithWalletButton({
         throw new Error("No wallet connected");
       }
 
-      const fid = await getFidForAddress(walletAddress);
+      const fid = await publicClient.readContract({
+        address: ID_REGISTRY_ADDRESS,
+        abi: idRegistryABI,
+        functionName: "idOf",
+        args: [walletAddress],
+      });
       if (!fid || fid === 0n) {
         throw new Error(
           "No Farcaster ID found for your connected wallet. Please use a wallet that is registered as a Farcaster custody address.",
@@ -265,7 +278,7 @@ function AuthorizeWithWalletButton({
 
       setWalletAuthState("confirming");
 
-      await optimismChaninClient.waitForTransactionReceipt({
+      await publicClient.waitForTransactionReceipt({
         hash: txHash,
       });
 
