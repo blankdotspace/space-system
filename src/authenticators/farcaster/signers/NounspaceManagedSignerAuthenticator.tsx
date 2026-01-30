@@ -234,13 +234,11 @@ function AuthorizeWithWalletButton({
         throw new Error("No wallet connected");
       }
 
-      // Look up FID via Neynar backend API (avoids direct RPC/CORS issues)
-      const resp = await axiosBackend.get("/api/farcaster/neynar/bulk-address", {
-        params: { "addresses[]": walletAddress },
+      // Look up FID via on-chain IdRegistry (server-side to avoid CORS issues)
+      const resp = await axiosBackend.get("/api/farcaster/fid-for-address", {
+        params: { address: walletAddress },
       });
-      const neynarData = resp.data;
-      const users = neynarData?.[walletAddress.toLowerCase()];
-      const fid = Array.isArray(users) && users.length > 0 ? users[0].fid : undefined;
+      const fid = resp.data?.value?.fid;
       if (!fid) {
         throw new Error(
           "No Farcaster ID found for your connected wallet. Please use a wallet that is registered as a Farcaster custody address.",
