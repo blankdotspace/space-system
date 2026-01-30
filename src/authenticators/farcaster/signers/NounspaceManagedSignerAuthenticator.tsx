@@ -25,6 +25,16 @@ import QRCode from "@/common/components/atoms/qr-code";
 import { SignatureScheme } from "@farcaster/core";
 import { FaRedo } from "react-icons/fa";
 import TextInput from "@/common/components/molecules/TextInput";
+import { useWriteContract } from "wagmi";
+import { optimism } from "viem/chains";
+import { KEY_GATEWAY_ADDRESS, keyGatewayABI } from "@farcaster/hub-web";
+import {
+  getFidForAddress,
+  getSignedKeyRequestMetadataFromAppAccount,
+  getDeadline,
+} from "@/fidgets/farcaster/utils";
+import { optimismChaninClient } from "@/constants/optimismChainClient";
+import { APP_FID } from "@/constants/app";
 
 export type NounspaceDeveloperManagedSignerData =
   FarcasterSignerAuthenticatorData & {
@@ -34,6 +44,14 @@ export type NounspaceDeveloperManagedSignerData =
     status?: SignerStatus;
     signerUrl?: string;
   };
+
+type WalletAuthState =
+  | "idle"
+  | "checking"
+  | "signing"
+  | "confirming"
+  | "done"
+  | "error";
 
 const BACKEND_POLL_FREQUENCY = 1000;
 
@@ -188,6 +206,138 @@ const methods: FarcasterSignerAuthenticatorMethods<NounspaceDeveloperManagedSign
     },
   };
 
+function AuthorizeWithWalletButton({
+  data,
+  saveData,
+  done,
+}: {
+  data: NounspaceDeveloperManagedSignerData;
+  saveData: (data: NounspaceDeveloperManagedSignerData) => Promise<void>;
+  done: () => void;
+}) {
+  const [walletAuthState, setWalletAuthState] =
+    useState<WalletAuthState>("idle");
+  const [walletAuthError, setWalletAuthError] = useState<string | undefined>(
+    undefined,
+  );
+  const { writeContractAsync } = useWriteContract();
+
+  async function authorizeWithWallet() {
+    setWalletAuthState("checking");
+    setWalletAuthError(undefined);
+
+    try {
+      const walletAddress = data.currentWalletAddress as
+        | `0x${string}`
+        | undefined;
+      if (!walletAddress) {
+        throw new Error("No wallet connected");
+      }
+
+      const fid = await getFidForAddress(walletAddress);
+      if (!fid || fid === 0n) {
+        throw new Error(
+          "No Farcaster ID found for your connected wallet. Please use a wallet that is registered as a Farcaster custody address.",
+        );
+      }
+
+      const newPrivKey = ed25519.utils.randomPrivateKey();
+      const publicKeyBytes = ed25519.getPublicKey(newPrivKey);
+      const publicKeyHex = `0x${bytesToHex(publicKeyBytes)}` as `0x${string}`;
+      const privateKeyHex = `0x${bytesToHex(newPrivKey)}`;
+
+      const deadline = getDeadline();
+      const metadata = await getSignedKeyRequestMetadataFromAppAccount(
+        10, // Optimism chain ID
+        publicKeyHex,
+        deadline,
+      );
+
+      setWalletAuthState("signing");
+
+      const txHash = await writeContractAsync({
+        chain: optimism,
+        address: KEY_GATEWAY_ADDRESS,
+        abi: keyGatewayABI,
+        functionName: "add",
+        args: [1, publicKeyHex, 1, metadata],
+      });
+
+      setWalletAuthState("confirming");
+
+      await optimismChaninClient.waitForTransactionReceipt({
+        hash: txHash,
+      });
+
+      await saveData({
+        ...data,
+        accountType: "signer",
+        publicKeyHex,
+        privateKeyHex,
+        accountFid: Number(fid),
+        signerFid: APP_FID,
+        status: "completed",
+      });
+
+      setWalletAuthState("done");
+      done();
+    } catch (e: any) {
+      setWalletAuthState("error");
+      if (e?.message?.includes("User rejected")) {
+        setWalletAuthError("Transaction was rejected.");
+      } else if (e?.message?.includes("insufficient funds")) {
+        setWalletAuthError(
+          "Insufficient funds for gas on Optimism.",
+        );
+      } else {
+        setWalletAuthError(e?.message || "An unexpected error occurred.");
+      }
+    }
+  }
+
+  const statusMessages: Record<WalletAuthState, string> = {
+    idle: "",
+    checking: "Checking wallet...",
+    signing: "Please confirm the transaction in your wallet...",
+    confirming: "Waiting for transaction confirmation...",
+    done: "Authorization complete!",
+    error: "",
+  };
+
+  if (walletAuthState !== "idle" && walletAuthState !== "error") {
+    return (
+      <div className="flex flex-col items-center gap-2 mt-4">
+        <Spinner />
+        <p className="text-sm text-gray-500">
+          {statusMessages[walletAuthState]}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center mt-4">
+      <div className="flex items-center gap-3 w-full my-2">
+        <div className="flex-1 h-px bg-gray-300" />
+        <span className="text-sm text-gray-400">or</span>
+        <div className="flex-1 h-px bg-gray-300" />
+      </div>
+      <Button
+        variant="outline"
+        className="mt-2 border-gray-400 text-gray-700 hover:bg-gray-100"
+        onClick={authorizeWithWallet}
+      >
+        Authorize with Wallet
+      </Button>
+      {walletAuthState === "error" && walletAuthError && (
+        <p className="text-sm text-red-500 mt-2 text-center max-w-xs">
+          {walletAuthError}
+        </p>
+      )}
+    </div>
+  );
+}
+
 const initializer: AuthenticatorInitializer<
   NounspaceDeveloperManagedSignerData
 > = ({ data, saveData, done }) => {
@@ -231,7 +381,7 @@ const initializer: AuthenticatorInitializer<
     const newPrivKey = ed25519.utils.randomPrivateKey();
     const publicKeyHex = `0x${bytesToHex(ed25519.getPublicKey(newPrivKey))}`;
     const privateKeyHex = `0x${bytesToHex(newPrivKey)}`;
-    
+
     saveData({
       ...data,
       status: "completed",
@@ -276,6 +426,11 @@ const initializer: AuthenticatorInitializer<
               style={{ width: "22px", height: "22px" }}
             />
           </Button>
+          <AuthorizeWithWalletButton
+            data={data}
+            saveData={saveData}
+            done={done}
+          />
         </>
       ) : loading && warpcastSignerUrl ? (
         <>
@@ -322,6 +477,11 @@ const initializer: AuthenticatorInitializer<
                 </a>
               </Button>
             </center>
+            <AuthorizeWithWalletButton
+              data={data}
+              saveData={saveData}
+              done={done}
+            />
             <Button
               withIcon
               size="md"
