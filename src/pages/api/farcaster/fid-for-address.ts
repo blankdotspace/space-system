@@ -1,22 +1,29 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import requestHandler from "@/common/data/api/requestHandler";
-import { createPublicClient, http, fallback } from "viem";
+import { createPublicClient, http } from "viem";
 import { optimism } from "viem/chains";
-import { ID_REGISTRY_ADDRESS, idRegistryABI } from "@farcaster/hub-web";
 
-const alchemyUrl = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY
-  ? `https://opt-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}`
-  : undefined;
+// Farcaster Id Registry on Optimism
+const ID_REGISTRY_ADDRESS =
+  "0x00000000Fc6c5F01Fc30151999387Bb99A9f489b" as const;
 
-const optimismClient = createPublicClient({
-  chain: optimism,
-  transport: fallback(
-    [
-      alchemyUrl ? http(alchemyUrl) : undefined,
-      http("https://mainnet.optimism.io"),
-    ].filter(Boolean) as ReturnType<typeof http>[],
-  ),
-});
+// Minimal ABI for the idOf function
+const idOfAbi = [
+  {
+    inputs: [{ name: "owner", type: "address" }],
+    name: "idOf",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
+
+function getOptimismClient() {
+  return createPublicClient({
+    chain: optimism,
+    transport: http(),
+  });
+}
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   const address = req.query.address;
@@ -28,9 +35,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   try {
-    const fid = await optimismClient.readContract({
+    const client = getOptimismClient();
+    const fid = await client.readContract({
       address: ID_REGISTRY_ADDRESS,
-      abi: idRegistryABI,
+      abi: idOfAbi,
       functionName: "idOf",
       args: [address as `0x${string}`],
     });
