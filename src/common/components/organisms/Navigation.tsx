@@ -194,9 +194,10 @@ const Navigation = React.memo(
 
   const router = useRouter();
 
-  function handleLogout() {
-    router.push("/home");
-    logout();
+  async function handleLogout() {
+    await logout();
+    // Redirect to root, which will redirect to the first nav item
+    router.push("/");
   }
   
   // For backwards compatibility with code that uses configuredNavItems

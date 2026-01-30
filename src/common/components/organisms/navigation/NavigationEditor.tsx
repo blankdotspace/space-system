@@ -115,7 +115,7 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
 
   // Track which item's icon selector is open (by itemId)
   const [openIconSelectorId, setOpenIconSelectorId] = useState<string | null>(null);
-  const iconButtonRefs = useRef<Record<string, React.RefObject<HTMLButtonElement | null>>>({});
+  const iconButtonRefs = useRef<Record<string, React.RefObject<HTMLButtonElement>>>({});
 
   // Helper to get or create ref for an item's icon button
   const getIconButtonRef = (itemId: string) => {
@@ -428,7 +428,7 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
                           toast.success("Navigation item deleted");
                         }
                       }}
-                      className="p-1 hover:bg-red-100 rounded opacity-0 group-hover:opacity-100 transition-opacity ml-auto"
+                      className="p-1 hover:bg-[rgba(239,68,68,0.2)] rounded opacity-0 group-hover:opacity-100 transition-opacity ml-auto"
                       aria-label={`Delete ${item.label}`}
                       title={`Delete ${item.label}`}
                     >

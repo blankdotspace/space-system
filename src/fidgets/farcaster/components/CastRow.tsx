@@ -933,7 +933,7 @@ const CastRowComponent = ({
         event.preventDefault();
         event.stopPropagation();
       } else {
-        onSelect && onSelect(cast.hash, cast.author.username);
+        onSelect?.(cast.hash, cast.author.username);
       }
     },
     [cast.hash, isFocused, cast.author.username, onSelect]

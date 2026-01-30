@@ -94,7 +94,7 @@ export type AuthenticatorManager = {
   lastUpdatedAt: string;
 };
 
-const AuthenticatorContext = createContext<AuthenticatorManager | null>(null);
+export const AuthenticatorContext = createContext<AuthenticatorManager | null>(null);
 
 function authenticatorForName(
   name: string,

@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build --webpack",
+    "build": "next build",
     "start": "next start",
     "serve": "serve -s build",
     "lint": "eslint .",
@@ -20,8 +20,7 @@
     "test:watch": "vitest --watch",
     "test:ci": "vitest tests/neynarMiniApp.fast.test.ts tests/miniAppDiscovery.api.fast.test.ts --run --reporter=verbose",
     "seed": "tsx scripts/seed.ts",
-    "seed:check": "tsx scripts/seed.ts --check",
-    "functions:lint": "deno lint ./supabase/functions"
+    "seed:check": "tsx scripts/seed.ts --check"
   },
   "lint-staged": {
     "src/**/*": "prettier --write --ignore-unknown"
@@ -37,7 +36,7 @@
     ]
   },
   "engines": {
-    "node": "^22.12.0 || >=24.0.0"
+    "node": "^22.12.0"
   },
   "dependencies": {
     "@cloudflare/workers-types": "^4.20251109.0",
@@ -46,10 +45,10 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@farcaster/core": "^0.18.5",
-    "@farcaster/frame-sdk": "^0.0.53",
-    "@farcaster/hub-nodejs": "^0.15.9",
+    "@farcaster/hub-nodejs": "^0.15.5",
     "@farcaster/hub-web": "^0.11.4",
     "@farcaster/miniapp-sdk": "^0.1.7",
+    "@farcaster/quick-auth": "^0.0.8",
     "@frames.js/render": "^0.5.6",
     "@googleapis/youtube": "^29.0.0",
     "@gumlet/react-hls-player": "^1.0.1",
@@ -93,12 +92,12 @@
     "@vercel/speed-insights": "^1.0.12",
     "@xmtp/frames-validator": "^0.6.2",
     "@zoralabs/coins-sdk": "^0.3.0",
-    "axios": "^1.13.2",
+    "axios": "^1.8.3",
     "boring-avatars": "^1.10.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
     "cmdk": "0.2.1",
-    "emoji-picker-react": "^4.17.1",
+    "emoji-picker-react": "^4.12.0",
     "fast-json-stable-stringify": "^2.1.0",
     "framer-motion": "^11.3.30",
     "frames.js": "^0.18.2",
@@ -106,19 +105,19 @@
     "isomorphic-dompurify": "^2.31.0",
     "linkify-react": "^4.1.1",
     "linkifyjs": "^4.3.2",
-    "lodash": "^4.17.23",
+    "lodash": "^4.17.21",
     "lucide-react": "^0.469.0",
     "moment": "^2.30.1",
     "mutative": "^1.0.3",
     "neverthrow": "^6.2.2",
-    "next": "^16.1.4",
+    "next": "^15.2.6",
     "next-themes": "^0.3.0",
     "prop-types": "^15.8.1",
-    "react": "^19.2.3",
+    "react": "^18.3.1",
     "react-aria": "^3.44.0",
     "react-best-gradient-color-picker": "^3.0.14",
     "react-colorful": "^5.6.1",
-    "react-dom": "^19.2.3",
+    "react-dom": "^18.3.1",
     "react-grid-layout": "^1.4.4",
     "react-hook-form": "^7.62.0",
     "react-icons": "^5.0.1",
@@ -134,11 +133,12 @@
     "remark-gfm": "^4.0.0",
     "rss-parser": "^3.13.0",
     "sharp": "^0.34.5",
+    "siwe": "^3.0.0",
     "sonner": "^1.4.41",
     "tailwind-merge": "^3.3.0",
     "tailwindcss": "^3.4.17",
     "tailwindcss-animate": "^1.0.7",
-    "typescript": "^5.9.3",
+    "typescript": "^5.1.6",
     "viem": "^2.44.4",
     "wagmi": "^2.19.2",
     "web-push": "^3.6.7",
@@ -147,14 +147,14 @@
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^16.0.6",
-    "@next/eslint-plugin-next": "^15.2.6",
+    "@next/eslint-plugin-next": "^16.0.7",
     "@solana/web3.js": "^1.98.0",
     "@stylistic/eslint-plugin": "^3.1.0",
     "@types/node": "^25.0.9",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "@typescript-eslint/eslint-plugin": "^7.15.0",
-    "@typescript-eslint/parser": "7",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@typescript-eslint/eslint-plugin": "^8.53.0",
+    "@typescript-eslint/parser": "^8.53.0",
     "autoprefixer": "^10.4.21",
     "dotenv": "^17.2.3",
     "eslint": "^9",
@@ -177,21 +177,83 @@
     "esbuild": "0.25.0",
     "cookie": "0.7.0",
     "lodash.set": "4.3.2",
-    "@internationalized/date": "^3.10.0",
-    "tar": "7.5.4",
-    "undici": "7.18.2",
-    "h3": "1.15.5",
-    "hono": "4.11.7",
-    "preact": "10.26.10",
-    "@coinbase/wallet-sdk": "4.3.0",
-    "lodash": "4.17.23",
-    "lodash-es": "4.17.23",
-    "glob": "11.1.0",
-    "jws": "4.0.1",
-    "qs": "6.14.1",
-    "min-document": "2.19.1",
-    "tmp": "0.2.4",
-    "js-yaml": "3.14.2",
-    "mdast-util-to-hast": "13.2.1"
-  }
+    "@internationalized/date": "^3.10.0"
+  },
+  "packageExtensions": {
+    "@frames.js/render": {
+      "peerDependencies": {
+        "@farcaster/frame-host-react-native": "*",
+        "@lens-protocol/client": "*",
+        "@types/react-native": "*",
+        "@xmtp/frames-client": "*",
+        "@xmtp/xmtp-js": "*",
+        "react-native": "*",
+        "react-native-webview": "*",
+        "next": "*"
+      },
+      "peerDependenciesMeta": {
+        "@farcaster/frame-host-react-native": {
+          "optional": true
+        },
+        "@lens-protocol/client": {
+          "optional": true
+        },
+        "@types/react-native": {
+          "optional": true
+        },
+        "@xmtp/frames-client": {
+          "optional": true
+        },
+        "@xmtp/xmtp-js": {
+          "optional": true
+        },
+        "react-native": {
+          "optional": true
+        },
+        "react-native-webview": {
+          "optional": true
+        },
+        "next": {
+          "optional": true
+        }
+      }
+    },
+    "@zoralabs/coins-sdk": {
+      "peerDependencies": {
+        "abitype": "*"
+      },
+      "peerDependenciesMeta": {
+        "abitype": {
+          "optional": true
+        }
+      }
+    },
+    "@gumlet/react-hls-player": {
+      "peerDependencies": {
+        "react": "^16.13.1 || ^17.0.0 || ^18.0.0 || ^19.0.0",
+        "react-dom": "^16.13.1 || ^17.0.0 || ^18.0.0 || ^19.0.0"
+      }
+    },
+    "siwe": {
+      "peerDependencies": {
+        "ethers": "*"
+      },
+      "peerDependenciesMeta": {
+        "ethers": {
+          "optional": true
+        }
+      }
+    },
+    "eslint-plugin-react-hooks": {
+      "peerDependencies": {
+        "eslint": "*"
+      },
+      "peerDependenciesMeta": {
+        "eslint": {
+          "optional": true
+        }
+      }
+    }
+  },
+  "packageManager": "yarn@4.12.0"
 }

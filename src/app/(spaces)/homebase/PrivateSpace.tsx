@@ -241,9 +241,7 @@ function PrivateSpace({ tabName, castHash }: { tabName: string; castHash?: strin
 
 
   // Render the SpacePage component with the defined arguments
-  return (
-    <SpacePage key={currentTabName || HOMEBASE_DEFAULT_TAB} {...args} />
-  );
+  return <SpacePage key={currentTabName || HOMEBASE_DEFAULT_TAB} {...args} />;
 }
 
 export default PrivateSpace;

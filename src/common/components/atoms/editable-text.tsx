@@ -54,7 +54,8 @@ const EditableText = ({
   return isEditing ? (
     <input
       value={text}
-      className="bg-transparent border-none outline-none w-full min-w-0"
+      className="bg-transparent border-none outline-none text-center"
+      style={{ width: `${Math.max(text.length, 1)}ch` }}
       maxLength={maxLength}
       onKeyDown={(event) => {
         if (isEnterOrEscapeKeyEvent(event)) {
@@ -70,9 +71,9 @@ const EditableText = ({
         e.stopPropagation();
       }}
       onDoubleClick={(e) => {
-        // Prevent navigation when double-clicking on input (select all text)
+        // Stop propagation to prevent navigation, but don't preventDefault
+        // so that the browser's native text selection on double-click works
         e.stopPropagation();
-        e.preventDefault();
       }}
       autoFocus
     />
