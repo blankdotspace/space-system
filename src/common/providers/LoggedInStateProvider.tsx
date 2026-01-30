@@ -4,6 +4,7 @@ import { useAppStore, useLogout } from "@/common/data/stores/app";
 import { useSignMessage } from "@/common/data/stores/app/accounts/privyStore";
 import { SetupStep } from "@/common/data/stores/app/setup";
 import useValueHistory from "@/common/lib/hooks/useValueHistory";
+import { waitForAuthenticatorReady } from "@/common/lib/authenticators/waitForAuthenticatorReady";
 
 import requiredAuthenticators from "@/constants/requiredAuthenticators";
 import { bytesToHex } from "@noble/ciphers/utils";
@@ -71,19 +72,6 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
   const logout = useLogout();
   const previousSteps = useValueHistory<SetupStep>(currentStep, 4);
 
-  const waitForAuthenticatorReady = async (
-    authenticatorId: string,
-    timeoutMs = 60_000,
-  ) => {
-    const start = Date.now();
-    while (Date.now() - start < timeoutMs) {
-      const initialized = await authenticatorManager.getInitializedAuthenticators();
-      if (initialized.includes(authenticatorId)) return true;
-      await new Promise((r) => setTimeout(r, 500));
-    }
-    return false;
-  };
-
   async function loadWallet() {
     if (walletsReady && ready && authenticated && user) {
       try {
@@ -120,17 +108,10 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
         const identities = getIdentitiesForWallet(wallet);
         try {
           if (identities.length > 0) {
-            await decryptIdentityKeys(
-              signMessage,
-              wallet,
-              identities[0].identityPublicKey,
-            );
+            await decryptIdentityKeys(signMessage, wallet, identities[0].identityPublicKey);
             setCurrentIdentity(identities[0].identityPublicKey);
           } else {
-            const publicKey = await createIdentityForWallet(
-              signMessage,
-              wallet,
-            );
+            const publicKey = await createIdentityForWallet(signMessage, wallet);
             setCurrentIdentity(publicKey);
           }
         } catch (e) {
@@ -201,9 +182,10 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
       authenticatorManager.initializeAuthenticators(["farcaster:nounspace"]);
       setModalOpen(true);
 
-      const ready = await waitForAuthenticatorReady("farcaster:nounspace");
+      const ready = await waitForAuthenticatorReady(authenticatorManager, "farcaster:nounspace");
       if (!ready) {
-        // Keep the user on this step until they finish the Farcaster flow.
+        console.warn("[registerAccounts] Farcaster authenticator timed out after 60s");
+        // User can retry by interacting with the modal; keep it open for recovery.
         return;
       }
 
@@ -213,7 +195,11 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
         methodName: "getAccountFid",
         isLookup: true,
       });
-      if (fidResult.result !== "success") return;
+      if (fidResult.result !== "success") {
+        console.warn("[registerAccounts] Failed to get FID from authenticator", fidResult);
+        // User can retry; keep modal open.
+        return;
+      }
 
       const publicKeyResult = await authenticatorManager.callMethod({
         requestingFidgetId: "root",
@@ -221,9 +207,13 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
         methodName: "getSignerPublicKey",
         isLookup: true,
       });
-      if (publicKeyResult.result !== "success") return;
+      if (publicKeyResult.result !== "success") {
+        console.warn("[registerAccounts] Failed to get signer public key from authenticator", publicKeyResult);
+        // User can retry; keep modal open.
+        return;
+      }
 
-      const signForFid = async (messageHash) => {
+      const signForFid = async (messageHash: Uint8Array) => {
         const signResult = await authenticatorManager.callMethod(
           {
             requestingFidgetId: "root",
@@ -231,7 +221,7 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
             methodName: "signMessage",
             isLookup: false,
           },
-          messageHash,
+          messageHash
         );
         if (signResult.result !== "success") {
           throw new Error("Failed to sign message");
@@ -242,7 +232,7 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
       await registerFidForCurrentIdentity(
         fidResult.value as number,
         bytesToHex(publicKeyResult.value as Uint8Array),
-        signForFid,
+        signForFid
       );
 
       setCurrentStep(SetupStep.ACCOUNTS_REGISTERED);
@@ -277,20 +267,11 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
         },
       );
     }
-  }, [
-    ready,
-    currentStep,
-    authenticated,
-    authenticatorManager.lastUpdatedAt,
-    walletsReady,
-  ]);
+  }, [ready, currentStep, authenticated, authenticatorManager.lastUpdatedAt, walletsReady]);
 
   useEffect(() => {
     if (ready && authenticated && user) {
-      if (
-        currentStep === SetupStep.NOT_SIGNED_IN ||
-        currentStep === SetupStep.UNINITIALIZED
-      ) {
+      if (currentStep === SetupStep.NOT_SIGNED_IN || currentStep === SetupStep.UNINITIALIZED) {
         setCurrentStep(SetupStep.SIGNED_IN);
       } else if (walletsReady) {
         if (currentStep === SetupStep.SIGNED_IN) {
@@ -310,22 +291,14 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
           setCurrentStep(SetupStep.DONE);
         }
       }
-    } else if (
-      ready &&
-      !authenticated &&
-      currentStep !== SetupStep.NOT_SIGNED_IN
-    ) {
+    } else if (ready && !authenticated && currentStep !== SetupStep.NOT_SIGNED_IN) {
       setCurrentStep(SetupStep.NOT_SIGNED_IN);
     }
   }, [currentStep, walletsReady, ready, authenticated, user]);
 
   return (
     <>
-      <LoginModal
-        open={modalOpen}
-        setOpen={setModalOpen}
-        showClose={!keepModalOpen}
-      />
+      <LoginModal open={modalOpen} setOpen={setModalOpen} showClose={!keepModalOpen} />
       {children}
     </>
   );

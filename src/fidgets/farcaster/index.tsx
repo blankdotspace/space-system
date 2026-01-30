@@ -1,20 +1,18 @@
-import {
-  AuthenticatorManager,
-  useAuthenticatorManager,
-} from "@/authenticators/AuthenticatorManager";
+import { AuthenticatorManager, useAuthenticatorManager } from "@/authenticators/AuthenticatorManager";
 import { HubError, SignatureScheme, Signer } from "@farcaster/core";
 import { indexOf } from "lodash";
 import { err, ok } from "neverthrow";
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/common/data/stores/app";
 import useCurrentFid from "@/common/lib/hooks/useCurrentFid";
+import { waitForAuthenticatorReady } from "@/common/lib/authenticators/waitForAuthenticatorReady";
 
 export const FARCASTER_AUTHENTICATOR_NAME = "farcaster:nounspace";
 
 const createFarcasterSignerFromAuthenticatorManager = async (
   authenticatorManager: AuthenticatorManager,
   fidgetId: string,
-  authenticatorName: string = "farcaster:nounspace",
+  authenticatorName: string = "farcaster:nounspace"
 ): Promise<Signer> => {
   const schemeResult = await authenticatorManager.callMethod({
     requestingFidgetId: fidgetId,
@@ -22,10 +20,7 @@ const createFarcasterSignerFromAuthenticatorManager = async (
     methodName: "getSignerScheme",
     isLookup: true,
   });
-  const scheme =
-    schemeResult.result === "success"
-      ? (schemeResult.value as SignatureScheme)
-      : SignatureScheme.NONE;
+  const scheme = schemeResult.result === "success" ? (schemeResult.value as SignatureScheme) : SignatureScheme.NONE;
   return {
     scheme,
     getSignerKey: async () => {
@@ -48,7 +43,7 @@ const createFarcasterSignerFromAuthenticatorManager = async (
           methodName: "signMessage",
           isLookup: false,
         },
-        hash,
+        hash
       );
       if (methodResult.result === "success") {
         return ok(methodResult.value as Uint8Array);
@@ -58,10 +53,7 @@ const createFarcasterSignerFromAuthenticatorManager = async (
   };
 };
 
-export function useFarcasterSigner(
-  fidgetId: string,
-  authenticatorName: string = "farcaster:nounspace",
-) {
+export function useFarcasterSigner(fidgetId: string, authenticatorName: string = "farcaster:nounspace") {
   const authenticatorManager = useAuthenticatorManager();
   const [isLoadingSigner, setIsLoadingSigner] = useState(false);
   const [hasSigner, setHasSigner] = useState(false);
@@ -80,17 +72,12 @@ export function useFarcasterSigner(
     }
     setModalOpen(true);
 
-    const start = Date.now();
-    const timeoutMs = 60_000;
     setIsLoadingSigner(true);
     try {
-      while (Date.now() - start < timeoutMs) {
-        const initialized = await authenticatorManager.getInitializedAuthenticators();
-        if (indexOf(initialized, FARCASTER_AUTHENTICATOR_NAME) !== -1) {
-          setHasSigner(true);
-          return true;
-        }
-        await new Promise((r) => setTimeout(r, 500));
+      const ready = await waitForAuthenticatorReady(authenticatorManager, FARCASTER_AUTHENTICATOR_NAME);
+      if (ready) {
+        setHasSigner(true);
+        return true;
       }
       return false;
     } finally {
@@ -110,9 +97,7 @@ export function useFarcasterSigner(
   useEffect(() => {
     authenticatorManager
       .getInitializedAuthenticators()
-      .then((initilizedAuths) =>
-        setHasSigner(indexOf(initilizedAuths, FARCASTER_AUTHENTICATOR_NAME) !== -1),
-      );
+      .then((initilizedAuths) => setHasSigner(indexOf(initilizedAuths, FARCASTER_AUTHENTICATOR_NAME) !== -1));
   }, [authenticatorManager.lastUpdatedAt]);
   const [signer, setSigner] = useState<Signer>();
   useEffect(() => {
@@ -120,8 +105,8 @@ export function useFarcasterSigner(
       setSigner(undefined);
       return;
     }
-    createFarcasterSignerFromAuthenticatorManager(authenticatorManager, fidgetId, authenticatorName).then(
-      (signer) => setSigner(signer),
+    createFarcasterSignerFromAuthenticatorManager(authenticatorManager, fidgetId, authenticatorName).then((signer) =>
+      setSigner(signer)
     );
   }, [authenticatorManager.lastUpdatedAt, hasSigner, authenticatorManager, fidgetId, authenticatorName]);
   const [fid, setFid] = useState(-1);

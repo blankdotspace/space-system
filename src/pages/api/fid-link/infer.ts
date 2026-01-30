@@ -120,73 +120,92 @@ async function inferAndLinkFid(req: NextApiRequest, res: NextApiResponse<InferFi
     return res.status(200).json({ result: "success", value: null });
   }
 
-  const created = body.timestamp || moment().toISOString();
+  // Use server time (not client-provided timestamp) to avoid clock skew attacks.
+  const serverNow = moment().toISOString();
 
-  // Upsert by fid (unique), but allow signer-related fields to remain null.
-  const { data: existing } = await supabase
+  // Check if a FID registration already exists.
+  // Selecting all needed fields to make the correct decision about whether to update.
+  const { data: existing, error: queryError } = await supabase
     .from("fidRegistrations")
-    .select("fid, created")
+    .select("fid, created, identityPublicKey")
     .eq("fid", inferredFid);
+
+  if (queryError) {
+    return res.status(500).json({
+      result: "error",
+      error: { message: queryError.message },
+    });
+  }
 
   if (existing && existing.length > 0) {
     const currentRecord = first(existing);
-    if (moment(currentRecord?.created).isAfter(created)) {
+    const existingIdentityPublicKey = currentRecord?.identityPublicKey as string | null | undefined;
+
+    // SECURITY: If this FID is already linked to a different identity, reject the reassignment.
+    // This prevents an attacker from taking over a FID they don't own.
+    if (existingIdentityPublicKey && existingIdentityPublicKey !== body.identityPublicKey) {
+      return res.status(400).json({
+        result: "error",
+        error: { message: "FID is already linked to a different identity" },
+      });
+    }
+
+    // If the existing record was created after our request timestamp,
+    // the record is newer, so return the existing data without updating.
+    if (moment(currentRecord?.created).isAfter(body.timestamp)) {
       return res.status(200).json({
         result: "success",
         value: {
           fid: inferredFid,
-          identityPublicKey: body.identityPublicKey,
+          identityPublicKey: currentRecord!.identityPublicKey,
           created: currentRecord!.created,
           inferredFromAddress: walletAddress,
         },
       });
     }
-    const { data, error } = await supabase
+
+    // Record is older than the request, so update it with the new information.
+    // NOTE: Do NOT clear out signer fields here. If a signer was previously authorized,
+    // we should preserve it. Only infer/update the identity link.
+    const { error: updateError } = await supabase
       .from("fidRegistrations")
       .update({
-        created,
         identityPublicKey: body.identityPublicKey,
-        isSigningKeyValid: false,
-        signature: null,
-        signingKeyLastValidatedAt: null,
-        signingPublicKey: null,
+        // Do NOT set signer fields to null—preserve existing signer if present
       })
       .eq("fid", inferredFid)
       .select();
-    if (error) {
-      return res.status(500).json({ result: "error", error: { message: error.message } });
+
+    if (updateError) {
+      return res.status(500).json({ result: "error", error: { message: updateError.message } });
     }
+
     return res.status(200).json({
       result: "success",
       value: {
         fid: inferredFid,
         identityPublicKey: body.identityPublicKey,
-        created,
+        created: currentRecord!.created,
         inferredFromAddress: walletAddress,
       },
     });
   }
 
-  const { error: insertError } = await supabase.from("fidRegistrations").insert({
-    fid: inferredFid,
-    created,
-    identityPublicKey: body.identityPublicKey,
-    isSigningKeyValid: false,
-    signature: null,
-    signingKeyLastValidatedAt: null,
-    signingPublicKey: null,
-  });
-
-  if (insertError) {
-    return res.status(500).json({ result: "error", error: { message: insertError.message } });
-  }
+  // NOTE: Do NOT create a fidRegistrations record here with null/false signer fields.
+  // fidRegistrations should only be created when a user has a valid, authenticated signer.
+  // The inferred FID is returned to the client for use in client state, but NO database
+  // record is created yet. When the user later performs a write action, they will
+  // authorize a signer, at which point a full fidRegistration will be created.
+  //
+  // This preserves the security invariant: fidRegistrations always represents
+  // authenticated ownership of a FID.
 
   return res.status(200).json({
     result: "success",
     value: {
       fid: inferredFid,
       identityPublicKey: body.identityPublicKey,
-      created,
+      created: serverNow,
       inferredFromAddress: walletAddress,
     },
   });
