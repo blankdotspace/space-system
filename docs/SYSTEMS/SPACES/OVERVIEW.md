@@ -6,16 +6,24 @@ Spaces are the pages that make up a community's presence on Blankspace. Each com
 
 ### Homebase (Private)
 
-Every community member gets their own private homebase - a personal dashboard they can customize.
+Every community member gets their own private homebase - a personal dashboard they can customize. Homebase data is **end-to-end encrypted** and tied to the user's space identity, not the community.
 
 **URL:** `/homebase`
 
 **Who can edit:** Only the owner (encrypted, private)
 
+**Key properties:**
+- Encrypted with XChaCha20-Poly1305
+- Signed with Ed25519
+- Tied to identity, not community (follows user across communities)
+- Multiple identities = multiple separate homebases
+
 **Use cases:**
 - Personal feed dashboard
 - Bookmarked communities and tokens
 - Private notes and links
+
+See [Private Spaces](PRIVATE_SPACES.md) for detailed architecture, encryption, and cross-community behavior.
 
 ---
 
@@ -142,6 +150,7 @@ Changes are saved to the server and visible to all visitors.
 
 ## Related Documentation
 
+- [Private Spaces](PRIVATE_SPACES.md) - Homebase encryption and cross-community behavior
 - [Space Architecture](SPACE_ARCHITECTURE.md) - Technical implementation details
 - [Public Spaces Pattern](PUBLIC_SPACES_PATTERN.md) - Server/client data flow
 - [Multiple Layouts](MULTIPLE_LAYOUTS_OVERVIEW.md) - Desktop and mobile layouts
