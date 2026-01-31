@@ -4,6 +4,7 @@ import { useAppStore, useLogout } from "@/common/data/stores/app";
 import { useSignMessage } from "@/common/data/stores/app/accounts/privyStore";
 import { SetupStep } from "@/common/data/stores/app/setup";
 import useValueHistory from "@/common/lib/hooks/useValueHistory";
+import { waitForAuthenticatorReady } from "@/common/lib/authenticators/waitForAuthenticatorReady";
 
 import requiredAuthenticators from "@/constants/requiredAuthenticators";
 import { bytesToHex } from "@noble/ciphers/utils";
@@ -31,6 +32,7 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
     loadPreKeys,
     loadFidsForCurrentIdentity,
     registerFidForCurrentIdentity,
+    inferFidForCurrentIdentity,
     modalOpen,
     setModalOpen,
     keepModalOpen,
@@ -55,6 +57,7 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
     // Register FIDs for account
     loadFidsForCurrentIdentity: state.account.getFidsForCurrentIdentity,
     registerFidForCurrentIdentity: state.account.registerFidForCurrentIdentity,
+    inferFidForCurrentIdentity: state.account.inferFidForCurrentIdentity,
     // Logout
     modalOpen: state.setup.modalOpen,
     setModalOpen: state.setup.setModalOpen,
@@ -105,17 +108,10 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
         const identities = getIdentitiesForWallet(wallet);
         try {
           if (identities.length > 0) {
-            await decryptIdentityKeys(
-              signMessage,
-              wallet,
-              identities[0].identityPublicKey,
-            );
+            await decryptIdentityKeys(signMessage, wallet, identities[0].identityPublicKey);
             setCurrentIdentity(identities[0].identityPublicKey);
           } else {
-            const publicKey = await createIdentityForWallet(
-              signMessage,
-              wallet,
-            );
+            const publicKey = await createIdentityForWallet(signMessage, wallet);
             setCurrentIdentity(publicKey);
           }
         } catch (e) {
@@ -146,49 +142,103 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
   const installRequiredAuthenticators = async () => {
     await authenticatorManager.installAuthenticators(requiredAuthenticators);
     authenticatorManager.initializeAuthenticators(requiredAuthenticators);
+    // If no authenticators are required for signup, skip this step entirely.
+    if (requiredAuthenticators.length === 0) {
+      setCurrentStep(SetupStep.AUTHENTICATORS_INITIALIZED);
+      return;
+    }
     setCurrentStep(SetupStep.REQUIRED_AUTHENTICATORS_INSTALLED);
   };
 
   const registerAccounts = async () => {
-    let currentIdentity = getCurrentIdentity()!;
-    if (currentIdentity.associatedFids.length > 0) {
-      setCurrentStep(SetupStep.ACCOUNTS_REGISTERED);
-    } else {
+    try {
+      let currentIdentity = getCurrentIdentity()!;
+      if (currentIdentity.associatedFids.length > 0) {
+        setCurrentStep(SetupStep.ACCOUNTS_REGISTERED);
+        return;
+      }
+
       await loadFidsForCurrentIdentity();
       currentIdentity = getCurrentIdentity()!;
-      if (currentIdentity.associatedFids.length === 0) {
-        const fidResult = (await authenticatorManager.callMethod({
-          requestingFidgetId: "root",
-          authenticatorId: "farcaster:nounspace",
-          methodName: "getAccountFid",
-          isLookup: true,
-        })) as { value: number };
-        const publicKeyResult = (await authenticatorManager.callMethod({
-          requestingFidgetId: "root",
-          authenticatorId: "farcaster:nounspace",
-          methodName: "getSignerPublicKey",
-          isLookup: true,
-        })) as { value: Uint8Array };
-        const signForFid = async (messageHash) => {
-          const signResult = (await authenticatorManager.callMethod(
-            {
-              requestingFidgetId: "root",
-              authenticatorId: "farcaster:nounspace",
-              methodName: "signMessage",
-              isLookup: false,
-            },
-            messageHash,
-          )) as { value: Uint8Array };
-          return signResult.value;
-        };
-        await registerFidForCurrentIdentity(
-          fidResult.value,
-          bytesToHex(publicKeyResult.value),
-          signForFid,
-        );
+      if (currentIdentity.associatedFids.length > 0) {
+        setCurrentStep(SetupStep.ACCOUNTS_REGISTERED);
+        return;
       }
+
+      // First attempt: infer user's Farcaster FID from their connected wallet address (no signer required).
+      const walletAddress = user?.wallet?.address;
+      if (walletAddress) {
+        const inferredFid = await inferFidForCurrentIdentity(walletAddress);
+        if (inferredFid) {
+          setCurrentStep(SetupStep.ACCOUNTS_REGISTERED);
+          return;
+        }
+      }
+
+      // Fallback: if we still can't infer an FID, prompt the user to connect to Farcaster.
+      await authenticatorManager.installAuthenticators(["farcaster:nounspace"]);
+      authenticatorManager.initializeAuthenticators(["farcaster:nounspace"]);
+      setModalOpen(true);
+
+      const ready = await waitForAuthenticatorReady(authenticatorManager, "farcaster:nounspace");
+      if (!ready) {
+        console.warn("[registerAccounts] Farcaster authenticator timed out after 60s");
+        // User can retry by interacting with the modal; keep it open for recovery.
+        return;
+      }
+
+      const fidResult = await authenticatorManager.callMethod({
+        requestingFidgetId: "root",
+        authenticatorId: "farcaster:nounspace",
+        methodName: "getAccountFid",
+        isLookup: true,
+      });
+      if (fidResult.result !== "success") {
+        console.warn("[registerAccounts] Failed to get FID from authenticator", fidResult);
+        // User can retry; keep modal open.
+        return;
+      }
+
+      const publicKeyResult = await authenticatorManager.callMethod({
+        requestingFidgetId: "root",
+        authenticatorId: "farcaster:nounspace",
+        methodName: "getSignerPublicKey",
+        isLookup: true,
+      });
+      if (publicKeyResult.result !== "success") {
+        console.warn("[registerAccounts] Failed to get signer public key from authenticator", publicKeyResult);
+        // User can retry; keep modal open.
+        return;
+      }
+
+      const signForFid = async (messageHash: Uint8Array) => {
+        const signResult = await authenticatorManager.callMethod(
+          {
+            requestingFidgetId: "root",
+            authenticatorId: "farcaster:nounspace",
+            methodName: "signMessage",
+            isLookup: false,
+          },
+          messageHash
+        );
+        if (signResult.result !== "success") {
+          throw new Error("Failed to sign message");
+        }
+        return signResult.value as Uint8Array;
+      };
+
+      await registerFidForCurrentIdentity(
+        fidResult.value as number,
+        bytesToHex(publicKeyResult.value as Uint8Array),
+        signForFid
+      );
+
+      setCurrentStep(SetupStep.ACCOUNTS_REGISTERED);
+    } catch (e) {
+      console.error("[registerAccounts] failed", e);
+      // Don't deadlock the user; show modal so they can recover/authorize if needed.
+      setModalOpen(true);
     }
-    setCurrentStep(SetupStep.ACCOUNTS_REGISTERED);
   };
 
   // Has to be separate otherwise will cause retrigger chain
@@ -204,26 +254,22 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
         (initializedAuthNames) => {
           const initializedAuthenticators = new Set(initializedAuthNames);
           const requiredAuthSet = new Set(requiredAuthenticators);
-          if (isEqual(initializedAuthenticators, requiredAuthSet)) {
+          // Consider the step complete once all required authenticators are initialized,
+          // even if other authenticators are also installed/initialized.
+          const allRequiredInitialized = Array.from(requiredAuthSet).every((id) =>
+            initializedAuthenticators.has(id),
+          );
+          if (allRequiredInitialized) {
             setCurrentStep(SetupStep.AUTHENTICATORS_INITIALIZED);
           }
         },
       );
     }
-  }, [
-    ready,
-    currentStep,
-    authenticated,
-    authenticatorManager.lastUpdatedAt,
-    walletsReady,
-  ]);
+  }, [ready, currentStep, authenticated, authenticatorManager.lastUpdatedAt, walletsReady]);
 
   useEffect(() => {
     if (ready && authenticated && user) {
-      if (
-        currentStep === SetupStep.NOT_SIGNED_IN ||
-        currentStep === SetupStep.UNINITIALIZED
-      ) {
+      if (currentStep === SetupStep.NOT_SIGNED_IN || currentStep === SetupStep.UNINITIALIZED) {
         setCurrentStep(SetupStep.SIGNED_IN);
       } else if (walletsReady) {
         if (currentStep === SetupStep.SIGNED_IN) {
@@ -243,22 +289,14 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
           setCurrentStep(SetupStep.DONE);
         }
       }
-    } else if (
-      ready &&
-      !authenticated &&
-      currentStep !== SetupStep.NOT_SIGNED_IN
-    ) {
+    } else if (ready && !authenticated && currentStep !== SetupStep.NOT_SIGNED_IN) {
       setCurrentStep(SetupStep.NOT_SIGNED_IN);
     }
   }, [currentStep, walletsReady, ready, authenticated, user]);
 
   return (
     <>
-      <LoginModal
-        open={modalOpen}
-        setOpen={setModalOpen}
-        showClose={!keepModalOpen}
-      />
+      <LoginModal open={modalOpen} setOpen={setModalOpen} showClose={!keepModalOpen} />
       {children}
     </>
   );

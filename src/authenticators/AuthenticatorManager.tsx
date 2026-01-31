@@ -27,6 +27,7 @@ import {
   AuthenticatorMethods,
 } from ".";
 import authenticators from "./authenticators";
+import { SetupStep } from "@/common/data/stores/app/setup";
 
 type AuthenticatorPermissions = {
   [fidgetId: string]: string[];
@@ -155,9 +156,10 @@ export const AuthenticatorManagerProvider: React.FC<
   }>();
   const [initializationQueue, setInitializationQueue] = useState<string[]>([]);
 
-  const { modalOpen, setModalOpen } = useAppStore((state) => ({
+  const { modalOpen, setModalOpen, currentStep } = useAppStore((state) => ({
     modalOpen: state.setup.modalOpen,
-    setModalOpen: state.setup.setModalOpen
+    setModalOpen: state.setup.setModalOpen,
+    currentStep: state.setup.currentStep,
   }));
 
   const authenticatorManager = useMemo<AuthenticatorManager>(
@@ -174,7 +176,9 @@ export const AuthenticatorManagerProvider: React.FC<
           // TO DO: When adding permissioning
           // Allow client requests to not open modal
           // While Fidget requests will
-          if (!modalOpen && !isLookup) {
+          // Only auto-open once the user is fully in-app; during login/setup this causes
+          // a confusing "blank" modal that closes later.
+          if (!modalOpen && !isLookup && currentStep === SetupStep.DONE) {
             setModalOpen(true);
           }
           return {
@@ -242,20 +246,21 @@ export const AuthenticatorManagerProvider: React.FC<
         });
       },
       initializeAuthenticators: (authenticatorIds) => {
-        setInitializationQueue(concat(initializationQueue, authenticatorIds));
+        setInitializationQueue((queue) => concat(queue, authenticatorIds));
       },
-      CurrentInitializerComponent: () =>
-        currentInitializer && (
-          <currentInitializer.initializer
-            data={authenticatorConfig[currentInitializer.id].data}
-            saveData={saveSingleAuthenticatorData(
-              authenticatorConfig,
-              currentInitializer.id,
-              authenticatorConfig[currentInitializer.id],
-            )}
-            done={completeInstallingCurrentInitializer}
-          />
-        ),
+      CurrentInitializerComponent: currentInitializer
+        ? () => (
+            <currentInitializer.initializer
+              data={authenticatorConfig[currentInitializer.id].data}
+              saveData={saveSingleAuthenticatorData(
+                authenticatorConfig,
+                currentInitializer.id,
+                authenticatorConfig[currentInitializer.id],
+              )}
+              done={completeInstallingCurrentInitializer}
+            />
+          )
+        : undefined,
       lastUpdatedAt: moment().toISOString(),
     }),
     [
@@ -274,7 +279,7 @@ export const AuthenticatorManagerProvider: React.FC<
         isUndefined(authenticator) ||
         (await authenticator.methods.isReady())
       ) {
-        setInitializationQueue(tail(initializationQueue));
+        setInitializationQueue((queue) => tail(queue));
         return;
       } else {
         setCurrentInitializer({

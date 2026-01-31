@@ -36,10 +36,10 @@ CREATE TABLE IF NOT EXISTS "public"."fidRegistrations" (
     "created" timestamp with time zone DEFAULT "now"() NOT NULL,
     "fid" bigint NOT NULL,
     "identityPublicKey" character varying NOT NULL,
-    "signature" character varying NOT NULL,
-    "signingPublicKey" character varying NOT NULL,
-    "signingKeyLastValidatedAt" timestamp without time zone NOT NULL,
-    "isSigningKeyValid" boolean NOT NULL
+    "signature" character varying,
+    "signingPublicKey" character varying,
+    "signingKeyLastValidatedAt" timestamp without time zone,
+    "isSigningKeyValid" boolean DEFAULT false
 );
 
 ALTER TABLE "public"."fidRegistrations" OWNER TO "postgres";

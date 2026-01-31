@@ -33,8 +33,8 @@ export type FidLinkToIdentityResponse = NounspaceResponse<{
   fid: number;
   identityPublicKey: string;
   created: string;
-  signature: string;
-  signingPublicKey: string;
+  signature: string | null;
+  signingPublicKey: string | null;
   isSigningKeyValid: boolean;
 }>;
 
@@ -71,13 +71,14 @@ async function linkFidToIdentity(
     });
     return;
   }
-  if (!checkSigningKeyValidForFid) {
+  if (!(await checkSigningKeyValidForFid(reqBody.fid, reqBody.signingPublicKey))) {
     res.status(400).json({
       result: "error",
       error: {
         message: `Signing key ${reqBody.signingPublicKey} is not valid for fid ${reqBody.fid}`,
       },
     });
+    return;
   }
   const { data: checkExistsData } = await createSupabaseServerClient()
     .from("fidRegistrations")
@@ -173,7 +174,7 @@ async function lookUpFidsForIdentity(
     .from("fidRegistrations")
     .select("fid")
     .eq("identityPublicKey", identity)
-    .eq("isSigningKeyValid", true);
+    ;
   if (error) {
     res.status(500).json({
       result: "error",

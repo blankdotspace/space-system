@@ -76,12 +76,11 @@ const LoginModal = ({
       ) : null;
     }
 
-    if (currentStep === SetupStep.REQUIRED_AUTHENTICATORS_INSTALLED)
-      return CurrentInitializerComponent ? (
-        <CurrentInitializerComponent />
-      ) : (
-        "One second..."
-      );
+    // If an authenticator is requesting initialization (e.g. Farcaster signer),
+    // show its initializer regardless of the current setup step.
+    if (CurrentInitializerComponent) {
+      return <CurrentInitializerComponent />;
+    }
 
     return <LoadingScreen text={currentStep} />;
   }
@@ -89,7 +88,7 @@ const LoginModal = ({
   return (
     <Modal
       setOpen={setOpen}
-      open={open && authenticated && currentStep !== SetupStep.DONE}
+      open={open && authenticated && (currentStep !== SetupStep.DONE || !!CurrentInitializerComponent)}
       showClose={showClose}
     >
       {getModalContent()}

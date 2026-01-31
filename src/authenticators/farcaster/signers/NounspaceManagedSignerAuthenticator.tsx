@@ -226,20 +226,17 @@ const initializer: AuthenticatorInitializer<
   });
 
   function devSignin() {
-    // In development, generate test signing keys so Quick Auth can work
-    // These are random keys - not linked to a real Farcaster account
     const newPrivKey = ed25519.utils.randomPrivateKey();
     const publicKeyHex = `0x${bytesToHex(ed25519.getPublicKey(newPrivKey))}`;
-    const privateKeyHex = `0x${bytesToHex(newPrivKey)}`;
-    
     saveData({
       ...data,
       status: "completed",
       accountFid: Number(devFid),
-      accountType: "signer", // Use signer type so keys are available
-      publicKeyHex: publicKeyHex,
-      privateKeyHex: privateKeyHex,
+      accountType: "account",
+      publicKeyHex,
+      privateKeyHex: `0x${bytesToHex(newPrivKey)}`,
     });
+    done();
   }
 
   const warpcastSignerUrl = data.signerUrl
