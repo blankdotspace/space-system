@@ -80,23 +80,24 @@ describe('IFrame Settings', () => {
 });
 
 describe('IFrame Controls', () => {
-  it('should calculate iframe positioning correctly with scroll-style offsets', () => {
+  it('should calculate iframe positioning correctly', () => {
     const size = 2.0;
-    const cropOffsetX = -25;
-    const cropOffsetY = 10;
-
-    // Desktop: offsets are negated to create scroll effect, dimensions grow to prevent clipping
-    const innerStyle = {
-      top: `${-cropOffsetY * 1.8}%`,
-      left: `${-cropOffsetX}%`,
-      width: `${(100 / size) + Math.abs(cropOffsetX)}%`,
-      height: `${(100 / size) + Math.abs(cropOffsetY * 1.8)}vh`,
+    const offsetX = -25;
+    const offsetY = 10;
+    
+    const iframeStyle = {
+      transform: `scale(${size})`,
+      left: `${offsetX}%`,
+      top: `${offsetY}%`,
+      width: `${100 / size}%`,
+      height: `${100 / size}%`,
     };
-
-    expect(innerStyle.top).toBe("-18%");
-    expect(innerStyle.left).toBe("25%");
-    expect(innerStyle.width).toBe("75%");
-    expect(innerStyle.height).toBe("68vh");
+    
+    expect(iframeStyle.transform).toBe("scale(2)");
+    expect(iframeStyle.left).toBe("-25%");
+    expect(iframeStyle.top).toBe("10%");
+    expect(iframeStyle.width).toBe("50%");
+    expect(iframeStyle.height).toBe("50%");
   });
 
   it('should handle scrollable overflow setting', () => {

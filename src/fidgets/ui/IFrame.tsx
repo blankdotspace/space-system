@@ -722,10 +722,10 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
           <div
             style={{
               position: "absolute",
-              top: `${-cropOffsetY * 1.6}%`,
-              left: `${-cropOffsetX}%`,
-              width: `${100 + Math.abs(cropOffsetX)}%`,
-              height: `${100 + Math.abs(cropOffsetY * 1.6)}%`,
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              transform: `translate(${cropOffsetX}%, ${cropOffsetY * 1.6}%)`,
             }}
           >
             <iframe
@@ -755,10 +755,10 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
             <div
               style={{
                 position: "absolute",
-                top: `${-cropOffsetY * 1.8}%`,
-                left: `${-cropOffsetX}%`,
-                width: `${(100 / size) + Math.abs(cropOffsetX)}%`,
-                height: `${(100 / size) + Math.abs(cropOffsetY * 1.8)}vh`,
+                inset: 0,
+                width: `${100 / size}%`,
+                height: `${100 / size}vh`,
+                transform: `translate(${cropOffsetX}%, ${cropOffsetY * 1.8}%)`,
               }}
             >
               <iframe
