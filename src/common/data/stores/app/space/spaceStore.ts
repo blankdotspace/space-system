@@ -446,7 +446,7 @@ export const createSpaceStoreFunc = (
     tabName,
     network?: EtherScanChainName,
   ) => {
-      // Staged deletion: only update local state, actual deletion happens in commitAllSpaceChanges
+      // Update local state and commit deletion to database
       const localSpace = get().space.localSpaces[spaceId];
       const remoteSpace = get().space.remoteSpaces[spaceId];
       
@@ -492,6 +492,9 @@ export const createSpaceStoreFunc = (
         spaceDraft.updatedAt = timestamp;
         spaceDraft.orderUpdatedAt = timestamp;
       }, "deleteSpaceTab");
+
+      // Commit deletion to database immediately
+      await get().space.commitAllSpaceChanges(spaceId, network);
     },
   createSpaceTab: async (
     spaceId: string,
