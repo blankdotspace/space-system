@@ -168,13 +168,11 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
       // First attempt: infer user's Farcaster FID from their connected wallet address (no signer required).
       const walletAddress = user?.wallet?.address;
       if (walletAddress) {
-        await inferFidForCurrentIdentity(walletAddress);
-        currentIdentity = getCurrentIdentity()!;
-      }
-
-      if (currentIdentity.associatedFids.length > 0) {
-        setCurrentStep(SetupStep.ACCOUNTS_REGISTERED);
-        return;
+        const inferredFid = await inferFidForCurrentIdentity(walletAddress);
+        if (inferredFid) {
+          setCurrentStep(SetupStep.ACCOUNTS_REGISTERED);
+          return;
+        }
       }
 
       // Fallback: if we still can't infer an FID, prompt the user to connect to Farcaster.
