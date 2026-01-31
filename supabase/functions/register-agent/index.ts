@@ -475,6 +475,131 @@ async function handleCompleteRegistration(
   });
 }
 
+// ─── Neynar hub helpers ──────────────────────────────────────────────
+
+const NEYNAR_HUB_URL = "https://hub-api.neynar.com";
+
+function getNeynarApiKey(): string | null {
+  return Deno.env.get("NEYNAR_API_KEY") || null;
+}
+
+async function publishMessageToHub(
+  messageBytes: Uint8Array,
+): Promise<{ success: boolean; error?: string; data?: unknown }> {
+  const apiKey = getNeynarApiKey();
+  if (!apiKey) {
+    return { success: false, error: "Server misconfigured (missing Neynar API key)" };
+  }
+
+  try {
+    const resp = await fetch(`${NEYNAR_HUB_URL}/v1/submitMessage`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/octet-stream",
+        "x-api-key": apiKey,
+      },
+      body: messageBytes,
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      return { success: false, error: `Hub rejected message (${resp.status}): ${text}` };
+    }
+
+    const data = await resp.json();
+    return { success: true, data };
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { success: false, error: "Failed to publish to hub: " + msg };
+  }
+}
+
+// ─── set-fname ───────────────────────────────────────────────────────
+
+const FARCASTER_FNAME_ENDPOINT = "https://fnames.farcaster.xyz/transfers";
+
+async function handleSetFname(
+  username: string,
+  fid: number,
+  owner: string,
+  timestamp: number,
+  signature: string,
+): Promise<Response> {
+  if (!username || typeof username !== "string") {
+    return jsonResponse({ success: false, error: "Missing username" }, 400);
+  }
+  if (!fid || typeof fid !== "number") {
+    return jsonResponse({ success: false, error: "Missing or invalid fid" }, 400);
+  }
+  if (!owner || !/^0x[a-fA-F0-9]{40}$/.test(owner)) {
+    return jsonResponse({ success: false, error: "Missing or invalid owner address" }, 400);
+  }
+  if (!timestamp || typeof timestamp !== "number") {
+    return jsonResponse({ success: false, error: "Missing or invalid timestamp" }, 400);
+  }
+  if (!signature || !signature.startsWith("0x")) {
+    return jsonResponse({ success: false, error: "Missing or invalid signature" }, 400);
+  }
+
+  // Register fname with the Farcaster fname server
+  try {
+    const fnameResp = await fetch(FARCASTER_FNAME_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: username,
+        from: 0,
+        to: fid,
+        fid: fid,
+        owner,
+        timestamp,
+        signature,
+      }),
+    });
+
+    if (!fnameResp.ok) {
+      const errData = await fnameResp.json().catch(() => ({}));
+      const d = errData as Record<string, unknown>;
+      const errMsg = d?.error || d?.code || fnameResp.statusText;
+      return jsonResponse(
+        { success: false, error: `Fname server rejected: ${errMsg}` },
+        fnameResp.status,
+      );
+    }
+
+    const fnameData = await fnameResp.json();
+    return jsonResponse({ success: true, transfer: fnameData });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return jsonResponse(
+      { success: false, error: "Failed to register fname: " + msg },
+      500,
+    );
+  }
+}
+
+// ─── publish-message ─────────────────────────────────────────────────
+
+async function handlePublishMessage(
+  messageBytes: string,
+): Promise<Response> {
+  if (!messageBytes || typeof messageBytes !== "string") {
+    return jsonResponse(
+      { success: false, error: "Missing messageBytes (hex-encoded protobuf)" },
+      400,
+    );
+  }
+
+  const bytes = hexToBytes(messageBytes);
+  const result = await publishMessageToHub(bytes);
+
+  if (!result.success) {
+    return jsonResponse({ success: false, error: result.error }, 500);
+  }
+
+  return jsonResponse({ success: true, data: result.data });
+}
+
 // ─── Main handler ────────────────────────────────────────────────────
 
 Deno.serve(async (req: Request) => {
@@ -510,12 +635,24 @@ Deno.serve(async (req: Request) => {
         body.signerPublicKey as string,
         body.txHash as string,
       );
+    case "set-fname":
+      return handleSetFname(
+        body.username as string,
+        body.fid as number,
+        body.owner as string,
+        body.timestamp as number,
+        body.signature as string,
+      );
+    case "publish-message":
+      return handlePublishMessage(
+        body.messageBytes as string,
+      );
     default:
       return jsonResponse(
         {
           success: false,
           error:
-            'Unknown operation. Use "create-signer-request" or "complete-registration".',
+            'Unknown operation. Use "create-signer-request", "complete-registration", "set-fname", or "publish-message".',
         },
         400,
       );
