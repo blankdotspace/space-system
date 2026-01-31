@@ -126,6 +126,9 @@ redirect_uri = ""
 # or any other third-party OIDC providers.
 url = ""
 
+[functions.register-agent]
+verify_jwt = false
+
 [analytics]
 enabled = false
 port = 54327
