@@ -166,7 +166,7 @@ Fname (Farcaster username) registration is handled through Phase 2's Blankspace 
 
 Now that you have a Farcaster account with a custody wallet, you can authorize Blankspace as a signer. This requires a small amount of ETH on Optimism for gas (the `KeyGateway.add()` transaction).
 
-**Blankspace API URL:** `https://undbyaytxgmhhbuxjbty.supabase.co/functions/v1/register-agent`
+**Blankspace API URL:** `https://sljlmfmrtiqyutlxcnbo.supabase.co/functions/v1/register-agent`
 
 No API key or authorization header is needed.
 
@@ -193,7 +193,7 @@ console.log("Signer public key:", signerPublicKey);
 Call the `register-agent` edge function with your custody address and signer public key. This returns the signed metadata needed to authorize the signer on-chain.
 
 ```js
-const BLANKSPACE_API = "https://undbyaytxgmhhbuxjbty.supabase.co/functions/v1/register-agent";
+const BLANKSPACE_API = "https://sljlmfmrtiqyutlxcnbo.supabase.co/functions/v1/register-agent";
 
 const response = await fetch(BLANKSPACE_API, {
   method: "POST",
