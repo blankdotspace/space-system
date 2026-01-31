@@ -221,10 +221,19 @@ async function handleCreateSignerRequest(
     }
 
     // Build and store signed key file
+    // Store the full RootSpaceKeys structure so the app can load it directly
+    const salt = crypto.randomUUID();
+    const rootSpaceKeys = {
+      publicKey: identityPublicKey,
+      privateKey: bytesToHex(identityPrivateKey),
+      type: "root",
+      salt,
+    };
+    const encoder = new TextEncoder();
     const keyFileData = {
       publicKey: identityPublicKey,
-      fileData: bytesToHex(identityPrivateKey),
-      fileType: "ed25519",
+      fileData: bytesToHex(encoder.encode(JSON.stringify(rootSpaceKeys))),
+      fileType: "json",
       isEncrypted: false,
       timestamp,
     };
@@ -451,7 +460,7 @@ async function handleCompleteRegistration(
           : signerPublicKey,
         isSigningKeyValid: true,
         signingKeyLastValidatedAt: now,
-        signature: txHash,
+        signature: txHash.startsWith("0x") ? txHash.slice(2) : txHash,
       },
       { onConflict: "fid" },
     );

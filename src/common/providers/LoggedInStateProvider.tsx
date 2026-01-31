@@ -144,6 +144,16 @@ const LoggedInStateProvider: React.FC<LoggedInLayoutProps> = ({ children }) => {
   }
 
   const installRequiredAuthenticators = async () => {
+    // Check if FIDs are already registered (e.g. agent registered via edge function)
+    // before requiring authenticator initialization
+    await loadFidsForCurrentIdentity();
+    const currentIdentity = getCurrentIdentity();
+    if (currentIdentity && currentIdentity.associatedFids.length > 0) {
+      // FIDs already exist — skip authenticator init and go straight to done
+      setCurrentStep(SetupStep.ACCOUNTS_REGISTERED);
+      return;
+    }
+
     await authenticatorManager.installAuthenticators(requiredAuthenticators);
     authenticatorManager.initializeAuthenticators(requiredAuthenticators);
     setCurrentStep(SetupStep.REQUIRED_AUTHENTICATORS_INSTALLED);

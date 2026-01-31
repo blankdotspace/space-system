@@ -256,12 +256,20 @@ export const identityStore = (
       );
     }
     const fileData = JSON.parse(await data.text()) as SignedFile;
-    const keys = (await decryptKeyFile(
-      signMessage,
-      wallet,
-      walletIdentityInfo.nonce,
-      hexToBytes(fileData.fileData),
-    )) as RootSpaceKeys;
+    let keys: RootSpaceKeys;
+    if (fileData.isEncrypted === false) {
+      // Key file from edge function (e.g. agent registration) is stored unencrypted
+      keys = JSON.parse(
+        bytesToUtf8(hexToBytes(fileData.fileData)),
+      ) as RootSpaceKeys;
+    } else {
+      keys = (await decryptKeyFile(
+        signMessage,
+        wallet,
+        walletIdentityInfo.nonce,
+        hexToBytes(fileData.fileData),
+      )) as RootSpaceKeys;
+    }
     set((draft) => {
       draft.account.spaceIdentities.push({
         rootKeys: keys,

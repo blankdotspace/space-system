@@ -107,7 +107,7 @@ async function handleGet(
     const { data, error } = await supabase
       .from("walletIdentities")
       .select()
-      .eq("walletAddress", address);
+      .ilike("walletAddress", address);
     if (error) {
       res.status(500).json({
         result: "error",
