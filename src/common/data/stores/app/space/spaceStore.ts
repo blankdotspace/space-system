@@ -171,6 +171,10 @@ interface SpaceActions {
     spaceId: string,
     network?: EtherScanChainName,
   ) => Promise<void> | undefined;
+  commitSpaceOrderToDatabaseImmediate: (
+    spaceId: string,
+    network?: EtherScanChainName,
+  ) => Promise<void>;
   commitAllSpaceChanges: (
     spaceId: string,
     network?: EtherScanChainName,
@@ -544,8 +548,9 @@ export const createSpaceStoreFunc = (
     }, "createSpaceTab");
     analytics.track(AnalyticsEvent.CREATE_NEW_TAB);
 
-    // Return the tabName immediately so UI can switch to it
-    // Tab creation is now staged - use commitAllSpaceChanges to commit
+    // Commit new tab and updated tabOrder to database immediately
+    await get().space.commitAllSpaceChanges(spaceId, network);
+
     return { tabName };
   },
   updateLocalSpaceOrder: async (spaceId, newOrder) => {
@@ -558,49 +563,51 @@ export const createSpaceStoreFunc = (
   },
   commitSpaceOrderToDatabase: debounce(
     async (spaceId, network?: EtherScanChainName) => {
-      // console.debug("debug", "Commiting space order to database");
-      const timestamp = moment().toISOString();
-
-      const unsignedReq: UnsignedUpdateTabOrderRequest = {
-        spaceId,
-        tabOrder: get().space.localSpaces[spaceId].order,
-        publicKey: get().account.currentSpaceIdentityPublicKey!,
-        timestamp,
-        network,
-      };
-      const signedRequest = signSignable(
-        unsignedReq,
-        get().account.getCurrentIdentity()!.rootKeys.privateKey,
-      );
-      try {
-        await axiosBackend.post<RegisterNewSpaceTabResponse>(
-          `/api/space/registry/${spaceId}`,
-          signedRequest,
-        );
-        set((draft) => {
-          if (isUndefined(draft.space.remoteSpaces[spaceId])) {
-            draft.space.remoteSpaces[spaceId] = {
-              tabs: {},
-              order: [],
-              updatedAt: moment(0).toISOString(),
-              id: spaceId,
-            };
-          }
-
-          draft.space.remoteSpaces[spaceId].order = cloneDeep(
-            get().space.localSpaces[spaceId].order,
-          );
-
-          draft.space.remoteSpaces[spaceId].orderUpdatedAt = timestamp;
-          draft.space.localSpaces[spaceId].orderUpdatedAt = timestamp;
-        }, "commitSpaceOrderToDatabase");
-        analytics.track(AnalyticsEvent.SAVE_SPACE_THEME);
-      } catch (e) {
-        console.error(e);
-      }
+      await get().space.commitSpaceOrderToDatabaseImmediate(spaceId, network);
     },
     1000,
   ),
+  commitSpaceOrderToDatabaseImmediate: async (spaceId: string, network?: EtherScanChainName) => {
+    const timestamp = moment().toISOString();
+
+    const unsignedReq: UnsignedUpdateTabOrderRequest = {
+      spaceId,
+      tabOrder: get().space.localSpaces[spaceId].order,
+      publicKey: get().account.currentSpaceIdentityPublicKey!,
+      timestamp,
+      network,
+    };
+    const signedRequest = signSignable(
+      unsignedReq,
+      get().account.getCurrentIdentity()!.rootKeys.privateKey,
+    );
+    try {
+      await axiosBackend.post<RegisterNewSpaceTabResponse>(
+        `/api/space/registry/${spaceId}`,
+        signedRequest,
+      );
+      set((draft) => {
+        if (isUndefined(draft.space.remoteSpaces[spaceId])) {
+          draft.space.remoteSpaces[spaceId] = {
+            tabs: {},
+            order: [],
+            updatedAt: moment(0).toISOString(),
+            id: spaceId,
+          };
+        }
+
+        draft.space.remoteSpaces[spaceId].order = cloneDeep(
+          get().space.localSpaces[spaceId].order,
+        );
+
+        draft.space.remoteSpaces[spaceId].orderUpdatedAt = timestamp;
+        draft.space.localSpaces[spaceId].orderUpdatedAt = timestamp;
+      }, "commitSpaceOrderToDatabase");
+      analytics.track(AnalyticsEvent.SAVE_SPACE_THEME);
+    } catch (e) {
+      console.error(e);
+    }
+  },
   commitAllSpaceChanges: async (
     spaceId: string,
     network?: EtherScanChainName,
@@ -654,8 +661,8 @@ export const createSpaceStoreFunc = (
           );
         }),
 
-        // 3. Update tab order (once, after all tab changes)
-        get().space.commitSpaceOrderToDatabase(spaceId, network),
+        // 3. Update tab order immediately (bypass debounce to ensure persistence)
+        get().space.commitSpaceOrderToDatabaseImmediate(spaceId, network),
       ]);
 
       // Sync remoteSpaces after successful commit
