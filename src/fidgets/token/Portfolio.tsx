@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useMemo } from "react";
 import TextInput from "@/common/components/molecules/TextInput";
 import SettingsSelector from "@/common/components/molecules/SettingsSelector";
 import {
@@ -9,6 +9,14 @@ import {
 } from "@/common/fidgets";
 import { defaultStyleFields, WithMargin } from "@/fidgets/helpers";
 import { GiTwoCoins } from "react-icons/gi";
+import useCurrentFid from "@/common/lib/hooks/useCurrentFid";
+import { useLoadFarcasterUser } from "@/common/data/queries/farcaster";
+import { useNeynarUser } from "@/common/lib/hooks/useNeynarUser";
+import { useFarcasterSigner } from "@/fidgets/farcaster";
+import PortfolioUsernameInput, {
+  getPortfolioPrimaryAddress,
+} from "./PortfolioUsernameInput";
+
 
 export type PortfolioFidgetSettings = {
   trackType: "farcaster" | "address";
@@ -54,10 +62,7 @@ const portfolioProperties: FidgetProperties = {
       disabledIf: (settings) => settings.trackType !== "farcaster",
       inputSelector: (props) => (
         <WithMargin>
-          <TextInput
-            {...props}
-            className="[&_label]:!normal-case"
-          />
+          <PortfolioUsernameInput {...props} className="[&_label]:!normal-case" />
         </WithMargin>
       ),
       group: "settings",
@@ -90,6 +95,8 @@ const portfolioProperties: FidgetProperties = {
 
 const Portfolio: React.FC<FidgetArgs<PortfolioFidgetSettings>> = ({
   settings,
+  data,
+  saveData,
 }) => {
   const {
     trackType,
@@ -100,12 +107,141 @@ const Portfolio: React.FC<FidgetArgs<PortfolioFidgetSettings>> = ({
     fidgetShadow,
   } = settings;
 
+  const currentFid = useCurrentFid();
+  const farcasterSigner = useFarcasterSigner("portfolio");
+  const effectiveFid = (currentFid ?? farcasterSigner.fid) ?? -1;
+  const { data: currentUserData } = useLoadFarcasterUser(
+    effectiveFid,
+    effectiveFid > 0 ? effectiveFid : undefined,
+  );
+  const loggedInUsername = useMemo(() => {
+    const username = currentUserData?.users?.[0]?.username;
+    return typeof username === "string" ? username.trim() : "";
+  }, [currentUserData]);
+
+  const normalizedUsername = useMemo(
+    () => (farcasterUsername || "").trim().replace(/^@/, ""),
+    [farcasterUsername],
+  );
+
+  const effectiveUsername = (normalizedUsername || loggedInUsername || "").toLowerCase();
+  const { user: effectiveUser } = useNeynarUser(
+    effectiveUsername ? effectiveUsername : undefined,
+  );
+
+  const derivedAddresses = useMemo(
+    () => getPortfolioPrimaryAddress(effectiveUser),
+    [effectiveUser],
+  );
+
+  const resolvedFarcasterUsername = useMemo(() => {
+    const normalized = (farcasterUsername || "").trim().replace(/^@/, "");
+    return normalized;
+  }, [farcasterUsername]);
+
+  const resolvedWalletAddresses = useMemo(() => {
+    const normalized = (walletAddresses || "").trim();
+    return normalized;
+  }, [walletAddresses]);
+
+  useEffect(() => {
+    const isDefaultUsername = !normalizedUsername;
+    if (!isDefaultUsername || !loggedInUsername) return;
+
+    const previous =
+      (data as { lastFetchSettings?: { farcasterUsername?: string } } | undefined)
+        ?.lastFetchSettings?.farcasterUsername;
+
+    if (previous === loggedInUsername) return;
+
+    void saveData({
+      ...(data || {}),
+      lastFetchSettings: {
+        ...(data as { lastFetchSettings?: Record<string, unknown> } | undefined)
+          ?.lastFetchSettings,
+        farcasterUsername: loggedInUsername,
+      },
+    });
+  }, [normalizedUsername, loggedInUsername, data, saveData]);
+
+  useEffect(() => {
+    if (!effectiveUsername || !derivedAddresses) return;
+
+    const addressInput = (walletAddresses || "").trim();
+    const meta = data as
+      | {
+          autoAddressUsername?: string;
+          autoAddressValue?: string;
+          backfillOverrideKeys?: string[];
+        }
+      | undefined;
+    const addressWasAuto = meta?.autoAddressValue
+      ? addressInput === meta.autoAddressValue
+      : false;
+    const usernameChanged = meta?.autoAddressUsername !== effectiveUsername;
+    const shouldAuto = !addressInput || addressWasAuto || usernameChanged;
+
+    if (!shouldAuto) return;
+
+    if (addressInput === derivedAddresses) return;
+
+    void saveData({
+      ...(data || {}),
+      autoAddressUsername: effectiveUsername,
+      autoAddressValue: derivedAddresses,
+      backfillOverrideKeys: Array.from(
+        new Set([...(meta?.backfillOverrideKeys ?? []), "walletAddresses"]),
+      ),
+      lastFetchSettings: {
+        ...(data as { lastFetchSettings?: Record<string, unknown> } | undefined)
+          ?.lastFetchSettings,
+        walletAddresses: derivedAddresses,
+      },
+    });
+  }, [effectiveUsername, derivedAddresses, walletAddresses, data, saveData]);
+
+  useEffect(() => {
+    const addressInput = (walletAddresses || "").trim();
+    const meta = data as
+      | {
+          autoAddressUsername?: string;
+          autoAddressValue?: string;
+          lastFetchSettings?: Record<string, unknown>;
+          backfillOverrideKeys?: string[];
+        }
+      | undefined;
+
+    if (!meta?.autoAddressValue) return;
+
+    if (!addressInput || addressInput === meta.autoAddressValue) return;
+
+    const { lastFetchSettings, ...rest } = meta;
+    if (!lastFetchSettings || !("walletAddresses" in lastFetchSettings)) return;
+
+    const { walletAddresses: _ignored, ...nextLastFetch } = lastFetchSettings;
+    const nextOverrideKeys = (meta?.backfillOverrideKeys ?? []).filter(
+      (key) => key !== "walletAddresses",
+    );
+    void saveData({
+      ...(data || {}),
+      ...rest,
+      autoAddressUsername: undefined,
+      autoAddressValue: undefined,
+      backfillOverrideKeys: nextOverrideKeys.length > 0 ? nextOverrideKeys : undefined,
+      lastFetchSettings: nextLastFetch,
+    });
+  }, [walletAddresses, data, saveData]);
+
   const baseUrl = "https://balance-fidget.replit.app";
   const url =
     trackType === "address"
-      ? `${baseUrl}/portfolio/${encodeURIComponent(walletAddresses)}`
+      ? resolvedWalletAddresses
+        ? `${baseUrl}/portfolio/${encodeURIComponent(resolvedWalletAddresses)}`
+        : baseUrl
       : trackType === "farcaster"
-        ? `${baseUrl}/fc/${encodeURIComponent(farcasterUsername)}`
+        ? resolvedFarcasterUsername
+          ? `${baseUrl}/fc/${encodeURIComponent(resolvedFarcasterUsername)}`
+          : baseUrl
         : baseUrl;
 
   return (
@@ -128,4 +264,3 @@ export default {
   fidget: Portfolio,
   properties: portfolioProperties,
 } as FidgetModule<FidgetArgs<PortfolioFidgetSettings>>;
-
