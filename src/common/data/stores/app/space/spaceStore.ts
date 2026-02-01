@@ -1027,6 +1027,7 @@ export const createSpaceStoreFunc = (
       const { data } = await axiosBackend.post<RegisterNewSpaceResponse>(
         "/api/space/registry",
         registration,
+        { timeout: 30000 },
       );
       const newSpaceId = data.value!.spaceId;
       
