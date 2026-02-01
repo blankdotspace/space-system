@@ -57,7 +57,6 @@ const portfolioProperties: FidgetProperties = {
     {
       fieldName: "farcasterUsername",
       displayName: "Username",
-      default: "nounspacetom",
       required: false,
       disabledIf: (settings) => settings.trackType !== "farcaster",
       inputSelector: (props) => (
@@ -70,7 +69,6 @@ const portfolioProperties: FidgetProperties = {
     {
       fieldName: "walletAddresses",
       displayName: "Address(es)",
-      default: "0x06AE622bF2029Db79Bdebd38F723f1f33f95F6C5",
       required: false,
       disabledIf: (settings) => settings.trackType !== "address",
       inputSelector: (props) => (
@@ -145,8 +143,7 @@ const Portfolio: React.FC<FidgetArgs<PortfolioFidgetSettings>> = ({
   }, [walletAddresses]);
 
   useEffect(() => {
-    const isDefaultUsername = !normalizedUsername;
-    if (!isDefaultUsername || !loggedInUsername) return;
+    if (normalizedUsername || !loggedInUsername) return;
 
     const previous =
       (data as { lastFetchSettings?: { farcasterUsername?: string } } | undefined)
@@ -168,30 +165,15 @@ const Portfolio: React.FC<FidgetArgs<PortfolioFidgetSettings>> = ({
     if (!effectiveUsername || !derivedAddresses) return;
 
     const addressInput = (walletAddresses || "").trim();
-    const meta = data as
-      | {
-          autoAddressUsername?: string;
-          autoAddressValue?: string;
-          backfillOverrideKeys?: string[];
-        }
-      | undefined;
-    const addressWasAuto = meta?.autoAddressValue
-      ? addressInput === meta.autoAddressValue
-      : false;
-    const usernameChanged = meta?.autoAddressUsername !== effectiveUsername;
-    const shouldAuto = !addressInput || addressWasAuto || usernameChanged;
+    if (addressInput) return;
 
-    if (!shouldAuto) return;
-
-    if (addressInput === derivedAddresses) return;
+    const previous =
+      (data as { lastFetchSettings?: { walletAddresses?: string } } | undefined)
+        ?.lastFetchSettings?.walletAddresses;
+    if (previous === derivedAddresses) return;
 
     void saveData({
       ...(data || {}),
-      autoAddressUsername: effectiveUsername,
-      autoAddressValue: derivedAddresses,
-      backfillOverrideKeys: Array.from(
-        new Set([...(meta?.backfillOverrideKeys ?? []), "walletAddresses"]),
-      ),
       lastFetchSettings: {
         ...(data as { lastFetchSettings?: Record<string, unknown> } | undefined)
           ?.lastFetchSettings,
@@ -199,38 +181,6 @@ const Portfolio: React.FC<FidgetArgs<PortfolioFidgetSettings>> = ({
       },
     });
   }, [effectiveUsername, derivedAddresses, walletAddresses, data, saveData]);
-
-  useEffect(() => {
-    const addressInput = (walletAddresses || "").trim();
-    const meta = data as
-      | {
-          autoAddressUsername?: string;
-          autoAddressValue?: string;
-          lastFetchSettings?: Record<string, unknown>;
-          backfillOverrideKeys?: string[];
-        }
-      | undefined;
-
-    if (!meta?.autoAddressValue) return;
-
-    if (!addressInput || addressInput === meta.autoAddressValue) return;
-
-    const { lastFetchSettings, ...rest } = meta;
-    if (!lastFetchSettings || !("walletAddresses" in lastFetchSettings)) return;
-
-    const { walletAddresses: _ignored, ...nextLastFetch } = lastFetchSettings;
-    const nextOverrideKeys = (meta?.backfillOverrideKeys ?? []).filter(
-      (key) => key !== "walletAddresses",
-    );
-    void saveData({
-      ...(data || {}),
-      ...rest,
-      autoAddressUsername: undefined,
-      autoAddressValue: undefined,
-      backfillOverrideKeys: nextOverrideKeys.length > 0 ? nextOverrideKeys : undefined,
-      lastFetchSettings: nextLastFetch,
-    });
-  }, [walletAddresses, data, saveData]);
 
   const baseUrl = "https://balance-fidget.replit.app";
   const url =

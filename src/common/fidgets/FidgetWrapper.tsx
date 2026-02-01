@@ -43,10 +43,6 @@ export const getSettingsWithDefaults = (
   settings: FidgetSettings,
   config: FidgetProperties,
 ): FidgetSettings => {
-  const skipDefaults =
-    config.fidgetName === "Portfolio"
-      ? new Set(["farcasterUsername", "walletAddresses"])
-      : null;
   return reduce(
     config.fields,
     (acc, f) => {
@@ -60,11 +56,7 @@ export const getSettingsWithDefaults = (
         value !== null &&
         (typeof value !== "string" || value.trim() !== "");
 
-      if (!hasValue && skipDefaults?.has(f.fieldName)) {
-        acc[f.fieldName] = value ?? "";
-      } else {
-        acc[f.fieldName] = hasValue ? value : f.default ?? "";
-      }
+      acc[f.fieldName] = hasValue ? value : f.default ?? "";
       return acc;
     },
     {},
@@ -99,15 +91,10 @@ export function FidgetWrapper({
   // to automatically backfill empty settings. This is useful when fidgets are created
   // from external sources (e.g., URL parameters) and need to populate settings.
   const dataConfig = bundle.config?.data as
-    | {
-        lastFetchSettings?: Partial<FidgetSettings>;
-        disableBackfill?: boolean;
-        backfillOverrideKeys?: string[];
-      }
+    | { lastFetchSettings?: Partial<FidgetSettings>; disableBackfill?: boolean }
     | undefined;
   const lastFetchSettings = dataConfig?.lastFetchSettings;
   const disableBackfill = dataConfig?.disableBackfill === true;
-  const backfillOverrideKeys = dataConfig?.backfillOverrideKeys ?? [];
 
   const defaultSettingsMap = useMemo(
     () =>
@@ -121,10 +108,6 @@ export function FidgetWrapper({
       ),
     [bundle.properties.fields],
   );
-  const noDefaultOverride =
-    bundle.properties.fidgetName === "Portfolio"
-      ? new Set(["farcasterUsername", "walletAddresses"])
-      : null;
 
   const derivedSettings = useMemo<FidgetSettings>(() => {
     // Use zustand settings directly (they're already the latest), fall back to props
@@ -140,15 +123,12 @@ export function FidgetWrapper({
     const setValue = (key: string, value: unknown) => {
       const current = nextSettings[key];
       const defaultValue = defaultSettingsMap[key];
-      const isDefaultValue =
-        !noDefaultOverride?.has(key) && isEqual(current, defaultValue);
-      const forceOverride = backfillOverrideKeys.includes(key);
+      const isDefaultValue = isEqual(current, defaultValue);
       const isEmpty =
         current === undefined ||
         current === null ||
         current === "" ||
-        isDefaultValue ||
-        forceOverride;
+        isDefaultValue;
 
       // Don't overwrite existing non-empty values
       if (!isEmpty) {

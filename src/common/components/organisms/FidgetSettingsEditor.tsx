@@ -208,19 +208,9 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
   // Subscribe directly to zustand for settings - eliminates prop lag
   const zustandSettings = useFidgetSettings(currentSpaceId, currentTabName, fidgetId);
 
-  const skipDefaults = useMemo(() => {
-    if (properties.fidgetName === "Portfolio") {
-      return ["farcasterUsername", "walletAddresses"];
-    }
-    return undefined;
-  }, [properties.fidgetName]);
-
   const normalizedSettings = useMemo(
-    () =>
-      fillWithDefaults(zustandSettings ?? settings, properties.fields, {
-        skipDefaults,
-      }),
-    [zustandSettings, settings, properties.fields, skipDefaults],
+    () => fillWithDefaults(zustandSettings ?? settings, properties.fields),
+    [zustandSettings, settings, properties.fields],
   );
 
   const [state, setState] = useState<FidgetSettings>(normalizedSettings);
@@ -229,22 +219,18 @@ export const FidgetSettingsEditor: React.FC<FidgetSettingsEditorProps> = ({
   // Update local state when zustand settings change
   useEffect(() => {
     if (zustandSettings) {
-      const normalized = fillWithDefaults(zustandSettings, properties.fields, {
-        skipDefaults,
-      });
+      const normalized = fillWithDefaults(zustandSettings, properties.fields);
       setState(normalized);
     }
-  }, [zustandSettings, properties.fields, skipDefaults]);
+  }, [zustandSettings, properties.fields]);
 
   const saveWithValidation = useCallback(
     (nextState: FidgetSettings, shouldUnselect?: boolean) => {
-      const filledState = fillWithDefaults(nextState, properties.fields, {
-        skipDefaults,
-      });
+      const filledState = fillWithDefaults(nextState, properties.fields);
       setState(filledState);
       onSave(filledState, shouldUnselect);
     },
-    [properties.fields, onSave, skipDefaults],
+    [properties.fields, onSave],
   );
 
   // Save handler for inline field changes (doesn't unselect editor)
