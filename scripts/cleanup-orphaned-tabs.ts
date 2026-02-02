@@ -24,6 +24,7 @@ import { supabase, initializeSupabase, targetEnv } from './lib';
 const args = process.argv.slice(2);
 const flags = {
   dryRun: args.includes('--dry-run'),
+  debug: args.includes('--debug'),
 };
 
 interface TabOrderFile {
@@ -55,11 +56,26 @@ async function listSpaces(): Promise<string[]> {
       break;
     }
 
-    if (!data || data.length === 0) break;
+    if (!data || data.length === 0) {
+      if (flags.debug) {
+        console.log('   No data returned from storage.list()');
+      }
+      break;
+    }
 
-    // Filter for directories (spaces) - they have null metadata
+    if (flags.debug) {
+      console.log(`   Raw data from storage (first 5 items):`);
+      for (const item of data.slice(0, 5)) {
+        console.log(`     - name: "${item.name}", id: ${item.id}, metadata: ${JSON.stringify(item.metadata)}`);
+      }
+    }
+
+    // In Supabase storage, folders are items with id: null
+    // Files have a non-null id and metadata
     for (const item of data) {
-      if (item.id && !item.metadata) {
+      // Folder detection: id is null for folders in Supabase storage
+      // Also check that it's not a placeholder file (like .emptyFolderPlaceholder)
+      if (item.id === null || (item.name && !item.name.includes('.'))) {
         spaces.push(item.name);
       }
     }
