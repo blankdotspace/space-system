@@ -2,6 +2,7 @@ import IFrameWidthSlider from "@/common/components/molecules/IframeScaleSlider";
 import TextInput from "@/common/components/molecules/TextInput";
 import HTMLInput from "@/common/components/molecules/HTMLInput";
 import CropControls from "@/common/components/molecules/CropControls";
+import SwitchButton from "@/common/components/molecules/SwitchButton";
 import { FidgetArgs, FidgetModule, FidgetProperties, type FidgetSettingsStyle } from "@/common/fidgets";
 import useSafeUrl from "@/common/lib/hooks/useSafeUrl";
 import { useIsMobile } from "@/common/lib/hooks/useIsMobile";
@@ -18,6 +19,70 @@ import type { AuthenticatorManager } from "@/authenticators/AuthenticatorManager
 import { setupComlinkHandler } from "@/common/lib/services/miniAppSdkHost";
 import { useNounspaceMiniAppContext } from "@/common/lib/utils/createMiniAppContext";
 import { useCurrentFid } from "@/common/lib/hooks/useCurrentFid";
+
+const PROXY_BASE_URL = "https://proxy.blank.space";
+const PROXY_SDK_URL = `${PROXY_BASE_URL}/nounspace-proxy.js`;
+
+type NounspaceProxySession = {
+  sessionUrl: string;
+  rootUrl: string;
+};
+
+type NounspaceProxyClient = {
+  createSession: (targetUrl: string) => Promise<NounspaceProxySession>;
+};
+
+type NounspaceProxySDK = {
+  create: (options: { baseUrl: string }) => NounspaceProxyClient;
+};
+
+let proxySdkPromise: Promise<void> | null = null;
+
+const loadNounspaceProxySdk = () => {
+  if (typeof window === "undefined") {
+    return Promise.reject(new Error("Nounspace proxy SDK requires a browser environment."));
+  }
+
+  if ((window as any).NounspaceProxy) {
+    return Promise.resolve();
+  }
+
+  if (proxySdkPromise) {
+    return proxySdkPromise;
+  }
+
+  proxySdkPromise = new Promise((resolve, reject) => {
+    const existingScript = document.querySelector<HTMLScriptElement>(
+      `script[src="${PROXY_SDK_URL}"]`,
+    );
+
+    const handleLoad = () => resolve();
+    const handleError = () => {
+      proxySdkPromise = null;
+      reject(new Error("Failed to load Nounspace proxy SDK."));
+    };
+
+    if (existingScript) {
+      if ((window as any).NounspaceProxy) {
+        resolve();
+        return;
+      }
+
+      existingScript.addEventListener("load", handleLoad, { once: true });
+      existingScript.addEventListener("error", handleError, { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = PROXY_SDK_URL;
+    script.async = true;
+    script.onload = handleLoad;
+    script.onerror = handleError;
+    document.head.appendChild(script);
+  });
+
+  return proxySdkPromise;
+};
 
 const DEFAULT_SANDBOX_RULES =
   "allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox";
@@ -127,6 +192,7 @@ export type IFrameFidgetSettings = {
   cropOffsetX: number;
   cropOffsetY: number;
   isScrollable: boolean;
+  loadViaProxy: boolean;
 } & FidgetSettingsStyle;
 
 const frameConfig: FidgetProperties = {
@@ -144,6 +210,20 @@ const frameConfig: FidgetProperties = {
       inputSelector: (props) => (
         <WithMargin>
           <TextInput {...props} />
+        </WithMargin>
+      ),
+      group: "settings",
+    },
+    {
+      fieldName: "loadViaProxy",
+      displayName: "Load via proxy",
+      displayNameHint:
+        "May not work for all sites, but if a site isn't loading correctly, try loading via proxy. If this doesn't work, you'll need to contact the site owner to request domain whitelisting.",
+      default: false,
+      required: false,
+      inputSelector: (props) => (
+        <WithMargin>
+          <SwitchButton {...props} />
         </WithMargin>
       ),
       group: "settings",
@@ -245,7 +325,8 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
     size = 1,
     cropOffsetX = 0,
     cropOffsetY = 0,
-    isScrollable = false
+    isScrollable = false,
+    loadViaProxy = false,
   },
 }) => {
   const isMobile = useIsMobile();
@@ -256,6 +337,11 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
     url?: string;
     iframelyHtml?: string | null;
   } | null>(null);
+
+  const [proxyClient, setProxyClient] = useState<NounspaceProxyClient | null>(null);
+  const [proxySession, setProxySession] = useState<NounspaceProxySession | null>(null);
+  const [proxyError, setProxyError] = useState<string | null>(null);
+  const [proxyLoading, setProxyLoading] = useState<boolean>(false);
 
   const [debouncedUrl, setDebouncedUrl] = useState(url);
 
@@ -285,6 +371,11 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
   const isValid = isValidHttpUrl(debouncedUrl);
   const sanitizedUrl = useSafeUrl(debouncedUrl);
   const transformedUrl = transformUrl(sanitizedUrl || "");
+  const shouldUseProxy = loadViaProxy && embedInfo?.directEmbed === true;
+  const finalIframeSrc =
+    shouldUseProxy && proxySession && !proxyLoading && !proxyError
+      ? proxySession.sessionUrl
+      : transformedUrl;
 
   // Track cleanup functions for Comlink handlers
   const comlinkCleanups = useRef<Map<HTMLIFrameElement, () => void>>(new Map());
@@ -311,18 +402,23 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
     // Determine target origin - must be a valid URL origin for security
     // Never use '*' as it's unsafe and allows any origin to receive messages
     let targetOrigin: string | undefined;
-    try {
-      if (transformedUrl) {
-        targetOrigin = new URL(transformedUrl).origin;
-      } else if (iframe.src) {
-        // Fallback to iframe.src if transformedUrl is not available
-        targetOrigin = new URL(iframe.src).origin;
+    const candidates = [
+      iframe.getAttribute("src"),
+      finalIframeSrc,
+      transformedUrl,
+      iframe.src,
+    ].filter(Boolean) as string[];
+
+    for (const candidate of candidates) {
+      try {
+        const parsed = new URL(candidate, window.location.href);
+        if (parsed.origin && parsed.origin !== "null") {
+          targetOrigin = parsed.origin;
+          break;
+        }
+      } catch (error) {
+        console.warn("Skipping invalid iframe origin candidate:", candidate, error);
       }
-    } catch (error) {
-      // Cannot determine origin - this is a security issue
-      console.error('Cannot determine target origin for iframe. transformedUrl:', transformedUrl, 'iframe.src:', iframe.src, error);
-      // Don't set up Comlink handler without a valid origin
-      return;
     }
     
     if (!targetOrigin) {
@@ -362,7 +458,7 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
     } else {
       iframe.addEventListener('load', setupHandler, { once: true });
     }
-  }, [contextForEmbedded, transformedUrl, rawSdkInstance, authenticatorManager]);
+  }, [contextForEmbedded, finalIframeSrc, transformedUrl, rawSdkInstance, authenticatorManager]);
   
   // Cleanup on unmount
   useEffect(() => {
@@ -518,6 +614,83 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
 
     checkEmbedInfo();
   }, [sanitizedUrl, isValid, sanitizedEmbedScript]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    if (!shouldUseProxy) {
+      setProxyClient(null);
+      setProxySession(null);
+      setProxyError(null);
+      setProxyLoading(false);
+      return;
+    }
+
+    setProxyLoading(true);
+    setProxyError(null);
+
+    loadNounspaceProxySdk()
+      .then(() => {
+        if (!isActive) return;
+        const sdk = (window as any).NounspaceProxy as NounspaceProxySDK | undefined;
+        if (!sdk?.create) {
+          throw new Error("Nounspace proxy SDK is unavailable.");
+        }
+        setProxyClient(sdk.create({ baseUrl: PROXY_BASE_URL }));
+      })
+      .catch((err) => {
+        if (!isActive) return;
+        const message =
+          err instanceof Error ? err.message : "Failed to initialize proxy client.";
+        setProxyError(message);
+        setProxyClient(null);
+        console.error("Failed to initialize proxy client:", err);
+      })
+      .finally(() => {
+        if (!isActive) return;
+        setProxyLoading(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [shouldUseProxy]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    if (!shouldUseProxy || !proxyClient || !transformedUrl) {
+      setProxySession(null);
+      return;
+    }
+
+    setProxySession(null);
+    setProxyLoading(true);
+    setProxyError(null);
+
+    proxyClient
+      .createSession(transformedUrl)
+      .then((session) => {
+        if (!isActive) return;
+        setProxySession(session);
+      })
+      .catch((err) => {
+        if (!isActive) return;
+        const message =
+          err instanceof Error ? err.message : "Failed to create proxy session.";
+        setProxyError(message);
+        setProxySession(null);
+        console.error("Proxy session error:", err);
+      })
+      .finally(() => {
+        if (!isActive) return;
+        setProxyLoading(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [shouldUseProxy, proxyClient, transformedUrl]);
 
   const sanitizedEmbedSrc = sanitizedEmbedAttributes?.src ?? null;
   const resolvedSanitizedMiniAppSrc = useMemo(() => {
@@ -732,7 +905,7 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
               ref={setupIframeComlink}
               data-nounspace-context
               key={`iframe-miniapp-${transformedUrl}`}
-              src={transformedUrl}
+              src={finalIframeSrc}
               title="IFrame Fidget"
               sandbox={DEFAULT_SANDBOX_RULES}
               style={{
@@ -765,7 +938,7 @@ const IFrame: React.FC<FidgetArgs<IFrameFidgetSettings>> = ({
                 ref={setupIframeComlink}
                 data-nounspace-context
                 key={`iframe-miniapp-${transformedUrl}`}
-                src={transformedUrl}
+                src={finalIframeSrc}
                 title="IFrame Fidget"
                 sandbox={DEFAULT_SANDBOX_RULES}
                 style={{
