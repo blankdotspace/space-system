@@ -49,7 +49,6 @@ export default function PublicSpace({
     getCurrentSpaceConfig,
     loadSpaceTabOrder,
     updateSpaceTabOrder,
-    commitSpaceTabOrder,
     createSpaceTab,
     deleteSpaceTab,
     renameSpaceTab,
@@ -59,6 +58,7 @@ export default function PublicSpace({
     registerChannelSpace,
     isTabLoading,
     isTabChecked,
+    commitAllSpaceChanges,
   } = useAppStore((state) => ({
     clearLocalSpaces: state.clearLocalSpaces,
     getCurrentSpaceId: state.currentSpace.getCurrentSpaceId,
@@ -79,7 +79,7 @@ export default function PublicSpace({
     commitSpaceTab: state.space.commitSpaceTabToDatabase,
     loadSpaceTabOrder: state.space.loadSpaceTabOrder,
     updateSpaceTabOrder: state.space.updateLocalSpaceOrder,
-    commitSpaceTabOrder: state.space.commitSpaceOrderToDatabase,
+    commitAllSpaceChanges: state.space.commitAllSpaceChanges,
     registerSpaceFid: state.space.registerSpaceFid,
     registerSpaceContract: state.space.registerSpaceContract,
     registerProposalSpace: state.space.registerProposalSpace,
@@ -371,8 +371,8 @@ export default function PublicSpace({
   const commitConfig = useCallback(async () => {
     if (isNil(currentSpaceId) || isNil(currentTabName)) return;
     const network = isTokenSpace(spacePageData) ? spacePageData.tokenData?.network : undefined;
-    commitSpaceTab(currentSpaceId, currentTabName, network);
-  }, [currentSpaceId, currentTabName, spacePageData, commitSpaceTab]);
+    await commitAllSpaceChanges(currentSpaceId, network);
+  }, [currentSpaceId, currentTabName, spacePageData, commitAllSpaceChanges]);
 
   const resetConfig = useCallback(async () => {
     if (isNil(currentSpaceId) || isNil(currentTabName)) return;
@@ -452,14 +452,6 @@ export default function PublicSpace({
               tabName, 
               isTokenSpace(spacePageData) ? spacePageData.tokenData?.network : undefined
             )
-          : undefined;
-      }}
-      commitTabOrder={async () => {
-        return currentSpaceId
-          ? commitSpaceTabOrder(
-            currentSpaceId,
-            isTokenSpace(spacePageData) ? spacePageData.tokenData?.network as EtherScanChainName : undefined,
-          )
           : undefined;
       }}
       getSpacePageUrl={spacePageData.spacePageUrl}
