@@ -54,8 +54,8 @@ export const linkConfig: FidgetProperties = {
     {
       fieldName: "title",
       displayName: "Title",
-      displayNameHint: "Add a title to display above your list of links.",
-      default: "My Links",
+      displayNameHint: "Add a title to display above your list of links. Leave empty to hide the title.",
+      default: "",
       required: false,
       inputSelector: (props) => (
         <WithMargin>
@@ -100,7 +100,7 @@ export const linkConfig: FidgetProperties = {
     {
       fieldName: "headingsFontFamily",
       displayName: "HeadingsFontFamily",
-      displayNameHint: "Font used for the title and link text. Set to Theme Font to inherit the Title Font from the Theme.",
+      displayNameHint: "Font used for the title. Set to Theme Font to inherit the Title Font from the Theme.",
       default: "var(--user-theme-headings-font)",
       required: false,
       inputSelector: (props) => (
@@ -113,7 +113,7 @@ export const linkConfig: FidgetProperties = {
     {
       fieldName: "fontFamily",
       displayName: "Font Family",
-      displayNameHint: "Font used for the description text. Set to Theme Font to inherit the Body Font from the Theme.",
+      displayNameHint: "Font used for link labels and descriptions. Set to Theme Font to inherit the Body Font from the Theme.",
       default: "Theme Font",
       required: false,
       inputSelector: (props) => (
@@ -126,7 +126,7 @@ export const linkConfig: FidgetProperties = {
     {
       fieldName: "HeaderColor",
       displayName: "HeaderColor",
-      displayNameHint: "Color used for the title and link text.",
+      displayNameHint: "Color used for the title.",
       default: "var(--user-theme-headings-font-color)",
       required: false,
       inputSelector: (props) => (
@@ -144,7 +144,7 @@ export const linkConfig: FidgetProperties = {
     {
       fieldName: "DescriptionColor",
       displayName: "DescriptionColor",
-      displayNameHint: "Color used for the description text.",
+      displayNameHint: "Color used for link labels and descriptions.",
       default: "var(--user-theme-font-color)",
       required: false,
       inputSelector: (props) => (
@@ -382,8 +382,8 @@ export const Links: React.FC<FidgetArgs<LinkFidgetSettings>> = ({
                   <CardDescription
                     className="items-start text-base font-normal text-black dark:text-white flex-grow"
                     style={{
-                      fontFamily: getHeadingsFontFamily(),
-                      color: settings.HeaderColor,
+                      fontFamily: getFontFamily(),
+                      color: settings.DescriptionColor,
                       textAlign: "left",
                       wordWrap: "break-word",
                       overflow: "hidden",
