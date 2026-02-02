@@ -2933,14 +2933,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@neynar/nodejs-sdk@npm:^2.23.0":
-  version: 2.46.0
-  resolution: "@neynar/nodejs-sdk@npm:2.46.0"
+"@neynar/nodejs-sdk@npm:^3.131.0":
+  version: 3.131.0
+  resolution: "@neynar/nodejs-sdk@npm:3.131.0"
   dependencies:
     "@openapitools/openapi-generator-cli": "npm:^2.14.1"
+    axios: "npm:^1.13.1"
     semver: "npm:^7.6.3"
     viem: "npm:^2.21.44"
-  checksum: 10c0/0bb1f44e51ac133b97d6c109c6748e39ceb72b1c0ea0c8581afb621d30b83ac1ee97b68ed0fc282291948782164bdfc09579fcacb2d615faadbccb4705c846e5
+  checksum: 10c0/c005b9b7d868ca67ff2a9462b6a1f4818e818e051e99e2a301954a606f6d7f360d89168f2778c2fbeb08c7a081345e5badde1df7c159bab899b116fa4093adad
   languageName: node
   linkType: hard
 
@@ -10034,6 +10035,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"axios@npm:^1.13.1":
+  version: 1.13.4
+  resolution: "axios@npm:1.13.4"
+  dependencies:
+    follow-redirects: "npm:^1.15.6"
+    form-data: "npm:^4.0.4"
+    proxy-from-env: "npm:^1.1.0"
+  checksum: 10c0/474c00b7d71f4de4ad562589dae6b615149df7c2583bbc5ebba96229f3f85bfb0775d23705338df072f12e48d3e85685c065a3cf6855d58968a672d19214c728
+  languageName: node
+  linkType: hard
+
 "axios@npm:^1.8.3":
   version: 1.11.0
   resolution: "axios@npm:1.11.0"
@@ -16691,7 +16703,7 @@ __metadata:
     "@mui/material": "npm:^7.3.4"
     "@next/bundle-analyzer": "npm:^16.0.6"
     "@next/eslint-plugin-next": "npm:^16.0.7"
-    "@neynar/nodejs-sdk": "npm:^2.23.0"
+    "@neynar/nodejs-sdk": "npm:^3.131.0"
     "@privy-io/react-auth": "npm:^1.73.1"
     "@privy-io/wagmi": "npm:^0.2.6"
     "@radix-ui/react-aspect-ratio": "npm:^1.0.3"
