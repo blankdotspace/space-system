@@ -20,8 +20,12 @@ docs/
 │   │   ├── OVERVIEW.md               # Space architecture and patterns
 │   │   ├── SPACE_ARCHITECTURE.md     # Detailed space architecture
 │   │   ├── PUBLIC_SPACES_PATTERN.md  # Public space patterns
+│   │   ├── PRIVATE_SPACES.md         # Homebase encryption and cross-community
+│   │   ├── TAB_OPERATIONS.md         # Tab CRUD and staged pattern
 │   │   ├── MULTIPLE_LAYOUTS_OVERVIEW.md # Multiple layouts system
 │   │   └── LAYOUT_MIGRATION_GUIDE.md # Layout migration guide
+│   ├── STORAGE/                       # Storage system
+│   │   └── SIGNED_FILE_FORMAT.md     # SignedFile wrapper format
 │   ├── FIDGETS/                       # Fidget system
 │   │   └── OVERVIEW.md               # Fidget architecture
 │   ├── THEMES/                        # Theme system
@@ -36,6 +40,9 @@ docs/
 ├── INTEGRATIONS/                      # External integrations
 │   ├── FARCASTER.md                  # Farcaster protocol integration
 │   └── SUPABASE.md                   # Supabase integration
+│
+├── OPERATIONS/                        # Operations and administration
+│   └── SCRIPTS.md                    # Admin scripts (seeding, cleanup, migrations)
 │
 ├── DEVELOPMENT/                       # Development guides
 │   ├── AGENTS.md                      # AI agent instructions
@@ -66,8 +73,11 @@ docs/
 - **SYSTEMS/SPACES/OVERVIEW.md** - Space architecture, public/private patterns, lifecycle
 - **SYSTEMS/SPACES/SPACE_ARCHITECTURE.md** - Detailed space architecture
 - **SYSTEMS/SPACES/PUBLIC_SPACES_PATTERN.md** - Public space patterns
+- **SYSTEMS/SPACES/PRIVATE_SPACES.md** - Homebase encryption and cross-community behavior
+- **SYSTEMS/SPACES/TAB_OPERATIONS.md** - Tab CRUD operations and staged/batch pattern
 - **SYSTEMS/SPACES/MULTIPLE_LAYOUTS_OVERVIEW.md** - Multiple layouts system
 - **SYSTEMS/SPACES/LAYOUT_MIGRATION_GUIDE.md** - Layout migration guide
+- **SYSTEMS/STORAGE/SIGNED_FILE_FORMAT.md** - SignedFile wrapper format for storage
 - **SYSTEMS/FIDGETS/OVERVIEW.md** - Fidget system, types, development patterns
 - **SYSTEMS/THEMES/OVERVIEW.md** - Theme system, customization, CSS variables
 - **SYSTEMS/CONFIGURATION/ARCHITECTURE_OVERVIEW.md** - Database-backed configuration system
@@ -77,6 +87,9 @@ docs/
 ### Integrations
 - **INTEGRATIONS/FARCASTER.md** - Farcaster protocol integration, FID management, social features
 - **INTEGRATIONS/SUPABASE.md** - Database, storage, authentication, real-time features
+
+### Operations
+- **OPERATIONS/SCRIPTS.md** - Admin scripts for seeding, cleanup, and migrations
 
 ### Development
 - **DEVELOPMENT/AGENTS.md** - AI agent instructions and guidelines
