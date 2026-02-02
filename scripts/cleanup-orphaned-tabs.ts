@@ -39,7 +39,9 @@ interface OrphanedTab {
 }
 
 /**
- * List all space IDs in the bucket
+ * List all space IDs from the spaceRegistrations table
+ * This is more reliable than trying to list folders from storage,
+ * since object storage doesn't have real folders.
  */
 async function listSpaces(): Promise<string[]> {
   const spaces: string[] = [];
@@ -47,36 +49,34 @@ async function listSpaces(): Promise<string[]> {
   const limit = 1000;
 
   while (true) {
-    const { data, error } = await supabase.storage
-      .from('spaces')
-      .list('', { limit, offset });
+    const { data, error } = await supabase
+      .from('spaceRegistrations')
+      .select('spaceId')
+      .range(offset, offset + limit - 1);
 
     if (error) {
-      console.error('Error listing spaces:', error.message);
+      console.error('Error listing spaces from database:', error.message);
       break;
     }
 
     if (!data || data.length === 0) {
-      if (flags.debug) {
-        console.log('   No data returned from storage.list()');
+      if (flags.debug && offset === 0) {
+        console.log('   No spaces found in spaceRegistrations table');
       }
       break;
     }
 
-    if (flags.debug) {
-      console.log(`   Raw data from storage (first 5 items):`);
+    if (flags.debug && offset === 0) {
+      console.log(`   Found ${data.length} space(s) in first batch`);
+      console.log(`   First 5 space IDs:`);
       for (const item of data.slice(0, 5)) {
-        console.log(`     - name: "${item.name}", id: ${item.id}, metadata: ${JSON.stringify(item.metadata)}`);
+        console.log(`     - ${item.spaceId}`);
       }
     }
 
-    // In Supabase storage, folders are items with id: null
-    // Files have a non-null id and metadata
     for (const item of data) {
-      // Folder detection: id is null for folders in Supabase storage
-      // Also check that it's not a placeholder file (like .emptyFolderPlaceholder)
-      if (item.id === null || (item.name && !item.name.includes('.'))) {
-        spaces.push(item.name);
+      if (item.spaceId) {
+        spaces.push(item.spaceId);
       }
     }
 
