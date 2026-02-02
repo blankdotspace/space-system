@@ -1,26 +1,13 @@
-"use client";
+import React from "react";
+import { loadSystemConfig } from "@/config";
+import DiscordRedirect from "./DiscordRedirect";
 
-import React, { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useSystemConfig } from "@/common/providers/SystemConfigProvider";
+// Force dynamic rendering - config loading requires request context
+export const dynamic = "force-dynamic";
 
-export default function DiscordRedirect() {
-  const router = useRouter();
-  const systemConfig = useSystemConfig();
-  const discordUrl = systemConfig?.community?.urls?.discord;
+export default async function DiscordPage() {
+  const config = await loadSystemConfig();
+  const discordUrl = config?.community?.urls?.discord;
 
-  useEffect(() => {
-    if (discordUrl) {
-      // Open Discord invite in new tab
-      window.open(discordUrl, "_blank", "noopener,noreferrer");
-    }
-    // Redirect to home
-    router.replace("/home");
-  }, [discordUrl, router]);
-
-  return (
-    <div className="flex items-center justify-center min-h-screen">
-      <p>Redirecting to Discord...</p>
-    </div>
-  );
+  return <DiscordRedirect discordUrl={discordUrl} />;
 }
