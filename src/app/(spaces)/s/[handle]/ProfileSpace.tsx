@@ -27,7 +27,7 @@
 import PublicSpace from "@/app/(spaces)/PublicSpace";
 import { useCurrentSpaceIdentityPublicKey } from "@/common/lib/hooks/useCurrentSpaceIdentityPublicKey";
 import { ProfileSpacePageData } from "@/common/types/spaceData";
-import { useMemo } from "react";
+import React ,{ useMemo } from "react";
 
 export interface ProfileSpaceProps {
   spacePageData: Omit<ProfileSpacePageData, 'isEditable' | 'spacePageUrl'>;
