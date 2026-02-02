@@ -166,7 +166,7 @@
     "lint-staged": "^16.2.6",
     "postcss": "^8.5.6",
     "prettier": "3.6.2",
-    "supabase": "^1.123.0",
+    "supabase": "^2.74.5",
     "tsx": "^4.21.0",
     "vitest": "^4.0.6"
   },
