@@ -1,10 +1,10 @@
-import type { NextApiRequest, NextApiResponse } from "next";
 import { ed25519 } from "@noble/curves/ed25519";
-import moment from "moment";
 import { first, isArray } from "lodash";
+import moment from "moment";
+import type { NextApiRequest, NextApiResponse } from "next";
 
-import requestHandler, { NounspaceResponse } from "@/common/data/api/requestHandler";
 import neynar from "@/common/data/api/neynar";
+import requestHandler, { NounspaceResponse } from "@/common/data/api/requestHandler";
 import createSupabaseServerClient from "@/common/data/database/supabase/clients/server";
 import { hashObject } from "@/common/lib/signedFiles";
 
@@ -191,14 +191,25 @@ async function inferAndLinkFid(req: NextApiRequest, res: NextApiResponse<InferFi
     });
   }
 
-  // NOTE: Do NOT create a fidRegistrations record here with null/false signer fields.
-  // fidRegistrations should only be created when a user has a valid, authenticated signer.
-  // The inferred FID is returned to the client for use in client state, but NO database
-  // record is created yet. When the user later performs a write action, they will
-  // authorize a signer, at which point a full fidRegistration will be created.
-  //
-  // This preserves the security invariant: fidRegistrations always represents
-  // authenticated ownership of a FID.
+  // Persist the inferred link even if no Farcaster Signer is present.
+  // This allows the server to recognize the Identity Key as a valid owner of the Space (linked to the FID),
+  // enabling Space Editing to proceed. Farcaster Write Actions (Casting) will still fail or prompt for a signer
+  // because isSigningKeyValid is false.
+  const { error: insertError } = await supabase
+    .from("fidRegistrations")
+    .insert({
+      fid: inferredFid,
+      identityPublicKey: body.identityPublicKey,
+      created: serverNow,
+      isSigningKeyValid: false,
+      signingPublicKey: null,
+      signature: null,
+      signingKeyLastValidatedAt: null,
+    });
+
+  if (insertError) {
+    return res.status(500).json({ result: "error", error: { message: insertError.message } });
+  }
 
   return res.status(200).json({
     result: "success",
