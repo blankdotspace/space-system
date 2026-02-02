@@ -41,6 +41,11 @@ Blankspace gives communities a customizable homebase - a central hub where membe
 
 ### [Spaces](SYSTEMS/SPACES/OVERVIEW.md)
 The pages that make up a community - profiles, tokens, channels, and custom pages.
+- [Tab Operations](SYSTEMS/SPACES/TAB_OPERATIONS.md) - How tabs work (create, delete, rename, reorder)
+- [Private Spaces](SYSTEMS/SPACES/PRIVATE_SPACES.md) - Homebase encryption
+
+### [Storage](SYSTEMS/STORAGE/SIGNED_FILE_FORMAT.md)
+How files are stored with signatures and encryption.
 
 ### [Fidgets](SYSTEMS/FIDGETS/OVERVIEW.md)
 Community tools: governance widgets, token swaps, feeds, galleries, and more.
@@ -64,6 +69,10 @@ Custom navigation and pages for communities.
 
 - **[Farcaster](INTEGRATIONS/FARCASTER.md)** - Social protocol
 - **[Supabase](INTEGRATIONS/SUPABASE.md)** - Database and storage
+
+## Operations
+
+- **[Admin Scripts](OPERATIONS/SCRIPTS.md)** - Seeding, cleanup, and migration scripts
 
 ## Development
 
