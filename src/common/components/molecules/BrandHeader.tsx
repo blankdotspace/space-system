@@ -26,7 +26,7 @@ const BrandHeader = ({ systemConfig }: BrandHeaderProps) => {
   const isSvg = logoSrc?.toLowerCase().endsWith('.svg');
 
   const logoImage = (
-    <div className="w-12 h-8 sm:w-16 sm:h-10 me-3 flex items-center justify-center">
+    <div className="w-12 h-8 sm:w-16 sm:h-10 me-3 flex items-center justify-center transition-transform duration-200 hover:scale-110">
       {isSvg ? (
         // Use regular img tag for SVGs to avoid Next.js Image optimization issues
         // SVGs are rendered in an img tag context which prevents script execution
