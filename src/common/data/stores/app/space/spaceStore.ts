@@ -457,9 +457,12 @@ export const createSpaceStoreFunc = (
 
       // Determine storage file name (handles renames)
       const storageFileName = getStorageFileName(tabName, localSpace, remoteSpace);
-      
-      // Only track deletion if file actually exists in storage
-      const fileExists = remoteSpace?.tabs?.[storageFileName] !== undefined;
+
+      // Track deletion if file exists in storage (check both loaded tabs and remote order)
+      // remoteSpace.tabs is only populated for tabs that have been viewed/loaded,
+      // but remoteSpace.order contains all tabs that exist in the database
+      const fileExists = remoteSpace?.tabs?.[storageFileName] !== undefined ||
+                         remoteSpace?.order?.includes(tabName);
       
       set((draft) => {
         const spaceDraft = draft.space.localSpaces[spaceId];
