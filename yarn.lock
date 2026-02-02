@@ -8669,7 +8669,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vercel/og@npm:^0.6.2, @vercel/og@npm:^0.6.3":
+"@vercel/og@npm:^0.6.3":
   version: 0.6.8
   resolution: "@vercel/og@npm:0.6.8"
   dependencies:
@@ -13114,26 +13114,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"frames.js@npm:^0.18.2":
-  version: 0.18.2
-  resolution: "frames.js@npm:0.18.2"
-  dependencies:
-    "@vercel/og": "npm:^0.6.2"
-    cheerio: "npm:^1.0.0-rc.12"
-    protobufjs: "npm:^7.2.6"
-    viem: "npm:^2.7.8"
-  peerDependencies:
-    "@cloudflare/workers-types": ^4.20240320.1
-    "@lens-protocol/client": ^2.0.0
-    "@types/express": ^4.17.21
-    "@xmtp/frames-validator": ^0.6.2
-    next: ^14.1.0
-    react: ^18.2.0
-    react-dom: ^18.2.0
-  checksum: 10c0/f737ea3544ccf887013e5269f9b7500504f6c5df21992b81117acf6af7b15fb8d59344fdeed7f327753fcebb28bbe2c20ea4e8e9dfbeb463161d8bd8889bcf82
-  languageName: node
-  linkType: hard
-
 "frames.js@npm:^0.22.0":
   version: 0.22.0
   resolution: "frames.js@npm:0.22.0"
@@ -16746,7 +16726,7 @@ __metadata:
     eslint-plugin-react-hooks: "npm:^4.6.0"
     fast-json-stable-stringify: "npm:^2.1.0"
     framer-motion: "npm:^11.3.30"
-    frames.js: "npm:^0.18.2"
+    frames.js: "npm:^0.22.0"
     gray-matter: "npm:^4.0.3"
     husky: "npm:^9.0.11"
     isomorphic-dompurify: "npm:^2.31.0"
