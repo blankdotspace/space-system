@@ -3,9 +3,11 @@ import { AvatarImage, Avatar, AvatarFallback } from "@radix-ui/react-avatar";
 import { IoMdShare } from "react-icons/io";
 import { formatNumber } from "@/common/lib/utils/formatNumber";
 import { useToken } from "@/common/providers/TokenProvider";
+import { useUIColors } from "@/common/lib/hooks/useUIColors";
 
 const TokenDataHeader: React.FC = () => {
   const { tokenData } = useToken();
+  const uiColors = useUIColors();
   const contractAddress = tokenData?.clankerData?.contract_address || "";
   const name =
     tokenData?.clankerData?.name || tokenData?.geckoData?.name || "Loading...";
@@ -87,10 +89,10 @@ const TokenDataHeader: React.FC = () => {
         {/* Token Info */}
         <div>
           <div className="flex items-center space-x-2">
-            <span className="font-bold text-black">{name}</span>
-            <span className="text-gray-500 text-sm">{symbol}</span>
+            <span className="font-bold" style={{ color: uiColors.fontColor }}>{name}</span>
+            <span className="text-sm opacity-60" style={{ color: uiColors.fontColor }}>{symbol}</span>
           </div>
-          <div className="text-gray-500 text-sm">
+          <div className="text-sm opacity-60" style={{ color: uiColors.fontColor }}>
             {marketCap ? `$${formatNumber(Number(marketCap))}` : "Loading..."}
           </div>
         </div>
@@ -100,7 +102,7 @@ const TokenDataHeader: React.FC = () => {
       <div className="flex items-center space-x-4">
         {/* Price Details */}
         <div className="text-right">
-          <div className="text-black font-bold">
+          <div className="font-bold" style={{ color: uiColors.fontColor }}>
             {tokenPrice !== null ? `$${tokenPrice}` : " "}
           </div>
           <div
@@ -127,11 +129,12 @@ const TokenDataHeader: React.FC = () => {
             onClick={handleOpenNetscan}
           />
           <IoMdShare
-            className="w-5 h-5 text-gray-500 cursor-pointer hover:text-gray-700 transition-colors"
+            className="w-5 h-5 cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
+            style={{ color: uiColors.fontColor }}
             onClick={handleCopyUrl}
           />
         </div>
-        <div className="w-0.5 h-12 bg-gray-200 mx-2.5 hidden md:block" />
+        <div className="w-0.5 h-12 mx-2.5 hidden md:block opacity-20" style={{ backgroundColor: uiColors.fontColor }} />
       </div>
     </div>
   );
