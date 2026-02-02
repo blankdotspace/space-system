@@ -15413,12 +15413,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lucide-react@npm:^0.469.0":
-  version: 0.469.0
-  resolution: "lucide-react@npm:0.469.0"
+"lucide-react@npm:^0.563.0":
+  version: 0.563.0
+  resolution: "lucide-react@npm:0.563.0"
   peerDependencies:
     react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
-  checksum: 10c0/0ee78d110550579b848a01446a440f733fd17e1bf1850aa01551b61f415e03e5f5ab7f26b56f1c648edc93856177f5476ff9f8f6f5d80e8fe45913d208f49961
+  checksum: 10c0/4a2027be255755d64ce18040062426dec07a5da920c000d9cd330e383fa10716a584c927dc03e91daccc6e05f6f486d4f49d1bd009e5f7763aa6fcf704806554
   languageName: node
   linkType: hard
 
@@ -16754,7 +16754,7 @@ __metadata:
     linkifyjs: "npm:^4.3.2"
     lint-staged: "npm:^16.2.6"
     lodash: "npm:^4.17.21"
-    lucide-react: "npm:^0.469.0"
+    lucide-react: "npm:^0.563.0"
     moment: "npm:^2.30.1"
     mutative: "npm:^1.0.3"
     neverthrow: "npm:^6.2.2"
