@@ -59,7 +59,7 @@
     "@mod-protocol/react-editor": "^0.1.0",
     "@mod-protocol/react-ui-shadcn": "^0.3.1",
     "@mui/material": "^7.3.4",
-    "@neynar/nodejs-sdk": "^2.23.0",
+    "@neynar/nodejs-sdk": "^3.131.0",
     "@privy-io/react-auth": "^1.73.1",
     "@privy-io/wagmi": "^0.2.6",
     "@radix-ui/react-aspect-ratio": "^1.0.3",
