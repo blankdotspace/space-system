@@ -158,7 +158,7 @@
     "autoprefixer": "^10.4.21",
     "dotenv": "^17.2.3",
     "eslint": "^9",
-    "eslint-config-next": "^15.2.6",
+    "eslint-config-next": "^16.1.6",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-react": "^7.34.1",
     "eslint-plugin-react-hooks": "^4.6.0",
