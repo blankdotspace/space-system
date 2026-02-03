@@ -9,7 +9,7 @@ import {
 import { useLoadFarcasterUser } from "@/common/data/queries/farcaster";
 import useCurrentFid from "@/common/lib/hooks/useCurrentFid";
 import { defaultStyleFields, WithMargin } from "@/fidgets/helpers";
-import React, { useEffect, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { BsPeople, BsPeopleFill } from "react-icons/bs";
 
 export type Top8FidgetSettings = {
@@ -17,8 +17,38 @@ export type Top8FidgetSettings = {
   size: number;
 } & FidgetSettingsStyle;
 
-export type Top8FidgetData = {
-  lastFetchSettings?: Partial<Top8FidgetSettings>;
+type Top8UsernameInputProps = React.ComponentProps<typeof TextInput> & {
+  value: string;
+  onChange?: (value: string) => void;
+};
+
+const Top8UsernameInput: React.FC<Top8UsernameInputProps> = ({
+  value,
+  onChange,
+  ...props
+}) => {
+  const currentFid = useCurrentFid();
+  const { data: currentUserData } = useLoadFarcasterUser(currentFid ?? -1);
+  const currentUsername = useMemo(
+    () => currentUserData?.users?.[0]?.username?.trim(),
+    [currentUserData],
+  );
+  const [touched, setTouched] = useState(false);
+
+  const normalizedValue = value ?? "";
+  const hasValue = normalizedValue.trim() !== "";
+  const displayValue =
+    !touched && !hasValue && currentUsername ? currentUsername : normalizedValue;
+
+  const handleChange = useCallback(
+    (nextValue: string) => {
+      setTouched(true);
+      onChange?.(nextValue);
+    },
+    [onChange],
+  );
+
+  return <TextInput {...props} value={displayValue} onChange={handleChange} />;
 };
 
 const top8Properties: FidgetProperties = {
@@ -26,16 +56,16 @@ const top8Properties: FidgetProperties = {
   icon: 0x1f465, // 👥
   mobileIcon: <BsPeople size={20} />,
   mobileIconSelected: <BsPeopleFill size={20} />,
+  disableSettingsBackfill: true,
   fields: [
     {
       fieldName: "username",
       displayName: "Farcaster Username",
       displayNameHint: "Leave blank to use the logged-in user.",
-      default: "",
       required: true,
       inputSelector: (props) => (
         <WithMargin>
-          <TextInput {...props} />
+          <Top8UsernameInput {...props} />
         </WithMargin>
       ),
       group: "settings",
@@ -58,11 +88,7 @@ const top8Properties: FidgetProperties = {
   },
 };
 
-const Top8: React.FC<FidgetArgs<Top8FidgetSettings, Top8FidgetData>> = ({
-  settings,
-  data,
-  saveData,
-}) => {
+const Top8: React.FC<FidgetArgs<Top8FidgetSettings>> = ({ settings }) => {
   const {
     username = "",
     size = 0.6,
@@ -87,28 +113,6 @@ const Top8: React.FC<FidgetArgs<Top8FidgetSettings, Top8FidgetData>> = ({
     normalizedSettingsUsername ||
     normalizedCurrentUsername ||
     "nounspacetom";
-
-  const lastFetchUsername = data?.lastFetchSettings?.username?.trim();
-
-  useEffect(() => {
-    if (!normalizedCurrentUsername) return;
-    if (!shouldUseLoggedIn) return;
-    if (lastFetchUsername === normalizedCurrentUsername) return;
-
-    void saveData({
-      ...(data ?? {}),
-      lastFetchSettings: {
-        ...(data?.lastFetchSettings ?? {}),
-        username: normalizedCurrentUsername,
-      },
-    });
-  }, [
-    data,
-    lastFetchUsername,
-    normalizedCurrentUsername,
-    saveData,
-    shouldUseLoggedIn,
-  ]);
 
   const iframeUrl = effectiveUsername
     ? `https://top8-pi.vercel.app/${encodeURIComponent(effectiveUsername)}`
@@ -147,4 +151,4 @@ const Top8: React.FC<FidgetArgs<Top8FidgetSettings, Top8FidgetData>> = ({
 export default {
   fidget: Top8,
   properties: top8Properties,
-} as FidgetModule<FidgetArgs<Top8FidgetSettings, Top8FidgetData>>;
+} as FidgetModule<FidgetArgs<Top8FidgetSettings>>;

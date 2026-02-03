@@ -90,9 +90,12 @@ export function FidgetWrapper({
   // Generic settings backfill: any fidget can use lastFetchSettings in config.data
   // to automatically backfill empty settings. This is useful when fidgets are created
   // from external sources (e.g., URL parameters) and need to populate settings.
-  const lastFetchSettings = (bundle.config?.data as {
-    lastFetchSettings?: Partial<FidgetSettings>;
-  } | undefined)?.lastFetchSettings;
+  const disableSettingsBackfill = bundle.properties.disableSettingsBackfill;
+  const lastFetchSettings = disableSettingsBackfill
+    ? undefined
+    : (bundle.config?.data as {
+        lastFetchSettings?: Partial<FidgetSettings>;
+      } | undefined)?.lastFetchSettings;
 
   const derivedSettings = useMemo<FidgetSettings>(() => {
     // Use zustand settings directly (they're already the latest), fall back to props

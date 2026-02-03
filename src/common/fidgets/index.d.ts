@@ -78,6 +78,7 @@ export type FidgetProperties<S extends FidgetSettings = FidgetSettings> = {
   icon: number;
   mobileIcon?: React.ReactNode;
   mobileIconSelected?: React.ReactNode;
+  disableSettingsBackfill?: boolean;
   fields: FidgetFieldConfig<S>[];
   size: {
     minHeight: NumericRange<1, 36>;
