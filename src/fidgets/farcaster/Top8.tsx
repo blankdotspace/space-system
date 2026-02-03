@@ -6,14 +6,20 @@ import {
   FidgetProperties,
   type FidgetSettingsStyle,
 } from "@/common/fidgets";
+import { useLoadFarcasterUser } from "@/common/data/queries/farcaster";
+import useCurrentFid from "@/common/lib/hooks/useCurrentFid";
 import { defaultStyleFields, WithMargin } from "@/fidgets/helpers";
-import React from "react";
+import React, { useEffect, useMemo } from "react";
 import { BsPeople, BsPeopleFill } from "react-icons/bs";
 
 export type Top8FidgetSettings = {
   username: string;
   size: number;
 } & FidgetSettingsStyle;
+
+export type Top8FidgetData = {
+  lastFetchSettings?: Partial<Top8FidgetSettings>;
+};
 
 const top8Properties: FidgetProperties = {
   fidgetName: "Top 8",
@@ -24,7 +30,8 @@ const top8Properties: FidgetProperties = {
     {
       fieldName: "username",
       displayName: "Farcaster Username",
-      default: "nounspacetom",
+      displayNameHint: "Leave blank to use the logged-in user.",
+      default: "",
       required: true,
       inputSelector: (props) => (
         <WithMargin>
@@ -51,11 +58,13 @@ const top8Properties: FidgetProperties = {
   },
 };
 
-const Top8: React.FC<FidgetArgs<Top8FidgetSettings>> = ({
+const Top8: React.FC<FidgetArgs<Top8FidgetSettings, Top8FidgetData>> = ({
   settings,
+  data,
+  saveData,
 }) => {
   const {
-    username = "nounspacetom",
+    username = "",
     size = 0.6,
     background,
     fidgetBorderColor,
@@ -63,8 +72,47 @@ const Top8: React.FC<FidgetArgs<Top8FidgetSettings>> = ({
     fidgetShadow,
   } = settings;
 
-  const trimmedUsername = username?.trim();
-  const iframeUrl = trimmedUsername ? `https://top8-pi.vercel.app/${encodeURIComponent(trimmedUsername)}` : "";
+  const currentFid = useCurrentFid();
+  const { data: currentUserData } = useLoadFarcasterUser(currentFid ?? -1);
+  const currentUsername = useMemo(
+    () => currentUserData?.users?.[0]?.username?.trim(),
+    [currentUserData],
+  );
+
+  const normalizedSettingsUsername = username?.trim().replace(/^@/, "");
+  const normalizedCurrentUsername = currentUsername?.trim().replace(/^@/, "");
+  const shouldUseLoggedIn = !normalizedSettingsUsername;
+  const effectiveUsername =
+    (shouldUseLoggedIn ? normalizedCurrentUsername : normalizedSettingsUsername) ||
+    normalizedSettingsUsername ||
+    normalizedCurrentUsername ||
+    "nounspacetom";
+
+  const lastFetchUsername = data?.lastFetchSettings?.username?.trim();
+
+  useEffect(() => {
+    if (!normalizedCurrentUsername) return;
+    if (!shouldUseLoggedIn) return;
+    if (lastFetchUsername === normalizedCurrentUsername) return;
+
+    void saveData({
+      ...(data ?? {}),
+      lastFetchSettings: {
+        ...(data?.lastFetchSettings ?? {}),
+        username: normalizedCurrentUsername,
+      },
+    });
+  }, [
+    data,
+    lastFetchUsername,
+    normalizedCurrentUsername,
+    saveData,
+    shouldUseLoggedIn,
+  ]);
+
+  const iframeUrl = effectiveUsername
+    ? `https://top8-pi.vercel.app/${encodeURIComponent(effectiveUsername)}`
+    : "";
 
   return (
     <div
@@ -79,7 +127,7 @@ const Top8: React.FC<FidgetArgs<Top8FidgetSettings>> = ({
       className="h-[calc(100dvh-220px)] md:h-full"
     >
       <iframe
-        key={trimmedUsername}
+        key={effectiveUsername}
         src={iframeUrl}
         title="Top 8"
         sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
@@ -99,4 +147,4 @@ const Top8: React.FC<FidgetArgs<Top8FidgetSettings>> = ({
 export default {
   fidget: Top8,
   properties: top8Properties,
-} as FidgetModule<FidgetArgs<Top8FidgetSettings>>;
+} as FidgetModule<FidgetArgs<Top8FidgetSettings, Top8FidgetData>>;
