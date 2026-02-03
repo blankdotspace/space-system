@@ -1,20 +1,21 @@
 "use client";
 
 import React from "react";
-import { useAuthenticatorManager } from "@/authenticators/AuthenticatorManager";
 import { useSidebarContext } from "@/common/components/organisms/Sidebar";
 import TabBar from "@/common/components/organisms/TabBar";
 import { useAppStore } from "@/common/data/stores/app";
+import { useCurrentFid } from "@/common/lib/hooks/useCurrentFid";
 import { EtherScanChainName } from "@/constants/etherscanChainIds";
 import { INITIAL_SPACE_CONFIG_EMPTY } from "@/config";
 import Profile from "@/fidgets/ui/profile";
 import Channel from "@/fidgets/ui/channel";
 import { useWallets } from "@privy-io/react-auth";
-import { indexOf, isNil, mapValues, noop} from "lodash";
+import { isNil, mapValues, noop} from "lodash";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Address } from "viem";
 import { SpaceConfigSaveDetails } from "./Space";
+import { toast } from "sonner";
 import SpacePage from "./SpacePage";
 import {
   SpacePageData,
@@ -23,8 +24,6 @@ import {
   isProposalSpace,
   isChannelSpace,
 } from "@/common/types/spaceData";
-const FARCASTER_NOUNSPACE_AUTHENTICATOR_NAME = "farcaster:nounspace";
-
 interface PublicSpaceProps {
   spacePageData: SpacePageData;
   tabName: string;
@@ -107,39 +106,8 @@ export default function PublicSpace({
   const currentConfig = getConfig();
   
   // Identity states
-  const [currentUserFid, setCurrentUserFid] = useState<number | null>(null);
-  const [isSignedIntoFarcaster, setIsSignedIntoFarcaster] = useState(false);
+  const currentUserFid = useCurrentFid();
   const { wallets } = useWallets();
-
-  const {
-    lastUpdatedAt: authManagerLastUpdatedAt,
-    getInitializedAuthenticators: authManagerGetInitializedAuthenticators,
-    callMethod: authManagerCallMethod,
-  } = useAuthenticatorManager();
-
-  // Checks if the user is signed into Farcaster
-  useEffect(() => {
-    authManagerGetInitializedAuthenticators().then((authNames) => {
-      setIsSignedIntoFarcaster(
-        indexOf(authNames, FARCASTER_NOUNSPACE_AUTHENTICATOR_NAME) > -1,
-      );
-    });
-  }, [authManagerLastUpdatedAt]);
-
-  // Loads the current user's FID if they're signed into Farcaster
-  useEffect(() => {
-    if (!isSignedIntoFarcaster) return;
-    authManagerCallMethod({
-      requestingFidgetId: "root",
-      authenticatorId: FARCASTER_NOUNSPACE_AUTHENTICATOR_NAME,
-      methodName: "getAccountFid",
-      isLookup: true,
-    }).then((authManagerResp) => {
-      if (authManagerResp.result === "success") {
-        setCurrentUserFid(authManagerResp.value as number);
-      }
-    });
-  }, [isSignedIntoFarcaster, authManagerLastUpdatedAt]);
 
   // Load editable spaces when user signs in
   useEffect(() => {
@@ -174,7 +142,7 @@ export default function PublicSpace({
     );
     
     return result;
-  }, [spacePageData, currentUserFid, wallets, isSignedIntoFarcaster]);
+  }, [spacePageData, currentUserFid, wallets]);
 
   // Config logic:
   // - If we have currentTabName and the tab is loaded in store, use it
@@ -347,7 +315,8 @@ export default function PublicSpace({
   const saveConfig = useCallback(
     async (spaceConfig: SpaceConfigSaveDetails) => {
       if (isNil(currentSpaceId) || isNil(currentTabName)) {
-        throw new Error("Cannot save config until space and tab are initialized");
+        toast.error("Space is still initializing. Try again in a moment.");
+        return;
       }
       const saveableConfig = {
         ...spaceConfig,
