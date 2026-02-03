@@ -1,6 +1,5 @@
-import React from "react";
-import TextInput from "@/common/components/molecules/TextInput";
 import IFrameWidthSlider from "@/common/components/molecules/IframeScaleSlider";
+import TextInput from "@/common/components/molecules/TextInput";
 import {
   FidgetArgs,
   FidgetModule,
@@ -8,6 +7,7 @@ import {
   type FidgetSettingsStyle,
 } from "@/common/fidgets";
 import { defaultStyleFields, WithMargin } from "@/fidgets/helpers";
+import React from "react";
 import { BsPeople, BsPeopleFill } from "react-icons/bs";
 
 export type Top8FidgetSettings = {
@@ -63,8 +63,8 @@ const Top8: React.FC<FidgetArgs<Top8FidgetSettings>> = ({
     fidgetShadow,
   } = settings;
 
-  const trimmedUsername = username?.trim() || "nounspacetom";
-  const iframeUrl = `https://top8-pi.vercel.app/${encodeURIComponent(trimmedUsername)}`;
+  const trimmedUsername = username?.trim();
+  const iframeUrl = trimmedUsername ? `https://top8-pi.vercel.app/${encodeURIComponent(trimmedUsername)}` : "";
 
   return (
     <div

@@ -2,22 +2,28 @@ import {
   SpaceConfig,
   SpaceConfigSaveDetails,
 } from "@/app/(spaces)/Space";
+import { AnalyticsEvent } from "@/common/constants/analyticsEvents";
 import { FidgetConfig, FidgetInstanceData } from "@/common/fidgets";
 import { SignedFile, signSignable } from "@/common/lib/signedFiles";
-import { EtherScanChainName } from "@/constants/etherscanChainIds";
+import { analytics } from "@/common/providers/AnalyticsProvider";
 import { SPACE_TYPES } from "@/common/types/spaceData";
-import { 
+import {
+  isDuplicateTabName,
+  validateTabName,
+} from "@/common/utils/tabUtils";
+import {
   INITIAL_SPACE_CONFIG_EMPTY,
-  createInitialProfileSpaceConfigForFid,
-  createInitialChannelSpaceConfig
+  createInitialChannelSpaceConfig,
+  createInitialProfileSpaceConfigForFid
 } from "@/config";
+import { EtherScanChainName } from "@/constants/etherscanChainIds";
 import {
   ModifiableSpacesResponse,
   RegisterNewSpaceResponse,
+  SpaceRegistrationChannel,
   SpaceRegistrationContract,
   SpaceRegistrationFid,
   SpaceRegistrationProposer,
-  SpaceRegistrationChannel,
 } from "@/pages/api/space/registry";
 import {
   UnsignedUpdateTabOrderRequest,
@@ -45,12 +51,6 @@ import { AppStore } from "..";
 import axiosBackend from "../../../api/backend";
 import { createClient } from "../../../database/supabase/clients/component";
 import { StoreGet, StoreSet } from "../../createStore";
-import { AnalyticsEvent } from "@/common/constants/analyticsEvents";
-import { analytics } from "@/common/providers/AnalyticsProvider";
-import {
-  validateTabName,
-  isDuplicateTabName,
-} from "@/common/utils/tabUtils";
 type SpaceId = string;
 
 // SpaceConfig includes all of the Fidget Config
@@ -221,15 +221,15 @@ const getStorageFileName = (
   remoteSpace?: CachedSpace,
 ): string => {
   const oldName = localSpace.changedNames[tabName];
-  
+
   // No rename - use current name
   if (!oldName) {
     return tabName;
   }
-  
+
   // Check if old file exists in storage (via remoteSpaces)
   const oldFileExists = remoteSpace?.tabs?.[oldName] !== undefined;
-  
+
   if (oldFileExists) {
     // Real rename: file exists at old name, use old name for move operation
     return oldName;
@@ -248,7 +248,7 @@ export const createSpaceStoreFunc = (
     const localCopy = cloneDeep(
       get().space.localSpaces[spaceId].tabs[tabName],
     );
-    
+
     if (!localCopy) {
       console.warn(`Tab ${tabName} not found in localSpaces for space ${spaceId}`);
       return;
@@ -258,14 +258,14 @@ export const createSpaceStoreFunc = (
     const localSpace = get().space.localSpaces[spaceId];
     const remoteSpace = get().space.remoteSpaces[spaceId];
     const storageFileName = getStorageFileName(tabName, localSpace, remoteSpace);
-    
+
     const file = await get().account.createSignedFile(
       stringify(localCopy),
       "json",
       { fileName: tabName },
     );
-    
-      try {
+
+    try {
       await axiosBackend.post(
         `/api/space/registry/${spaceId}/tabs/${storageFileName}`,
         { ...file, network },
@@ -281,15 +281,15 @@ export const createSpaceStoreFunc = (
             order: [],
           };
         }
-        
+
         // Update remoteSpaces with new name
         draft.space.remoteSpaces[spaceId].tabs[tabName] = localCopy;
-        
+
         // Remove old name from remoteSpaces (if it was a rename)
         if (storageFileName !== tabName && draft.space.remoteSpaces[spaceId].tabs[storageFileName]) {
           delete draft.space.remoteSpaces[spaceId].tabs[storageFileName];
         }
-        
+
         // Clear rename tracking
         delete draft.space.localSpaces[spaceId].changedNames[tabName];
       }, "commitSpaceTabToDatabase");
@@ -377,7 +377,7 @@ export const createSpaceStoreFunc = (
       ...Object.keys(existingSpace.tabs || {}),
     ];
     const uniqueTabNames = [...new Set(allTabNames)];
-    
+
     if (isDuplicateTabName(sanitizedNewName, uniqueTabNames, tabName)) {
       console.warn(`Tab name "${sanitizedNewName}" already exists - UI should have ensured uniqueness`);
       return; // Exit gracefully instead of throwing
@@ -446,53 +446,53 @@ export const createSpaceStoreFunc = (
     tabName,
     network?: EtherScanChainName,
   ) => {
-      // Staged deletion: only update local state, actual deletion happens in commitAllSpaceChanges
-      const localSpace = get().space.localSpaces[spaceId];
-      const remoteSpace = get().space.remoteSpaces[spaceId];
-      
-      if (!localSpace) {
-        console.warn(`No local space found for ${spaceId}`);
-        return;
+    // Staged deletion: only update local state, actual deletion happens in commitAllSpaceChanges
+    const localSpace = get().space.localSpaces[spaceId];
+    const remoteSpace = get().space.remoteSpaces[spaceId];
+
+    if (!localSpace) {
+      console.warn(`No local space found for ${spaceId}`);
+      return;
+    }
+
+    // Determine storage file name (handles renames)
+    const storageFileName = getStorageFileName(tabName, localSpace, remoteSpace);
+
+    // Only track deletion if file actually exists in storage
+    const fileExists = remoteSpace?.tabs?.[storageFileName] !== undefined;
+
+    set((draft) => {
+      const spaceDraft = draft.space.localSpaces[spaceId];
+
+      // Remove tab from local state
+      delete spaceDraft.tabs[tabName];
+
+      // Clean up changedNames entry
+      delete spaceDraft.changedNames[tabName];
+
+      // Track storage name for deletion (only if file exists)
+      if (fileExists) {
+        if (!spaceDraft.deletedTabs) {
+          spaceDraft.deletedTabs = [];
+        }
+        // Avoid duplicates
+        if (!spaceDraft.deletedTabs.includes(storageFileName)) {
+          spaceDraft.deletedTabs.push(storageFileName);
+        }
       }
 
-      // Determine storage file name (handles renames)
-      const storageFileName = getStorageFileName(tabName, localSpace, remoteSpace);
-      
-      // Only track deletion if file actually exists in storage
-      const fileExists = remoteSpace?.tabs?.[storageFileName] !== undefined;
-      
-      set((draft) => {
-        const spaceDraft = draft.space.localSpaces[spaceId];
-        
-        // Remove tab from local state
-        delete spaceDraft.tabs[tabName];
-        
-        // Clean up changedNames entry
-        delete spaceDraft.changedNames[tabName];
-        
-        // Track storage name for deletion (only if file exists)
-        if (fileExists) {
-          if (!spaceDraft.deletedTabs) {
-            spaceDraft.deletedTabs = [];
-          }
-          // Avoid duplicates
-          if (!spaceDraft.deletedTabs.includes(storageFileName)) {
-            spaceDraft.deletedTabs.push(storageFileName);
-          }
-        }
-        
-        // Update order arrays with new arrays to ensure state updates
-        spaceDraft.order = filter(
-          spaceDraft.order,
-          (x) => x !== tabName,
-        );
-        
-        // Update timestamps
-        const timestamp = moment().toISOString();
-        spaceDraft.updatedAt = timestamp;
-        spaceDraft.orderUpdatedAt = timestamp;
-      }, "deleteSpaceTab");
-    },
+      // Update order arrays with new arrays to ensure state updates
+      spaceDraft.order = filter(
+        spaceDraft.order,
+        (x) => x !== tabName,
+      );
+
+      // Update timestamps
+      const timestamp = moment().toISOString();
+      spaceDraft.updatedAt = timestamp;
+      spaceDraft.orderUpdatedAt = timestamp;
+    }, "deleteSpaceTab");
+  },
   createSpaceTab: async (
     spaceId: string,
     tabName: string,
@@ -678,7 +678,7 @@ export const createSpaceStoreFunc = (
           network: remoteSpaceData.network,
           proposalId: remoteSpaceData.proposalId,
         } as CachedSpace;
-        
+
         // Clean up local tracking
         spaceDraft.changedNames = {};
         spaceDraft.deletedTabs = [];
@@ -720,7 +720,7 @@ export const createSpaceStoreFunc = (
       const localTab = localSpace?.tabs?.[tabName];
       const remoteSpace = get().space.remoteSpaces[spaceId];
       const remoteTab = remoteSpace?.tabs?.[tabName];
-      
+
       // If tab exists locally but not remotely, it hasn't been committed yet
       // Skip storage fetch to avoid 400/404 errors for uncommitted tabs
       if (localTab && !remoteTab) {
@@ -739,7 +739,7 @@ export const createSpaceStoreFunc = (
         markLoadingComplete();
         return; // Use local tab, no need to fetch from storage
       }
-      
+
       // Fetch the public URL for the space tab file
       const {
         data: { publicUrl },
@@ -776,7 +776,7 @@ export const createSpaceStoreFunc = (
           markLoadingComplete();
           return;
         }
-        
+
         // Check if response is HTML (404 error page)
         if (axiosError?.response?.data) {
           const blob = axiosError.response.data as Blob;
@@ -917,9 +917,9 @@ export const createSpaceStoreFunc = (
           Expires: "0",
         },
       });
-      
+
       const textContent = await data.text();
-      
+
       // Check if response is HTML (404 error page) instead of JSON
       if (textContent.trim().startsWith("<!DOCTYPE") || textContent.trim().startsWith("<html")) {
         console.warn(`TabOrder file not found for space ${spaceId}, using local order if available`);
@@ -927,7 +927,7 @@ export const createSpaceStoreFunc = (
         // The local space order will be used instead
         return;
       }
-      
+
       const tabOrderReq = JSON.parse(textContent) as UpdateTabOrderRequest;
 
       // Compare local and remote timestamps
@@ -1000,7 +1000,7 @@ export const createSpaceStoreFunc = (
           },
         },
       );
-      
+
       if (existingSpaces.value) {
         const existingSpace = existingSpaces.value.spaces.find(space => space.fid === fid);
         if (existingSpace) {
@@ -1030,7 +1030,7 @@ export const createSpaceStoreFunc = (
         { timeout: 30000 },
       );
       const newSpaceId = data.value!.spaceId;
-      
+
       // Initialize the space with proper structure
       set((draft) => {
         draft.space.editableSpaces[newSpaceId] = name;
@@ -1049,12 +1049,12 @@ export const createSpaceStoreFunc = (
       await get().space.createSpaceTab(
         newSpaceId,
         "Profile",
-        createInitialProfileSpaceConfigForFid(fid),
+        createInitialProfileSpaceConfigForFid(fid, name),
       );
-      
+
       // Commit the staged tab to storage (required after staged commit pattern refactor)
       await get().space.commitAllSpaceChanges(newSpaceId);
-      
+
       analytics.track(AnalyticsEvent.SPACE_REGISTERED, {
         type: "user",
         spaceId: newSpaceId,
@@ -1168,7 +1168,7 @@ export const createSpaceStoreFunc = (
         "Channel",
         createInitialChannelSpaceConfig(channelId),
       );
-      
+
       // Commit the staged tab to storage (required after staged commit pattern refactor)
       await get().space.commitAllSpaceChanges(newSpaceId);
 
@@ -1196,7 +1196,7 @@ export const createSpaceStoreFunc = (
       const existingSpace = Object.values(get().space.localSpaces).find(
         space => space.contractAddress === address && space.network === network
       );
-      
+
       if (existingSpace) {
         // console.log('Found existing space in local cache:', {
         //   spaceId,
@@ -1209,14 +1209,14 @@ export const createSpaceStoreFunc = (
       // Check if a space already exists for this contract that the current
       // identity can modify. We query all modifiable spaces for the identity
       // and then search for one matching the contract address and network.
-      
+
       // Guard against missing currentSpaceIdentityPublicKey
       const currentIdentityKey = get().account.currentSpaceIdentityPublicKey;
       if (!currentIdentityKey) {
         console.error("No current space identity public key available");
         return undefined;
       }
-      
+
       let existingSpaces: ModifiableSpacesResponse | undefined;
       try {
         const { data } = await axiosBackend.get<ModifiableSpacesResponse>(
@@ -1296,7 +1296,7 @@ export const createSpaceStoreFunc = (
         );
         console.log("Nounspace registration response:", data);
         const newSpaceId = data.value!.spaceId;
-        
+
         // Initialize both local and remote spaces with proper structure
         set((draft) => {
           draft.space.editableSpaces[newSpaceId] = name;
@@ -1327,16 +1327,16 @@ export const createSpaceStoreFunc = (
           initialConfig,
           network,
         );
-        
+
         // Commit the staged tab to storage (required after staged commit pattern refactor)
         await get().space.commitAllSpaceChanges(newSpaceId, network);
 
         analytics.track(AnalyticsEvent.SPACE_REGISTERED, {
-        type: "token",
-        spaceId: newSpaceId,
-        path: `/t/${network}/${address}/Token`,
-      });
-      return newSpaceId;
+          type: "token",
+          spaceId: newSpaceId,
+          path: `/t/${network}/${address}/Token`,
+        });
+        return newSpaceId;
       } catch (e) {
         console.error("Failed to register contract space:", e);
         if (axios.isAxiosError(e)) {
@@ -1388,9 +1388,9 @@ export const createSpaceStoreFunc = (
         proposalId,
         spaceType: SPACE_TYPES.PROPOSAL,
       };
-      
+
       console.log("[registerProposalSpace] unsignedRegistration:", unsignedRegistration);
-      
+
       const registration = signSignable(
         unsignedRegistration,
         get().account.getCurrentIdentity()!.rootKeys.privateKey,
@@ -1429,7 +1429,7 @@ export const createSpaceStoreFunc = (
           initialConfig
         );
         console.log("[registerProposalSpace] Overview tab created successfully");
-        
+
         // Commit the staged tab to storage (required after staged commit pattern refactor)
         await get().space.commitAllSpaceChanges(newSpaceId);
         console.log("[registerProposalSpace] Overview tab committed to storage");
@@ -1471,13 +1471,13 @@ export const createSpaceStoreFunc = (
             ...draft.space.editableSpaces,
             ...editableSpaces,
           };
-          
+
           // Also populate localSpaces with metadata for contract spaces
           if (data.value) {
             data.value.spaces.forEach((spaceInfo) => {
               // Only create entry if it doesn't exist or if it's missing contract metadata
-              if (!draft.space.localSpaces[spaceInfo.spaceId] || 
-                  (!draft.space.localSpaces[spaceInfo.spaceId].contractAddress && spaceInfo.contractAddress)) {
+              if (!draft.space.localSpaces[spaceInfo.spaceId] ||
+                (!draft.space.localSpaces[spaceInfo.spaceId].contractAddress && spaceInfo.contractAddress)) {
                 draft.space.localSpaces[spaceInfo.spaceId] = {
                   id: spaceInfo.spaceId,
                   updatedAt: moment().toISOString(),
@@ -1494,7 +1494,7 @@ export const createSpaceStoreFunc = (
                 };
               }
             });
-        }
+          }
         }, "loadEditableSpaces");
         return editableSpaces;
       }

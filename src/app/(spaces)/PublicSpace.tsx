@@ -93,7 +93,7 @@ export default function PublicSpace({
   useEffect(() => {
     const newSpaceId = spacePageData.spaceId ?? null;
     const newTabName = providedTabName || spacePageData.defaultTab;
-    
+
     setCurrentSpaceId(newSpaceId);
     setCurrentTabName(newTabName);
   }, [spacePageData.spaceId, providedTabName, spacePageData.defaultTab, setCurrentSpaceId, setCurrentTabName]);
@@ -104,7 +104,7 @@ export default function PublicSpace({
   }, [getCurrentSpaceConfig, currentSpaceId, currentTabName]);
 
   const currentConfig = getConfig();
-  
+
   // Identity states
   const currentUserFid = useCurrentFid();
   const { wallets } = useWallets();
@@ -112,7 +112,7 @@ export default function PublicSpace({
   // Load editable spaces when user signs in
   useEffect(() => {
     if (!currentUserFid) return;
-    
+
     loadEditableSpaces().catch(error => {
       console.error("Error loading editable spaces:", error);
     });
@@ -137,10 +137,10 @@ export default function PublicSpace({
   // Use isEditable logic from spaceData
   const isEditable = useMemo(() => {
     const result = spacePageData.isEditable(
-      currentUserFid || undefined, 
+      currentUserFid || undefined,
       wallets.map((w) => ({ address: w.address as Address }))
     );
-    
+
     return result;
   }, [spacePageData, currentUserFid, wallets]);
 
@@ -254,13 +254,13 @@ export default function PublicSpace({
           } else if (isProfileSpace(spacePageData) && !isNil(currentUserFid)) {
             newSpaceId = await registerSpaceFid(
               currentUserFid,
-              spacePageData.defaultTab,
+              spacePageData.spaceName,
               spacePageData.spacePageUrl(spacePageData.defaultTab),
             );
           } else if (isChannelSpace(spacePageData) && !isNil(currentUserFid)) {
             const displayName = spacePageData.channelDisplayName || spacePageData.channelId;
             const moderatorFids = spacePageData.moderatorFids || [];
-            
+
             newSpaceId = await registerChannelSpace(
               spacePageData.channelId,
               displayName,
@@ -280,7 +280,7 @@ export default function PublicSpace({
             await loadEditableSpaces(); // First load
             await loadSpaceTab(newSpaceId, spacePageData.defaultTab);
 
-            
+
             // Invalidate cache by reloading editable spaces
             await loadEditableSpaces(); // Second load to invalidate cache
 
@@ -323,7 +323,7 @@ export default function PublicSpace({
         fidgetInstanceDatums: spaceConfig.fidgetInstanceDatums
           ? mapValues(spaceConfig.fidgetInstanceDatums, (datum) => ({
             ...datum,
-              config: {
+            config: {
               settings: datum.config.settings,
               editable: datum.config.editable,
               data: datum.config.data ?? {},
@@ -345,7 +345,7 @@ export default function PublicSpace({
 
   const resetConfig = useCallback(async () => {
     if (isNil(currentSpaceId) || isNil(currentTabName)) return;
-    
+
     let configToSave;
     if (isNil(remoteSpaces[currentSpaceId])) {
       configToSave = {
@@ -358,7 +358,7 @@ export default function PublicSpace({
         ...remoteConfig,
       };
     }
-    
+
     saveLocalSpaceTab(currentSpaceId, currentTabName, configToSave);
   }, [currentSpaceId, currentTabName, spacePageData.config, remoteSpaces, saveLocalSpaceTab]);
 
@@ -417,10 +417,10 @@ export default function PublicSpace({
       commitTab={async (tabName) => {
         return currentSpaceId
           ? commitSpaceTab(
-              currentSpaceId, 
-              tabName, 
-              isTokenSpace(spacePageData) ? spacePageData.tokenData?.network : undefined
-            )
+            currentSpaceId,
+            tabName,
+            isTokenSpace(spacePageData) ? spacePageData.tokenData?.network : undefined
+          )
           : undefined;
       }}
       commitTabOrder={async () => {
