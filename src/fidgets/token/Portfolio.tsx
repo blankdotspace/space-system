@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useMemo } from "react";
 import TextInput from "@/common/components/molecules/TextInput";
 import SettingsSelector from "@/common/components/molecules/SettingsSelector";
 import {
@@ -9,6 +9,15 @@ import {
 } from "@/common/fidgets";
 import { defaultStyleFields, WithMargin } from "@/fidgets/helpers";
 import { GiTwoCoins } from "react-icons/gi";
+import useCurrentFid from "@/common/lib/hooks/useCurrentFid";
+import { useLoadFarcasterUser } from "@/common/data/queries/farcaster";
+import { useNeynarUser } from "@/common/lib/hooks/useNeynarUser";
+import { useFarcasterSigner } from "@/fidgets/farcaster";
+import { useAppStore } from "@/common/data/stores/app";
+import PortfolioUsernameInput, {
+  getPortfolioPrimaryAddress,
+} from "./PortfolioUsernameInput";
+
 
 export type PortfolioFidgetSettings = {
   trackType: "farcaster" | "address";
@@ -49,15 +58,11 @@ const portfolioProperties: FidgetProperties = {
     {
       fieldName: "farcasterUsername",
       displayName: "Username",
-      default: "nounspacetom",
       required: false,
       disabledIf: (settings) => settings.trackType !== "farcaster",
       inputSelector: (props) => (
         <WithMargin>
-          <TextInput
-            {...props}
-            className="[&_label]:!normal-case"
-          />
+          <PortfolioUsernameInput {...props} className="[&_label]:!normal-case" />
         </WithMargin>
       ),
       group: "settings",
@@ -65,7 +70,6 @@ const portfolioProperties: FidgetProperties = {
     {
       fieldName: "walletAddresses",
       displayName: "Address(es)",
-      default: "0x06AE622bF2029Db79Bdebd38F723f1f33f95F6C5",
       required: false,
       disabledIf: (settings) => settings.trackType !== "address",
       inputSelector: (props) => (
@@ -90,6 +94,8 @@ const portfolioProperties: FidgetProperties = {
 
 const Portfolio: React.FC<FidgetArgs<PortfolioFidgetSettings>> = ({
   settings,
+  data,
+  saveData,
 }) => {
   const {
     trackType,
@@ -100,12 +106,98 @@ const Portfolio: React.FC<FidgetArgs<PortfolioFidgetSettings>> = ({
     fidgetShadow,
   } = settings;
 
+  const currentFid = useCurrentFid();
+  const farcasterSigner = useFarcasterSigner("portfolio");
+  const effectiveFid = (currentFid ?? farcasterSigner.fid) ?? -1;
+  const associatedFid = useAppStore(
+    (state) => state.account.getCurrentIdentity()?.associatedFids?.[0],
+  );
+  const lookupFid =
+    effectiveFid > 0 ? effectiveFid : associatedFid ?? -1;
+  const { data: currentUserData } = useLoadFarcasterUser(
+    lookupFid,
+    lookupFid > 0 ? lookupFid : undefined,
+  );
+  const loggedInUsername = useMemo(() => {
+    const username = currentUserData?.users?.[0]?.username;
+    return typeof username === "string" ? username.trim() : "";
+  }, [currentUserData]);
+
+  const normalizedUsername = useMemo(
+    () => (farcasterUsername || "").trim().replace(/^@/, ""),
+    [farcasterUsername],
+  );
+
+  const effectiveUsername = (normalizedUsername || loggedInUsername || "").toLowerCase();
+  const { user: effectiveUser } = useNeynarUser(
+    effectiveUsername ? effectiveUsername : undefined,
+  );
+
+  const derivedAddresses = useMemo(
+    () => getPortfolioPrimaryAddress(effectiveUser),
+    [effectiveUser],
+  );
+
+  const resolvedFarcasterUsername = useMemo(() => {
+    const normalized = (farcasterUsername || "").trim().replace(/^@/, "");
+    return normalized || loggedInUsername || "";
+  }, [farcasterUsername, loggedInUsername]);
+
+  const resolvedWalletAddresses = useMemo(() => {
+    const normalized = (walletAddresses || "").trim();
+    return normalized;
+  }, [walletAddresses]);
+
+  useEffect(() => {
+    if (normalizedUsername || !loggedInUsername) return;
+
+    const previous =
+      (data as { lastFetchSettings?: { farcasterUsername?: string } } | undefined)
+        ?.lastFetchSettings?.farcasterUsername;
+
+    if (previous === loggedInUsername) return;
+
+    void saveData({
+      ...(data || {}),
+      lastFetchSettings: {
+        ...(data as { lastFetchSettings?: Record<string, unknown> } | undefined)
+          ?.lastFetchSettings,
+        farcasterUsername: loggedInUsername,
+      },
+    });
+  }, [normalizedUsername, loggedInUsername, data, saveData]);
+
+  useEffect(() => {
+    if (!effectiveUsername || !derivedAddresses) return;
+
+    const addressInput = (walletAddresses || "").trim();
+    if (addressInput) return;
+
+    const previous =
+      (data as { lastFetchSettings?: { walletAddresses?: string } } | undefined)
+        ?.lastFetchSettings?.walletAddresses;
+    if (previous === derivedAddresses) return;
+
+    void saveData({
+      ...(data || {}),
+      lastFetchSettings: {
+        ...(data as { lastFetchSettings?: Record<string, unknown> } | undefined)
+          ?.lastFetchSettings,
+        walletAddresses: derivedAddresses,
+      },
+    });
+  }, [effectiveUsername, derivedAddresses, walletAddresses, data, saveData]);
+
   const baseUrl = "https://balance-fidget.replit.app";
   const url =
     trackType === "address"
-      ? `${baseUrl}/portfolio/${encodeURIComponent(walletAddresses)}`
+      ? resolvedWalletAddresses
+        ? `${baseUrl}/portfolio/${encodeURIComponent(resolvedWalletAddresses)}`
+        : baseUrl
       : trackType === "farcaster"
-        ? `${baseUrl}/fc/${encodeURIComponent(farcasterUsername)}`
+        ? resolvedFarcasterUsername
+          ? `${baseUrl}/fc/${encodeURIComponent(resolvedFarcasterUsername)}`
+          : baseUrl
         : baseUrl;
 
   return (
@@ -128,4 +220,3 @@ export default {
   fidget: Portfolio,
   properties: portfolioProperties,
 } as FidgetModule<FidgetArgs<PortfolioFidgetSettings>>;
-

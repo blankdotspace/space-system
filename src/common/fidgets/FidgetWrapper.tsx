@@ -90,14 +90,29 @@ export function FidgetWrapper({
   // Generic settings backfill: any fidget can use lastFetchSettings in config.data
   // to automatically backfill empty settings. This is useful when fidgets are created
   // from external sources (e.g., URL parameters) and need to populate settings.
-  const lastFetchSettings = (bundle.config?.data as {
-    lastFetchSettings?: Partial<FidgetSettings>;
-  } | undefined)?.lastFetchSettings;
+  const dataConfig = bundle.config?.data as
+    | { lastFetchSettings?: Partial<FidgetSettings>; disableBackfill?: boolean }
+    | undefined;
+  const lastFetchSettings = dataConfig?.lastFetchSettings;
+  const disableBackfill = dataConfig?.disableBackfill === true;
+
+  const defaultSettingsMap = useMemo(
+    () =>
+      reduce(
+        bundle.properties.fields,
+        (acc, field) => {
+          acc[field.fieldName] = field.default;
+          return acc;
+        },
+        {} as Record<string, unknown>,
+      ),
+    [bundle.properties.fields],
+  );
 
   const derivedSettings = useMemo<FidgetSettings>(() => {
     // Use zustand settings directly (they're already the latest), fall back to props
     const baseSettings = (zustandSettings ?? bundle.config.settings ?? {}) as FidgetSettings;
-    if (!lastFetchSettings || typeof lastFetchSettings !== "object") {
+    if (disableBackfill || !lastFetchSettings || typeof lastFetchSettings !== "object") {
       return baseSettings;
     }
 
@@ -107,8 +122,16 @@ export function FidgetWrapper({
     // Helper to only fill empty settings
     const setValue = (key: string, value: unknown) => {
       const current = nextSettings[key];
+      const defaultValue = defaultSettingsMap[key];
+      const isDefaultValue = isEqual(current, defaultValue);
+      const isEmpty =
+        current === undefined ||
+        current === null ||
+        current === "" ||
+        isDefaultValue;
+
       // Don't overwrite existing non-empty values
-      if (current !== undefined && current !== null && current !== "") {
+      if (!isEmpty) {
         return;
       }
 
@@ -132,7 +155,13 @@ export function FidgetWrapper({
     });
 
     return changed ? nextSettings : baseSettings;
-  }, [zustandSettings, bundle.config.settings, lastFetchSettings]);
+  }, [
+    zustandSettings,
+    bundle.config.settings,
+    lastFetchSettings,
+    defaultSettingsMap,
+    disableBackfill,
+  ]);
 
   const settingsWithDefaults = useMemo(
     () => getSettingsWithDefaults(derivedSettings, bundle.properties),
@@ -140,6 +169,7 @@ export function FidgetWrapper({
   );
 
   const shouldAttemptBackfill =
+    !disableBackfill &&
     !!lastFetchSettings &&
     !isEqual(derivedSettings, bundle.config.settings ?? {});
 
