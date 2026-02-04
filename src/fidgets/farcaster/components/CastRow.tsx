@@ -437,7 +437,7 @@ const CastAttributionSecondary = ({ cast }) => {
 const CastReactions = ({ cast }: { cast: CastWithInteractions }) => {
   const [didLike, setDidLike] = useState(cast.viewer_context?.liked ?? false);
   const [didRecast, setDidRecast] = useState(cast.viewer_context?.recasted ?? false);
-  const { signer, fid: userFid } = useFarcasterSigner("render-cast");
+  const { fid: userFid, getOrCreateSigner, isLoadingSigner } = useFarcasterSigner("render-cast");
   const { showToast } = useToastStore();
   const { setModalOpen, getIsAccountReady } = useAppStore((state) => ({
     setModalOpen: state.setup.setModalOpen,
@@ -490,9 +490,14 @@ const CastReactions = ({ cast }: { cast: CastWithInteractions }) => {
       return;
     }
 
-    // We check if we have the signer before proceeding
-    if (isUndefined(signer)) {
-      console.error("NO SIGNER");
+    if (isLoadingSigner) {
+      showToast("Connecting to Farcaster...");
+      return;
+    }
+
+    const signer = await getOrCreateSigner();
+    if (!signer) {
+      showToast("Connect Farcaster to continue.");
       return;
     }
 

@@ -24,10 +24,10 @@
  * Integrates with: PublicSpace
  */
 
-import React, { useMemo } from "react";
 import PublicSpace from "@/app/(spaces)/PublicSpace";
-import { ProfileSpacePageData } from "@/common/types/spaceData";
 import { useCurrentSpaceIdentityPublicKey } from "@/common/lib/hooks/useCurrentSpaceIdentityPublicKey";
+import { ProfileSpacePageData } from "@/common/types/spaceData";
+import React ,{ useMemo } from "react";
 
 export interface ProfileSpaceProps {
   spacePageData: Omit<ProfileSpacePageData, 'isEditable' | 'spacePageUrl'>;
@@ -43,19 +43,19 @@ const isProfileSpaceEditable = (
   currentUserIdentityPublicKey?: string
 ): boolean => {
   // Require user to be logged in (have an identity key)
-  if (!currentUserIdentityPublicKey) {
-    console.log('[ProfileSpace] User not logged in - not editable');
-    return false;
-  }
+  // if (!currentUserIdentityPublicKey) {
+  //   console.log('[ProfileSpace] User not logged in - not editable');
+  //   return false;
+  // }
 
   // Check FID ownership (original logic)
-  const hasFidOwnership = 
-    currentUserFid !== undefined && 
-    spaceOwnerFid !== undefined && 
+  const hasFidOwnership =
+    currentUserFid !== undefined &&
+    spaceOwnerFid !== undefined &&
     currentUserFid === spaceOwnerFid;
 
   // Check identity key ownership (only if space is registered)
-  const hasIdentityOwnership = !!(spaceId && spaceIdentityPublicKey && 
+  const hasIdentityOwnership = !!(spaceId && spaceIdentityPublicKey &&
     spaceIdentityPublicKey === currentUserIdentityPublicKey);
 
   console.log('[ProfileSpace] Editability check details:', {
@@ -82,9 +82,9 @@ export default function ProfileSpace({
   const spaceDataWithClientSideLogic = useMemo(() => ({
     ...spaceData,
     spacePageUrl: (tabName: string) => `/s/${spaceData.spaceName}/${encodeURIComponent(tabName)}`,
-    isEditable: (currentUserFid: number | undefined) => 
+    isEditable: (currentUserFid: number | undefined) =>
       isProfileSpaceEditable(
-        spaceData.spaceOwnerFid, 
+        spaceData.spaceOwnerFid,
         currentUserFid,
         spaceData.spaceId,
         spaceData.identityPublicKey,

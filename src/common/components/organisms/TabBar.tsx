@@ -23,7 +23,7 @@ interface TabBarProps {
   tabList: string[];
   defaultTab: string;
   updateTabOrder: (newOrder: string[]) => void;
-  commitTabOrder?: () => void;
+  commitTabOrder: () => void;
   deleteTab: (tabName: string) => void;
   createTab: (tabName: string) => Promise<{ tabName: string } | undefined>;
   renameTab: (tabName: string, newName: string) => Promise<void> | void;

@@ -352,10 +352,10 @@ const Navigation = React.memo(
   // Reusable component factory for URL icons
   const createUrlIconWrapper = useCallback((src: string): React.FC => {
     const CustomIconWrapper = React.memo(() => (
-      <img
-        src={src}
-        alt="icon"
-        className="w-5 h-5 object-contain"
+      <img 
+        src={src} 
+        alt="icon" 
+        className="w-5 h-5 rounded object-contain" 
         aria-hidden="true"
       />
     ));

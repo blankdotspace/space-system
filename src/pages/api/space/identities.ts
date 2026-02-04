@@ -52,7 +52,12 @@ async function handlePost(
       identityRequest: IdentityRequest;
     };
     if (!validateRequestSignature(identityRequest)) {
-      throw Error("Invalid signature on request");
+      return res.status(400).json({
+        result: "error",
+        error: {
+          message: "Invalid signature on request",
+        },
+      });
     }
     if (identityRequest.type === "Create" && !isUndefined(file)) {
       if (!validateSignable(file)) {
@@ -107,7 +112,8 @@ async function handleGet(
     const { data, error } = await supabase
       .from("walletIdentities")
       .select()
-      .eq("walletAddress", address);
+      // wallet addresses may be checksummed; match case-insensitively
+      .ilike("walletAddress", address);
     if (error) {
       res.status(500).json({
         result: "error",

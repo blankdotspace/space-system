@@ -330,7 +330,7 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
                   href={isSelected ? "#" : item.href}
                   className={mergeClasses(
                     "flex relative items-center p-2 rounded-lg w-full group",
-                    isSelected ? "bg-[rgba(128,128,128,0.2)]" : "hover:bg-[rgba(128,128,128,0.15)]",
+                    isSelected ? "bg-gray-100" : "hover:bg-gray-100",
                     "cursor-grab active:cursor-grabbing",
                     isShrunk ? "justify-center" : ""
                   )}
@@ -363,7 +363,7 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
                             e.stopPropagation();
                             setOpenIconSelectorId(openIconSelectorId === item.id ? null : item.id);
                           }}
-                          className="flex items-center justify-center rounded hover:bg-[rgba(128,128,128,0.2)] transition-colors p-0"
+                          className="flex items-center justify-center rounded hover:bg-gray-200 transition-colors p-0"
                           aria-label={`Change icon for ${item.label}`}
                           title={`Change icon for ${item.label}`}
                         >
@@ -452,7 +452,7 @@ const NavigationEditorComponent: React.FC<NavigationEditorProps> = ({
             }
           }}
           className={mergeClasses(
-            "flex items-center gap-2 p-2 rounded-lg hover:bg-[rgba(128,128,128,0.15)] w-full text-gray-600",
+            "flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 w-full text-gray-600",
             isShrunk ? "justify-center" : "text-left"
           )}
           aria-label="Add navigation item"

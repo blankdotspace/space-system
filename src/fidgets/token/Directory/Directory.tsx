@@ -183,30 +183,16 @@ const Directory: React.FC<
     }
 
     setDirectoryData((prev) => {
-      // Strip viewerContext for comparison since it's not persisted
-      const stripContext = (members: DirectoryMemberData[] | undefined): DirectoryMemberData[] =>
-        (members ?? []).map(({ viewerContext: _viewerContext, ...rest }) => rest as DirectoryMemberData);
-
-      const prevMembersStripped = stripContext(prev.members);
-      const dataMembersStripped = stripContext(data.members);
-      const membersUnchanged = isEqual(prevMembersStripped, dataMembersStripped);
-
-      // If members haven't changed (ignoring viewerContext), keep prev.members to preserve viewerContext
-      const nextMembers = membersUnchanged
-        ? prev.members
-        : (data.members ?? prev.members);
-
       const next: DirectoryFidgetData = {
-        members: nextMembers,
+        members: data.members ?? prev.members,
         lastUpdatedTimestamp: data.lastUpdatedTimestamp ?? prev.lastUpdatedTimestamp ?? null,
         tokenSymbol: data.tokenSymbol ?? prev.tokenSymbol ?? null,
         tokenDecimals: data.tokenDecimals ?? prev.tokenDecimals ?? null,
         lastFetchSettings: data.lastFetchSettings ?? prev.lastFetchSettings,
       };
 
-      // Check if anything actually changed
       if (
-        next.members === prev.members &&
+        isEqual(prev.members, next.members) &&
         prev.lastUpdatedTimestamp === next.lastUpdatedTimestamp &&
         prev.tokenSymbol === next.tokenSymbol &&
         prev.tokenDecimals === next.tokenDecimals &&

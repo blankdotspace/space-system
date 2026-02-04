@@ -457,12 +457,9 @@ export const createSpaceStoreFunc = (
 
       // Determine storage file name (handles renames)
       const storageFileName = getStorageFileName(tabName, localSpace, remoteSpace);
-
-      // Track deletion if file exists in storage (check both loaded tabs and remote order)
-      // remoteSpace.tabs is only populated for tabs that have been viewed/loaded,
-      // but remoteSpace.order contains all tabs that exist in the database
-      const fileExists = remoteSpace?.tabs?.[storageFileName] !== undefined ||
-                         remoteSpace?.order?.includes(tabName);
+      
+      // Only track deletion if file actually exists in storage
+      const fileExists = remoteSpace?.tabs?.[storageFileName] !== undefined;
       
       set((draft) => {
         const spaceDraft = draft.space.localSpaces[spaceId];
@@ -1030,6 +1027,7 @@ export const createSpaceStoreFunc = (
       const { data } = await axiosBackend.post<RegisterNewSpaceResponse>(
         "/api/space/registry",
         registration,
+        { timeout: 30000 },
       );
       const newSpaceId = data.value!.spaceId;
       
@@ -1051,7 +1049,7 @@ export const createSpaceStoreFunc = (
       await get().space.createSpaceTab(
         newSpaceId,
         "Profile",
-        createInitialProfileSpaceConfigForFid(fid),
+        createInitialProfileSpaceConfigForFid(fid, name),
       );
       
       // Commit the staged tab to storage (required after staged commit pattern refactor)

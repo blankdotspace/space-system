@@ -4,49 +4,6 @@
 
 This document provides a comprehensive overview of the Nounspace configuration architecture. The system has been refactored from a static, build-time TypeScript-based configuration system to a **dynamic, database-backed, multi-tenant runtime configuration system** that supports domain-based community detection.
 
-## Quick Reference: Accessing SystemConfig
-
-This is the most common question: "How do I access the system config?"
-
-### Server Components
-
-```typescript
-// ✅ Server components can load config directly
-import { loadSystemConfig } from "@/config";
-
-export default async function MyServerComponent() {
-  const systemConfig = await loadSystemConfig();
-  return <ClientComponent systemConfig={systemConfig} />;
-}
-```
-
-### Client Components
-
-```typescript
-// ✅ Client components receive config as a prop
-"use client";
-
-type Props = {
-  systemConfig: SystemConfig;
-};
-
-export function MyClientComponent({ systemConfig }: Props) {
-  const discordUrl = systemConfig.community?.urls?.discord;
-  // ...
-}
-```
-
-### Pattern Summary
-
-| Context | How to Access Config |
-|---------|---------------------|
-| Server Component | `await loadSystemConfig()` |
-| Client Component | Receive via `systemConfig` prop from parent |
-| API Route (pages/api) | `await loadSystemConfig()` |
-| App Router API Route | `await loadSystemConfig()` |
-
----
-
 ## Core Architectural Principles
 
 1. **Server-Only Config Loading**: `loadSystemConfig()` is server-only and uses `await headers()` API

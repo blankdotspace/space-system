@@ -1,20 +1,21 @@
 "use client";
 
 import React from "react";
-import { useAuthenticatorManager } from "@/authenticators/AuthenticatorManager";
 import { useSidebarContext } from "@/common/components/organisms/Sidebar";
 import TabBar from "@/common/components/organisms/TabBar";
 import { useAppStore } from "@/common/data/stores/app";
+import { useCurrentFid } from "@/common/lib/hooks/useCurrentFid";
 import { EtherScanChainName } from "@/constants/etherscanChainIds";
 import { INITIAL_SPACE_CONFIG_EMPTY } from "@/config";
 import Profile from "@/fidgets/ui/profile";
 import Channel from "@/fidgets/ui/channel";
 import { useWallets } from "@privy-io/react-auth";
-import { indexOf, isNil, mapValues, noop} from "lodash";
+import { isNil, mapValues, noop} from "lodash";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Address } from "viem";
 import { SpaceConfigSaveDetails } from "./Space";
+import { toast } from "sonner";
 import SpacePage from "./SpacePage";
 import {
   SpacePageData,
@@ -23,8 +24,6 @@ import {
   isProposalSpace,
   isChannelSpace,
 } from "@/common/types/spaceData";
-const FARCASTER_NOUNSPACE_AUTHENTICATOR_NAME = "farcaster:nounspace";
-
 interface PublicSpaceProps {
   spacePageData: SpacePageData;
   tabName: string;
@@ -49,6 +48,7 @@ export default function PublicSpace({
     getCurrentSpaceConfig,
     loadSpaceTabOrder,
     updateSpaceTabOrder,
+    commitSpaceTabOrder,
     createSpaceTab,
     deleteSpaceTab,
     renameSpaceTab,
@@ -58,7 +58,6 @@ export default function PublicSpace({
     registerChannelSpace,
     isTabLoading,
     isTabChecked,
-    commitAllSpaceChanges,
   } = useAppStore((state) => ({
     clearLocalSpaces: state.clearLocalSpaces,
     getCurrentSpaceId: state.currentSpace.getCurrentSpaceId,
@@ -79,7 +78,7 @@ export default function PublicSpace({
     commitSpaceTab: state.space.commitSpaceTabToDatabase,
     loadSpaceTabOrder: state.space.loadSpaceTabOrder,
     updateSpaceTabOrder: state.space.updateLocalSpaceOrder,
-    commitAllSpaceChanges: state.space.commitAllSpaceChanges,
+    commitSpaceTabOrder: state.space.commitSpaceOrderToDatabase,
     registerSpaceFid: state.space.registerSpaceFid,
     registerSpaceContract: state.space.registerSpaceContract,
     registerProposalSpace: state.space.registerProposalSpace,
@@ -94,7 +93,7 @@ export default function PublicSpace({
   useEffect(() => {
     const newSpaceId = spacePageData.spaceId ?? null;
     const newTabName = providedTabName || spacePageData.defaultTab;
-    
+
     setCurrentSpaceId(newSpaceId);
     setCurrentTabName(newTabName);
   }, [spacePageData.spaceId, providedTabName, spacePageData.defaultTab, setCurrentSpaceId, setCurrentTabName]);
@@ -105,46 +104,15 @@ export default function PublicSpace({
   }, [getCurrentSpaceConfig, currentSpaceId, currentTabName]);
 
   const currentConfig = getConfig();
-  
+
   // Identity states
-  const [currentUserFid, setCurrentUserFid] = useState<number | null>(null);
-  const [isSignedIntoFarcaster, setIsSignedIntoFarcaster] = useState(false);
+  const currentUserFid = useCurrentFid();
   const { wallets } = useWallets();
-
-  const {
-    lastUpdatedAt: authManagerLastUpdatedAt,
-    getInitializedAuthenticators: authManagerGetInitializedAuthenticators,
-    callMethod: authManagerCallMethod,
-  } = useAuthenticatorManager();
-
-  // Checks if the user is signed into Farcaster
-  useEffect(() => {
-    authManagerGetInitializedAuthenticators().then((authNames) => {
-      setIsSignedIntoFarcaster(
-        indexOf(authNames, FARCASTER_NOUNSPACE_AUTHENTICATOR_NAME) > -1,
-      );
-    });
-  }, [authManagerLastUpdatedAt]);
-
-  // Loads the current user's FID if they're signed into Farcaster
-  useEffect(() => {
-    if (!isSignedIntoFarcaster) return;
-    authManagerCallMethod({
-      requestingFidgetId: "root",
-      authenticatorId: FARCASTER_NOUNSPACE_AUTHENTICATOR_NAME,
-      methodName: "getAccountFid",
-      isLookup: true,
-    }).then((authManagerResp) => {
-      if (authManagerResp.result === "success") {
-        setCurrentUserFid(authManagerResp.value as number);
-      }
-    });
-  }, [isSignedIntoFarcaster, authManagerLastUpdatedAt]);
 
   // Load editable spaces when user signs in
   useEffect(() => {
     if (!currentUserFid) return;
-    
+
     loadEditableSpaces().catch(error => {
       console.error("Error loading editable spaces:", error);
     });
@@ -169,12 +137,12 @@ export default function PublicSpace({
   // Use isEditable logic from spaceData
   const isEditable = useMemo(() => {
     const result = spacePageData.isEditable(
-      currentUserFid || undefined, 
+      currentUserFid || undefined,
       wallets.map((w) => ({ address: w.address as Address }))
     );
-    
+
     return result;
-  }, [spacePageData, currentUserFid, wallets, isSignedIntoFarcaster]);
+  }, [spacePageData, currentUserFid, wallets]);
 
   // Config logic:
   // - If we have currentTabName and the tab is loaded in store, use it
@@ -286,13 +254,13 @@ export default function PublicSpace({
           } else if (isProfileSpace(spacePageData) && !isNil(currentUserFid)) {
             newSpaceId = await registerSpaceFid(
               currentUserFid,
-              spacePageData.defaultTab,
+              spacePageData.spaceName,
               spacePageData.spacePageUrl(spacePageData.defaultTab),
             );
           } else if (isChannelSpace(spacePageData) && !isNil(currentUserFid)) {
             const displayName = spacePageData.channelDisplayName || spacePageData.channelId;
             const moderatorFids = spacePageData.moderatorFids || [];
-            
+
             newSpaceId = await registerChannelSpace(
               spacePageData.channelId,
               displayName,
@@ -312,7 +280,7 @@ export default function PublicSpace({
             await loadEditableSpaces(); // First load
             await loadSpaceTab(newSpaceId, spacePageData.defaultTab);
 
-            
+
             // Invalidate cache by reloading editable spaces
             await loadEditableSpaces(); // Second load to invalidate cache
 
@@ -347,14 +315,15 @@ export default function PublicSpace({
   const saveConfig = useCallback(
     async (spaceConfig: SpaceConfigSaveDetails) => {
       if (isNil(currentSpaceId) || isNil(currentTabName)) {
-        throw new Error("Cannot save config until space and tab are initialized");
+        toast.error("Space is still initializing. Try again in a moment.");
+        return;
       }
       const saveableConfig = {
         ...spaceConfig,
         fidgetInstanceDatums: spaceConfig.fidgetInstanceDatums
           ? mapValues(spaceConfig.fidgetInstanceDatums, (datum) => ({
             ...datum,
-              config: {
+            config: {
               settings: datum.config.settings,
               editable: datum.config.editable,
               data: datum.config.data ?? {},
@@ -371,12 +340,12 @@ export default function PublicSpace({
   const commitConfig = useCallback(async () => {
     if (isNil(currentSpaceId) || isNil(currentTabName)) return;
     const network = isTokenSpace(spacePageData) ? spacePageData.tokenData?.network : undefined;
-    await commitAllSpaceChanges(currentSpaceId, network);
-  }, [currentSpaceId, currentTabName, spacePageData, commitAllSpaceChanges]);
+    commitSpaceTab(currentSpaceId, currentTabName, network);
+  }, [currentSpaceId, currentTabName, spacePageData, commitSpaceTab]);
 
   const resetConfig = useCallback(async () => {
     if (isNil(currentSpaceId) || isNil(currentTabName)) return;
-    
+
     let configToSave;
     if (isNil(remoteSpaces[currentSpaceId])) {
       configToSave = {
@@ -389,7 +358,7 @@ export default function PublicSpace({
         ...remoteConfig,
       };
     }
-    
+
     saveLocalSpaceTab(currentSpaceId, currentTabName, configToSave);
   }, [currentSpaceId, currentTabName, spacePageData.config, remoteSpaces, saveLocalSpaceTab]);
 
@@ -448,10 +417,18 @@ export default function PublicSpace({
       commitTab={async (tabName) => {
         return currentSpaceId
           ? commitSpaceTab(
-              currentSpaceId, 
-              tabName, 
-              isTokenSpace(spacePageData) ? spacePageData.tokenData?.network : undefined
-            )
+            currentSpaceId,
+            tabName,
+            isTokenSpace(spacePageData) ? spacePageData.tokenData?.network : undefined
+          )
+          : undefined;
+      }}
+      commitTabOrder={async () => {
+        return currentSpaceId
+          ? commitSpaceTabOrder(
+            currentSpaceId,
+            isTokenSpace(spacePageData) ? spacePageData.tokenData?.network as EtherScanChainName : undefined,
+          )
           : undefined;
       }}
       getSpacePageUrl={spacePageData.spacePageUrl}
