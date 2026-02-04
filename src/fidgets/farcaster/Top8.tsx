@@ -108,11 +108,9 @@ const Top8: React.FC<FidgetArgs<Top8FidgetSettings>> = ({ settings }) => {
   const normalizedSettingsUsername = username?.trim().replace(/^@/, "");
   const normalizedCurrentUsername = currentUsername?.trim().replace(/^@/, "");
   const shouldUseLoggedIn = !normalizedSettingsUsername;
-  const effectiveUsername =
-    (shouldUseLoggedIn ? normalizedCurrentUsername : normalizedSettingsUsername) ||
-    normalizedSettingsUsername ||
-    normalizedCurrentUsername ||
-    "nounspacetom";
+  const effectiveUsername = shouldUseLoggedIn
+    ? normalizedCurrentUsername
+    : normalizedSettingsUsername;
 
   const iframeUrl = effectiveUsername
     ? `https://top8-pi.vercel.app/${encodeURIComponent(effectiveUsername)}`
@@ -130,20 +128,22 @@ const Top8: React.FC<FidgetArgs<Top8FidgetSettings>> = ({ settings }) => {
       }}
       className="h-[calc(100dvh-220px)] md:h-full"
     >
-      <iframe
-        key={effectiveUsername}
-        src={iframeUrl}
-        title="Top 8"
-        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-        style={{
-          transform: `scale(${size})`,
-          transformOrigin: "0 0",
-          width: `${100 / size}%`,
-          height: `${100 / size}%`,
-        }}
-        className="size-full"
-        frameBorder="0"
-      />
+      {effectiveUsername ? (
+        <iframe
+          key={effectiveUsername}
+          src={iframeUrl}
+          title="Top 8"
+          sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+          style={{
+            transform: `scale(${size})`,
+            transformOrigin: "0 0",
+            width: `${100 / size}%`,
+            height: `${100 / size}%`,
+          }}
+          className="size-full"
+          frameBorder="0"
+        />
+      ) : null}
     </div>
   );
 };
