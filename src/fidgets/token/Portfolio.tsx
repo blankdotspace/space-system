@@ -13,6 +13,7 @@ import useCurrentFid from "@/common/lib/hooks/useCurrentFid";
 import { useLoadFarcasterUser } from "@/common/data/queries/farcaster";
 import { useNeynarUser } from "@/common/lib/hooks/useNeynarUser";
 import { useFarcasterSigner } from "@/fidgets/farcaster";
+import { useAppStore } from "@/common/data/stores/app";
 import PortfolioUsernameInput, {
   getPortfolioPrimaryAddress,
 } from "./PortfolioUsernameInput";
@@ -108,9 +109,14 @@ const Portfolio: React.FC<FidgetArgs<PortfolioFidgetSettings>> = ({
   const currentFid = useCurrentFid();
   const farcasterSigner = useFarcasterSigner("portfolio");
   const effectiveFid = (currentFid ?? farcasterSigner.fid) ?? -1;
+  const associatedFid = useAppStore(
+    (state) => state.account.getCurrentIdentity()?.associatedFids?.[0],
+  );
+  const lookupFid =
+    effectiveFid > 0 ? effectiveFid : associatedFid ?? -1;
   const { data: currentUserData } = useLoadFarcasterUser(
-    effectiveFid,
-    effectiveFid > 0 ? effectiveFid : undefined,
+    lookupFid,
+    lookupFid > 0 ? lookupFid : undefined,
   );
   const loggedInUsername = useMemo(() => {
     const username = currentUserData?.users?.[0]?.username;
@@ -134,8 +140,8 @@ const Portfolio: React.FC<FidgetArgs<PortfolioFidgetSettings>> = ({
 
   const resolvedFarcasterUsername = useMemo(() => {
     const normalized = (farcasterUsername || "").trim().replace(/^@/, "");
-    return normalized;
-  }, [farcasterUsername]);
+    return normalized || loggedInUsername || "";
+  }, [farcasterUsername, loggedInUsername]);
 
   const resolvedWalletAddresses = useMemo(() => {
     const normalized = (walletAddresses || "").trim();

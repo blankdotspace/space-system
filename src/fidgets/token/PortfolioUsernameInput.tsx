@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import TextInput from "@/common/components/molecules/TextInput";
 import { useNeynarUser } from "@/common/lib/hooks/useNeynarUser";
+import useCurrentFid from "@/common/lib/hooks/useCurrentFid";
+import { useLoadFarcasterUser } from "@/common/data/queries/farcaster";
+import { useFarcasterSigner } from "@/fidgets/farcaster";
+import { useAppStore } from "@/common/data/stores/app";
 
 type PortfolioInputProps = {
   id?: string;
@@ -35,10 +39,33 @@ const PortfolioUsernameInput: React.FC<PortfolioInputProps> = ({
   updateSettings,
   ...rest
 }) => {
+  const currentFid = useCurrentFid();
+  const farcasterSigner = useFarcasterSigner("portfolio-settings");
+  const associatedFid = useAppStore(
+    (state) => state.account.getCurrentIdentity()?.associatedFids?.[0],
+  );
+  const effectiveFid = (currentFid ?? farcasterSigner.fid) ?? -1;
+  const lookupFid = effectiveFid > 0 ? effectiveFid : associatedFid ?? -1;
+  const { data: currentUserData } = useLoadFarcasterUser(
+    lookupFid,
+    lookupFid > 0 ? lookupFid : undefined,
+  );
+  const loggedInUsername = useMemo(() => {
+    const username = currentUserData?.users?.[0]?.username;
+    return typeof username === "string" ? username.trim() : "";
+  }, [currentUserData]);
   const normalized = (value || "").trim().replace(/^@/, "");
   const { user } = useNeynarUser(normalized ? normalized : undefined);
   const primaryAddress = useMemo(() => getPrimaryAddress(user), [user]);
   const lastAppliedRef = useRef<string>("");
+  const lastAutoUsernameRef = useRef<string>("");
+
+  useEffect(() => {
+    if (normalized || !loggedInUsername || !updateSettings) return;
+    if (lastAutoUsernameRef.current === loggedInUsername) return;
+    lastAutoUsernameRef.current = loggedInUsername;
+    updateSettings({ farcasterUsername: loggedInUsername });
+  }, [normalized, loggedInUsername, updateSettings]);
 
   useEffect(() => {
     if (!normalized || !primaryAddress || !updateSettings) return;
